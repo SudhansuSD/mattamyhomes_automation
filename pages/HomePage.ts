@@ -12,9 +12,8 @@ export class HomePage {
     }
 
     async navigate() {
-        await this.page.goto('https://mattamyhomes.com/?country=CAN');
+        await this.page.goto("/?country=CAN");
     }
-
     async verifyPageLoaded() {
         await expect(this.page).toHaveTitle(/Mattamy Homes/i);
         await expect(this.heroSection).toBeVisible();

@@ -19,5 +19,6 @@ export class Footer {
         // await expect(this.footerSection).toBeVisible();
         await this.page.waitForTimeout(2000); // Wait for 2 seconds to ensure footer is fully loaded
         await expect(this.privacyPolicyLink).toBeVisible();
+        await this.privacyPolicyLink.hover();
     }
 }

@@ -2,11 +2,9 @@ import { Page, expect } from '@playwright/test';
 import { HomePage } from '../pages/HomePage';
 
 export class SearchPage extends HomePage {
-    readonly page: Page;
 
     constructor(page: Page) {
-        super(page);
-        this.page = page;
+        super(page); // ✅ parent owns page
     }
 
     async verifyFilterByPrice(): Promise<void> {
