@@ -12,12 +12,15 @@ export class HomePage {
     }
 
     async navigate() {
-        await this.page.goto("/?country=CAN");
+        await this.page.goto("/?country=CAN"); // Navigate to home page for Canada
     }
+
+    // Verify that the home page is loaded
     async verifyPageLoaded() {
         await expect(this.page).toHaveTitle(/Mattamy Homes/i);
         await expect(this.heroSection).toBeVisible();
     }
+    // Verify search market functionality
     async verifySearchMarket(market: string) {
 
         const searchBox = this.page.getByPlaceholder(/Search by City/i);

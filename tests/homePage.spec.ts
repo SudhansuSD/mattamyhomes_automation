@@ -25,7 +25,6 @@ test.describe('Mattamy Homes – Canada', () => {
     const footer = new Footer(page);
 
     await homePage.navigate();
-    await footer.scrollToFooter();
     await footer.verifyFooterLoaded();
   });
   test('Search market functionality should work', async ({ page }) => {
