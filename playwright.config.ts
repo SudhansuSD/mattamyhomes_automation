@@ -82,15 +82,18 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   use: {
-    baseURL: 'https://mattamyhomes.com/',
+    // baseURL: 'https://mattamyhomes.com/',
     headless: false,   // see browser UI
-    viewport: null,           // IMPORTANT: full screen
+    viewport: null,    // IMPORTANT: full screen
+    
     trace: 'retain-on-failure',
     launchOptions: {
       args: ['--start-maximized'],
     },
     video: 'retain-on-failure',
+    
   },
+  timeout: 50 * 60000,
   projects: [
     {
       name: 'Chromium',
