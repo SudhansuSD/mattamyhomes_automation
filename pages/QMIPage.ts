@@ -6,7 +6,7 @@ export class QMIPage extends HomePage {
     // QMI Home Search
     // -----------------------------
     async verifySearchByQMI() {
-        const heading = this.page.locator('h1');    
+        const heading = this.page.locator('h1');
         // Ensure page content is ready
         await expect(heading).toBeVisible({ timeout: 20000 });
         const countryContainer = this.page.locator('#countryContainer');
@@ -20,4 +20,20 @@ export class QMIPage extends HomePage {
             throw new Error(`Unknown country detected: ${countryText}`);
         }
     }
+
+    // async verifyPageLoaded() {
+    //     await expect(this.homeTitle).toBeVisible();
+    // }
+
+    // async verifyCommunityDetails() {
+    //     await expect(this.communitySection).toBeVisible();
+    // }
+
+    // async verifyPriceOrCTA() {
+    //     await expect(this.priceSection.or(this.requestInfoButton)).toBeVisible();
+    // }
+
+    // async verifyGalleryLoaded() {
+    //     await expect(this.gallery).toBeVisible();
+    // }
 }

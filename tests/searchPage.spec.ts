@@ -3,7 +3,7 @@
  * @description This file contains tests for the search functionality on the Mattamy Homes website.
 */
 import { test } from '@playwright/test';
-import { SearchPage } from '../pages/searchPage';
+import { SearchPage } from '../pages/SearchPage';
 import { CountryCode } from '../utils/country';
 
 const country: CountryCode = 'CAN';
