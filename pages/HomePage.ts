@@ -78,8 +78,10 @@ export class HomePage extends BasePage {
 
         if (community === 'Yorkville') {
             searchedCommunity = this.page.getByText(/Yorkville/i);
-        } else {
+        } else if (community === 'Blackhawk') {
             searchedCommunity = this.page.getByText(/Blackhawk/i);
+        }else {
+            throw new Error(`Unknown community: ${community}`);
         }
 
         await expect(searchedCommunity.first()).toBeVisible({ timeout: 15000 });
@@ -106,5 +108,24 @@ export class HomePage extends BasePage {
         } else {
             throw new Error(`Unknown country detected: ${countryText}`);
         }
+    }
+    async searchByQMI(qmiHome: string) {
+        const searchBox = this.page.getByPlaceholder(/Search by City/i);
+        await searchBox.click();
+        await searchBox.fill('');
+        await searchBox.pressSequentially(qmiHome, { delay: 500 });
+
+        let searchedQMI : Locator;
+        if (qmiHome === '1230 148 Avenue') {
+            searchedQMI = this.page.getByText(/1230 148 Avenue/i);
+        } else if (qmiHome === '123 Appalachian') {
+            searchedQMI = this.page.getByText(/123 Appalachian/i);
+        } else {
+            throw new Error(`Unknown QMI Home: ${qmiHome}`);
+        }
+        await expect(searchedQMI.first()).toBeVisible({ timeout: 15000 });
+
+        // 🔑 Same fix here
+        await searchedQMI.first().click({ noWaitAfter: true });
     }
 }
