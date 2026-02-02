@@ -12,7 +12,7 @@ export class HomePage extends BasePage {
     }
 
     async verifyPageLoaded() {
-        // ✅ Business-ready signal (not full load)
+        // Business-ready signal (not full load)
         await this.heroSection.waitFor({ state: 'visible', timeout: 30000 });
         await expect(this.page).toHaveTitle(/Mattamy Homes/i);
 

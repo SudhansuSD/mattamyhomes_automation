@@ -2,55 +2,58 @@ import { test } from '@playwright/test';
 import { HomePage } from '../pages/HomePage';
 import { Header } from '../pages/Header';
 import { Footer } from '../pages/Footer';
-import { CountryCode } from '../utils/country';
 import { QMIPage } from '../pages/QMIPage';
-const countries: CountryCode[] = ['CAN', 'USA'];
+import { getLocationConfig } from '../config/locations';
 
-countries.forEach((country) => {
-  test.describe(`Mattamy Homes – ${country}`, () => {
+const location = getLocationConfig();
 
-    test('Home page should load correctly', async ({ page }) => {
-      const homePage = new HomePage(page);
+test.describe(`Mattamy Homes – ${location.country}`, () => {
 
-      await homePage.navigate(country);
-      await homePage.verifyPageLoaded();
-    });
+  test('Home page should load correctly', async ({ page }) => {
+    const homePage = new HomePage(page);
 
-    test('Header navigation should be visible', async ({ page }) => {
-      const homePage = new HomePage(page);
-      const header = new Header(page);
-
-      await homePage.navigate(country);
-      await header.verifyHeaderLinksVisible();
-    });
-
-    test('Footer should be visible with Privacy Policy link', async ({ page }) => {
-      const homePage = new HomePage(page);
-      const footer = new Footer(page);
-
-      await homePage.navigate(country);
-      await footer.verifyFooterLoaded();
-    });
-    test('Search market functionality should work', async ({ page }) => {
-
-      const homePage = new HomePage(page);
-      await homePage.navigate(country);
-      await homePage.searchByMarket(country === 'CAN' ? 'Calgary' : 'Phoenix');
-      await homePage.verifySearchByMarket();
-
-    });
-    test('Search by community functionality should work', async ({ page }) => {
-
-      const homePage = new HomePage(page);
-      await homePage.navigate(country);
-      await homePage.searchByCommunity(country === 'CAN' ? 'Yorkville' : 'Blackhawk');
-      await homePage.verifySearchByCommunity();
-    });
-    test('Search by QMI home functionality should work', async ({ page }) => {
-      const homePage = new QMIPage(page);
-      await homePage.navigate(country);
-      await homePage.searchByQMI(country === 'CAN' ? '1230 148 Avenue' : '123 Appalachian');
-    });
-
+    await homePage.navigate();
+    await homePage.verifyPageLoaded();
   });
+
+  test('Header navigation should be visible', async ({ page }) => {
+    const homePage = new HomePage(page);
+    const header = new Header(page);
+
+    await homePage.navigate();
+    await header.verifyHeaderLinksVisible();
+  });
+
+  test('Footer should be visible with Privacy Policy link', async ({ page }) => {
+    const homePage = new HomePage(page);
+    const footer = new Footer(page);
+
+    await homePage.navigate();
+    await footer.verifyFooterLoaded();
+  });
+
+  test('Search market functionality should work', async ({ page }) => {
+    const homePage = new HomePage(page);
+
+    await homePage.navigate();
+    await homePage.searchByMarket(location.market);
+    await homePage.verifySearchByMarket();
+  });
+
+  test('Search by community functionality should work', async ({ page }) => {
+    const homePage = new HomePage(page);
+
+    await homePage.navigate();
+    await homePage.searchByCommunity(location.community);
+    await homePage.verifySearchByCommunity();
+  });
+
+  test('Search by QMI home functionality should work', async ({ page }) => {
+    const qmiPage = new QMIPage(page);
+
+    await qmiPage.navigate();
+    await qmiPage.searchByQMI(location.qmiAddress);
+    await qmiPage.verifySearchByQMI();
+  });
+
 });

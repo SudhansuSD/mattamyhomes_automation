@@ -1,41 +1,40 @@
-/** Search Page Tests 
- * @file tests/searchPage.spec.ts
- * @description This file contains tests for the search functionality on the Mattamy Homes website.
-*/
+/**
+ * ENV=STAGE COUNTRY=USA npx playwright test tests/searchPage.spec.ts
+ * Search Page Tests
+ * @file tests/search/searchPage.spec.ts
+ * @description Tests for search and filter functionality on Mattamy Homes
+ */
+
 import { test } from '@playwright/test';
 import { SearchPage } from '../pages/SearchPage';
-import { CountryCode } from '../utils/country';
+import { getLocationConfig } from '../config/locations';
 
-const country: CountryCode = 'CAN';
+const location = getLocationConfig();
 
-test.describe('Search Page Tests', () => {
+test.describe(`Search Page Tests – ${location.country}`, () => {
 
-    test('Verify filter by price Functionality', async ({ page }) => {
+  test('Verify filter by price functionality', async ({ page }) => {
+    const searchPage = new SearchPage(page);
 
-        const searchPage = new SearchPage(page);    
-        // Navigate to the Mattamy Homes Canada homepage
+    await searchPage.navigate();
 
-        await searchPage.navigate(country);
-        // Verify market search functionality
-        await searchPage.searchByMarket("GTA");
-        await searchPage.verifySearchByMarket();
-        // Verify filter by price functionality
-        await searchPage.filterByPrice();
-        await searchPage.verifyCommunityResults();
+    await searchPage.searchByMarket(location.market);
+    await searchPage.verifySearchByMarket();
 
-    });
-    test('Verify filter by beadrooms and bathrooms functionality', async ({ page }) => {
+    await searchPage.filterByPrice();
+    await searchPage.verifyCommunityResults();
+  });
 
-        const searchPage = new SearchPage(page);    
-        // Navigate to the Mattamy Homes Canada homepage')
-        await searchPage.navigate(country);
-        // Verify market search functionality
-        await searchPage.searchByMarket("Calgary");
-        await searchPage.verifySearchByMarket(); 
-        // Verify filter by bedrooms and bathrooms functionality
-        await searchPage.filterByBedroomsAndBathrooms(3, 3);
-                await searchPage.verifyCommunityResults();
+  test('Verify filter by bedrooms and bathrooms functionality', async ({ page }) => {
+    const searchPage = new SearchPage(page);
 
+    await searchPage.navigate();
 
-    });
+    await searchPage.searchByMarket(location.market);
+    await searchPage.verifySearchByMarket();
+
+    await searchPage.filterByBedroomsAndBathrooms(3, 3);
+    await searchPage.verifyCommunityResults();
+  });
+
 });
