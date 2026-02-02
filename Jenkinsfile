@@ -1,19 +1,15 @@
 pipeline {
     agent any
 
-    // tools {
-    //     nodejs 'node18'
-    // }
-
     parameters {
         choice(name: 'ENV', choices: ['STAGE', 'PROD'], description: 'Test Environment')
-        choice(name: 'LOCATION', choices: ['CAN', 'USA'], description: 'Test Location')
+        choice(name: 'LOCATION', choices: ['CAN', 'US'], description: 'Test Location')
     }
 
     environment {
-        EMAIL_USER = credentials('EMAIL_USER')
-        EMAIL_PASS = credentials('EMAIL_PASS')
-        EMAIL_TO   = 'qa-team@company.com'
+        EMAIL_USER = credentials('ssdas@ex2india.com')
+        EMAIL_PASS = credentials('Sudhansu$89')
+        EMAIL_TO   = 'sudhansusd@gmail.com'
     }
 
     stages {
@@ -24,16 +20,16 @@ pipeline {
             }
         }
 
-    stage('Install Dependencies') {
-        steps {
-            sh '''
-            node -v
-            npm -v
-            npm ci
-            npx playwright install --with-deps
-            '''
+        stage('Install Dependencies') {
+            steps {
+                sh '''
+                  node -v
+                  npm -v
+                  npm ci
+                  npx playwright install --with-deps
+                '''
+            }
         }
-    }
 
         stage('Run Playwright Tests') {
             steps {
@@ -47,9 +43,9 @@ pipeline {
     }
 
     post {
-
         always {
-            archiveArtifacts artifacts: 'reports/**/*.zip', allowEmptyArchive: true
+            // ✅ This now runs WITH workspace context
+            archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
         }
 
         success {
