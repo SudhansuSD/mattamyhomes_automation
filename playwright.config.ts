@@ -7,6 +7,7 @@ export default defineConfig({
     viewport: null,    // IMPORTANT: full screen
     
     trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
     launchOptions: {
       args: ['--start-maximized'],
     },
@@ -30,4 +31,10 @@ export default defineConfig({
     //   use: { browserName: 'webkit' },
     // },
   ],
+  reporter: [
+    ['html', { 
+      outputFolder: 'reports/html',
+      open: 'on-failure'   // change to 'on-failure' if you want
+    }]
+  ]
 });
