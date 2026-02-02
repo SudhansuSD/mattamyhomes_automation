@@ -1,11 +1,10 @@
 {
-  "name": "playwright_typescript-framework",
+  "name": "mattamyhomes_automation",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test:stage": "cross-env ENV=STAGE npx playwright test",
-    "test:prod": "cross-env ENV=PROD npx playwright test"
+    "test": "playwright test"
   },
   "keywords": [],
   "author": "",
