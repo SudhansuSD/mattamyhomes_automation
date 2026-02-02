@@ -7,8 +7,8 @@ pipeline {
     }
 
     environment {
-        EMAIL_USER = credentials('ssdas@ex2india.com')
-        EMAIL_PASS = credentials('Sudhansu$89')
+        EMAIL_USER = credentials('EMAIL_USER')
+        EMAIL_PASS = credentials('EMAIL_PASS')
         EMAIL_TO   = 'sudhansusd@gmail.com'
     }
 
@@ -22,7 +22,7 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                sh '''
+                bat '''
                   node -v
                   npm -v
                   npm ci
@@ -33,9 +33,9 @@ pipeline {
 
         stage('Run Playwright Tests') {
             steps {
-                sh """
-                  export ENV=${params.ENV}
-                  export LOCATION=${params.LOCATION}
+                bat """
+                  set ENV=${params.ENV}
+                  set LOCATION=${params.LOCATION}
                   npm test
                 """
             }
@@ -44,7 +44,6 @@ pipeline {
 
     post {
         always {
-            // ✅ This now runs WITH workspace context
             archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
         }
 
