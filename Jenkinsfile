@@ -1,9 +1,9 @@
 pipeline {
     agent any
 
-    tools {
-        nodejs 'node18'
-    }
+    // tools {
+    //     nodejs 'node18'
+    // }
 
     parameters {
         choice(name: 'ENV', choices: ['STAGE', 'PROD'], description: 'Test Environment')
@@ -24,12 +24,16 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
-            steps {
-                sh 'npm ci'
-                sh 'npx playwright install --with-deps'
-            }
+    stage('Install Dependencies') {
+        steps {
+            sh '''
+            node -v
+            npm -v
+            npm ci
+            npx playwright install --with-deps
+            '''
         }
+    }
 
         stage('Run Playwright Tests') {
             steps {
