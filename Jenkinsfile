@@ -47,16 +47,12 @@ pipeline {
             archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
         }
 
-        success {
-            echo '✅ Tests passed successfully'
-        }
-
         failure {
             echo '❌ Tests failed'
         }
 
-        cleanup {
-            echo '🧹 Workspace cleanup complete'
+        success {
+            echo '✅ Tests passed'
         }
     }
 }
