@@ -22,14 +22,14 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                bat '''
-                  node -v
-                  npm -v
-                  npm ci
-                  npx playwright install --with-deps
-                '''
+                bat 'node -v'
+                bat 'npm -v'
+                bat 'npm config list'
+                bat 'npm ci --verbose'
+                bat 'npx playwright install --with-deps'
             }
         }
+
 
         stage('Run Playwright Tests') {
             steps {
