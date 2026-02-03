@@ -3,7 +3,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   use: {
     // baseURL: 'https://mattamyhomes.com/',
-    headless: true,   // see browser UI
+    headless: false,   // see browser UI
     viewport: null,    // IMPORTANT: full screen
     
     trace: 'retain-on-failure',

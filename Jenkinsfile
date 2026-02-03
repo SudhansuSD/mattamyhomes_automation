@@ -44,15 +44,61 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'reports/**/*', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'playwright-report/**, test-results/**', fingerprint: true
         }
 
         failure {
-            echo '❌ Tests failed'
-        }
+            echo '❌ Tests failed – sending email'
 
-        success {
-            echo '✅ Tests passed'
-        }
+            emailext(
+                subject: "❌ Playwright FAILED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: """
+    Hi Team,
+
+    Playwright automation execution FAILED.
+
+    Job: ${env.JOB_NAME}
+    Build Number: ${env.BUILD_NUMBER}
+    Environment: ${ENV}
+    Country: ${LOCATION}
+
+    🔗 Jenkins Build:
+    ${env.BUILD_URL}
+
+    Playwright Report:
+    ${env.BUILD_URL}artifact/playwright-report/index.html
+
+    Regards,
+    Jenkins
+    """,
+            to: "${EMAIL_USER}",
+            mimeType: 'text/html'
+        )
     }
+
+    success {
+        emailext(
+            subject: "✅ Playwright PASSED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            body: """
+    Hi Team,
+
+    Playwright automation execution PASSED 🎉
+
+    Job: ${env.JOB_NAME}
+    Build Number: ${env.BUILD_NUMBER}
+    Environment: ${ENV}
+    Country: ${LOCATION}
+
+    Report:
+    ${env.BUILD_URL}artifact/playwright-report/index.html
+
+    Regards,
+    Jenkins
+    """,
+            to: "${EMAIL_USER}",
+            mimeType: 'text/html'
+        )
+    }
+    }
+
 }

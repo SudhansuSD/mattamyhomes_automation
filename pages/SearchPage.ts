@@ -2,84 +2,87 @@ import { Page, expect } from '@playwright/test';
 import { HomePage } from '../pages/HomePage';
 
 export class SearchPage extends HomePage {
-
     constructor(page: Page) {
         super(page);
     }
-    async filterByPrice(): Promise<void> {
 
-        // Ensure page is fully interactive
+    /* -------------------------
+       Common helpers
+    --------------------------*/
+
+    private async openFilter(buttonName: string): Promise<void> {
+        const filterBtn = this.page.getByRole('button', { name: buttonName });
+        await filterBtn.waitFor({ state: 'visible' });
+        await filterBtn.click();
+    }
+
+    private async selectOption(label: string): Promise<void> {
+        const option = this.page.getByRole('button', { name: label, exact: true });
+        await option.waitFor({ state: 'visible' });
+        await option.click();
+    }
+
+    /* -------------------------
+       Price filter
+    --------------------------*/
+
+    async filterByPrice(minPrice: string, maxPrice: string): Promise<void> {
         await this.page.waitForLoadState('domcontentloaded');
 
-        // Open Price filter
-        const priceFilterBtn = await this.page.getByRole('button', { name: 'Dropdown price filter: ' });
-        await priceFilterBtn.waitFor({ state: 'visible' });
-        await priceFilterBtn.click();
+        await this.openFilter('Dropdown price filter:');
 
-        // Select Min Price
-        const minPriceInput = this.page.getByText('$ No min', { exact: true });
-        await minPriceInput.waitFor({ state: 'visible' });
-        await minPriceInput.click();
+        await this.page.getByText('$ No min', { exact: true }).click();
+        await this.selectOption(minPrice);
 
-        const minOption = this.page.getByRole('button', { name: '$ 400K', exact: true });
-        await minOption.waitFor({ state: 'visible' });
-        await minOption.click();
+        await this.openFilter('Dropdown price filter:');
 
-        // Select Max Price
-        await priceFilterBtn.click({ delay: 1000 });
+        await this.page.getByText('$ No Max', { exact: true }).click();
+        await this.selectOption(maxPrice);
+    }
 
-        const maxPriceInput = this.page.getByText('$ No Max', { exact: true });
-        await maxPriceInput.waitFor({ state: 'visible' });
-        await maxPriceInput.click();
+    /* -------------------------
+       Beds & Baths filter
+    --------------------------*/
 
-        const maxOption = this.page.getByRole('button', { name: '$ 500K', exact: true });
-        await maxOption.waitFor({ state: 'visible' });
-        await maxOption.click();
-
-    };
-
-    async filterByBedroomsAndBathrooms(minBeds: number, minBaths: number): Promise<void> {
-        // Ensure page is fully interactive
+    async filterByBedroomsAndBathrooms(
+        minBeds: number,
+        minBaths: number
+    ): Promise<void> {
         await this.page.waitForLoadState('domcontentloaded');
 
-        // Open bed & bath filter
-        const bedBathFilterBtn = await this.page.getByRole('button', { name: 'Select Beds & Baths' });
-        await bedBathFilterBtn.waitFor({ state: 'visible' });
-        await bedBathFilterBtn.click({ delay: 500 });
+        await this.openFilter('Select Beds & Baths');
 
-        // Select bedroom filters
-        const beds = await this.page.locator('.truncate').filter({ hasText: 'Bedrooms' });
-        await beds.waitFor({ state: 'visible' });
-        await beds.click();
+        await this.selectCategory('Bedrooms', `${minBeds} Bedrooms`);
+        await this.selectCategory('Bathrooms', `${minBaths} Bathrooms`);
+    }
 
-        const noOfBeds = await this.page.locator('span').filter({ hasText: '3 Bedrooms' });
-        await noOfBeds.waitFor({ state: 'visible' });
-        await noOfBeds.click();
+    private async selectCategory(
+        categoryName: 'Bedrooms' | 'Bathrooms',
+        optionText: string
+    ): Promise<void> {
+        const category = this.page.locator('.truncate', { hasText: categoryName });
+        await category.click();
 
-        // Select bathroom filters
-        const baths = await this.page.locator('.truncate').filter({ hasText: 'Bathrooms' });
-        await baths.waitFor({ state: 'visible' });
-        await baths.click();
+        const option = this.page.locator('span', { hasText: optionText });
+        await option.waitFor({ state: 'visible' });
+        await option.click();
+    }
 
-        const noOfBaths = await this.page.locator('span').filter({ hasText: '3 Bathrooms' });
-        await noOfBaths.waitFor({ state: 'visible' });
-        await noOfBaths.click();
+    /* -------------------------
+       Results validation
+    --------------------------*/
 
-    };
-    // Verify results exist (NOT hardcoded count
     async verifyCommunityResults(): Promise<void> {
-        const communityResultsHeader = this.page.getByRole('heading', {
-            name: 'Communities',
-        });
-        if (await communityResultsHeader.isVisible()) {
+        const header = this.page.getByRole('heading', { name: 'Communities' });
 
-            const communityCards = await this.page.locator('.bhUBmB');
+        if (await header.isVisible()) {
+            const communityCards = this.page.locator('.bhUBmB');
             await expect(communityCards).not.toHaveCount(0);
+            ;
+        } else {
+            console.info(
+                'No community results found for the selected filters.'
+            );
         }
-        else {
-            console.log("No results found for the selected bedroom and bathroom filters.");
-        };
-    };
-
-
-};
+    }
+}
