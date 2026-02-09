@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        EMAIL_TO = 'sudhansusd@gmail.com'
+        EMAIL_TO = 'ssdas@ex2india.com'
     }
 
     stages {
@@ -70,7 +70,7 @@ pipeline {
                 """,
                         to: EMAIL_TO,
                         from: "ssdas@ex2india.com",
-                        replyTo: "sudhansusd@gmail.com",
+                        replyTo: "ssdas@ex2india.com",
                         mimeType: 'text/html'
             )
         }
@@ -97,7 +97,7 @@ pipeline {
                 """,
                     to: EMAIL_TO,
                     from: "ssdas@ex2india.com",
-                    replyTo: "sudhansusd@gmail.com",
+                    replyTo: "ssdas@ex2india.com",
                     mimeType: 'text/html'
             )
         }
