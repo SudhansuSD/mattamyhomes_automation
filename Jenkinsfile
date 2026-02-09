@@ -22,7 +22,6 @@ pipeline {
             steps {
                 bat 'node -v'
                 bat 'npm -v'
-                bat 'npm config list'
                 bat 'npm ci --verbose'
                 bat 'npx playwright install --with-deps'
             }
@@ -47,60 +46,52 @@ pipeline {
         failure {
             echo '❌ Tests failed – sending email'
 
-            emailext(
+            mail(
+                to: EMAIL_TO,
                 subject: "❌ Playwright FAILED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """\
-                Hi Team,
+                body: """
+Hi Team,
 
-                Playwright automation execution FAILED.
+Playwright automation execution FAILED.
 
-                Job: ${env.JOB_NAME}
-                Build Number: ${env.BUILD_NUMBER}
-                Environment: ${params.ENV}
-                Country: ${params.LOCATION}
+Job: ${env.JOB_NAME}
+Build Number: ${env.BUILD_NUMBER}
+Environment: ${params.ENV}
+Country: ${params.LOCATION}
 
-                Jenkins Build:
-                ${env.BUILD_URL}
+Jenkins Build:
+${env.BUILD_URL}
 
-                Playwright Report:
-                ${env.BUILD_URL}artifact/playwright-report/index.html
+Playwright Report:
+${env.BUILD_URL}artifact/playwright-report/index.html
 
-                Regards,
-                Jenkins
-                """,
-                        to: EMAIL_TO,
-                        from: "ssdas@ex2india.com",
-                        replyTo: "ssdas@ex2india.com",
-                        mimeType: 'text/html'
+Regards,
+Jenkins
+"""
             )
         }
-
 
         success {
-            emailext(
+            mail(
+                to: EMAIL_TO,
                 subject: "✅ Playwright PASSED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """\
-                Hi Team,
+                body: """
+Hi Team,
 
-                Playwright automation execution PASSED 🎉
+Playwright automation execution PASSED 🎉
 
-                Job: ${env.JOB_NAME}
-                Build Number: ${env.BUILD_NUMBER}
-                Environment: ${params.ENV}
-                Country: ${params.LOCATION}
+Job: ${env.JOB_NAME}
+Build Number: ${env.BUILD_NUMBER}
+Environment: ${params.ENV}
+Country: ${params.LOCATION}
 
-                Playwright Report:
-                ${env.BUILD_URL}artifact/playwright-report/index.html
+Playwright Report:
+${env.BUILD_URL}artifact/playwright-report/index.html
 
-                Regards,
-                Jenkins
-                """,
-                    to: EMAIL_TO,
-                    from: "ssdas@ex2india.com",
-                    replyTo: "ssdas@ex2india.com",
-                    mimeType: 'text/html'
+Regards,
+Jenkins
+"""
             )
         }
-
     }
 }
