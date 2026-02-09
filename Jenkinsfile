@@ -45,11 +45,11 @@ pipeline {
         }
 
         failure {
-            echo 'Tests failed – sending email'
+            echo 'Tests failed - sending email'
 
             mail(
                 to: EMAIL_TO,
-                subject: "Playwright FAILED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                subject: "Playwright FAILED - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: """
 Hi Team,
 
@@ -75,7 +75,7 @@ Jenkins
         success {
             mail(
                 to: EMAIL_TO,
-                subject: "Playwright PASSED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                subject: "Playwright PASSED - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: """
 Hi Team,
 
