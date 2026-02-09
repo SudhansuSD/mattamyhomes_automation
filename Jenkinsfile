@@ -30,6 +30,7 @@ pipeline {
         stage('Run Playwright Tests') {
             steps {
                 bat """
+                    chcp 65001
                     set ENV=${params.ENV}
                     set LOCATION=${params.LOCATION}
                     npm test
@@ -44,11 +45,11 @@ pipeline {
         }
 
         failure {
-            echo '❌ Tests failed – sending email'
+            echo 'Tests failed – sending email'
 
             mail(
                 to: EMAIL_TO,
-                subject: "❌ Playwright FAILED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                subject: "Playwright FAILED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: """
 Hi Team,
 
@@ -63,7 +64,7 @@ Jenkins Build:
 ${env.BUILD_URL}
 
 Playwright Report:
-${env.BUILD_URL}artifact/playwright-report/index.html
+${env.BUILD_URL}artifact/playwright-report/
 
 Regards,
 Jenkins
@@ -74,7 +75,7 @@ Jenkins
         success {
             mail(
                 to: EMAIL_TO,
-                subject: "✅ Playwright PASSED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                subject: "Playwright PASSED – ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: """
 Hi Team,
 
@@ -86,7 +87,7 @@ Environment: ${params.ENV}
 Country: ${params.LOCATION}
 
 Playwright Report:
-${env.BUILD_URL}artifact/playwright-report/index.html
+${env.BUILD_URL}artifact/playwright-report/
 
 Regards,
 Jenkins

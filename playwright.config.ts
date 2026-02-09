@@ -32,9 +32,9 @@ export default defineConfig({
     // },
   ],
   reporter: [
-    ['html', { 
-      outputFolder: 'reports/html',
-      open: 'on-failure'   // change to 'on-failure' if you want
-    }]
-  ]
+    ['html', 
+      { open: 'never', 
+        outputFolder: 'playwright-report' 
+      }]
+  ],
 });
