@@ -5,14 +5,14 @@ export default defineConfig({
     // baseURL: 'https://mattamyhomes.com/',
     headless: false,   // see browser UI
     viewport: null,    // IMPORTANT: full screen
-    
+
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: {
       args: ['--start-maximized'],
     },
     video: 'retain-on-failure',
-    
+
   },
   workers: 1, // 🔒 force single worker
   fullyParallel: false,
@@ -32,9 +32,8 @@ export default defineConfig({
     // },
   ],
   reporter: [
-    ['html', 
-      { open: 'never', 
-        outputFolder: 'playwright-report' 
-      }]
+    ['html', { open: 'never', outputFolder: 'playwright-report' }],
+    ['json', { outputFile: 'test-results/results.json' }]
+
   ],
 });

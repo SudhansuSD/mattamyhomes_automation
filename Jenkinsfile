@@ -2,8 +2,16 @@ pipeline {
     agent any
 
     parameters {
-        choice(name: 'ENV', choices: ['STAGE', 'PROD'], description: 'Test Environment')
-        choice(name: 'LOCATION', choices: ['CAN', 'US'], description: 'Test Location')
+        choice(
+            name: 'ENV',
+            choices: ['STAGE', 'PROD'],
+            description: 'Test Environment'
+        )
+        choice(
+            name: 'LOCATION',
+            choices: ['CAN', 'US'],
+            description: 'Test Location'
+        )
     }
 
     environment {
@@ -41,7 +49,12 @@ pipeline {
 
     post {
         always {
-            archiveArtifacts artifacts: 'playwright-report/**, test-results/**', fingerprint: true
+            // Archive Playwright reports (Windows-safe)
+            archiveArtifacts(
+                artifacts: '**/playwright-report/**, **/test-results/**',
+                fingerprint: true,
+                allowEmptyArchive: false
+            )
         }
 
         failure {
@@ -50,7 +63,7 @@ pipeline {
             mail(
                 to: EMAIL_TO,
                 subject: "Playwright FAILED - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """
+                body: """\
 Hi Team,
 
 Playwright automation execution FAILED.
@@ -63,7 +76,7 @@ Country: ${params.LOCATION}
 Jenkins Build:
 ${env.BUILD_URL}
 
-Playwright Report:
+Playwright Report (download & open locally):
 ${env.BUILD_URL}artifact/playwright-report/
 
 Regards,
@@ -76,17 +89,17 @@ Jenkins
             mail(
                 to: EMAIL_TO,
                 subject: "Playwright PASSED - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: """
+                body: """\
 Hi Team,
 
-Playwright automation execution PASSED 🎉
+Playwright automation execution PASSED successfully.
 
 Job: ${env.JOB_NAME}
 Build Number: ${env.BUILD_NUMBER}
 Environment: ${params.ENV}
 Country: ${params.LOCATION}
 
-Playwright Report:
+Playwright Report (download & open locally):
 ${env.BUILD_URL}artifact/playwright-report/
 
 Regards,
