@@ -11,33 +11,38 @@ export class SearchPage extends HomePage {
     --------------------------*/
 
     private async openFilter(buttonName: string): Promise<void> {
-        const filterBtn = this.page.getByRole('button', { name: buttonName });
-        await filterBtn.waitFor({ state: 'visible' });
-        await filterBtn.click();
+
+        await this.page.locator(
+            'button[aria-label*="' + buttonName + '"]'
+        )
+            .click({ timeout: 15000 });
     }
 
     private async selectOption(label: string): Promise<void> {
-        const option = this.page.getByRole('button', { name: label, exact: true });
-        await option.waitFor({ state: 'visible' });
-        await option.click();
+
+        await this.page.waitForLoadState('domcontentloaded');
+        await this.page.getByText(label)
+            .click({ timeout: 15000 });
     }
 
     /* -------------------------
        Price filter
     --------------------------*/
 
-    async filterByPrice(minPrice: string, maxPrice: string): Promise<void> {
+    async filterByPrice(): Promise<void> {
+
+
         await this.page.waitForLoadState('domcontentloaded');
 
-        await this.openFilter('Dropdown price filter:');
+        await this.openFilter('Dropdown price filter');
 
         await this.page.getByText('$ No min', { exact: true }).click();
-        await this.selectOption(minPrice);
+        await this.selectOption('400K');
 
-        await this.openFilter('Dropdown price filter:');
+        await this.openFilter('Dropdown price filter');
 
         await this.page.getByText('$ No Max', { exact: true }).click();
-        await this.selectOption(maxPrice);
+        await this.selectOption('500K');
     }
 
     /* -------------------------
@@ -60,14 +65,14 @@ export class SearchPage extends HomePage {
         categoryName: 'Bedrooms' | 'Bathrooms',
         optionText: string
     ): Promise<void> {
-        const category = this.page.locator('.truncate', { hasText: categoryName });
-        await category.click();
+        await this.page
+            .locator('.truncate', { hasText: new RegExp(categoryName, 'i') })
+            .click({ force: true });
 
-        const option = this.page.locator('span', { hasText: optionText });
-        await option.waitFor({ state: 'visible' });
-        await option.click();
+        await this.page
+            .locator('span', { hasText: optionText })
+            .click({ timeout: 15000, force: true });
     }
-
     /* -------------------------
        Results validation
     --------------------------*/

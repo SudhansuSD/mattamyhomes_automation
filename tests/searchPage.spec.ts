@@ -11,7 +11,7 @@ import { getLocationConfig } from '../config/locations';
 
 const location = getLocationConfig();
 
-test.describe(`Search Page Tests – ${location.country}`, () => {
+test.describe(`Search Page Tests - ${location.country}`, () => {
 
   test('Verify filter by price functionality', async ({ page }) => {
     const searchPage = new SearchPage(page);

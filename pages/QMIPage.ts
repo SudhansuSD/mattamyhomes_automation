@@ -28,7 +28,7 @@ export class QMIPage extends HomePage {
         await expect(countryContainer).toBeVisible({ timeout: 10000 });
         const countryText = (await countryContainer.textContent())?.toUpperCase() || '';
         if (countryText.includes('CANADA')) {
-            await expect(this.heading).toContainText(/1230 148 Avenue NW/i);
+            await expect(this.heading).toContainText(/1234 148 Avenue NW/i);
         } else if (countryText.includes('USA')) {
             await expect(this.heading).toContainText(/123 Appalachian Trail/i);
         } else {

@@ -4,15 +4,27 @@ import { BasePage } from './BasePage';
 export class HomePage extends BasePage {
     readonly heroSection: Locator;
     readonly header: Locator;
+    readonly searchBox: Locator;
+    // readonly searchResults: Locator;
 
     constructor(page: Page) {
         super(page);
         this.heroSection = page.locator('section').first();
         this.header = page.locator('header');
+
+        // ⚠️ keep original casing
+        this.searchBox = page.getByPlaceholder(/Search by City/i);
+
+        // 🔑 dropdown container (this is the key fix)
+        // this.searchResults = page.locator('[role="listbox"]');
     }
 
+    // ----------------------------------
+    // Page Load
+    // ----------------------------------
     async verifyPageLoaded() {
-        // Business-ready signal (not full load)
+
+        await this.page.waitForLoadState('domcontentloaded');
         await this.heroSection.waitFor({ state: 'visible', timeout: 30000 });
         await expect(this.page).toHaveTitle(/Mattamy Homes/i);
 
@@ -23,271 +35,135 @@ export class HomePage extends BasePage {
         }
     }
 
-    // -----------------------------
+    // ----------------------------------
     // Market Search
-    // -----------------------------
-    async searchByMarket(market: string) {
-        const searchBox = this.page.getByPlaceholder(/Search by City/i);
+    // ----------------------------------
+    async searchByMarket(market: 'Calgary' | 'GTA' | 'Phoenix') {
+        await this.typeIntoSearch(market);
 
-        await searchBox.click();
-        await searchBox.fill(''); // reset
-        await searchBox.pressSequentially(market, { delay: 500 });
+        const marketOption = this.getMarketLocator(market).first();
+        await this.clickSearchResult(marketOption);
 
-
-        let searchedMarket: Locator;
-
-        if (market === 'Calgary') {
-            searchedMarket = this.page.getByText('Calgary, AB');
-        } else if (market === 'GTA') {
-            searchedMarket = this.page.getByText('GTA, ON');
-        } else {
-            searchedMarket = this.page.getByText('Phoenix, AZ');
-        }
-
-        await expect(searchedMarket.first()).toBeVisible({ timeout: 15000 });
-
-        // 🔑 KEY FIX → stop Playwright waiting for navigation
-        await searchedMarket.first().click({ noWaitAfter: true });
-
-        // ✅ Wait for SPA routing signal
-        await this.page.waitForURL(
-            url => url.toString().includes('metro='),
-            { timeout: 20000 }
-        );
+        await this.waitForMarketRouting();
     }
 
     async verifySearchByMarket() {
-        const url = new URL(this.page.url());
-        if (this.page.url().includes('country=CAN')) {
-            expect(url.searchParams.get('metro')).toMatch(/Calgary|GTA/i);
+
+        await this.page.waitForLoadState('domcontentloaded');
+        const params = new URL(this.page.url()).searchParams;
+
+        if (params.get('country') === 'CAN') {
+            expect(params.get('metro')).toMatch(/calgary|gta/i);
         } else {
-            expect(url.searchParams.get('metro')).toMatch(/Phoenix/i);
+            expect(params.get('metro')).toMatch(/phoenix/i);
         }
     }
 
-    // -----------------------------
+    // ----------------------------------
     // Community Search
-    // -----------------------------
-    async searchByCommunity(community: string) {
+    // ----------------------------------
+    async searchByCommunity(community: 'Yorkville' | 'Blackhawk') {
+        await this.typeIntoSearch(community);
 
-        const searchBox = this.page.getByPlaceholder(/Search by City/i);
-        let searchedCommunity: Locator;
-        await searchBox.click();
-        await searchBox.fill('');
-        await searchBox.pressSequentially(community, { delay: 500 });
-
-        if (community === 'Yorkville') {
-            searchedCommunity = this.page.getByText(/Yorkville/i);
-        } else if (community === 'Blackhawk') {
-            searchedCommunity = this.page.getByText(/Blackhawk/i);
-        } else {
-            throw new Error(`Unknown community: ${community}`);
-        }
-
-        await expect(searchedCommunity.first()).toBeVisible({ timeout: 15000 });
-
-        // 🔑 Same fix here
-        await searchedCommunity.first().click({ noWaitAfter: true });
+        const communityOption = this.getCommunityLocator(community).first();
+        await this.clickSearchResult(communityOption);
     }
 
     async verifySearchByCommunity() {
-        const heading = this.page.locator('h1');
 
-        // Ensure page content is ready
+        await this.page.waitForLoadState('domcontentloaded');
+        const heading = this.page.locator('h1');
         await expect(heading).toBeVisible({ timeout: 20000 });
 
         const countryContainer = this.page.locator('#countryContainer');
         await expect(countryContainer).toBeVisible({ timeout: 10000 });
 
-        const countryText = (await countryContainer.textContent())?.toUpperCase() || '';
+        const countryText = (await countryContainer.textContent() || '').toUpperCase();
 
-        if (countryText.includes('CANADA')) {
-            await expect(heading).toContainText(/Yorkville/i);
+        if (countryText.includes('CAN')) {
+            await expect(heading).toContainText(/yorkville/i);
         } else if (countryText.includes('USA')) {
-            await expect(heading).toContainText(/Blackhawk/i);
+            await expect(heading).toContainText(/blackhawk/i);
         } else {
             throw new Error(`Unknown country detected: ${countryText}`);
         }
     }
-    async searchByQMI(qmiHome: string) {
-        const searchBox = this.page.getByPlaceholder(/Search by City/i);
-        await searchBox.click();
-        await searchBox.fill('');
-        await searchBox.pressSequentially(qmiHome, { delay: 500 });
 
-        let searchedQMI: Locator;
-        if (qmiHome === '1230 148 Avenue') {
-            searchedQMI = this.page.getByText(/1230 148 Avenue/i);
-        } else if (qmiHome === '123 Appalachian') {
-            searchedQMI = this.page.getByText(/123 Appalachian/i);
-        } else {
-            throw new Error(`Unknown QMI Home: ${qmiHome}`);
+    // ----------------------------------
+    // QMI Search
+    // ----------------------------------
+    async searchByQMI(qmiHome: '1234 148 Avenue' | '123 Appalachian') {
+        await this.page.waitForLoadState('domcontentloaded');
+        await this.typeIntoSearch(qmiHome);
+
+        const qmiOption = this.getQmiLocator(qmiHome).first();
+        await this.clickSearchResult(qmiOption);
+    }
+
+    // ----------------------------------
+    // 🔧 Private helpers (FIXED)
+    // ----------------------------------
+
+    private async typeIntoSearch(value: string) {
+        await this.searchBox.click();
+        await this.searchBox.fill('');
+        await this.searchBox.pressSequentially(value, { delay: 1000 });
+    }
+
+    // ✅ DO NOT override locator here
+    private async clickSearchResult(result: Locator) {
+
+        await expect(result).toBeVisible({ timeout: 15000 });
+        await result.scrollIntoViewIfNeeded();
+        await result.click({ noWaitAfter: true });
+    }
+
+    // ✅ Works for CAN + USA (path OR query)
+    private async waitForMarketRouting() {
+        const startUrl = this.page.url();
+
+        await this.page.waitForFunction(
+            prev => window.location.href !== prev,
+            startUrl,
+            { timeout: 20000 }
+        );
+
+        await this.page.waitForLoadState('domcontentloaded');
+    }
+
+    private getMarketLocator(market: string): Locator {
+        switch (market) {
+            case 'Calgary':
+                return this.page.getByText(/Calgary, AB/i);
+            case 'GTA':
+                return this.page.getByText(/GTA, ON/i);
+            case 'Phoenix':
+                return this.page.getByText(/Phoenix, AZ/i);
+            default:
+                throw new Error(`Unknown market: ${market}`);
         }
-        await expect(searchedQMI.first()).toBeVisible({ timeout: 15000 });
+    }
 
-        // 🔑 Same fix here
-        await searchedQMI.first().click({ noWaitAfter: true });
+    private getCommunityLocator(community: string): Locator {
+        switch (community) {
+            case 'Yorkville':
+                return this.page.getByText(/Yorkville/i);
+            case 'Blackhawk':
+                return this.page.getByText(/Blackhawk/i);
+            default:
+                throw new Error(`Unknown community: ${community}`);
+        }
+    }
+
+    private getQmiLocator(qmiHome: string): Locator {
+        switch (qmiHome) {
+            case '1234 148 Avenue':
+                return this.page.getByText(/1234 148 Avenue NW/i);
+            case '123 Appalachian':
+                return this.page.getByText(/123 Appalachian/i);
+            default:
+                throw new Error(`Unknown QMI Home: ${qmiHome}`);
+        }
     }
 }
 
-// import { Page, Locator, expect } from '@playwright/test';
-// import { BasePage } from './BasePage';
-
-// export class HomePage extends BasePage {
-//   readonly heroSection: Locator;
-//   readonly header: Locator;
-//   readonly searchBox: Locator;
-
-//   constructor(page: Page) {
-//     super(page);
-//     this.heroSection = page.locator('section').first();
-//     this.header = page.locator('header');
-//     this.searchBox = page.getByPlaceholder(/search by city/i);
-//   }
-
-//   // ----------------------------------
-//   // Page Load
-//   // ----------------------------------
-//   async verifyPageLoaded() {
-//     // DOM-level readiness (not animation dependent)
-//     await expect.poll(
-//       async () => await this.heroSection.count(),
-//       { timeout: 30000 }
-//     ).toBeGreaterThan(0);
-
-//     await expect(this.page).toHaveTitle(/mattamy homes/i);
-//   }
-
-//   // ----------------------------------
-//   // Market Search
-//   // ----------------------------------
-//   async searchByMarket(market: string) {
-//     await this.typeIntoSearch(market);
-
-//     const searchedMarket = this.getMarketLocator(market);
-
-//     await expect.poll(
-//       async () => await searchedMarket.count(),
-//       { timeout: 20000 }
-//     ).toBeGreaterThan(0);
-
-//     await searchedMarket.first().click({ noWaitAfter: true });
-
-//     // SPA-safe signal (query param only)
-//     await this.page.waitForFunction(
-//       () => window.location.search.includes('metro='),
-//       { timeout: 20000 }
-//     );
-//   }
-
-//   async verifySearchByMarket() {
-//     const params = new URL(this.page.url()).searchParams;
-
-//     if (params.get('country') === 'CAN') {
-//       expect(params.get('metro')).toMatch(/calgary|gta/i);
-//     } else {
-//       expect(params.get('metro')).toMatch(/phoenix/i);
-//     }
-//   }
-
-//   // ----------------------------------
-//   // Community Search
-//   // ----------------------------------
-//   async searchByCommunity(community: string) {
-//     await this.typeIntoSearch(community);
-
-//     const searchedCommunity = this.getCommunityLocator(community);
-
-//     await expect.poll(
-//       async () => await searchedCommunity.count(),
-//       { timeout: 20000 }
-//     ).toBeGreaterThan(0);
-
-//     await searchedCommunity.first().click({ noWaitAfter: true });
-//   }
-
-//   async verifySearchByCommunity() {
-//     const heading = this.page.locator('h1');
-
-//     await expect.poll(
-//       async () => await heading.count(),
-//       { timeout: 20000 }
-//     ).toBeGreaterThan(0);
-
-//     const countryContainer = this.page.locator('#countryContainer');
-
-//     await expect.poll(
-//       async () => await countryContainer.count(),
-//       { timeout: 10000 }
-//     ).toBeGreaterThan(0);
-
-//     const countryText = (await countryContainer.textContent() || '').toUpperCase();
-
-//     if (countryText.includes('CAN')) {
-//       await expect(heading).toContainText(/yorkville/i);
-//     } else if (countryText.includes('USA')) {
-//       await expect(heading).toContainText(/blackhawk/i);
-//     } else {
-//       throw new Error(`Unknown country detected: ${countryText}`);
-//     }
-//   }
-
-//   // ----------------------------------
-//   // QMI Search
-//   // ----------------------------------
-//   async searchByQMI(qmiHome: string) {
-//     await this.typeIntoSearch(qmiHome);
-
-//     const searchedQMI = this.getQmiLocator(qmiHome);
-
-//     await expect.poll(
-//       async () => await searchedQMI.count(),
-//       { timeout: 20000 }
-//     ).toBeGreaterThan(0);
-
-//     await searchedQMI.first().click({ noWaitAfter: true });
-//   }
-
-//   // ----------------------------------
-//   // 🔧 Private helpers (KEY TO STABILITY)
-//   // ----------------------------------
-//   private async typeIntoSearch(value: string) {
-//     await this.searchBox.click();
-//     await this.searchBox.fill('');
-//     await this.searchBox.type(value, { delay: 150 });
-//   }
-
-//   private getMarketLocator(market: string): Locator {
-//     switch (market.toLowerCase()) {
-//       case 'calgary':
-//         return this.page.getByText(/calgary/i);
-//       case 'gta':
-//         return this.page.getByText(/gta/i);
-//       case 'phoenix':
-//         return this.page.getByText(/phoenix/i);
-//       default:
-//         throw new Error(`Unknown market: ${market}`);
-//     }
-//   }
-
-//   private getCommunityLocator(community: string): Locator {
-//     switch (community.toLowerCase()) {
-//       case 'yorkville':
-//         return this.page.getByText(/yorkville/i);
-//       case 'blackhawk':
-//         return this.page.getByText(/blackhawk/i);
-//       default:
-//         throw new Error(`Unknown community: ${community}`);
-//     }
-//   }
-
-//   private getQmiLocator(qmiHome: string): Locator {
-//     if (/1230 148/i.test(qmiHome)) {
-//       return this.page.getByText(/1230 148/i);
-//     }
-//     if (/123 appalachian/i.test(qmiHome)) {
-//       return this.page.getByText(/123 appalachian/i);
-//     }
-//     throw new Error(`Unknown QMI Home: ${qmiHome}`);
-//   }
-// }

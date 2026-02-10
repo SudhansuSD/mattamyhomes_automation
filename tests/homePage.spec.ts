@@ -7,7 +7,7 @@ import { getLocationConfig } from '../config/locations';
 
 const location = getLocationConfig();
 
-test.describe(`Mattamy Homes – ${location.country}`, () => {
+test.describe(`Mattamy Homes - ${location.country}`, () => {
 
   test('Home page should load correctly', async ({ page }) => {
     const homePage = new HomePage(page);
