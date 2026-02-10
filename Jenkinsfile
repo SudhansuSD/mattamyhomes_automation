@@ -48,29 +48,46 @@ pipeline {
     }
 
     post {
-    always {
-        echo '📦 Archiving Playwright artifacts'
 
-        // Ensure folders exist (prevents Jenkins aborting archive step)
-        bat '''
-        if not exist playwright-report mkdir playwright-report
-        if not exist test-results mkdir test-results
-        '''
+        /* =========================================================
+           ALWAYS: Prepare + archive reports (even if tests fail)
+           ========================================================= */
+        always {
+            echo '📦 Preparing Playwright artifacts'
 
-        // Archive Playwright HTML report & test artifacts
-        archiveArtifacts(
-            artifacts: 'playwright-report/**, test-results/**',
-            fingerprint: true,
-            allowEmptyArchive: true
-        )
-    }
+            // Ensure folders exist so Jenkins never fails archive step
+            bat '''
+            if not exist playwright-report mkdir playwright-report
+            if not exist test-results mkdir test-results
+            '''
 
+            // Zip Playwright HTML report (Jenkins-safe consumption)
+            bat '''
+            if exist playwright-report (
+                powershell Compress-Archive `
+                  -Path playwright-report `
+                  -DestinationPath playwright-report.zip `
+                  -Force
+            )
+            '''
+
+            // Archive artifacts so Artifacts tab ALWAYS appears
+            archiveArtifacts(
+                artifacts: 'playwright-report/**, playwright-report.zip, test-results/**',
+                fingerprint: true,
+                allowEmptyArchive: true
+            )
+        }
+
+        /* =========================================================
+           FAILURE: Email with ZIP attached
+           ========================================================= */
         failure {
-            echo 'Tests failed - sending email'
+            echo 'Tests failed - sending email with report attached'
 
-            mail(
+            emailext(
                 to: EMAIL_TO,
-                subject: "Playwright FAILED - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                subject: "Playwright FAILED | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: """\
 Hi Team,
 
@@ -84,35 +101,45 @@ Country: ${params.LOCATION}
 Jenkins Build:
 ${env.BUILD_URL}
 
-Playwright Report (download & open locally):
+Playwright Report (downloadable):
 ${env.BUILD_URL}artifact/playwright-report/
+
+The Playwright HTML report is attached as a ZIP
+(download and open index.html locally).
 
 Regards,
 Jenkins
-"""
+""",
+                attachmentsPattern: 'playwright-report.zip',
+                mimeType: 'text/plain'
             )
         }
 
+        /* =========================================================
+           SUCCESS: Optional email (ZIP included)
+           ========================================================= */
         success {
-            mail(
+            emailext(
                 to: EMAIL_TO,
-                subject: "Playwright PASSED - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                subject: "Playwright PASSED | ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: """\
 Hi Team,
 
-Playwright automation execution PASSED successfully.
+Playwright automation execution PASSED successfully 🎉
 
 Job: ${env.JOB_NAME}
 Build Number: ${env.BUILD_NUMBER}
 Environment: ${params.ENV}
 Country: ${params.LOCATION}
 
-Playwright Report (download & open locally):
+Playwright Report:
 ${env.BUILD_URL}artifact/playwright-report/
 
 Regards,
 Jenkins
-"""
+""",
+                attachmentsPattern: 'playwright-report.zip',
+                mimeType: 'text/plain'
             )
         }
     }
