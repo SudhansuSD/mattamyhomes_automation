@@ -9,7 +9,7 @@ pipeline {
         )
         choice(
             name: 'LOCATION',
-            choices: ['CAN', 'US'],
+            choices: ['CAN', 'USA'],
             description: 'Test Location'
         )
     }
