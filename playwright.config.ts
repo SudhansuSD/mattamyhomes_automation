@@ -4,7 +4,7 @@ export default defineConfig({
   use: {
     // baseURL: 'https://mattamyhomes.com/',
     headless: process.env.CI ? true : false
-,   // see browser UI
+    ,   // see browser UI
     viewport: null,    // IMPORTANT: full screen
 
     trace: 'retain-on-failure',
@@ -33,8 +33,8 @@ export default defineConfig({
     // },
   ],
   reporter: [
-    ['html', { open: 'never', outputFolder: 'playwright-report' }],
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
     ['json', { outputFile: 'test-results/results.json' }]
-
   ],
+
 });

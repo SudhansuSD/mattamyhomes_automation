@@ -48,36 +48,41 @@ pipeline {
     }
 
     post {
+    always {
+        echo '📦 Collecting Playwright artifacts'
 
-        /* =========================================================
-           ALWAYS: Prepare + archive reports (even if tests fail)
-           ========================================================= */
-        always {
-            echo '📦 Preparing Playwright artifacts'
+        // Debug output (safe to keep)
+        bat '''
+        echo ===== WORKSPACE =====
+        dir
+        '''
 
-            // Ensure folders exist so Jenkins never fails archive step
-            bat '''
-            if not exist playwright-report mkdir playwright-report
-            if not exist test-results mkdir test-results
-            '''
+        // Ensure folders exist
+        bat '''
+        if not exist playwright-report (
+            echo ❌ playwright-report folder missing
+        ) else (
+            echo ✅ playwright-report folder exists
+        )
+        '''
 
-            // Zip Playwright HTML report (Jenkins-safe consumption)
-            bat '''
-            if exist playwright-report (
-                powershell Compress-Archive `
-                  -Path playwright-report `
-                  -DestinationPath playwright-report.zip `
-                  -Force
-            )
-            '''
+        // Zip report ONLY if it exists
+        bat '''
+        if exist playwright-report (
+            powershell Compress-Archive `
+              -Path playwright-report `
+              -DestinationPath playwright-report.zip `
+              -Force
+        )
+        '''
 
-            // Archive artifacts so Artifacts tab ALWAYS appears
-            archiveArtifacts(
-                artifacts: 'playwright-report/**, playwright-report.zip, test-results/**',
-                fingerprint: true,
-                allowEmptyArchive: true
-            )
-        }
+        // Archive artifacts (THIS creates the Artifacts tab)
+        archiveArtifacts(
+            artifacts: 'playwright-report/**, playwright-report.zip, test-results/**',
+            fingerprint: true
+        )
+    }
+
 
         /* =========================================================
            FAILURE: Email with ZIP attached
