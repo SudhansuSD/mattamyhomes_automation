@@ -48,14 +48,22 @@ pipeline {
     }
 
     post {
-        always {
-            // Archive Playwright reports (Windows-safe)
-            archiveArtifacts(
-                artifacts: '**/playwright-report/**, **/test-results/**',
-                fingerprint: true,
-                allowEmptyArchive: false
-            )
-        }
+    always {
+        echo '📦 Archiving Playwright artifacts'
+
+        // Ensure folders exist (prevents Jenkins aborting archive step)
+        bat '''
+        if not exist playwright-report mkdir playwright-report
+        if not exist test-results mkdir test-results
+        '''
+
+        // Archive Playwright HTML report & test artifacts
+        archiveArtifacts(
+            artifacts: 'playwright-report/**, test-results/**',
+            fingerprint: true,
+            allowEmptyArchive: true
+        )
+    }
 
         failure {
             echo 'Tests failed - sending email'

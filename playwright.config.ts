@@ -3,7 +3,8 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   use: {
     // baseURL: 'https://mattamyhomes.com/',
-    headless: false,   // see browser UI
+    headless: process.env.CI ? true : false
+,   // see browser UI
     viewport: null,    // IMPORTANT: full screen
 
     trace: 'retain-on-failure',
@@ -16,7 +17,7 @@ export default defineConfig({
   },
   workers: 1, // 🔒 force single worker
   fullyParallel: false,
-  timeout: 500 * 60000,
+  timeout: 50 * 60 * 1000,
   projects: [
     {
       name: 'Chromium',
