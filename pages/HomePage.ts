@@ -1,5 +1,8 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
+import { getLocationConfig } from '../config/locations';
+
+const locationConfig = getLocationConfig
 
 export class HomePage extends BasePage {
     readonly heroSection: Locator;
@@ -62,7 +65,7 @@ export class HomePage extends BasePage {
     // ----------------------------------
     // Community Search
     // ----------------------------------
-    async searchByCommunity(community: 'Yorkville' | 'Blackhawk') {
+    async searchByCommunity(community: 'Yorkville' | 'Landmarke') {
         await this.typeIntoSearch(community);
 
         const communityOption = this.getCommunityLocator(community).first();
@@ -83,7 +86,7 @@ export class HomePage extends BasePage {
         if (countryText.includes('CAN')) {
             await expect(heading).toContainText(/yorkville/i);
         } else if (countryText.includes('USA')) {
-            await expect(heading).toContainText(/blackhawk/i);
+            await expect(heading).toContainText(/landmarke/i);
         } else {
             throw new Error(`Unknown country detected: ${countryText}`);
         }
@@ -92,7 +95,7 @@ export class HomePage extends BasePage {
     // ----------------------------------
     // QMI Search
     // ----------------------------------
-    async searchByQMI(qmiHome: '1234 148 Avenue' | '123 Appalachian') {
+    async searchByQMI(qmiHome: '1234 148 Avenue NW' | '263 W FLAX DR') {
         await this.page.waitForLoadState('domcontentloaded');
         await this.typeIntoSearch(qmiHome);
 
@@ -101,24 +104,33 @@ export class HomePage extends BasePage {
     }
 
     // ----------------------------------
-    // 🔧 Private helpers (FIXED)
+    // Plan Search
     // ----------------------------------
+    async searchByPlan(planName: 'Brinkley I' | 'Aqua') {
+        await this.page.waitForLoadState('domcontentloaded');
+        await this.typeIntoSearch(planName);
+        const planOption = this.getPlanLocator(planName);
+        await this.clickSearchResult(planOption);
+    }
 
     private async typeIntoSearch(value: string) {
         await this.searchBox.click();
         await this.searchBox.fill('');
-        await this.searchBox.pressSequentially(value, { delay: 1000 });
+        await this.searchBox.pressSequentially(value, { delay: 500 });
     }
 
-    // ✅ DO NOT override locator here
+    // DO NOT override locator here
     private async clickSearchResult(result: Locator) {
 
         await expect(result).toBeVisible({ timeout: 15000 });
         await result.scrollIntoViewIfNeeded();
-        await result.click({ noWaitAfter: true });
+        await Promise.all([
+            this.page.waitForLoadState('domcontentloaded'),
+            result.click()
+        ]);
     }
 
-    // ✅ Works for CAN + USA (path OR query)
+    // Works for CAN + USA (path OR query)
     private async waitForMarketRouting() {
         const startUrl = this.page.url();
 
@@ -148,8 +160,8 @@ export class HomePage extends BasePage {
         switch (community) {
             case 'Yorkville':
                 return this.page.getByText(/Yorkville/i);
-            case 'Blackhawk':
-                return this.page.getByText(/Blackhawk/i);
+            case 'Landmarke':
+                return this.page.getByText(/Landmarke/i);
             default:
                 throw new Error(`Unknown community: ${community}`);
         }
@@ -157,13 +169,29 @@ export class HomePage extends BasePage {
 
     private getQmiLocator(qmiHome: string): Locator {
         switch (qmiHome) {
-            case '1234 148 Avenue':
+            case '1234 148 Avenue NW':
                 return this.page.getByText(/1234 148 Avenue NW/i);
-            case '123 Appalachian':
-                return this.page.getByText(/123 Appalachian/i);
+            case '263 W FLAX DR':
+                return this.page.getByText(/263 W FLAX DR/i);
             default:
                 throw new Error(`Unknown QMI Home: ${qmiHome}`);
         }
     }
+    private getPlanLocator(planOption: string): Locator {
+
+        switch (planOption) {
+            case 'Brinkley I':
+                return this.page.locator('a[href*="yorkville/brinkley-i"]').first();
+
+            case 'Aqua':
+                return this.page.locator('a[href*="/san-tan-valley/landmarke-50s/aqua"]').first();
+
+            default:
+                throw new Error(`Unknown plan option: ${planOption}`);
+        }
+
+    }
+
+
 }
 

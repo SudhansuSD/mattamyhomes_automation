@@ -24,8 +24,19 @@ export class BasePage {
       waitUntil: 'domcontentloaded',
       timeout: 90_000
     });
+    await this.acceptCookiesIfPresent();
 
     // Minimal, reliable stabilization
     await this.page.waitForTimeout(1000);
   }
+  async acceptCookiesIfPresent() {
+
+    const acceptBtn = this.page.locator('#onetrust-accept-btn-handler');
+
+    if (await acceptBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await acceptBtn.click();
+      console.log('Cookie banner accepted');
+    }
+  }
+
 }

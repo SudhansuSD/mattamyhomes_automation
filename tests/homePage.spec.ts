@@ -4,6 +4,7 @@ import { Header } from '../pages/Header';
 import { Footer } from '../pages/Footer';
 import { QMIPage } from '../pages/QMIPage';
 import { getLocationConfig } from '../config/locations';
+import { PlanDetailPage } from '../pages/PlanDetailPage';
 
 const location = getLocationConfig();
 
@@ -53,7 +54,13 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
 
     await qmiPage.navigate();
     await qmiPage.searchByQMI(location.qmiAddress);
-    await qmiPage.verifySearchByQMI();
+    await qmiPage.verifySearchByQMI(location.qmiAddress);
   });
+  test('Search by plan functionality should work', async ({ page }) => {
+    const planPage = new PlanDetailPage(page);
 
+    await planPage.navigate();
+    await planPage.searchByPlan(location.planName);
+    await planPage.verifySearchByPlan(location.expectedPlanUrlPart);
+  });
 });
