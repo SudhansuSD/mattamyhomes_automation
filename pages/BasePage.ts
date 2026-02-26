@@ -2,14 +2,24 @@ import { Page } from '@playwright/test';
 import { getEnvConfig } from '../config/testConfig';
 import { getLocationConfig, LocationKey } from '../config/locations';
 
+/* ==========================================================
+   Base Page – Shared Navigation & Common Utilities
+========================================================== */
+
 export class BasePage {
+
   protected readonly page: Page;
 
   constructor(page: Page) {
     this.page = page;
   }
 
+  /* ==========================================================
+     Navigation
+  ========================================================== */
+
   async navigate(overrideLocation?: LocationKey): Promise<void> {
+
     const { baseURL, envName } = getEnvConfig();
     const location = getLocationConfig(overrideLocation);
 
@@ -19,24 +29,41 @@ export class BasePage {
       `[NAVIGATE] ENV=${envName} | COUNTRY=${location.country} | URL=${targetUrl}`
     );
 
-    // Always navigate — avoid clever skips
     await this.page.goto(targetUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 90_000
     });
+
     await this.acceptCookiesIfPresent();
 
-    // Minimal, reliable stabilization
-    await this.page.waitForTimeout(1000);
+    // 🔹 Use common load handler instead of inline wait
+    await this.waitForPageReady();
   }
-  async acceptCookiesIfPresent() {
+
+  /* ==========================================================
+     Common Load Stabilization
+  ========================================================== */
+
+  protected async waitForPageReady(): Promise<void> {
+    await this.page.waitForLoadState('domcontentloaded');
+    await this.page.waitForTimeout(1000); // same behavior as before
+  }
+
+  /* ==========================================================
+     Cookie Handling
+  ========================================================== */
+
+  async acceptCookiesIfPresent(): Promise<void> {
 
     const acceptBtn = this.page.locator('#onetrust-accept-btn-handler');
 
-    if (await acceptBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+    const isVisible = await acceptBtn
+      .isVisible({ timeout: 5000 })
+      .catch(() => false);
+
+    if (isVisible) {
       await acceptBtn.click();
       console.log('Cookie banner accepted');
     }
   }
-
 }

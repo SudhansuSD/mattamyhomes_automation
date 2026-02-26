@@ -32,7 +32,7 @@ export class PlanDetailPage extends HomePage {
         this.nextGalleryBtn = page.getByLabel('Next slide');
         this.prevGalleryBtn = page.getByLabel('Previous slide');
         this.floorPlanSection = page.locator('#floorplan');
-        this.mortgageBtn = page.getByRole('button', { name: /Get Started|Mortgage/i });
+        this.mortgageBtn = page.getByRole('button', { name: /Get Started/i });
         this.mortgageComponent = page.locator('.sc-gyRCUT');
         this.closeModalBtn = this.mortgageComponent.locator(':text("CLOSE")');
         this.communityLink = this.breadcrumb.getByLabel(`${location.community}`);
@@ -56,7 +56,7 @@ export class PlanDetailPage extends HomePage {
 
     async verifySearchByPlan(expectedSlug: string) {
 
-        await this.page.waitForLoadState('domcontentloaded');
+        await this.waitForPageReady();
 
         await expect(this.page).toHaveURL(
             new RegExp(expectedSlug, 'i')
@@ -101,6 +101,7 @@ export class PlanDetailPage extends HomePage {
 
     async verifyMortgageForm() {
         if (await this.mortgageBtn.isVisible()) {
+            await this.mortgageBtn.scrollIntoViewIfNeeded();
             await this.mortgageBtn.click({ timeout: 500 });
 
 
@@ -119,7 +120,7 @@ export class PlanDetailPage extends HomePage {
             console.log('Community Link URL:', href);
 
             await Promise.all([
-                this.page.waitForLoadState('domcontentloaded'),
+                this.waitForPageReady(),
                 this.communityLink.first().click()
             ]);
         }
@@ -128,7 +129,7 @@ export class PlanDetailPage extends HomePage {
         if (await this.qmiSection.isVisible()) {
 
             await this.qmiSection.scrollIntoViewIfNeeded();
-            await this.page.waitForLoadState('domcontentloaded');
+            await this.waitForPageReady();
 
             console.log("Number of QMI Homes listed:", await this.qmiHomeslist.count());
             for (let i = 0; i < await this.qmiHomeslist.count(); i++) {

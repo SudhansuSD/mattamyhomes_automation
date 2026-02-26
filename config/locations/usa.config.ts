@@ -4,6 +4,6 @@ export const USA = {
   market: 'Phoenix',
   community: 'Landmarke',
   qmiAddress: '263 W FLAX DR',
-  planName: 'Brinkley I',
-  expectedPlanUrlPart: 'yorkville/brinkley-i'
+  planName: 'Aqua',
+  expectedPlanUrlPart: 'landmarke-50s/aqua'
 } as const;

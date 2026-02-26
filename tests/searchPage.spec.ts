@@ -2,7 +2,7 @@
  * ENV=STAGE COUNTRY=USA npx playwright test tests/searchPage.spec.ts
  * Search Page Tests
  * @file tests/search/searchPage.spec.ts
- * @description Tests for search and filter functionality on Mattamy Homes
+ * @description Tests for search, filter & sorting functionality
  */
 
 import { test } from '@playwright/test';
@@ -13,28 +13,52 @@ const location = getLocationConfig();
 
 test.describe(`Search Page Tests - ${location.country}`, () => {
 
-  test('Verify filter by price functionality', async ({ page }) => {
-    const searchPage = new SearchPage(page);
+  let searchPage: SearchPage;
+
+  /* -------------------------------------------------------
+     Common Setup
+  -------------------------------------------------------- */
+
+  test.beforeEach(async ({ page }) => {
+    searchPage = new SearchPage(page);
 
     await searchPage.navigate();
-
     await searchPage.searchByMarket(location.market);
     await searchPage.verifySearchByMarket();
-
-    await searchPage.filterByPrice();
-    await searchPage.verifyCommunityResults();
   });
 
-  test('Verify filter by bedrooms and bathrooms functionality', async ({ page }) => {
-    const searchPage = new SearchPage(page);
+  /* -------------------------------------------------------
+     Filter Tests
+  -------------------------------------------------------- */
 
-    await searchPage.navigate();
+  test('@regression Verify filter by price functionality', async () => {
+    await searchPage.filterByPrice('400K', '500K');
+    await searchPage.verifyResults('Communities');
+  });
 
-    await searchPage.searchByMarket(location.market);
-    await searchPage.verifySearchByMarket();
-
+  test('@regression Verify filter by bedrooms and bathrooms functionality', async () => {
     await searchPage.filterByBedroomsAndBathrooms(3, 3);
-    await searchPage.verifyCommunityResults();
+    await searchPage.verifyResults('Communities');
+  });
+
+  test('@sanity Verify plan results functionality', async () => {
+    await searchPage.verifyResults('Plans');
+  });
+
+  /* -------------------------------------------------------
+     Sorting Validation Tests
+  -------------------------------------------------------- */
+
+  test('@regression Validate Community sorting options', async () => {
+    await searchPage.validateCommunitySortOptions();
+  });
+
+  test('@regression Validate Plan sorting options', async () => {
+    await searchPage.validatePlanSortOptions();
+  });
+
+  test('@regression Validate QMI sorting options', async () => {
+    await searchPage.validateQMISortOptions();
   });
 
 });
