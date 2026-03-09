@@ -2,8 +2,9 @@ import { Locator, Page, expect } from '@playwright/test';
 import { HomePage } from './HomePage';
 
 /* ==========================================================
-   QMI Detail Page – Page Object Model
+    QMI Page Object Model
 ========================================================== */
+
 
 export class QMIPage extends HomePage {
 

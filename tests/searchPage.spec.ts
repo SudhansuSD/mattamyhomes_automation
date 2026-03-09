@@ -24,7 +24,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
 
     await searchPage.navigate();
     await searchPage.searchByMarket(location.market);
-    await searchPage.verifySearchByMarket();
+    await searchPage.verifySearchByMarket(location.market);
   });
 
   /* -------------------------------------------------------
@@ -45,14 +45,18 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
     await searchPage.verifyResults('Plans');
   });
 
+  test('@sanity Verify QMI results functionality', async () => {
+    await searchPage.verifyResults('Quick Move-In');
+  });
+
   /* -------------------------------------------------------
      Sorting Validation Tests
   -------------------------------------------------------- */
 
-  test('@regression Validate Community sorting options', async () => {
+  test('@regression Validate community sorting options', async () => {
     await searchPage.validateCommunitySortOptions();
-  });
 
+  });
   test('@regression Validate Plan sorting options', async () => {
     await searchPage.validatePlanSortOptions();
   });
@@ -60,5 +64,6 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
   test('@regression Validate QMI sorting options', async () => {
     await searchPage.validateQMISortOptions();
   });
+
 
 });

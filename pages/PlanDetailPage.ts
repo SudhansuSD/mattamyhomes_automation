@@ -2,6 +2,10 @@ import { Locator, Page, expect } from '@playwright/test';
 import { HomePage } from './HomePage';
 import { getLocationConfig } from '../config/locations';
 
+/* ==========================================================
+    Plan Detail Page – Page Object Model
+========================================================== */
+
 const location = getLocationConfig();
 
 export class PlanDetailPage extends HomePage {

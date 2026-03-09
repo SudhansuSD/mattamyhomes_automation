@@ -10,6 +10,7 @@ import { Footer } from '../pages/Footer';
 import { QMIPage } from '../pages/QMIPage';
 import { PlanDetailPage } from '../pages/PlanDetailPage';
 import { getLocationConfig } from '../config/locations';
+import { CommunityPage } from '../pages/CommunityPage';
 
 const location = getLocationConfig();
 
@@ -77,7 +78,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     });
 
     await test.step('Verify market search result', async () => {
-      await homePage.verifySearchByMarket();
+      await homePage.verifySearchByMarket(location.market);
     });
   });
 
@@ -85,14 +86,16 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Search – Community
   ========================================================== */
 
-  test('@regression Search by community functionality should work', async () => {
+  test('@regression Search by community functionality should work', async ({ page }) => {
+
+    const communityPage = new CommunityPage(page);
 
     await test.step('Search by community', async () => {
-      await homePage.searchByCommunity(location.community);
+      await communityPage.searchByCommunity(location.community);
     });
 
     await test.step('Verify community search result', async () => {
-      await homePage.verifySearchByCommunity();
+      await communityPage.verifySearchByCommunity(location.community);
     });
   });
 

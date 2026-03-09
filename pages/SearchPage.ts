@@ -23,31 +23,46 @@ export class SearchPage extends HomePage {
         this.page.locator(`button[aria-label*="${label}"]`);
 
     private dropdownOption = (text: string) =>
-        this.page.getByText(text, { exact: true });
-
-    private sectionHeader = (name: string) =>
-        this.page.getByRole('heading', { name });
+        this.page.getByText(text);
 
     private resultCards = () =>
         this.page.locator('#ProductInfo h3');
 
     private tab = (tabName: ResultsTab) =>
-        this.page.getByRole('button', { name: tabName });
+        this.page
+            .locator('button[aria-pressed]')
+            .filter({ hasText: new RegExp(`^${tabName}`, 'i') })
+            .first();
+
+    // private tab = (tabName: ResultsTab) =>
+    //     this.page.getByRole('button', { name: tabName });
 
     /* ------------------------------------------------------------------
        Common Helpers
     ------------------------------------------------------------------ */
 
+    // private async openTab(tabName: ResultsTab): Promise<void> {
+    //     const tab = this.tab(tabName);
+    //     // Click only if not active (aria-pressed check if available)
+    //     const isPressed = await tab.getAttribute('aria-pressed');
+
+    //     if (isPressed !== 'true') {
+    //         await tab.click();
+    //     }
+
+    //     // Wait until tab becomes active
+    //     await this.waitForPageReady();
+    // }
+
     private async openTab(tabName: ResultsTab): Promise<void> {
         const tab = this.tab(tabName);
-        // Click only if not active (aria-pressed check if available)
+
         const isPressed = await tab.getAttribute('aria-pressed');
 
         if (isPressed !== 'true') {
             await tab.click();
         }
 
-        // Wait until tab becomes active
         await this.waitForPageReady();
     }
 
@@ -132,23 +147,22 @@ export class SearchPage extends HomePage {
     }
 
     private async validateSortOptions(
+        tabName: string,
         required: string[],
         optional: string[] = []
     ): Promise<void> {
 
         const actual = await this.getSortOptions();
 
-        // Required must exist
         for (const option of required) {
             expect(actual).toContain(option);
-            console.log(`Verified sort option: ${option}`);
+            console.log(`Verified sort option for ${tabName}: ${option}`);
         }
 
-        // Optional validated only if present
         for (const option of optional) {
             if (actual.includes(option)) {
                 expect(actual).toContain(option);
-                console.log(`Verified optional sort option: ${option}`);
+                console.log(`Verified optional sort option for ${tabName}: ${option}`);
             }
         }
     }
@@ -161,8 +175,9 @@ export class SearchPage extends HomePage {
         await this.openTab('Communities');
 
         await this.validateSortOptions(
+            'Communities',
             ['$ - $$$', 'A - Z', 'Availability'],
-            ['Featured'] // optional
+            ['Featured']
         );
     }
 
@@ -170,6 +185,7 @@ export class SearchPage extends HomePage {
         await this.openTab('Plans');
 
         await this.validateSortOptions(
+            'Plans',
             ['$ - $$$', 'Sq. Ft.', 'A - Z']
         );
     }
@@ -178,6 +194,7 @@ export class SearchPage extends HomePage {
         await this.openTab('Quick Move-In');
 
         await this.validateSortOptions(
+            'Quick Move-In',
             ['Date', '$ - $$$', 'Sq. Ft.', 'A - Z']
         );
     }

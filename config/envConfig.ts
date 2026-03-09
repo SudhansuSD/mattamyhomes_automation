@@ -2,7 +2,7 @@ import { STAGE_ENV } from './environments/stage.config';
 import { PROD_ENV } from './environments/prod.config';
 
 export function getEnvConfig() {
-  const env = process.env.ENV ?? 'PROD';
+  const env = process.env.ENV ?? 'STAGE';
 
   if (env === 'PROD') {
     return { ...PROD_ENV, envName: 'PROD' };

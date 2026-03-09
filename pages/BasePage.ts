@@ -1,5 +1,5 @@
-import { Page } from '@playwright/test';
-import { getEnvConfig } from '../config/testConfig';
+import { Page, Locator } from '@playwright/test';
+import { getEnvConfig } from '../config/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations';
 
 /* ==========================================================
@@ -66,4 +66,24 @@ export class BasePage {
       console.log('Cookie banner accepted');
     }
   }
+
+  /* ==========================================================
+  Scroll Handler 
+  ========================================================== */
+
+  protected async scrollTo(locator: Locator): Promise<void> {
+
+    await locator.waitFor({ state: 'attached' });
+
+    await locator.evaluate((el) => {
+      el.scrollIntoView({
+        behavior: 'auto',
+        block: 'center',
+        inline: 'nearest'
+      });
+    });
+
+    await this.page.waitForTimeout(800);
+  }
+
 }
