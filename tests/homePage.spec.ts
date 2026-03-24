@@ -52,6 +52,12 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     await test.step('Verify header links are visible', async () => {
       await header.verifyHeaderLinksVisible();
     });
+    await test.step('Verify Find Your Home link and navigation', async () => {
+      await header.verifyFindYourHomeLinks();
+    });
+    // await test.step('Verify About Us link and navigation', async () => {
+    //   await header.verifyAboutUsLinks();
+    // });
   });
 
   /* ==========================================================
@@ -131,6 +137,12 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     await test.step('Verify plan search result', async () => {
       await planPage.verifySearchByPlan(location.expectedPlanUrlPart);
     });
+  });
+
+  test('@regression Validate market Cards on Home Page', async ({ page }) => {
+    // Validate market cards are visible and correctly linked
+    await homePage.validateMarketCards();
+
   });
 
 });

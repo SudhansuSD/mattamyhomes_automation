@@ -34,11 +34,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
   test('@regression Verify filter by price functionality', async () => {
     await searchPage.filterByPrice('400K', '500K');
     await searchPage.verifyResults('Communities');
-  });
-
-  test('@regression Verify filter by bedrooms and bathrooms functionality', async () => {
-    await searchPage.filterByBedroomsAndBathrooms(3, 3);
-    await searchPage.verifyResults('Communities');
+    await searchPage.validatePriceRange(400000, 500000);
   });
 
   test('@sanity Verify plan results functionality', async () => {
@@ -46,7 +42,12 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
   });
 
   test('@sanity Verify QMI results functionality', async () => {
-    await searchPage.verifyResults('Quick Move-In');
+    await searchPage.verifyResults('Quick Move-Ins');
+  });
+
+  test('@regression Validate filter by beds and bathrooms functionality', async () => {
+    await searchPage.filterByBedroomsAndBathrooms(3, 3);
+    await searchPage.verifyResults('Communities');
   });
 
   /* -------------------------------------------------------

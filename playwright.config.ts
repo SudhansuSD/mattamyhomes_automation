@@ -15,7 +15,7 @@ export default defineConfig({
     video: 'retain-on-failure',
 
   },
-  workers: 1, // 🔒 force single worker
+  workers: 3, // 🔒 force single worker
   fullyParallel: false,
   timeout: 50 * 60 * 1000,
   projects: [

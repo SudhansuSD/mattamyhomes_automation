@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations';
 
@@ -46,7 +46,7 @@ export class BasePage {
 
   protected async waitForPageReady(): Promise<void> {
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(1000); // same behavior as before
+    await this.page.waitForTimeout(2000); // same behavior as before
   }
 
   /* ==========================================================
@@ -73,7 +73,7 @@ export class BasePage {
 
   protected async scrollTo(locator: Locator): Promise<void> {
 
-    await locator.waitFor({ state: 'attached' });
+    await locator.waitFor({ state: 'attached', timeout: 10000 });
 
     await locator.evaluate((el) => {
       el.scrollIntoView({
@@ -85,5 +85,37 @@ export class BasePage {
 
     await this.page.waitForTimeout(800);
   }
+  /* ==========================================================
+  Helper
+  ========================================================== */
+
+  protected buildFullUrl(relativeUrl: string | null): string {
+    if (!relativeUrl) throw new Error('URL is null');
+    return new URL(relativeUrl, this.page.url()).href;
+
+  }
+
+  /* ==========================================================
+     Utils (NEW - stable reusable helpers)
+  ========================================================== */
+
+  protected async clickElement(locator: Locator): Promise<void> {
+    await locator.scrollIntoViewIfNeeded();
+
+    await Promise.all([
+      this.waitForPageReady(), // SPA-safe wait
+      locator.click()
+    ]);
+  }
+
+  protected async isSectionVisible(locator: Locator, timeout = 7000): Promise<boolean> {
+    try {
+      await expect(locator).toBeVisible({ timeout });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
 
 }

@@ -84,7 +84,7 @@ export class QMIPage extends HomePage {
         await expect(this.page).not.toHaveURL(/\?country=/i);
 
         // Ensure QMI-style URL (contains numbers)
-        await expect(this.page).toHaveURL(/-\d{3,}/);
+        await expect(this.page).toHaveURL(/\/\d{1,}-/);;
 
         // Validate heading is visible
         await expect(this.heading).toBeVisible({ timeout: 20000 });

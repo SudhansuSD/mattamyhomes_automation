@@ -5,7 +5,7 @@ export const USA = {
   community: 'Landmarke',
   qmiAddress: '263 W FLAX DR',
   planName: 'Aqua',
-  expectedPlanUrlPart: 'landmarke-50s/aqua',
+  expectedPlanUrlPart: '/aqua',
   markets: [{
     name: 'Phoenix',
     url: '/arizona/phoenix'

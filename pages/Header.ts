@@ -1,14 +1,14 @@
 import { Page, Locator, expect } from '@playwright/test';
+import { BasePage } from './BasePage';
 
-export class Header {
+export class Header extends BasePage {
 
-  readonly page: Page;
   readonly header: Locator;
   readonly findYourHomeLink: Locator;
   readonly aboutUsLink: Locator;
 
   constructor(page: Page) {
-    this.page = page;
+    super(page);
 
     /* ==========================================================
        Scoped Header Container (CRITICAL)
@@ -27,8 +27,8 @@ export class Header {
 
     // Avoid role-based locator
     this.aboutUsLink = this.header
-      .locator('button, a')
-      .filter({ hasText: /about/i });
+      .getByRole('button', { name: /About/i });
+
   }
 
   /* ==========================================================
@@ -51,7 +51,7 @@ export class Header {
 
     // 4️⃣ Assert visibility
     await expect(this.findYourHomeLink).toBeVisible({ timeout: 10000 });
-    await expect(this.aboutUsLink.first()).toBeVisible({ timeout: 10000 });
+    await expect(this.aboutUsLink).toBeVisible({ timeout: 10000 });
 
     // 5️⃣ Safe hover
     await this.aboutUsLink.first().hover();
@@ -62,8 +62,100 @@ export class Header {
   ========================================================== */
 
   async clickFindYourHome(): Promise<void> {
+    await this.clickElement(this.findYourHomeLink);
+  }
+  async clickAboutUs(): Promise<void> {
+    await this.clickElement(this.aboutUsLink);
+  }
+  /* ==========================================================
+  Verify Find Your Homes links and navigations
+  ========================================================== */
 
-    await this.findYourHomeLink.scrollIntoViewIfNeeded();
-    await this.findYourHomeLink.click();
+  async verifyFindYourHomeLinks(): Promise<void> {
+
+    await this.clickFindYourHome();
+
+    const fyhLinkButtons = this.page.locator('button[href^="/search"]');
+    const count = await fyhLinkButtons.count();
+
+    console.log(`✅ Total Find Your Dream Home links: ${count}`);
+
+    for (let i = 0; i < count; i++) {
+
+      // 🔁 Re-locate each time (important after navigation)
+      const button = fyhLinkButtons.nth(i);
+
+      const href = await button.getAttribute('href');
+      const text = await button.innerText();
+
+      console.log(`🔗 Testing: ${text} -> ${href}`);
+
+      // ✅ Extract metro value from href
+      const metroMatch = href?.match(/metro=([^&]+)/);
+      const metroValue = metroMatch ? metroMatch[1] : '';
+
+      await this.clickElement(button);
+      await this.waitForPageReady(); // optional
+
+      const url = new URL(this.page.url());
+      const metro = url.searchParams.get('metro');
+
+      expect(metro).toBe(metroValue);
+
+      console.log(`✅ Passed: ${metroValue}`);
+
+      // 🔙 Go back
+      await this.page.goBack();
+      await this.page.waitForLoadState('domcontentloaded');
+
+      // 🔁 Re-open menu for next iteration
+      await this.clickFindYourHome();
+    }
+  }
+
+  /* ==========================================================
+    Validate About Us link and navigation
+  ========================================================== */
+  async verifyAboutUsLinks(): Promise<void> {
+
+    await this.clickAboutUs();
+
+    const aboutLinks = this.page.locator('[aria-hidden="false"] a[href^="/about"]');
+    const count = await aboutLinks.count();
+
+    console.log(`✅ Total About links: ${count}`);
+
+    for (let i = 0; i < count; i++) {
+
+      // 🔁 Re-locate every time
+      const link = aboutLinks.nth(i);
+
+      const href = await link.getAttribute('href');   // e.g. /about/careers
+      const text = await link.innerText();
+
+      console.log(`🔗 Testing: ${text} -> ${href}`);
+
+      // ✅ Extract expected path from href
+      const expectedPath = href?.split('/about/')[1]; // careers, about-mattamy etc.
+
+      await this.clickElement(link);
+
+      // ✅ Validate using URL object to avoid encoding issues
+      await this.waitForPageReady();
+      const url = new URL(this.page.url());
+      const actualPath = url.pathname;
+
+      expect(actualPath).toContain(expectedPath!);
+
+      console.log(`✅ Passed: ${text}`);
+
+      // 🔙 Go back
+      await this.page.goBack();
+      await this.page.waitForLoadState('domcontentloaded');
+
+      // 🔁 Re-open menu
+      await this.clickAboutUs();
+    }
+
   }
 }
