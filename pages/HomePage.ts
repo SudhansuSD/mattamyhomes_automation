@@ -1,5 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
+import { getLocationConfig, LocationKey } from '../config/locations';
 
 type SearchType = 'market' | 'community' | 'plan' | 'qmi';
 
@@ -180,9 +181,25 @@ export class HomePage extends BasePage {
       MARKET CARD UI AND LINK VALIDATION
     ========================================================== */
 
-  async validateMarketCards(): Promise<void> {
+  private normalizeText(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[\u2013\u2014]/g, '-') // normalize dash
+      .replace(/\s+/g, ' ')
+      .replace(/\s*-\s*/g, '-')
+      .trim();
+  }
 
+  private getAcceptedNames(name: string): string[] {
+    return name
+      .split('||')
+      .map(part => this.normalizeText(part));
+  }
+
+  async validateMarketCards(): Promise<void> {
     await this.waitForPageReady();
+
+    const location = getLocationConfig();
 
     // Scroll to section
     const section = this.page.locator('text=Explore our locations near you');
@@ -191,10 +208,9 @@ export class HomePage extends BasePage {
     // Wait for slider to load
     await this.page.waitForSelector('#cards .slick-slide');
 
-    // Extract all slides data in one go
+    // Extract all slides data
     const slides = await this.page.$$eval('#cards .slick-slide', (elements) => {
       return elements.map((slide) => {
-
         const isCloned = slide.classList.contains('slick-cloned');
 
         const marketName =
@@ -204,7 +220,7 @@ export class HomePage extends BasePage {
           '';
 
         const href =
-          slide.querySelector('a')?.getAttribute('href') ||
+          slide.querySelector('a')?.getAttribute('href')?.trim() ||
           '';
 
         return { isCloned, marketName, href };
@@ -213,42 +229,140 @@ export class HomePage extends BasePage {
 
     console.log(`📊 Total market cards: ${slides.length}`);
 
-    // Filter valid
+    // Filter valid non-cloned cards
     const validSlides = slides.filter(
-      (s) => !s.isCloned && s.marketName && s.href
+      (slide) => !slide.isCloned && slide.marketName && slide.href
     );
 
     console.log(`✅ Valid market cards after filtering: ${validSlides.length}`);
 
-    const uniqueMarkets = new Map<string, string>();
+    // Remove duplicate cards by href
+    const uniqueMarkets = new Map<string, { marketName: string; href: string }>();
 
     for (const slide of validSlides) {
-
       if (!uniqueMarkets.has(slide.href)) {
-
-        const fullUrl = this.buildFullUrl(slide.href);
-
-        uniqueMarkets.set(fullUrl, slide.marketName);
-
-        console.log(`✅ Market: ${slide.marketName} -> ${fullUrl}`);
-
-        // 🔥 FIX: normalize market name → slug
-        const slug = slide.marketName
-          .toLowerCase()
-          .replace(/[.]/g, '')        // remove dots
-          .replace(/\s+/g, '-')       // spaces → hyphen
-          .replace(/-+/g, '-');       // clean multiple hyphens
-
-        // ✅ VALIDATIONS
-        expect(slide.marketName).not.toBe('');
-        expect(fullUrl).toContain('/');
-        expect(fullUrl.toLowerCase()).toContain(slug);
+        uniqueMarkets.set(slide.href, {
+          marketName: slide.marketName,
+          href: slide.href,
+        });
       }
     }
 
-    console.log(`🎯 Unique markets found: ${uniqueMarkets.size}`);
+    const uniqueSlides = Array.from(uniqueMarkets.values());
 
-    expect(uniqueMarkets.size).toBeGreaterThan(0);
+    console.log(`🎯 Unique markets found: ${uniqueSlides.length}`);
+
+    expect(uniqueSlides.length, '❌ No unique market cards found').toBeGreaterThan(0);
+
+    // Tables (short + readable)
+    const matchedMarkets: {
+      
+      name: string;
+      configUrl: string;
+      uiUrl: string;
+      status: string;
+    }[] = [];
+
+    const missingMarkets: {
+      configName: string;
+      configUrl: string;
+      status: string;
+    }[] = [];
+
+    const unmatchedUICards: {
+      uiName: string;
+      uiUrl: string;
+      status: string;
+    }[] = [];
+
+    // Extra logs for full URLs
+    const matchedFullUrls: string[] = [];
+
+    // =========================
+    // CONFIG → UI COMPARISON
+    // =========================
+    for (const expectedMarket of location.markets) {
+      const acceptedNames = this.getAcceptedNames(expectedMarket.name);
+
+      const matchedCard = uniqueSlides.find((slide) => {
+        const normalizedName = this.normalizeText(slide.marketName);
+        const normalizedHref = slide.href.toLowerCase().trim();
+
+        // ✅ STRICT COMPARISON:
+        // config name must match UI name
+        // AND config url must match UI url
+        return (
+          acceptedNames.includes(normalizedName) &&
+          normalizedHref === expectedMarket.url.toLowerCase().trim()
+        );
+      });
+
+      if (!matchedCard) {
+        missingMarkets.push({
+          configName: expectedMarket.name,
+          configUrl: expectedMarket.url,
+          status: 'Missing on UI',
+        });
+        continue;
+      }
+
+      const fullUrl = this.buildFullUrl(matchedCard.href);
+
+      matchedMarkets.push({
+        name: matchedCard.marketName,
+        configUrl: expectedMarket.url,
+        uiUrl: matchedCard.href,
+        status: 'Matched',
+      });
+
+      console.log(`✅ Market Name: ${matchedCard.marketName} | URL: ${fullUrl}`);
+    }
+
+    // =========================
+    // UI → CONFIG COMPARISON
+    // =========================
+    for (const slide of uniqueSlides) {
+      const existsInConfig = location.markets.some((market) => {
+        const acceptedNames = this.getAcceptedNames(market.name);
+        const normalizedName = this.normalizeText(slide.marketName);
+        const normalizedHref = slide.href.toLowerCase().trim();
+
+        return (
+          acceptedNames.includes(normalizedName) &&
+          normalizedHref === market.url.toLowerCase().trim()
+        );
+      });
+
+      if (!existsInConfig) {
+        unmatchedUICards.push({
+          uiName: slide.marketName,
+          uiUrl: slide.href,
+          status: 'Not in Config',
+        });
+      }
+    }
+
+    // =========================
+    // SUMMARY TABLES
+    // =========================
+    console.log('\n========== MARKET CARD VALIDATION SUMMARY ==========\n');
+
+    if (matchedMarkets.length > 0) {
+      console.log(`✅ Matched Markets (${matchedMarkets.length})`);
+      console.table(matchedMarkets);
+    }
+
+    if (missingMarkets.length > 0) {
+      console.log(`⚠️ Config Markets Not Available On UI (${missingMarkets.length})`);
+      console.table(missingMarkets);
+    }
+
+    if (unmatchedUICards.length > 0) {
+      console.log(`⚠️ UI Markets Not Present In Config (${unmatchedUICards.length})`);
+      console.table(unmatchedUICards);
+    }
+
+    console.log('===================================================\n');
   }
 
 }

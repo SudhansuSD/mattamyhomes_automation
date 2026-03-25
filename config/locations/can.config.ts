@@ -6,10 +6,10 @@ export const CAN = {
   community: 'Yorkville',
   qmiAddress: '1234 148 Avenue NW',
   planName: 'Brinkley I',
-  expectedPlanUrlPart: 'yorkville/brinkley-i',
+  expectedPlanUrlPart: '/brinkley-i',
   markets:[
     {
-      name: 'Greater Toronto Area',
+      name: 'Greater Toronto Area || GTA',
       url: '/ontario/gta'
     }, 
     {

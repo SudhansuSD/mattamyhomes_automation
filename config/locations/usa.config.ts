@@ -6,49 +6,70 @@ export const USA = {
   qmiAddress: '263 W FLAX DR',
   planName: 'Aqua',
   expectedPlanUrlPart: '/aqua',
-  markets: [{
-    name: 'Phoenix',
-    url: '/arizona/phoenix'
-  },
-  {
-    name: 'Tampa',
-    url: '/florida/tampa'
-  },
-  {
-    name: 'Orlando',
-    url: '/florida/orlando'
-  },
-  {
-    name: 'Tucson',
-    url: '/arizona/tucson'
-  },
-  {
-    name: 'Sarasota and Bradenton',
-    url: '/florida/sarasota-bradenton'
-  },
-  {
-    name: 'Raleigh',
-    url: '/north-carolina/raleigh'
-  },
-  {
-    name: 'Charlotte',
-    url: '/north-carolina/charlotte'
-  },
-  {
-    name: 'Palm City - Stuart',
-    url: '/florida/palm-city-stuart'
-  },
-  {
-    name: 'Palm Beach',
-    url: '/florida/palm-beach'
-  },
-  {
-    name: 'Fort Lauderdale',
-    url: '/florida/fort-lauderdale'
-  },
-  {
-    name: 'Dallas-Fort Worth',
-    url: '/texas/dallas-fort-worth'
-  }
+  markets: [
+    {
+      name: 'Charlotte',
+      url: '/north-carolina/charlotte'
+    },
+    {
+      name: 'Clover',
+      url: '/south-carolina/clover'
+    },
+    {
+      name: 'Dallas-Fort Worth',
+      url: '/texas/dallas-fort-worth'
+    },
+    {
+      name: 'Fort Lauderdale',
+      url: '/florida/fort-lauderdale'
+    },
+    {
+      name: 'Jacksonville-St. Augustine',
+      url: '/florida/jacksonville-st-augustine'
+    },
+    {
+      name: 'Naples-Fort Myers',
+      url: '/florida/naples-fort-myers'
+    },
+    {
+      name: 'Orlando',
+      url: '/florida/orlando'
+    },
+    {
+      name: 'Palm Beach',
+      url: '/florida/palm-beach'
+    },
+    {
+      name: 'Palm City-Stuart',
+      url: '/florida/palm-city-stuart'
+    },
+    {
+      name: 'Phoenix',
+      url: '/arizona/phoenix'
+    },
+    {
+      name: 'Port St. Lucie',
+      url: '/florida/port-st-lucie'
+    },
+    {
+      name: 'Raleigh',
+      url: '/north-carolina/raleigh'
+    },
+    {
+      name: 'Rock Hill',
+      url: '/south-carolina/rock-hill'
+    },
+    {
+      name: 'Sarasota and Bradenton || Sarasota-Bradenton',
+      url: '/florida/sarasota-bradenton'
+    },
+    {
+      name: 'Tampa',
+      url: '/florida/tampa'
+    },
+    {
+      name: 'Tucson',
+      url: '/arizona/tucson'
+    }
   ]
 } as const;
