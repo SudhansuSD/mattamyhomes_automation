@@ -88,23 +88,28 @@ export class HomePage extends BasePage {
       SEARCH RESULT SELECTION
     ========================================================== */
   private async selectSearchResult(value: string): Promise<void> {
+    const results = this.page.locator('[data-aos="fade-down"] a[aria-label]');
 
-    const option = this.page.locator('[data-aos="fade-down"] a[aria-label]').filter({
+    // Wait until at least one result appears
+    await expect(results.first()).toBeVisible({ timeout: 15000 });
+
+    // Match result by visible text
+    const option = results.filter({
       hasText: value
     }).first();
 
     await expect(option).toBeVisible({ timeout: 15000 });
 
-    console.log('✅ Clicking:', await option.innerText());
+    const label = await option.getAttribute('aria-label');
+    console.log('✅ Clicking:', label || await option.innerText());
 
     await option.scrollIntoViewIfNeeded();
+    await this.page.waitForTimeout(500); // stabilize DOM before click
+    await option.click();
+
+    // Wait after click
+    await this.page.waitForLoadState('domcontentloaded');
     await this.waitForPageReady();
-    const label = await option.getAttribute('aria-label');
-    console.log('✅ Clicking:', label);
-    await Promise.all([
-      this.waitForPageReady(),
-      option.click()
-    ]);
   }
 
   private async search(value: string): Promise<void> {
@@ -113,6 +118,10 @@ export class HomePage extends BasePage {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         console.log(`🔁 Full search attempt ${attempt}`);
+
+        // reset search state before retry
+        await this.page.keyboard.press('Escape').catch(() => { });
+        await this.page.waitForTimeout(500);
 
         await this.performSearch(value);
         await this.selectSearchResult(value);
@@ -127,8 +136,8 @@ export class HomePage extends BasePage {
           throw new Error(`❌ Search failed after ${maxAttempts} attempts for value: ${value}`);
         }
 
-        // 🔁 Reset state before retry
-        await this.page.keyboard.press('Escape');
+        // soft reset before retry
+        await this.page.keyboard.press('Escape').catch(() => { });
         await this.page.waitForTimeout(1000);
       }
     }
@@ -256,7 +265,7 @@ export class HomePage extends BasePage {
 
     // Tables (short + readable)
     const matchedMarkets: {
-      
+
       name: string;
       configUrl: string;
       uiUrl: string;
