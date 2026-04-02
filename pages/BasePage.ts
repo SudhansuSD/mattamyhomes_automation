@@ -46,7 +46,7 @@ export class BasePage {
 
   protected async waitForPageReady(): Promise<void> {
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(2000); // same behavior as before
+    await this.page.waitForTimeout(3000); // same behavior as before
   }
 
   /* ==========================================================
@@ -94,6 +94,9 @@ export class BasePage {
     return new URL(relativeUrl, this.page.url()).href;
 
   }
+  protected formatPrice(price: number): string {
+    return `$${price.toLocaleString('en-US')}`;
+  }
 
   /* ==========================================================
      Utils (NEW - stable reusable helpers)
@@ -115,6 +118,15 @@ export class BasePage {
     } catch {
       return false;
     }
+  }
+
+  protected normalizeText(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[\u2013\u2014]/g, '-') // normalize dash
+      .replace(/\s+/g, ' ')
+      .replace(/\s*-\s*/g, '-')
+      .trim();
   }
 
 

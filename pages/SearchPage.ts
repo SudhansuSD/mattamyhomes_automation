@@ -44,7 +44,17 @@ export class SearchPage extends HomePage {
         this.page.getByText(text);
 
     private async openFilter(label: string): Promise<void> {
-        await this.filterButton(label).click({ timeout: 15000 });
+        const button = this.filterButton(label);
+
+        await this.waitForPageReady();
+
+        await expect(button).toBeVisible({ timeout: 20000 });
+        await expect(button).toBeEnabled({ timeout: 20000 });
+
+        await button.scrollIntoViewIfNeeded();
+        await this.page.waitForTimeout(500);
+
+        await button.click({ timeout: 20000 });
     }
 
     /* ------------------------------------------------------------------
@@ -60,38 +70,33 @@ export class SearchPage extends HomePage {
                 break;
 
             case 'quick move-ins':
-                tab = this.page.getByRole('button', { name: /quick move-ins/i });
+                tab = this.page.getByRole('button', { name: /quick move-ins/i }).first();
                 break;
 
             case 'communities':
-                // special case (NOT real tab)
                 tab = this.page.locator('div[aria-label*="Communities"]').first();
                 break;
 
             default:
-                // 🔥 fallback (generic)
                 tab = this.page.locator('button[aria-pressed]').filter({
                     hasText: new RegExp(tabName, 'i')
-                });
+                }).first();
         }
 
-        const el = tab.first();
+        await tab.waitFor({ state: 'visible', timeout: 15000 });
+        await tab.scrollIntoViewIfNeeded();
 
-        await el.waitFor({ state: 'visible', timeout: 15000 });
-        await el.scrollIntoViewIfNeeded();
-
-        const isPressed = await el.getAttribute('aria-pressed');
+        const isPressed = await tab.getAttribute('aria-pressed');
 
         if (isPressed === 'true') {
-            console.log(`[openTab] '${tabName}' already selected`);
+            console.log(`[openTab] '${tabName}' is already selected`);
             return;
         }
 
-        await el.click();
+        await tab.click();
 
-        // verify only if attribute exists
-        if (await el.getAttribute('aria-pressed') !== null) {
-            await expect(el).toHaveAttribute('aria-pressed', 'true');
+        if (isPressed !== null) {
+            await expect(tab).toHaveAttribute('aria-pressed', 'true');
         }
     }
 
@@ -114,7 +119,7 @@ export class SearchPage extends HomePage {
     ------------------------------------------------------------------ */
 
     async getAllPrices(): Promise<number[]> {
-        const cards = this.page.locator('div.sc-jCJzcv:has(h3)');
+        const cards = this.resultCards();
         const count = await cards.count();
 
         const prices: number[] = [];
@@ -122,19 +127,18 @@ export class SearchPage extends HomePage {
         for (let i = 0; i < count; i++) {
             const card = cards.nth(i);
 
-            const priceLocator = card.locator('span[class*="text-3xl"]');
+            const nameLocator = card.locator('h3').first();
+            const name = (await nameLocator.textContent())?.trim() || `Card ${i + 1}`;
 
-            // ✅ Handle case: no price element exists
-            if (await priceLocator.count() === 0) {
-                console.log(`Card ${i + 1}: No price available`);
-                continue;
-            }
+            // ✅ Find all spans inside card and pick only the first clean price like "$459,999"
+            const priceSpans = card.locator('span');
+            const spanTexts = await priceSpans.allTextContents();
 
-            const priceText = await priceLocator.textContent();
+            const priceText = spanTexts.find(text => /^\$\d[\d,]*$/.test(text.trim()));
 
-            // ✅ Handle null / empty
-            if (!priceText || priceText.trim() === '') {
-                console.log(`Card ${i + 1}: Empty price`);
+            // ✅ Handle case: no valid price text found
+            if (!priceText) {
+                console.log(`Card ${i + 1}: ${name} - No price available`);
                 continue;
             }
 
@@ -142,32 +146,35 @@ export class SearchPage extends HomePage {
 
             // ✅ Handle "Coming Soon" / "Pricing Coming Soon"
             if (normalized.includes('coming')) {
-                console.log(`Card ${i + 1}: Coming soon`);
+                console.log(`Card ${i + 1}: ${name} - Coming soon`);
                 continue;
             }
 
-            // ✅ Extract numeric value
-            const cleaned = priceText.replace(/[^0-9]/g, '');
+            // ✅ Extract only numeric part safely
+            const match = priceText.match(/\$([\d,]+)/);
 
-            if (!cleaned) {
-                console.log(`Card ${i + 1}: Invalid price format -> ${priceText}`);
+            if (!match) {
+                console.log(`Card ${i + 1}: ${name} - Invalid price format -> ${priceText}`);
                 continue;
             }
 
-            const price = Number(cleaned);
+            const price = Number(match[1].replace(/,/g, ''));
+
             prices.push(price);
 
-            console.log(`Card ${i + 1}: ${price}`);
+            console.log(`Card ${i + 1}: ${name} - ${price}`);
         }
 
         return prices;
     }
 
-    /* ------------------------------------------------------------------
-       Filters
-    ------------------------------------------------------------------ */
+    /* =================================================================
+       FILTERS
+    ================================================================= */
 
-    // Filter by price
+    /* ------------------------------------------------------------------
+    Filter by price
+    ------------------------------------------------------------------ */
 
     async filterByPrice(min: string, max: string): Promise<void> {
 
@@ -184,67 +191,166 @@ export class SearchPage extends HomePage {
         await this.dropdownOption(max).click();
 
         await this.waitForResultsToLoad();
-    }
 
-    // Filter by beds and baths
-
-    async filterByBedroomsAndBathrooms(
-        minBeds: number,
-        minBaths: number
-    ): Promise<void> {
-
-        await this.waitForPageReady();
-        await this.openFilter('Select Beds & Baths');
-
-        await this.selectCategory('Bedrooms', `${minBeds} Bedrooms`);
-        await this.selectCategory('Bathrooms', `${minBaths} Bathrooms`);
-    }
-
-    private async selectCategory(
-        category: 'Bedrooms' | 'Bathrooms',
-        option: string
-    ): Promise<void> {
-
-        await this.page
-            .locator('.truncate', { hasText: new RegExp(category, 'i') })
-            .click({ force: true });
-
-        await this.page
-            .locator('span', { hasText: option })
-            .click({ timeout: 15000, force: true });
     }
 
     /* ------------------------------------------------------------------
        Validation: Price Range
     ------------------------------------------------------------------ */
 
-    async validatePriceRange(minValue: number, maxValue: number) {
+    async validatePriceRangeAcrossTabs(min: number, max: number): Promise<void> {
+        const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
+        const allFailures: string[] = [];
 
+        for (const tab of tabs) {
+            console.log(`\n🔎 Validating price filter for ${tab} tab: `);
+
+            try {
+                await this.verifyResults(tab);
+
+                const failures = await this.validatePriceRange(min, max, tab);
+
+                if (failures.length > 0) {
+                    allFailures.push(
+                        `\n[${tab}]\n${failures.map((f, i) => `${i + 1}. ${f}`).join('\n')}`
+                    );
+                }
+
+            } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+
+                console.log(`❌ ${tab} validation could not complete`);
+                allFailures.push(`\n[${tab}] Validation error:\n${message}`);
+            }
+        }
+
+        if (allFailures.length > 0) {
+            throw new Error(
+                `❌ Price filter validation failed across tabs:\n${allFailures.join('\n')}`
+            );
+        }
+
+        console.log(`\n🎯 Price filter validation passed across all tabs`);
+    }
+
+    async validatePriceRange(
+        minValue: number,
+        maxValue: number,
+        tabName?: ResultsTab
+    ): Promise<string[]> {
         const tolerance = 0;
         const prices = await this.getAllPrices();
 
-        const format = (p: number) => `$${p.toLocaleString()}`;
-
-        console.log(`\n========== PRICE VALIDATION ==========`);
-
-        console.log(`Range: ${format(minValue)} - ${format(maxValue)}`);
+        console.log(`\n========== PRICE VALIDATION${tabName ? `: ${tabName}` : ''} ==========`);
+        console.log(`Range: ${this.formatPrice(minValue)} - ${this.formatPrice(maxValue)}`);
         console.log(`Total Results: ${prices.length}\n`);
 
-        prices.forEach((price, index) => {
+        const failures: string[] = [];
 
+        prices.forEach((price, index) => {
             const isValid =
                 price >= (minValue - tolerance) &&
                 price <= maxValue;
 
+            const formattedPrice = this.formatPrice(price);
             const status = isValid ? '✅ PASS' : '❌ FAIL';
 
-            console.log(`${status} | ${index + 1}. ${format(price)}`);
+            console.log(`${status} | Card ${index + 1}. ${formattedPrice}`);
 
-            expect(price).toBeGreaterThanOrEqual(minValue - tolerance);
-            expect(price).toBeLessThanOrEqual(maxValue);
+            if (!isValid) {
+                failures.push(
+                    `Card ${index + 1}. ${formattedPrice} is outside range ${this.formatPrice(minValue)} - ${this.formatPrice(maxValue)}`
+                );
+            }
         });
 
+        if (failures.length > 0) {
+            console.log(`\n❌ Price validation failures found${tabName ? ` for ${tabName}` : ''}:`);
+            failures.forEach((failure, index) => {
+                console.log(`Card ${index + 1}. ${failure}`);
+            });
+        } else {
+            console.log(`✅ All prices are within range${tabName ? ` for ${tabName}` : ''}`);
+        }
+
         console.log(`=====================================\n`);
+
+        return failures;
+    }
+
+    /*-------------------------------------------------------------------
+    Filter by beds and baths
+    ------------------------------------------------------------------ */
+
+    async filterByBedroomsAndBathrooms(
+        minBeds: number,
+        minBaths: number
+    ): Promise<void> {
+        await this.waitForPageReady();
+        await this.openFilter('Select Beds & Baths');
+        await this.page.locator('span').filter({ hasText: 'Bedrooms' }).click();
+        await this.page.getByRole('checkbox', { name: `${minBeds} Bedrooms` }).click();
+        await this.page.locator('span').filter({ hasText: 'Bathrooms' }).click();
+        await this.page.getByRole('checkbox', { name: `${minBaths} Bathrooms` }).click();
+
+    }
+    /* ------------------------------------------------------------------
+       Validation: Beds & Baths
+    ------------------------------------------------------------------ */
+
+    async validateBedsBathsAcrossTabs(minBeds: number, minBaths: number): Promise<void> {
+        const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
+
+        for (const tab of tabs) {
+            console.log(`\n🔎 Validating beds & baths on tab: ${tab}`);
+
+            await this.verifyResults(tab);
+            await this.validateBedsAndBaths(minBeds, minBaths);
+        }
+    }
+    async validateBedsAndBaths(minBeds: number, minBaths: number): Promise<void> {
+        const cards = await this.resultCards();
+        const count = await cards.count();
+
+        console.log(`\n========== BEDS & BATHS VALIDATION ==========`);
+
+        for (let i = 0; i < count; i++) {
+            const card = cards.nth(i);
+
+            // Extract text safely
+            const text = await card.innerText().catch(() => '');
+
+            // Extract numbers using regex
+            const bedsMatch = text.match(/(\d+)\s*Beds?/i);
+            const bathsMatch = text.match(/(\d+)\s*Baths?/i);
+
+            const beds = bedsMatch ? Number(bedsMatch[1]) : null;
+            const baths = bathsMatch ? Number(bathsMatch[1]) : null;
+
+            // Skip if data not available
+            if (beds === null && baths === null) {
+                console.log(`⚠️ Card ${i + 1}: No beds/baths info → Skipped`);
+                continue;
+            }
+
+            let isValid = true;
+
+            if (beds !== null) {
+                if (beds < minBeds) isValid = false;
+                expect(beds).toBeGreaterThanOrEqual(minBeds);
+            }
+
+            if (baths !== null) {
+                if (baths < minBaths) isValid = false;
+                expect(baths).toBeGreaterThanOrEqual(minBaths);
+            }
+
+            console.log(
+                `${isValid ? '✅ PASS' : '❌ FAIL'} | Card ${i + 1} | Beds: ${beds ?? 'N/A'} | Baths: ${baths ?? 'N/A'}`
+            );
+        }
+
+        console.log(`=============================================\n`);
     }
 
     /* ------------------------------------------------------------------
@@ -252,67 +358,53 @@ export class SearchPage extends HomePage {
     ------------------------------------------------------------------ */
 
     async verifyResults(tabName: ResultsTab): Promise<void> {
-
         await this.openTab(tabName);
-
-        const cards = await this.resultCards();
-
         await this.waitForPageReady();
 
-        const firstCard = cards.first();
+        // wait briefly after tab switch
+        await this.page.waitForTimeout(2000);
 
-        // check if at least one card is visible
-        if (await firstCard.isVisible().catch(() => false)) {
+        const cards = await this.resultCards();
+        const noResults = this.page
+            .getByRole('status')
+            .filter({ hasText: 'No results in this area' })
+            .first();
 
-            const count = await cards.count();
+        // Wait for either cards OR no-results
+        await Promise.race([
+            cards.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => { }),
+            noResults.waitFor({ state: 'visible', timeout: 10000 }).catch(() => { })
+        ]);
 
-            console.log(`✅ Total ${tabName} results detected: ${count}`);
+        const count = await cards.count();
+        console.log(`📋 ${tabName} results count: ${count}`);
 
+        if (count > 0) {
+            const countLabel = this.page.locator("div[role='status']").first();
+            await expect(countLabel).toBeVisible();
+
+            const countText = await countLabel.innerText();
+            const displayedCount = Number(countText.match(/\d+/)?.[0]);
+
+            console.log(`📊 ${tabName} displayed count: ${displayedCount}`);
+            console.log(`📦 ${tabName} actual cards count: ${count}`);
+
+            expect(displayedCount).toBeGreaterThan(0);
             expect(count).toBeGreaterThan(0);
 
-        } else {
-            const noResults = this.page
-                .getByRole('status')
-                .filter({ hasText: 'No results in this area' })
-                .first();
-            await expect(noResults).toBeVisible({ timeout: 15000 });                
+            return;
+        }
 
+        if (await noResults.isVisible().catch(() => false)) {
             const message = await noResults.innerText();
             console.log(`⚠️ No Results Message: ${message.trim()}`);
-
+            return;
         }
+
+        throw new Error(`❌ ${tabName}: No results AND no "No results" message found`);
     }
 
-    /* ------------------------------------------------------------------
-       Sorting
-    ------------------------------------------------------------------ */
 
-    async selectSortOption(option: string): Promise<void> {
-
-        this.log(`Selecting sort option: ${option}`);
-
-        await this.sortButton.click();
-
-        const menu = this.page.locator('div[role="menu"]').last();
-        await expect(menu).toBeVisible();
-
-        await menu.getByRole('button', { name: new RegExp(option, 'i') }).click();
-
-        await this.waitForResultsToLoad();
-    }
-
-    async validatePriceSorting(order: SortOrder): Promise<void> {
-
-        const prices = await this.getAllPrices();
-
-        const sorted = [...prices].sort((a, b) =>
-            order === 'asc' ? a - b : b - a
-        );
-
-        expect(prices).toEqual(sorted);
-
-        this.log(`✅ Price sorting (${order}) validated`);
-    }
 
     /* ------------------------------------------------------------------
        Sort Options Validation
@@ -325,18 +417,27 @@ export class SearchPage extends HomePage {
     ): Promise<void> {
 
         await this.openTab(tabName);
-
         await this.sortButton.click();
 
         const options = await this.sortMenuItems.allTextContents();
 
-        required.forEach(opt => expect(options).toContain(opt));
+        console.log(`\n========== SORT OPTIONS VALIDATION: ${tabName} ==========`);
+
+        required.forEach(opt => {
+            const isPresent = options.includes(opt);
+
+            console.log(`${isPresent ? '✅' : '❌'} Required: ${opt}`);
+
+            expect(options, `Missing required sort option: ${opt}`).toContain(opt);
+        });
 
         optional.forEach(opt => {
-            if (options.includes(opt)) {
-                this.log(`Optional present: ${opt}`);
-            }
+            const isPresent = options.includes(opt);
+
+            console.log(`${isPresent ? '⚠️ Optional Sort' : 'ℹ️ Optional not present'}: ${opt}`);
         });
+
+        console.log(`=====================================================\n`);
     }
 
     /* ------------------------------------------------------------------
@@ -344,8 +445,6 @@ export class SearchPage extends HomePage {
     ------------------------------------------------------------------ */
 
     async validateCommunitySortOptions(): Promise<void> {
-        await this.openTab('Communities');
-
         await this.validateSortOptions(
             'Communities',
             ['$ - $$$', 'A - Z', 'Availability'],
@@ -354,8 +453,6 @@ export class SearchPage extends HomePage {
     }
 
     async validatePlanSortOptions(): Promise<void> {
-        await this.openTab('Plans');
-
         await this.validateSortOptions(
             'Plans',
             ['$ - $$$', 'Sq. Ft.', 'A - Z']
@@ -363,11 +460,226 @@ export class SearchPage extends HomePage {
     }
 
     async validateQMISortOptions(): Promise<void> {
-        await this.openTab('Quick Move-In');
-
         await this.validateSortOptions(
             'Quick Move-Ins',
             ['Date', '$ - $$$', 'Sq. Ft.', 'A - Z']
         );
     }
+    /* ==========================================================
+       SORTABLE DATA EXTRACTION
+    ========================================================== */
+
+    async getSortablePrices(tabName: ResultsTab): Promise<number[]> {
+        const cards = await this.resultCards();
+        const count = await cards.count();
+
+        const prices: number[] = [];
+
+        console.log(`\n========== EXTRACTING SORTABLE PRICES: ${tabName} ==========`);
+
+        for (let i = 0; i < count; i++) {
+            const card = cards.nth(i);
+            const text = await card.innerText().catch(() => '');
+
+            const match = text.match(/\$[\d,]+/);
+
+            if (match) {
+                const price = Number(match[0].replace(/[$,]/g, ''));
+                prices.push(price);
+                console.log(`💲 Card ${i + 1}: $${price.toLocaleString()}`);
+            } else {
+                console.log(`⚠️ Card ${i + 1}: skipped (no sortable price)`);
+            }
+        }
+
+        console.log(`===========================================================\n`);
+        return prices;
+    }
+    /* ==========================================================
+       SORT ACTION
+    ========================================================== */
+
+    async selectSortOption(tabName: ResultsTab, option: string): Promise<void> {
+        await this.openTab(tabName);
+
+        await this.sortButton.waitFor({ state: 'visible', timeout: 10000 });
+        await this.sortButton.click();
+
+        const optionLocator = this.sortMenuItems
+            .filter({ hasText: option })
+            .first();
+
+        await optionLocator.waitFor({ state: 'visible', timeout: 10000 });
+
+        console.log(`🔽 Selecting sort option: ${option}`);
+        await optionLocator.click();
+
+        await this.waitForResultsToLoad();
+    }
+
+    async getSortableSqFt(tabName: ResultsTab): Promise<number[]> {
+        const cards = await this.resultCards();
+        const count = await cards.count();
+
+        const values: number[] = [];
+
+        console.log(`\n========== EXTRACTING SORTABLE SQ. FT.: ${tabName} ==========`);
+
+        for (let i = 0; i < count; i++) {
+            const card = cards.nth(i);
+            const text = await card.innerText().catch(() => '');
+
+            const match = text.match(/([\d,]+)\s*Sq\.?\s*Ft/i);
+
+            if (match) {
+                const sqft = Number(match[1].replace(/,/g, ''));
+                values.push(sqft);
+                console.log(`📐 Card ${i + 1}: ${sqft.toLocaleString()} Sq. Ft.`);
+            } else {
+                console.log(`⚠️ Card ${i + 1}: skipped (no sortable Sq. Ft.)`);
+            }
+        }
+
+        console.log(`===========================================================\n`);
+        return values;
+    }
+
+    async getSortableTitles(tabName: ResultsTab): Promise<string[]> {
+        const cards = await this.resultCards();
+        const count = await cards.count();
+
+        const titles: string[] = [];
+
+        console.log(`\n========== EXTRACTING SORTABLE TITLES: ${tabName} ==========`);
+
+        for (let i = 0; i < count; i++) {
+            const card = cards.nth(i);
+
+            const title = await card
+                .locator('h1, h2, h3, h4, [data-testid*="title"], [class*="title"]')
+                .first()
+                .innerText()
+                .catch(() => '');
+
+            if (title.trim()) {
+                titles.push(title.trim());
+                console.log(`🔤 Card ${i + 1}: ${title.trim()}`);
+            } else {
+                console.log(`⚠️ Card ${i + 1}: skipped (no sortable title)`);
+            }
+        }
+
+        console.log(`===========================================================\n`);
+        return titles;
+    }
+
+    /* ==========================================================
+       SORT VALIDATION HELPERS
+    ========================================================== */
+
+    private validateAscendingNumbers(actual: number[], label: string): void {
+        console.log(`\n========== ${label.toUpperCase()} SORT VALIDATION ==========`);
+
+        const failures: string[] = [];
+
+        for (let i = 0; i < actual.length - 1; i++) {
+            const current = actual[i];
+            const next = actual[i + 1];
+
+            const isValid = current <= next;
+
+            console.log(`${isValid ? '✅' : '❌'} ${i + 1}. ${current.toLocaleString()} <= ${next.toLocaleString()}`);
+
+            if (!isValid) {
+                failures.push(
+                    `Position ${i + 1}: ${current.toLocaleString()} should be <= ${next.toLocaleString()}`
+                );
+            }
+        }
+
+        if (failures.length > 0) {
+            console.log(`\n❌ ${label} sorting failures found:`);
+
+            failures.forEach((failure, index) => {
+                console.log(`   ${index + 1}. ${failure}`);
+            });
+
+            throw new Error(
+                `❌ ${label} sorting is incorrect.\n` +
+                failures.map((f, i) => `${i + 1}. ${f}`).join('\n')
+            );
+        }
+
+        console.log(`✅ ${label} sorting validated successfully`);
+        console.log(`=====================================================\n`);
+    }
+
+    private validateAlphabetical(actual: string[], label: string): void {
+        const expected = [...actual].sort((a, b) => a.localeCompare(b));
+
+        console.log(`\n========== ${label.toUpperCase()} SORT VALIDATION ==========`);
+
+        actual.forEach((value, index) => {
+            const isCorrect = value === expected[index];
+            console.log(`${isCorrect ? '✅' : '❌'} ${index + 1}. ${value}`);
+        });
+
+        expect(actual, `${label} sorting is incorrect`).toEqual(expected);
+
+        console.log(`✅ ${label} sorting validated successfully`);
+        console.log(`=====================================================\n`);
+    }
+
+    /* ==========================================================
+       ACTUAL CARD SORTING VALIDATION
+    ========================================================== */
+
+    async validatePriceSorting(tabName: ResultsTab): Promise<void> {
+        await this.selectSortOption(tabName, '$ - $$$');
+
+        const prices = await this.getSortablePrices(tabName);
+
+        expect(prices.length, 'No sortable price values found').toBeGreaterThan(1);
+        this.validateAscendingNumbers(prices, `${tabName} Price`);
+    }
+
+    async validateSqFtSorting(tabName: ResultsTab): Promise<void> {
+        await this.selectSortOption(tabName, 'Sq. Ft.');
+
+        const values = await this.getSortableSqFt(tabName);
+
+        expect(values.length, 'No sortable Sq. Ft. values found').toBeGreaterThan(1);
+        this.validateAscendingNumbers(values, `${tabName} Sq. Ft.`);
+    }
+
+    async validateAZSorting(tabName: ResultsTab): Promise<void> {
+        await this.selectSortOption(tabName, 'A - Z');
+
+        const titles = await this.getSortableTitles(tabName);
+
+        expect(titles.length, 'No sortable title values found').toBeGreaterThan(1);
+        this.validateAlphabetical(titles, `${tabName} A-Z`);
+    }
+
+    /* ==========================================================
+       HIGH-LEVEL SORTING TEST METHODS
+    ========================================================== */
+
+    async validateCommunitySortingBehavior(): Promise<void> {
+        await this.validateAZSorting('Communities');
+        await this.validatePriceSorting('Communities');
+    }
+
+    async validatePlanSortingBehavior(): Promise<void> {
+        await this.validatePriceSorting('Plans');
+        await this.validateSqFtSorting('Plans');
+        await this.validateAZSorting('Plans');
+    }
+
+    async validateQMISortingBehavior(): Promise<void> {
+        await this.validatePriceSorting('Quick Move-Ins');
+        await this.validateSqFtSorting('Quick Move-Ins');
+        await this.validateAZSorting('Quick Move-Ins');
+    }
+
 }

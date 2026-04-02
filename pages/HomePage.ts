@@ -9,7 +9,7 @@ export class HomePage extends BasePage {
   readonly heroSection: Locator;
   readonly header: Locator;
   readonly searchBox: Locator;
-  readonly searchResults: Locator;
+
   readonly marketCards: Locator;
 
   constructor(page: Page) {
@@ -17,12 +17,9 @@ export class HomePage extends BasePage {
 
     this.heroSection = page.locator('section').first();
     this.header = page.locator('header');
-    this.searchBox = page.getByPlaceholder(/Search by City/i);
+    this.searchBox = page.locator('input[placeholder*="Search"]').first();
     // Use CSS :not() to exclude cloned slides from carousel
     this.marketCards = page.locator('#cards .slick-slide:not(.slick-cloned)');
-
-    // Dropdown container (generic, works across variants)
-    this.searchResults = page.locator('[data-aos="fade-down"] a[aria-label]');
 
   }
 
@@ -37,111 +34,72 @@ export class HomePage extends BasePage {
   }
 
   /* ==========================================================
-     GENERIC SEARCH ENGINE (CORE)
+     SHARED CONSTANTS
   ========================================================== */
 
-  private async performSearch(value: string): Promise<void> {
-    const maxAttempts = 2;
+  private readonly SEARCH_MAX_ATTEMPTS = 2;
+  private readonly SEARCH_INPUT_TIMEOUT = 10000;
+  private readonly SEARCH_RESULTS_TIMEOUT = 15000;
+  private readonly SEARCH_TYPE_DELAY = 1000;
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        await this.waitForPageReady();
+  /* ==========================================================
+     SEARCH LOCATORS
+  ========================================================== */
 
-        // ✅ Step 1: Focus + clear properly
-        await this.searchBox.click();
-        await this.searchBox.fill('');
-
-        // select all + delete (more reliable than fill(''))
-        await this.searchBox.press('Control+A');
-        await this.searchBox.press('Backspace');
-
-        // ✅ Step 2: Close any stale dropdown
-        await this.page.keyboard.press('Escape');
-
-        // small pause to reset UI
-        await this.page.waitForTimeout(300);
-
-        // ✅ Step 3: Type slowly (important for debounce APIs)
-        await this.searchBox.type(value, { delay: 1000 });
-
-        // ✅ Step 4: Wait for REAL result (NOT container)
-        const result = this.page.locator(`text=${value}`).first();
-
-        await expect(result).toBeVisible({ timeout: 15000 });
-
-        console.log(`✅ Search success on attempt ${attempt}`);
-        return;
-
-      } catch (error) {
-        console.log(`⚠️ Search attempt ${attempt} failed`);
-
-        if (attempt === maxAttempts) {
-          throw new Error(`❌ Search failed after ${maxAttempts} attempts for value: ${value}`);
-        }
-
-        // 🔁 Reset before retry
-        await this.page.waitForTimeout(1000);
-      }
-    }
+  private get searchResults(): Locator {
+    // Keep current selector as fallback, but centralize it
+    return this.page.locator('[data-aos="fade-down"] a[aria-label]');
   }
   /* ==========================================================
-      SEARCH RESULT SELECTION
+       SEARCH FEATURE
     ========================================================== */
-  private async selectSearchResult(value: string): Promise<void> {
-    const results = this.page.locator('[data-aos="fade-down"] a[aria-label]');
 
-    // Wait until at least one result appears
-    await expect(results.first()).toBeVisible({ timeout: 15000 });
-
-    // Match result by visible text
-    const option = results.filter({
-      hasText: value
-    }).first();
-
-    await expect(option).toBeVisible({ timeout: 15000 });
-
-    const label = await option.getAttribute('aria-label');
-    console.log('✅ Clicking:', label || await option.innerText());
-
-    await option.scrollIntoViewIfNeeded();
-    await this.page.waitForTimeout(500); // stabilize DOM before click
-    await option.click();
-
-    // Wait after click
-    await this.page.waitForLoadState('domcontentloaded');
+  async search(value: string): Promise<void> {
     await this.waitForPageReady();
-  }
+    await this.page.waitForTimeout(1500); // small UI stabilization
 
-  private async search(value: string): Promise<void> {
-    const maxAttempts = 2;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log(`🔁 Attempt ${attempt} - 🔍 Searching for: ${value}`);
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        console.log(`🔁 Full search attempt ${attempt}`);
+      
 
-        // reset search state before retry
-        await this.page.keyboard.press('Escape').catch(() => { });
+      await this.searchBox.waitFor({ state: 'visible', timeout: 20000 });
+      await this.searchBox.scrollIntoViewIfNeeded();
+      await this.searchBox.click();
+      await this.searchBox.fill('');
+
+      let typedValue = '';
+
+      for (const char of value) {
+        typedValue += char;
+
+        await this.searchBox.type(char, { delay: 500 });
         await this.page.waitForTimeout(500);
 
-        await this.performSearch(value);
-        await this.selectSearchResult(value);
+        const matchedResult = this.searchResults
+          .filter({ hasText: value })
+          .first();
 
-        console.log(`✅ Full search success on attempt ${attempt}`);
-        return;
-
-      } catch (error) {
-        console.log(`❌ Full search attempt ${attempt} failed`);
-
-        if (attempt === maxAttempts) {
-          throw new Error(`❌ Search failed after ${maxAttempts} attempts for value: ${value}`);
+        if (await matchedResult.isVisible().catch(() => false)) {
+          console.log(`✅ Match found after typing: ${typedValue}`);
+          await matchedResult.click();
+          await this.waitForPageReady();
+          return;
         }
-
-        // soft reset before retry
-        await this.page.keyboard.press('Escape').catch(() => { });
-        await this.page.waitForTimeout(1000);
       }
+
+      console.log(`⚠️ No match found in attempt ${attempt}`);
+      await this.searchBox.fill('');
+      await this.page.waitForTimeout(800);
     }
+
+    throw new Error(`❌ No matching search result found for: ${value}`);
   }
+  /* ==========================================================
+     HELPERS
+  ========================================================== */
+
+
 
   /* ==========================================================
      MARKET SEARCH
@@ -149,18 +107,15 @@ export class HomePage extends BasePage {
 
   async searchByMarket(market: string): Promise<void> {
     await this.search(market);
-    // await this.waitForMarketRouting();
   }
 
   async verifySearchByMarket(expectedMarket: string): Promise<void> {
-
     await this.waitForPageReady();
 
     const params = new URL(this.page.url()).searchParams;
     const metro = params.get('metro') || '';
 
-    expect(metro.toLowerCase())
-      .toContain(expectedMarket.toLowerCase());
+    expect(this.normalizeText(metro)).toContain(this.normalizeText(expectedMarket));
   }
 
   /* ==========================================================
@@ -189,15 +144,6 @@ export class HomePage extends BasePage {
   /* ==========================================================
       MARKET CARD UI AND LINK VALIDATION
     ========================================================== */
-
-  private normalizeText(text: string): string {
-    return text
-      .toLowerCase()
-      .replace(/[\u2013\u2014]/g, '-') // normalize dash
-      .replace(/\s+/g, ' ')
-      .replace(/\s*-\s*/g, '-')
-      .trim();
-  }
 
   private getAcceptedNames(name: string): string[] {
     return name

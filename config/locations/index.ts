@@ -9,12 +9,14 @@ export const LOCATIONS = {
 export type LocationKey = keyof typeof LOCATIONS;
 export type LocationConfig = typeof LOCATIONS[LocationKey];
 
+declare const process: { env: { LOCATION?: string } };
+
 export function getLocationConfig(
   overrideLocation?: LocationKey
 ): LocationConfig {
   const key =
     overrideLocation ??
-    (process.env.LOCATION as LocationKey) ??
+    (process?.env?.LOCATION as LocationKey) ??
     'USA'; // Default location if not specified
 
   const location = LOCATIONS[key];
