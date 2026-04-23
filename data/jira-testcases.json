@@ -1,0 +1,35 @@
+{
+  "testCases": [
+    {
+      "id": "TC001",
+      "title": "Validate source URL redirects correctly",
+      "type": "navigation",
+      "steps": [
+        "Open the source URL in browser",
+        "Observe redirect behavior",
+        "Verify user is redirected to expected destination page"
+      ],
+      "expectedResult": "User should land on correct destination page",
+      "tags": [
+        "redirect",
+        "navigation",
+        "url"
+      ]
+    },
+    {
+      "id": "TC002",
+      "title": "Validate redirected destination URL is correct",
+      "type": "navigation",
+      "steps": [
+        "Trigger redirect using source URL",
+        "Capture final landing URL",
+        "Verify it matches expected destination URL"
+      ],
+      "expectedResult": "Final URL should match expected destination",
+      "tags": [
+        "redirect",
+        "url"
+      ]
+    }
+  ]
+}

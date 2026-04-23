@@ -1,65 +1,81 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { HomePage } from './HomePage';
+import { getLocationConfig } from '../config/locations';
 
 /* ==========================================================
     QMI Page Object Model
 ========================================================== */
 
+const location = getLocationConfig();
 
 export class QMIPage extends HomePage {
+    private static readonly PAGE_LOAD_TIMEOUT = 20000;
+    private static readonly UTOUR_TIMEOUT = 15000;
+    private static readonly HOME_QUERY_PARAM_PATTERN = /\?country=/i;
+    private static readonly QMI_URL_PATTERN = /\/\d{1,}-/;
 
+    readonly heroSection: Locator;
     readonly heading: Locator;
     readonly breadcrumb: Locator;
     readonly priceSection: Locator;
-    readonly galleryImages: Locator;
+    readonly getInformationCta: Locator;
+    readonly formSection: Locator;
+    
+    readonly propertyStats: Locator;
+    readonly gallerySection: Locator;
     readonly nextGalleryBtn: Locator;
     readonly prevGalleryBtn: Locator;
     readonly floorPlanSection: Locator;
-    readonly featuresAccordion: Locator;
     readonly mortgageBtn: Locator;
+    readonly mortgageComponent: Locator;
     readonly closeModalBtn: Locator;
-    readonly communityLink: Locator;
+    readonly uTourTitle: Locator;
+    readonly uTourCta: Locator;
+    readonly uTourSection: Locator;
 
     constructor(page: Page) {
         super(page);
-
-        /* ==========================================================
-           Stable Locators
-        ========================================================== */
-
-        this.heading = page.locator('h1');
-        this.breadcrumb = page.locator('#breadcrumb');
-        this.priceSection = page.locator('text=/\\$|From|Starting/i');
-
-        this.galleryImages = page.locator(
-            '.slick-slide img, .swiper-slide img'
-        );
-
-        this.nextGalleryBtn = page.locator(
-            'button[aria-label="Next"]'
-        );
-
-        this.prevGalleryBtn = page.locator(
-            'button[aria-label="Previous"]'
-        );
-
-        this.floorPlanSection = page.locator('text=/Floor Plan/i');
-
-        this.featuresAccordion = page.locator(
-            'button:has-text("Features"), button:has-text("Details")'
-        );
-
-        this.mortgageBtn = page.getByRole('button', {
-            name: /Get Started/i
+        const mortgageSectionTitle = page.getByText('Mortgage Calculator', {
+            exact: true
         });
 
-        this.closeModalBtn = page.locator(
-            'button[aria-label="Close"]'
+        this.heroSection = page.locator("//h1[contains(.,'1230 148 Avenue')]/ancestor::div[contains(@class,'container')]");
+        this.heading = page.locator('h1');
+        this.breadcrumb = page.locator('#breadcrumb');
+        this.priceSection = this.heroSection.locator("p:has-text('$')");
+        this.getInformationCta = page.locator('a, button').filter({
+            hasText: /Get Information/i
+        }).first();
+        this.formSection = page.locator(
+            '#contact, #ScheduleAVisit-FormInstance0, #ScheduleAVisit-FormInstance1'
+        ).first();
+        
+        this.propertyStats = page.locator("p:has-text('Beds')").nth(1);
+        this.gallerySection =  page.locator('#gallery');
+        this.nextGalleryBtn = page.locator('button[aria-label="Next"]');
+        this.prevGalleryBtn = page.locator('button[aria-label="Previous"]');
+        this.floorPlanSection = page.locator('text=/Floor Plan/i');
+        this.mortgageComponent = page.locator('section')
+            .filter({ has: mortgageSectionTitle })
+            .filter({
+                has: page.getByRole('button', { name: /Get Started/i })
+            })
+            .first();
+        this.mortgageBtn = this.mortgageComponent.getByRole('button', {
+            name: /Get Started/i
+        }).first();
+        this.closeModalBtn = page.locator('.ReactModal__Content, [role="dialog"]')
+            .locator('button[aria-label="Close"], button:has-text("Close"), button:has-text("CLOSE")')
+            .first();
+        this.uTourTitle = page.getByRole(
+            'heading', { name: /Self-guided tours available/i }
         );
-
-        this.communityLink = page.locator(
-            'a:has-text("Community")'
-        );
+        this.uTourSection = page.locator('section').filter({
+            has: this.uTourTitle
+        }).first();
+        this.uTourCta = this.uTourSection.locator(
+            'a[href*="utourhomes.com/visitor"]'
+        ).filter({ hasText: /Schedule a Self-Guided Tour/i }).first();
     }
 
     /* ==========================================================
@@ -67,7 +83,9 @@ export class QMIPage extends HomePage {
     ========================================================== */
 
     async verifyPageLoaded(): Promise<void> {
-        await expect(this.heading).toBeVisible({ timeout: 20000 });
+        await expect(this.heading).toBeVisible({
+            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        });
         await expect(this.breadcrumb).toBeVisible();
     }
 
@@ -76,23 +94,39 @@ export class QMIPage extends HomePage {
     ========================================================== */
 
     async verifySearchByQMI(expectedAddress: string): Promise<void> {
-
-        // Common load stabilization
         await this.waitForPageReady();
-
-        // Ensure URL is not homepage
-        await expect(this.page).not.toHaveURL(/\?country=/i);
-
-        // Ensure QMI-style URL (contains numbers)
-        await expect(this.page).toHaveURL(/\/\d{1,}-/);;
-
-        // Validate heading is visible
-        await expect(this.heading).toBeVisible({ timeout: 20000 });
-
-        // Validate heading contains expected address
+        await expect(this.page).not.toHaveURL(QMIPage.HOME_QUERY_PARAM_PATTERN);
+        await expect(this.page).toHaveURL(QMIPage.QMI_URL_PATTERN);
+        await expect(this.heading).toBeVisible({
+            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        });
         await expect(this.heading).toContainText(
             new RegExp(expectedAddress, 'i')
         );
+    }
+
+    async verifyExactQmiUrl(): Promise<void> {
+        const currentPath = new URL(this.page.url()).pathname;
+        expect(currentPath).toBe(location.qmiPath);
+    }
+
+    async verifyHeroSection(): Promise<void> {
+        await expect(this.heroSection).toBeVisible({
+            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        });
+        await expect(this.heading).toBeVisible({
+            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        });
+        await expect(this.heading).toContainText(
+            new RegExp(location.qmiAddress, 'i'),
+            { timeout: QMIPage.PAGE_LOAD_TIMEOUT }
+        );
+        await expect(this.propertyStats).toBeVisible();
+       
+    }
+
+    async verifyBreadcrumb(): Promise<void> {
+        await expect(this.breadcrumb).toBeVisible();
     }
 
     /* ==========================================================
@@ -101,6 +135,15 @@ export class QMIPage extends HomePage {
 
     async verifyPriceOrCTA(): Promise<void> {
         await expect(this.priceSection.first()).toBeVisible();
+        await expect(this.getInformationCta).toBeVisible();
+    }
+
+    async verifyGetInformationScrollsToForm(): Promise<void> {
+        await expect(this.getInformationCta).toBeVisible();
+        await expect(this.formSection).toBeAttached();
+        await this.getInformationCta.scrollIntoViewIfNeeded();
+        await this.getInformationCta.click();
+        await expect(this.formSection).toBeInViewport();
     }
 
     /* ==========================================================
@@ -108,16 +151,9 @@ export class QMIPage extends HomePage {
     ========================================================== */
 
     async verifyGallery(): Promise<void> {
-
-        await expect(this.galleryImages.first()).toBeVisible();
-
-        if (await this.nextGalleryBtn.isVisible()) {
-            await this.nextGalleryBtn.click();
-        }
-
-        if (await this.prevGalleryBtn.isVisible()) {
-            await this.prevGalleryBtn.click();
-        }
+        await expect(this.gallerySection.first()).toBeVisible();
+        await this.clickIfVisible(this.nextGalleryBtn);
+        await this.clickIfVisible(this.prevGalleryBtn);
     }
 
     /* ==========================================================
@@ -125,22 +161,9 @@ export class QMIPage extends HomePage {
     ========================================================== */
 
     async verifyFloorPlan(): Promise<void> {
-
-        if (await this.floorPlanSection.isVisible()) {
+        if (await this.isVisible(this.floorPlanSection)) {
             await this.floorPlanSection.scrollIntoViewIfNeeded();
-        }
-    }
-
-    /* ==========================================================
-       Features Accordion Validation
-    ========================================================== */
-
-    async verifyFeaturesAccordion(): Promise<void> {
-
-        const count = await this.featuresAccordion.count();
-
-        for (let i = 0; i < count; i++) {
-            await this.featuresAccordion.nth(i).click();
+            await expect(this.floorPlanSection).toBeVisible();
         }
     }
 
@@ -149,29 +172,88 @@ export class QMIPage extends HomePage {
     ========================================================== */
 
     async verifyMortgagePopup(): Promise<void> {
-
-        if (await this.mortgageBtn.isVisible()) {
+        if (await this.isVisible(this.mortgageComponent)) {
+            await expect(this.mortgageComponent).toBeVisible();
+            await this.mortgageBtn.scrollIntoViewIfNeeded();
             await this.mortgageBtn.click();
+            await this.closeModalIfPresent();
         } else {
             console.log(
-                'Mortgage button not found - skipping validation'
+                'Mortgage component not found - skipping validation'
             );
         }
     }
 
     /* ==========================================================
-       Community Navigation Validation
+       UTour Section Validation
     ========================================================== */
 
-    async verifyCommunityNavigation(): Promise<void> {
+    async verifyUTourSectionVisible(): Promise<void> {
+        await this.page.waitForLoadState('domcontentloaded');
+        await this.uTourSection.scrollIntoViewIfNeeded();
+        await expect(this.uTourTitle).toBeVisible({
+            timeout: QMIPage.UTOUR_TIMEOUT
+        });
+        await expect(this.uTourCta).toBeVisible({
+            timeout: QMIPage.UTOUR_TIMEOUT
+        });
+    }
 
-        if (await this.communityLink.isVisible()) {
+    async verifyUTourSectionHidden(): Promise<void> {
+        await expect(this.uTourTitle).toHaveCount(0);
+        await expect(this.uTourCta).toHaveCount(0);
+    }
 
-            await this.communityLink.click();
+    private async isVisible(locator: Locator): Promise<boolean> {
+        return locator.isVisible().catch(() => false);
+    }
 
-            await expect(this.page).toHaveURL(
-                /community|carrington|landmarke/i
-            );
+    private async clickIfVisible(locator: Locator): Promise<void> {
+        if (await this.isVisible(locator)) {
+            await locator.click();
         }
+    }
+
+    private async closeModalIfPresent(): Promise<void> {
+        if (await this.isVisible(this.closeModalBtn)) {
+            await this.closeModalBtn.click();
+            await expect(this.closeModalBtn).toBeHidden({
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
+        }
+    }
+    /* ==========================================================
+       Breadcrumb link Validation
+    ========================================================== */
+
+    private getQmiPathSegments(): string[] {
+        return location.qmiPath.split('/').filter(Boolean);
+    }
+
+    private getSlugTextPattern(slug: string): RegExp {
+        const escapedWords = slug
+            .split('-')
+            .map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+
+        return new RegExp(escapedWords.join('[\\s-]+'), 'i');
+    }
+
+    async verifyBreadcrumbNavigation(): Promise<void> {
+        const [stateSlug, , , communitySlug] = this.getQmiPathSegments();
+        const currentPath = new URL(this.page.url()).pathname;
+
+        expect(currentPath).toBe(location.qmiPath);
+        expect(stateSlug, `State/province segment missing from qmiPath: ${location.qmiPath}`)
+            .toBeTruthy();
+        expect(communitySlug, `Community segment missing from qmiPath: ${location.qmiPath}`)
+            .toBeTruthy();
+
+        await expect(this.breadcrumb).toBeVisible();
+        await expect(this.breadcrumb).toContainText(
+            this.getSlugTextPattern(stateSlug)
+        );
+        await expect(this.breadcrumb).toContainText(
+            this.getSlugTextPattern(communitySlug)
+        );
     }
 }

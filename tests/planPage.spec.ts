@@ -33,34 +33,58 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      UI & Functional Validation
   -------------------------------------------------------- */
 
-  test('@regression Validate Plan Detail page UI and functionality', async () => {
+  test('@regression Validate Plan Detail page core content', async () => {
 
-    await test.step('Verify hero section', async () => {
-      await planPage.verifyHeroSection();
+    await test.step('Verify plan URL contains configured plan path', async () => {
+      await planPage.verifyPlanUrlContains(location.expectedPlanUrlPart);
     });
 
-    await test.step('Verify breadcrumb navigation', async () => {
-      await planPage.verifyBreadcrumb();
+    await test.step('Verify hero shows configured plan name', async () => {
+      await planPage.verifyHeroSummaryForPlan(location.planName);
     });
 
-    await test.step('Verify price or CTA section', async () => {
-      await planPage.verifyPriceOrCTA();
+    await test.step('Verify plan home specs are present', async () => {
+      await planPage.verifyHomeSpecsPresent();
+    });
+
+    await test.step('Verify breadcrumb includes plan name', async () => {
+      await planPage.verifyBreadcrumbContainsPlan(location.planName);
     });
 
     await test.step('Verify image gallery', async () => {
       await planPage.verifyGallery();
     });
 
-    await test.step('Verify floor plan section', async () => {
-      await planPage.verifyFloorPlan();
+  });
+
+  test('@regression Validate Plan Detail page media and interactive sections', async () => {
+
+    await test.step('Verify interactive floorplan section when present', async () => {
+      await planPage.verifyInteractiveFloorPlanSection();
     });
 
-    await test.step('Verify mortgage form', async () => {
-      await planPage.verifyMortgageForm();
+    await test.step('Verify exterior styles section when present', async () => {
+      await planPage.verifyExteriorStylesSection();
     });
 
-    await test.step('Verify community navigation link', async () => {
-      await planPage.verifyCommunityNavigation();
+    await test.step('Verify mortgage calculator CTA when present', async () => {
+      await planPage.verifyMortgageCalculatorCta();
+    });
+
+  });
+
+  test('@regression Validate Plan Detail page conversion and contact sections', async () => {
+
+    await test.step('Verify Quick Move-In Homes section when present', async () => {
+      await planPage.verifyQuickMoveInHomesSection();
+    });
+
+    await test.step('Verify sales office details when present', async () => {
+      await planPage.verifySalesOfficeSection();
+    });
+
+    await test.step('Verify community updates form fields', async () => {
+      await planPage.verifyCommunityUpdatesForm();
     });
 
   });

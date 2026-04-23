@@ -4,6 +4,7 @@ export const USA = {
   market: 'Phoenix',
   community: 'Landmarke',
   qmiAddress: '263 W FLAX DR',
+  qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/blush/263-w-flax-dr',
   planName: 'Aqua',
   expectedPlanUrlPart: '/aqua',
   markets: [

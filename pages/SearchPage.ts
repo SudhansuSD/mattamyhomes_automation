@@ -175,25 +175,28 @@ export class SearchPage extends HomePage {
     /* ------------------------------------------------------------------
     Filter by price
     ------------------------------------------------------------------ */
+    async filterByPrice(minPrice: number, maxPrice: number): Promise<void> {
 
-    async filterByPrice(min: string, max: string): Promise<void> {
-
-        this.log(`Applying price filter: ${min} - ${max}`);
 
         await this.waitForPageReady();
+        
+        const minPriceLabel = this.formatPriceToUiLabel(minPrice);
+        const maxPriceLabel = this.formatPriceToUiLabel(maxPrice);
+
+        console.log(`Applying Price Filter: ${minPriceLabel} - ${maxPriceLabel}`);
 
         await this.openFilter('Dropdown price filter');
         await this.dropdownOption('$ No min').click();
-        await this.dropdownOption(min).click();
+        await this.dropdownOption(minPriceLabel).click();
 
         await this.openFilter('Dropdown price filter');
         await this.dropdownOption('$ No Max').click();
-        await this.dropdownOption(max).click();
+        await this.dropdownOption(maxPriceLabel).click();
 
         await this.waitForResultsToLoad();
-
     }
 
+    
     /* ------------------------------------------------------------------
        Validation: Price Range
     ------------------------------------------------------------------ */
@@ -232,6 +235,10 @@ export class SearchPage extends HomePage {
 
         console.log(`\n🎯 Price filter validation passed across all tabs`);
     }
+
+    /* ------------------------------------------------------------------
+       Validation: Price on each card
+    ------------------------------------------------------------------ */
 
     async validatePriceRange(
         minValue: number,
@@ -288,8 +295,10 @@ export class SearchPage extends HomePage {
     ): Promise<void> {
         await this.waitForPageReady();
         await this.openFilter('Select Beds & Baths');
+
         await this.page.locator('span').filter({ hasText: 'Bedrooms' }).click();
         await this.page.getByRole('checkbox', { name: `${minBeds} Bedrooms` }).click();
+
         await this.page.locator('span').filter({ hasText: 'Bathrooms' }).click();
         await this.page.getByRole('checkbox', { name: `${minBaths} Bathrooms` }).click();
 
@@ -300,57 +309,83 @@ export class SearchPage extends HomePage {
 
     async validateBedsBathsAcrossTabs(minBeds: number, minBaths: number): Promise<void> {
         const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
+        const allMismatches: string[] = [];
 
         for (const tab of tabs) {
             console.log(`\n🔎 Validating beds & baths on tab: ${tab}`);
 
             await this.verifyResults(tab);
-            await this.validateBedsAndBaths(minBeds, minBaths);
+
+            const mismatches = await this.validateBedsBaths(minBeds, minBaths, tab);
+            allMismatches.push(...mismatches);
         }
+
+        expect(
+            allMismatches,
+            `Beds & Baths filter validation failed:\n${allMismatches.join('\n')}`
+        ).toHaveLength(0);
     }
-    async validateBedsAndBaths(minBeds: number, minBaths: number): Promise<void> {
-        const cards = await this.resultCards();
+    /* ------------------------------------------------------------------
+       Validation: Beds & Baths on each card
+    ------------------------------------------------------------------ */
+
+    async validateBedsBaths(
+        minBeds: number,
+        minBaths: number,
+        tabName?: ResultsTab
+    ): Promise<string[]> {
+        const cards = this.resultCards();
         const count = await cards.count();
 
-        console.log(`\n========== BEDS & BATHS VALIDATION ==========`);
+        const mismatches: string[] = [];
+
+        console.log(`\n========== BEDS & BATHS VALIDATION${tabName ? `: ${tabName}` : ''} ==========`);
 
         for (let i = 0; i < count; i++) {
             const card = cards.nth(i);
 
-            // Extract text safely
+            // Safely get card text
             const text = await card.innerText().catch(() => '');
 
-            // Extract numbers using regex
+            // Regex extraction
             const bedsMatch = text.match(/(\d+)\s*Beds?/i);
             const bathsMatch = text.match(/(\d+)\s*Baths?/i);
 
             const beds = bedsMatch ? Number(bedsMatch[1]) : null;
             const baths = bathsMatch ? Number(bathsMatch[1]) : null;
 
-            // Skip if data not available
+            // Skip if no info found
             if (beds === null && baths === null) {
                 console.log(`⚠️ Card ${i + 1}: No beds/baths info → Skipped`);
                 continue;
             }
 
             let isValid = true;
+            let reason = '';
 
-            if (beds !== null) {
-                if (beds < minBeds) isValid = false;
-                expect(beds).toBeGreaterThanOrEqual(minBeds);
+            if (beds !== null && beds < minBeds) {
+                isValid = false;
+                reason += `Beds ${beds} < ${minBeds}. `;
             }
 
-            if (baths !== null) {
-                if (baths < minBaths) isValid = false;
-                expect(baths).toBeGreaterThanOrEqual(minBaths);
+            if (baths !== null && baths < minBaths) {
+                isValid = false;
+                reason += `Baths ${baths} < ${minBaths}. `;
             }
 
-            console.log(
-                `${isValid ? '✅ PASS' : '❌ FAIL'} | Card ${i + 1} | Beds: ${beds ?? 'N/A'} | Baths: ${baths ?? 'N/A'}`
-            );
+            const logLine = `Card ${i + 1} | Beds: ${beds ?? 'N/A'} | Baths: ${baths ?? 'N/A'}`;
+
+            if (isValid) {
+                console.log(`✅ PASS | ${logLine}`);
+            } else {
+                console.log(`❌ FAIL | ${logLine} | ${reason.trim()}`);
+                mismatches.push(`${tabName ?? 'Unknown Tab'} - ${logLine} | ${reason.trim()}`);
+            }
         }
 
-        console.log(`=============================================\n`);
+        console.log(`============================================================\n`);
+
+        return mismatches;
     }
 
     /* ------------------------------------------------------------------
@@ -403,9 +438,6 @@ export class SearchPage extends HomePage {
 
         throw new Error(`❌ ${tabName}: No results AND no "No results" message found`);
     }
-
-
-
     /* ------------------------------------------------------------------
        Sort Options Validation
     ------------------------------------------------------------------ */

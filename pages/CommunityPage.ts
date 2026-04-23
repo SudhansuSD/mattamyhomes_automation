@@ -43,31 +43,38 @@ export class CommunityPage extends HomePage {
   // ----- Register Form -----
 
   private get registerForm(): Locator {
-    return this.page.locator('#SitecoreScheduleAVisit');
+    return this.page.locator('#ScheduleAVisit-FormInstance0');
   }
+  private get registerFooterForm(): Locator {
+    return this.page.locator('#ScheduleAVisit-FormInstance1');
+  }
+  private get activeForm(): Locator {
+    return this.registerForm.or(this.registerFooterForm);
+  }
+
   private get firstNameInput(): Locator {
-    return this.page.getByRole('textbox', { name: /first name/i });
+    return this.activeForm.getByRole('textbox', { name: /first name/i });
   }
   private get lastNameInput(): Locator {
-    return this.page.getByRole('textbox', { name: /last name/i });
+    return this.activeForm.getByRole('textbox', { name: /last name/i });
   }
   private get emailInput(): Locator {
-    return this.page.getByRole('textbox', { name: /email/i });
+    return this.activeForm.getByRole('textbox', { name: /email/i });
   }
   private get phoneNumber(): Locator {
-    return this.page.getByRole('textbox', { name: /phone/i });
+    return this.activeForm.getByRole('textbox', { name: /phone/i });
   }
   private get countryOfResidence(): Locator {
-    return this.page.getByRole('combobox', { name: /country of residence/i });
+    return this.activeForm.getByRole('combobox', { name: /country of residence/i });
   }
   private get zipCode(): Locator {
-    return this.page.getByRole('textbox', { name: /zip/i });
+    return this.activeForm.getByRole('textbox', { name: /zip/i });
   }
   private get submitButton(): Locator {
-    return this.page.getByRole('button', { name: /SUBMIT/i });
+    return this.activeForm.getByRole('button', { name: /SUBMIT/i });
   }
   private get validationMessages(): Locator {
-    return this.page.locator('text=/Required|Invalid|Error/i');
+    return this.activeForm.locator('text=/Required|Invalid|Error/i');
   }
   private get successDialogModal(): Locator {
     return this.page.locator('.ReactModal__Content');
@@ -219,16 +226,16 @@ export class CommunityPage extends HomePage {
 
   async validateInvalidEmail(): Promise<void> {
 
-    await this.firstNameInput.fill('');
+    await this.firstNameInput.fill('Test');
     await this.lastNameInput.fill('User');
-    await this.emailInput.fill('invalid-email');
+    await this.emailInput.fill('user@domain.c');
     await this.phoneNumber.fill('123456');
 
     await this.submitButton.click();
 
     await expect(
       this.page.getByText(
-        /Error, Email addresses must contain a username, ‘@’, and ‘.com’/i
+        /valid domain name/i
       )
     ).toBeVisible();
   }

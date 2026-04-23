@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import process from 'node:process';
+
 
 export default defineConfig({
   use: {
@@ -34,7 +36,8 @@ export default defineConfig({
   ],
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'test-results/results.json' }]
+    ['json', { outputFile: 'test-results/results.json' }],
+    ['allure-playwright', { resultsDir: 'allure-results' }]
   ],
 
 });

@@ -7,4 +7,6 @@ node_modules/
 /playwright/.cache/
 /playwright/.auth/
 /reports/
-playwright.config.ts
+/playwright.config.ts
+.env
+/manual-test.md

@@ -48,13 +48,13 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
   -------------------------------------------------------- */
 
   test('@regression Verify filter by price functionality', async () => {
-    await searchPage.filterByPrice('400K', '500K');
+    await searchPage.filterByPrice(400000, 500000);
     await searchPage.validatePriceRangeAcrossTabs(400000, 500000);
   });
 
   test('@regression Validate filter by beds and bathrooms functionality', async () => {
     await searchPage.filterByBedroomsAndBathrooms(3, 3);
-    await searchPage.verifyResults('Communities');
+    await searchPage.validateBedsBathsAcrossTabs(3, 3);
   });
 
   /* -------------------------------------------------------

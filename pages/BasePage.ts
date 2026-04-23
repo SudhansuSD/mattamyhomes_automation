@@ -128,6 +128,14 @@ export class BasePage {
       .replace(/\s*-\s*/g, '-')
       .trim();
   }
+  protected formatPriceToUiLabel(price: number): string {
+    if (price >= 1000000) {
+      return `${price / 1000000}M`;
+    } else if (price >= 1000) {
+      return `${price / 1000}K`;
+    }
+    return `${price}`;
 
+  }
 
 }

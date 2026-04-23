@@ -17,7 +17,9 @@ export class HomePage extends BasePage {
 
     this.heroSection = page.locator('section').first();
     this.header = page.locator('header');
-    this.searchBox = page.locator('input[placeholder*="Search"]').first();
+    this.searchBox = page.locator(
+      'input[placeholder*="Search"]:not(#vendor-search-handler)'
+    ).first();
     // Use CSS :not() to exclude cloned slides from carousel
     this.marketCards = page.locator('#cards .slick-slide:not(.slick-cloned)');
 
@@ -82,7 +84,12 @@ export class HomePage extends BasePage {
 
         if (await matchedResult.isVisible().catch(() => false)) {
           console.log(`✅ Match found after typing: ${typedValue}`);
+          const previousUrl = this.page.url();
           await matchedResult.click();
+          await this.page.waitForURL(
+            (url) => url.toString() !== previousUrl,
+            { timeout: this.SEARCH_RESULTS_TIMEOUT }
+          ).catch(() => undefined);
           await this.waitForPageReady();
           return;
         }
