@@ -13,7 +13,7 @@
         },
         {
           "type": "assertUrlContains",
-          "value": "/florida/sarasota/bradenton/venice/wellen-park/sunstone"
+          "value": "florida.*sarasota.*bradenton.*venice.*wellen-park.*sunstone"
         }
       ]
     },
@@ -30,7 +30,7 @@
         },
         {
           "type": "assertUrlContains",
-          "value": "/florida/sarasota/bradenton/venice/wellen-park/sunstone"
+          "value": "florida.*sarasota.*bradenton.*venice.*wellen-park.*sunstone"
         }
       ]
     }

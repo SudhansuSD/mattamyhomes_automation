@@ -9,4 +9,3 @@ node_modules/
 /reports/
 /playwright.config.ts
 .env
-/manual-test.md
