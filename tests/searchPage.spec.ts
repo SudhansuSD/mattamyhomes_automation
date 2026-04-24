@@ -63,17 +63,18 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
 
   test('@regression Validate community sorting options', async () => {
     await searchPage.validateCommunitySortOptions();
-    await searchPage.validateCommunitySortingBehavior();
+    await searchPage.validateSortingBehavior('Communities');
 
   });
   test('@regression Validate Plan sorting options', async () => {
     await searchPage.validatePlanSortOptions();
-    await searchPage.validatePlanSortingBehavior();
+    await searchPage.validateSortingBehavior('Plans');
   });
 
   test('@regression Validate QMI sorting options', async () => {
     await searchPage.validateQMISortOptions();
-    await searchPage.validateQMISortingBehavior();
+    await searchPage.validateSortingBehavior('Quick Move-Ins');
   });
+  
 
 });

@@ -3,6 +3,13 @@ import { HomePage } from '../pages/HomePage';
 
 type ResultsTab = 'Communities' | 'Plans' | 'Quick Move-Ins';
 type SortOrder = 'asc' | 'desc';
+type SortCriterion = 'price' | 'sqft' | 'title';
+
+type SortValidationConfig = {
+    option: string;
+    criterion: SortCriterion;
+    label: string;
+};
 
 export class SearchPage extends HomePage {
 
@@ -23,9 +30,9 @@ export class SearchPage extends HomePage {
     private filterButton = (label: string) =>
         this.page.locator(`button[aria-label*="${label}"]`);
 
-    // ✅ Stable card locator (avoids duplicates + ensures price exists)
+    // Keep assertions scoped to cards visible in the active tab.
     private resultCards = () =>
-        this.page.locator('#ProductInfo');
+        this.page.locator('#ProductInfo:visible');
 
     private getTabLocator(tabName: string) {
         const nameRegex = new RegExp(tabName, 'i');
@@ -101,7 +108,7 @@ export class SearchPage extends HomePage {
     }
 
     private async waitForResultsToLoad(): Promise<void> {
-        await this.page.waitForSelector('#ProductInfo', { timeout: 15000 });
+        await this.page.waitForSelector('#ProductInfo:visible', { timeout: 15000 });
         await this.page.waitForTimeout(800);
     }
 
@@ -112,6 +119,68 @@ export class SearchPage extends HomePage {
 
     private log(message: string): void {
         console.log(`[SearchPage] ${message}`);
+    }
+
+    private normalizeSortOption(text: string): string {
+        return text.replace(/\s+/g, ' ').trim().toLowerCase();
+    }
+
+    private escapeRegex(value: string): string {
+        return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    private async getVisibleCardSignature(): Promise<string> {
+        const cards = this.resultCards();
+        const count = await cards.count();
+        const visibleTexts: string[] = [];
+
+        for (let i = 0; i < Math.min(count, 5); i++) {
+            visibleTexts.push((await cards.nth(i).innerText().catch(() => '')).trim());
+        }
+
+        return visibleTexts.join('|');
+    }
+
+    private async getDisplayedResultCount(tabName: ResultsTab): Promise<number | null> {
+        const resultLabel = tabName === 'Quick Move-Ins' ? 'quick move-ins' : tabName.toLowerCase();
+        const statusPattern = new RegExp(`\\d+\\s+${this.escapeRegex(resultLabel)}\\s+available`, 'i');
+        const status = this.page
+            .locator("div[role='status'], [role='status']")
+            .filter({ hasText: statusPattern })
+            .first();
+        const text = await status.innerText({ timeout: 5000 }).catch(() => '');
+        const count = Number(text.match(/\d+/)?.[0]);
+
+        return Number.isFinite(count) ? count : null;
+    }
+
+    private async getSortableCardCount(tabName: ResultsTab, availableCards: number): Promise<number> {
+        const displayedCount = await this.getDisplayedResultCount(tabName);
+
+        if (displayedCount === null) {
+            return availableCards;
+        }
+
+        if (availableCards > displayedCount) {
+            this.log(`${tabName}: limiting ${availableCards} visible cards to ${displayedCount} displayed results`);
+        }
+
+        return Math.min(availableCards, displayedCount);
+    }
+
+    private parseSqFtValue(text: string): number | null {
+        const match = text.match(/([\d,]+(?:\s*-\s*[\d,]+)?)\s*Sq\.?\s*Ft/i);
+
+        if (!match) {
+            return null;
+        }
+
+        const values = match[1]
+            .match(/[\d,]+/g)
+            ?.map(value => Number(value.replace(/,/g, '')))
+            .filter(value => !Number.isNaN(value)) ?? [];
+
+        return values[0] ?? null;
     }
 
     /* ------------------------------------------------------------------
@@ -449,26 +518,32 @@ export class SearchPage extends HomePage {
     ): Promise<void> {
 
         await this.openTab(tabName);
+        await this.waitForResultsToLoad();
         await this.sortButton.click();
 
-        const options = await this.sortMenuItems.allTextContents();
+        const options = (await this.sortMenuItems.allTextContents())
+            .map(option => option.trim())
+            .filter(Boolean);
+        const normalizedOptions = options.map(option => this.normalizeSortOption(option));
 
         console.log(`\n========== SORT OPTIONS VALIDATION: ${tabName} ==========`);
 
         required.forEach(opt => {
-            const isPresent = options.includes(opt);
+            const normalizedOption = this.normalizeSortOption(opt);
+            const isPresent = normalizedOptions.includes(normalizedOption);
 
             console.log(`${isPresent ? '✅' : '❌'} Required: ${opt}`);
 
-            expect(options, `Missing required sort option: ${opt}`).toContain(opt);
+            expect(normalizedOptions, `Missing required sort option: ${opt}`).toContain(normalizedOption);
         });
 
         optional.forEach(opt => {
-            const isPresent = options.includes(opt);
+            const isPresent = normalizedOptions.includes(this.normalizeSortOption(opt));
 
             console.log(`${isPresent ? '⚠️ Optional Sort' : 'ℹ️ Optional not present'}: ${opt}`);
         });
 
+        await this.page.keyboard.press('Escape').catch(() => undefined);
         console.log(`=====================================================\n`);
     }
 
@@ -503,7 +578,7 @@ export class SearchPage extends HomePage {
 
     async getSortablePrices(tabName: ResultsTab): Promise<number[]> {
         const cards = await this.resultCards();
-        const count = await cards.count();
+        const count = await this.getSortableCardCount(tabName, await cards.count());
 
         const prices: number[] = [];
 
@@ -511,12 +586,12 @@ export class SearchPage extends HomePage {
 
         for (let i = 0; i < count; i++) {
             const card = cards.nth(i);
-            const text = await card.innerText().catch(() => '');
+            const priceText = (await card.locator('span, [class*="price"], a').allTextContents())
+                .map(text => text.trim())
+                .find(text => /^\$[\d,]+$/.test(text));
 
-            const match = text.match(/\$[\d,]+/);
-
-            if (match) {
-                const price = Number(match[0].replace(/[$,]/g, ''));
+            if (priceText) {
+                const price = Number(priceText.replace(/[$,]/g, ''));
                 prices.push(price);
                 console.log(`💲 Card ${i + 1}: $${price.toLocaleString()}`);
             } else {
@@ -533,25 +608,32 @@ export class SearchPage extends HomePage {
 
     async selectSortOption(tabName: ResultsTab, option: string): Promise<void> {
         await this.openTab(tabName);
+        await this.waitForResultsToLoad();
 
         await this.sortButton.waitFor({ state: 'visible', timeout: 10000 });
-        await this.sortButton.click();
+        await this.sortButton.scrollIntoViewIfNeeded();
 
+        const optionRegex = new RegExp(`^\\s*${this.escapeRegex(option)}\\s*$`, 'i');
         const optionLocator = this.sortMenuItems
-            .filter({ hasText: option })
+            .filter({ hasText: optionRegex })
             .first();
+
+        if (!await optionLocator.isVisible().catch(() => false)) {
+            await this.sortButton.click();
+        }
 
         await optionLocator.waitFor({ state: 'visible', timeout: 10000 });
 
         console.log(`🔽 Selecting sort option: ${option}`);
         await optionLocator.click();
 
+        await this.page.waitForLoadState('domcontentloaded').catch(() => undefined);
         await this.waitForResultsToLoad();
     }
 
     async getSortableSqFt(tabName: ResultsTab): Promise<number[]> {
         const cards = await this.resultCards();
-        const count = await cards.count();
+        const count = await this.getSortableCardCount(tabName, await cards.count());
 
         const values: number[] = [];
 
@@ -561,10 +643,9 @@ export class SearchPage extends HomePage {
             const card = cards.nth(i);
             const text = await card.innerText().catch(() => '');
 
-            const match = text.match(/([\d,]+)\s*Sq\.?\s*Ft/i);
+            const sqft = this.parseSqFtValue(text);
 
-            if (match) {
-                const sqft = Number(match[1].replace(/,/g, ''));
+            if (sqft !== null) {
                 values.push(sqft);
                 console.log(`📐 Card ${i + 1}: ${sqft.toLocaleString()} Sq. Ft.`);
             } else {
@@ -578,7 +659,7 @@ export class SearchPage extends HomePage {
 
     async getSortableTitles(tabName: ResultsTab): Promise<string[]> {
         const cards = await this.resultCards();
-        const count = await cards.count();
+        const count = await this.getSortableCardCount(tabName, await cards.count());
 
         const titles: string[] = [];
 
@@ -693,25 +774,82 @@ export class SearchPage extends HomePage {
         this.validateAlphabetical(titles, `${tabName} A-Z`);
     }
 
+    private getSortValidationConfigs(tabName: ResultsTab): SortValidationConfig[] {
+        const commonConfigs: SortValidationConfig[] = [
+            { option: '$ - $$$', criterion: 'price', label: 'Price' },
+            { option: 'A - Z', criterion: 'title', label: 'A-Z' }
+        ];
+
+        if (tabName === 'Communities') {
+            return commonConfigs;
+        }
+
+        return [
+            commonConfigs[0],
+            { option: 'Sq. Ft.', criterion: 'sqft', label: 'Sq. Ft.' },
+            commonConfigs[1]
+        ];
+    }
+
+    private async getSortableValues(
+        tabName: ResultsTab,
+        criterion: SortCriterion
+    ): Promise<number[] | string[]> {
+        switch (criterion) {
+            case 'price':
+                return this.getSortablePrices(tabName);
+            case 'sqft':
+                return this.getSortableSqFt(tabName);
+            case 'title':
+                return this.getSortableTitles(tabName);
+            default:
+                throw new Error(`Unsupported sort criterion: ${criterion}`);
+        }
+    }
+
+    private validateSortableValues(
+        values: number[] | string[],
+        config: SortValidationConfig,
+        tabName: ResultsTab
+    ): void {
+        expect(
+            values.length,
+            `${tabName} ${config.label}: at least 2 sortable values are required`
+        ).toBeGreaterThan(1);
+
+        if (config.criterion === 'title') {
+            this.validateAlphabetical(values as string[], `${tabName} ${config.label}`);
+            return;
+        }
+
+        this.validateAscendingNumbers(values as number[], `${tabName} ${config.label}`);
+    }
+
     /* ==========================================================
        HIGH-LEVEL SORTING TEST METHODS
     ========================================================== */
 
+    async validateSortingBehavior(tabName: ResultsTab): Promise<void> {
+        const configs = this.getSortValidationConfigs(tabName);
+
+        for (const config of configs) {
+            await this.selectSortOption(tabName, config.option);
+
+            const values = await this.getSortableValues(tabName, config.criterion);
+            this.validateSortableValues(values, config, tabName);
+        }
+    }
+
     async validateCommunitySortingBehavior(): Promise<void> {
-        await this.validateAZSorting('Communities');
-        await this.validatePriceSorting('Communities');
+        await this.validateSortingBehavior('Communities');
     }
 
     async validatePlanSortingBehavior(): Promise<void> {
-        await this.validatePriceSorting('Plans');
-        await this.validateSqFtSorting('Plans');
-        await this.validateAZSorting('Plans');
+        await this.validateSortingBehavior('Plans');
     }
 
     async validateQMISortingBehavior(): Promise<void> {
-        await this.validatePriceSorting('Quick Move-Ins');
-        await this.validateSqFtSorting('Quick Move-Ins');
-        await this.validateAZSorting('Quick Move-Ins');
+        await this.validateSortingBehavior('Quick Move-Ins');
     }
 
 }

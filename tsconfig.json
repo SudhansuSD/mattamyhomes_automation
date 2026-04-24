@@ -13,6 +13,13 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "playwright.config.ts"],
+  "include": [
+    "config/**/*.ts",
+    "pages/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "utils/**/*.ts",
+    "playwright.config.ts"
+  ],
   "exclude": ["node_modules"]
 }

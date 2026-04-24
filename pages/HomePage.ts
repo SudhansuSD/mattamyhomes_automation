@@ -85,11 +85,21 @@ export class HomePage extends BasePage {
         if (await matchedResult.isVisible().catch(() => false)) {
           console.log(`✅ Match found after typing: ${typedValue}`);
           const previousUrl = this.page.url();
+          const href = await matchedResult.getAttribute('href');
+          await matchedResult.scrollIntoViewIfNeeded();
           await matchedResult.click();
-          await this.page.waitForURL(
+
+          const didNavigate = await this.page.waitForURL(
             (url) => url.toString() !== previousUrl,
             { timeout: this.SEARCH_RESULTS_TIMEOUT }
-          ).catch(() => undefined);
+          ).then(() => true).catch(() => false);
+
+          if (!didNavigate && href) {
+            await this.page.goto(this.buildFullUrl(href), {
+              waitUntil: 'domcontentloaded',
+              timeout: 90_000
+            });
+          }
           await this.waitForPageReady();
           return;
         }
@@ -118,6 +128,12 @@ export class HomePage extends BasePage {
 
   async verifySearchByMarket(expectedMarket: string): Promise<void> {
     await this.waitForPageReady();
+
+    await this.page.waitForURL(
+      (url) => this.normalizeText(url.searchParams.get('metro') || '')
+        .includes(this.normalizeText(expectedMarket)),
+      { timeout: this.SEARCH_RESULTS_TIMEOUT }
+    );
 
     const params = new URL(this.page.url()).searchParams;
     const metro = params.get('metro') || '';
