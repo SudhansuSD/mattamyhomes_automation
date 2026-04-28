@@ -84,9 +84,23 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
     });
 
     await test.step('Verify community updates form fields', async () => {
-      await planPage.verifyCommunityUpdatesForm();
+      await planPage.verifyPlanDetailForm();
     });
 
+  });
+
+  test.describe('Form Validation', () => {
+    test('@sanity Validate plan detail form required field errors', async () => {
+      await planPage.validatePlanDetailFormEmptyErrors();
+    });
+
+    test('@sanity Validate plan detail form invalid email format', async () => {
+      await planPage.validatePlanDetailFormInvalidEmail();
+    });
+
+    // test('@regression @STAGE Validate plan detail form successful submission', async () => {
+    //   await planPage.verifyPlanDetailFormSuccessSubmission();
+    // });
   });
 
   /* -------------------------------------------------------

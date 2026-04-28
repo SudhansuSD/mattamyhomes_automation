@@ -2,6 +2,10 @@ export const USA = {
   country: 'USA',
   queryParam: 'country=USA',
   market: 'Phoenix',
+  mpc: {
+    name: 'Wellen Park - Master-Planned Community',
+    url: '/florida/sarasota-bradenton/venice/wellen-park'
+  },
   community: 'Landmarke',
   qmiAddress: '263 W FLAX DR',
   qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/blush/263-w-flax-dr',

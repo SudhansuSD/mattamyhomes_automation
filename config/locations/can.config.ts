@@ -4,6 +4,7 @@ export const CAN = {
   queryParam: 'country=CAN',
   market: 'Greater Toronto Area',
   community: 'Yorkville',
+  condoCommunity: 'Martha James Condominiums',
   qmiAddress: '1230 148 Avenue NW',
   qmiPath: '/alberta/calgary/calgary/carrington/brinkley-ii/1230-148-avenue-nw',
   planName: 'Brinkley I',

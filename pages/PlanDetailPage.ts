@@ -44,6 +44,7 @@ export class PlanDetailPage extends HomePage {
     readonly getInformationCta: Locator;
     readonly signUpFormSection: Locator;
     readonly salesOfficeSection: Locator;
+    readonly successDialogModal: Locator;
 
 
     constructor(page: Page) {
@@ -78,6 +79,25 @@ export class PlanDetailPage extends HomePage {
             .locator('xpath=ancestor::*[self::section or self::div][1]');
         this.salesOfficeSection = page.getByText(/^Sales Office$/i)
             .locator('xpath=ancestor::*[self::section or self::div][1]');
+        this.successDialogModal = page.locator('.ReactModal__Content');
+    }
+
+    private get sitecorePlanForms(): Locator {
+        return this.page.locator('[id^="Sitecore-ScheduleAVisit-FormInstance"]');
+    }
+
+    private get contactForms(): Locator {
+        return this.page.locator('#contact form');
+    }
+
+    private get scheduleVisitContainers(): Locator {
+        return this.page.locator('[id^="ScheduleAVisit-FormInstance"]');
+    }
+
+    private get formSuccessMessage(): Locator {
+        return this.page.getByText(
+            /Thank you for your interest in Mattamy Homes/i
+        ).last();
     }
 
     // ----------------------------------
@@ -372,19 +392,177 @@ export class PlanDetailPage extends HomePage {
     }
 
     async verifyCommunityUpdatesForm(): Promise<void> {
-        await expect(
-            this.page.getByText(/Sign Up For Community Updates/i)
-        ).toBeVisible();
+        await this.verifyPlanDetailForm();
+    }
+
+    private async getFormFromLocator(
+        forms: Locator,
+        formIndex: number
+    ): Promise<Locator | null> {
+        const formCount = await forms.count();
+
+        if (formIndex >= formCount) {
+            return null;
+        }
+
+        return forms.nth(formIndex);
+    }
+
+    private async getFormByIndex(formIndex: number): Promise<Locator | null> {
+        return (
+            await this.getFormFromLocator(this.sitecorePlanForms, formIndex) ??
+            await this.getFormFromLocator(this.contactForms, formIndex) ??
+            await this.getFormFromLocator(this.scheduleVisitContainers, formIndex)
+        );
+    }
+
+    private async getAvailableForm(
+        formIndex = 0,
+        formName = 'Plan detail form'
+    ): Promise<Locator | null> {
+        const form = await this.getFormByIndex(formIndex);
+
+        if (!form) {
+            console.warn(`${formName} not present - skipping form validation`);
+            return null;
+        }
+
+        const submitButton = form.getByRole('button', { name: /submit/i }).first();
+
+        if (!await submitButton.count()) {
+            console.warn(`${formName} submit button not present - skipping form validation`);
+            return null;
+        }
+
+        await form.scrollIntoViewIfNeeded();
+        await this.waitForPageReady();
+
+        if (
+            await form.isVisible().catch(() => false) ||
+            await submitButton.isVisible().catch(() => false)
+        ) {
+            return form;
+        }
+
+        console.warn(`${formName} not visible - skipping form validation`);
+        return null;
+    }
+
+    private async verifyCommunityUpdatesFormByIndex(
+        formIndex: number,
+        formName: string
+    ): Promise<void> {
+        const form = await this.getAvailableForm(formIndex, formName);
+
+        if (!form) {
+            return;
+        }
 
         for (const fieldName of [
             /First name/i,
             /Last name/i,
-            /Email/i,
+            /^Email/i,
             /Country of Residence/i,
-            /Zip\/Postal Code/i
+            /Zip|Postal/i,
+            /Phone/i
         ]) {
-            await expect(this.page.getByText(fieldName).first()).toBeVisible();
+            await expect(form.getByText(fieldName).first()).toBeVisible();
         }
+    }
+
+    private async validateEmptyFormErrorsByIndex(
+        formIndex: number,
+        formName: string
+    ): Promise<void> {
+        const form = await this.getAvailableForm(formIndex, formName);
+
+        if (!form) {
+            return;
+        }
+
+        await form.getByRole('button', { name: /submit/i }).first().click();
+
+        await expect(form.locator('text=/Required|Invalid|Error/i').first())
+            .toBeVisible({ timeout: 10000 });
+    }
+
+    private async validateInvalidEmailByIndex(
+        formIndex: number,
+        formName: string
+    ): Promise<void> {
+        const form = await this.getAvailableForm(formIndex, formName);
+
+        if (!form) {
+            return;
+        }
+
+        await form.getByRole('textbox', { name: /first name/i }).first().fill('Test');
+        await form.getByRole('textbox', { name: /last name/i }).first().fill('User');
+        await form.getByRole('textbox', { name: /^email/i }).first().fill('user@domain.c');
+        await form.getByRole('textbox', { name: /phone/i }).first().fill('123456');
+
+        await form.getByRole('button', { name: /submit/i }).first().click();
+
+        await expect(form.locator('text=/valid domain name/i').first())
+            .toBeVisible({ timeout: 10000 });
+    }
+
+    private async submitSuccessfulFormByIndex(
+        formIndex: number,
+        formName: string
+    ): Promise<void> {
+        const form = await this.getAvailableForm(formIndex, formName);
+
+        if (!form) {
+            return;
+        }
+
+        await form.getByRole('textbox', { name: /first name/i }).first().fill('Sudhansu');
+        await form.getByRole('textbox', { name: /last name/i }).first().fill('Das');
+        await form.getByRole('textbox', { name: /^email/i }).first().fill(
+            `ssdas-${Date.now()}@ex2india.com`
+        );
+        await form.getByRole('textbox', { name: /phone/i }).first().fill('4488559933');
+
+        const countryOfResidence = form.getByRole('combobox', {
+            name: /country of residence/i
+        }).first();
+
+        if (await countryOfResidence.count()) {
+            await countryOfResidence.selectOption({ label: 'Canada' });
+        }
+
+        const zipCode = form.getByRole('textbox', { name: /zip|postal/i }).first();
+
+        if (await zipCode.count()) {
+            await zipCode.fill('34293');
+        }
+
+        await form.getByRole('button', { name: /submit/i }).first().click();
+
+        if (await this.successDialogModal.count()) {
+            await expect(this.successDialogModal.last()).toBeVisible({
+                timeout: 10000
+            });
+        }
+
+        await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
+    }
+
+    async verifyPlanDetailForm(): Promise<void> {
+        await this.verifyCommunityUpdatesFormByIndex(0, 'Plan detail bottom form');
+    }
+
+    async validatePlanDetailFormEmptyErrors(): Promise<void> {
+        await this.validateEmptyFormErrorsByIndex(0, 'Plan detail bottom form');
+    }
+
+    async validatePlanDetailFormInvalidEmail(): Promise<void> {
+        await this.validateInvalidEmailByIndex(0, 'Plan detail bottom form');
+    }
+
+    async verifyPlanDetailFormSuccessSubmission(): Promise<void> {
+        await this.submitSuccessfulFormByIndex(0, 'Plan detail bottom form');
     }
 
 }

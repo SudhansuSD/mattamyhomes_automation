@@ -49,22 +49,34 @@ test.describe(`Community Detail - ${location.community}`, () => {
     /* ==========================================================
        FORM VALIDATION
     ========================================================== */
+
+    /**********Primary form Validation**********/
+
     test.describe('Form Validation', () => {
-        test.beforeEach(async () => {
-            await communityPage.viewForm();
+        test('@sanity Validate primary form required field errors', async () => {
+            await communityPage.validatePrimaryFormEmptyErrors();
         });
 
-        test('@sanity Validate required field errors', async () => {
-            await communityPage.validateEmptyFormErrors();
+        test('@sanity Validate primary form invalid email format', async () => {
+            await communityPage.validatePrimaryFormInvalidEmail();
         });
 
-        test('@sanity Validate invalid email format', async () => {
-            await communityPage.validateInvalidEmail();
+        // test('@regression @STAGE Validate primary form successful submission', async () => {
+        //     await communityPage.verifyPrimaryFormSuccessSubmission();
+        // });
+
+        /**********Footer form Validation**********/
+
+        test('@sanity Validate footer form required field errors', async () => {
+            await communityPage.validateFooterFormEmptyErrors();
         });
 
-        // Enable only for stage env if needed
-        // test('@regression @STAGE Validate successful form submission', async () => {
-        //   await communityPage.verifySuccessFormSubmission();
+        test('@sanity Validate footer form invalid email format', async () => {
+            await communityPage.validateFooterFormInvalidEmail();
+        });
+
+        // test('@regression @STAGE Validate footer form successful submission', async () => {
+        //     await communityPage.verifyFooterFormSuccessSubmission();
         // });
     });
 });

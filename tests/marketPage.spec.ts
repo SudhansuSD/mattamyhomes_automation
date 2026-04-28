@@ -3,6 +3,12 @@ import { getLocationConfig } from '../config/locations';
 import { MarketPage } from '../pages/MarketPage';
 
 const location = getLocationConfig();
+const configuredMarket = location.markets.find((market) =>
+  market.name
+    .split('||')
+    .map((name) => name.trim())
+    .includes(location.market)
+) ?? location.markets[0];
 
 test.describe(`@regression Market page tests - ${location.country}`, () => {
   let marketPage: MarketPage;
@@ -40,12 +46,6 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
         });
       });
 
-      test(`@regression Validate lead form`, async () => {
-        await test.step('Validate lead form fields and errors', async () => {
-          await marketPage.validateLeadForm(market.name);
-        });
-      });
-
       test(`@regression Validate Discover Our Homes section`, async () => {
         await test.step('Validate discover section links and URLs', async () => {
           await marketPage.validateDiscoverOurHomesSection();
@@ -54,4 +54,49 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
 
     });
   }
+  /* ==========================================================
+         MARKET-PAGE VALIDATION
+      ========================================================== */
+
+  test.describe(`Configured market deep validation - ${configuredMarket.name}`, () => {
+    test.beforeEach(async () => {
+      await marketPage.navigateToMarket(configuredMarket.url);
+      await marketPage.verifyMarketPage(configuredMarket);
+    });
+
+    test('@regression Validate market hero and key search links', async () => {
+      await test.step('Validate hero content', async () => {
+        await marketPage.validateHeroContent(configuredMarket);
+      });
+
+      await test.step('Validate plan and QMI search links', async () => {
+        await marketPage.validateMarketSearchLinks();
+      });
+    });
+
+    test('@regression Validate community card details and navigation', async () => {
+      await test.step('Validate community card content quality', async () => {
+        await marketPage.validateCommunityCardDetails();
+      });
+
+
+
+      await test.step('Validate first community card navigation', async () => {
+        await marketPage.validateFirstCommunityCardNavigation();
+      });
+    });
+
+    test(`@regression Validate lead form with invalid data`, async () => {
+      await test.step('Validate lead form fields and errors', async () => {
+        await marketPage.validateLeadFormInvalidData(configuredMarket.name);
+      });
+    });
+
+    // test(`@regression @STAGE Validate lead form successful submission`, async () => {
+    //   await test.step('Submit lead form with valid data', async () => {
+    //     await marketPage.submitLeadFormSuccessfully(configuredMarket.name);
+    //   });
+    // });
+
+  });
 });

@@ -39,7 +39,7 @@ export class QMIPage extends HomePage {
             exact: true
         });
 
-        this.heroSection = page.locator("//h1[contains(.,'1230 148 Avenue')]/ancestor::div[contains(@class,'container')]");
+        this.heroSection = page.locator("//div[@id='detailsBlockBar']/following-sibling::div[1]");
         this.heading = page.locator('h1');
         this.breadcrumb = page.locator('#breadcrumb');
         this.priceSection = this.heroSection.locator("p:has-text('$')");
@@ -238,8 +238,16 @@ export class QMIPage extends HomePage {
         return new RegExp(escapedWords.join('[\\s-]+'), 'i');
     }
 
+    private getVisibleSlugTextPattern(slug: string): RegExp {
+        const visibleWords = slug
+            .split('-')
+            .filter((word) => !/^\d+s?$/i.test(word));
+
+        return this.getSlugTextPattern(visibleWords.join('-') || slug);
+    }
+
     async verifyBreadcrumbNavigation(): Promise<void> {
-        const [stateSlug, , , communitySlug] = this.getQmiPathSegments();
+        const [stateSlug, , , communitySlug, , ...addressSlugs] = this.getQmiPathSegments();
         const currentPath = new URL(this.page.url()).pathname;
 
         expect(currentPath).toBe(location.qmiPath);
@@ -247,13 +255,18 @@ export class QMIPage extends HomePage {
             .toBeTruthy();
         expect(communitySlug, `Community segment missing from qmiPath: ${location.qmiPath}`)
             .toBeTruthy();
+        expect(addressSlugs.length, `Address segment missing from qmiPath: ${location.qmiPath}`)
+            .toBeGreaterThan(0);
 
         await expect(this.breadcrumb).toBeVisible();
         await expect(this.breadcrumb).toContainText(
             this.getSlugTextPattern(stateSlug)
         );
         await expect(this.breadcrumb).toContainText(
-            this.getSlugTextPattern(communitySlug)
+            this.getVisibleSlugTextPattern(communitySlug)
+        );
+        await expect(this.breadcrumb).toContainText(
+            this.getSlugTextPattern(addressSlugs.join('-'))
         );
     }
 }

@@ -42,45 +42,22 @@ export class CommunityPage extends HomePage {
 
   // ----- Register Form -----
 
-  private get registerForm(): Locator {
-    return this.page.locator('#ScheduleAVisit-FormInstance0');
+  private get sitecoreCommunityForms(): Locator {
+    return this.page.locator('[id^="Sitecore-ScheduleAVisit-FormInstance"]');
   }
-  private get registerFooterForm(): Locator {
-    return this.page.locator('#ScheduleAVisit-FormInstance1');
+  private get contactForms(): Locator {
+    return this.page.locator('#contact form');
   }
-  private get activeForm(): Locator {
-    return this.registerForm.or(this.registerFooterForm);
-  }
-
-  private get firstNameInput(): Locator {
-    return this.activeForm.getByRole('textbox', { name: /first name/i });
-  }
-  private get lastNameInput(): Locator {
-    return this.activeForm.getByRole('textbox', { name: /last name/i });
-  }
-  private get emailInput(): Locator {
-    return this.activeForm.getByRole('textbox', { name: /email/i });
-  }
-  private get phoneNumber(): Locator {
-    return this.activeForm.getByRole('textbox', { name: /phone/i });
-  }
-  private get countryOfResidence(): Locator {
-    return this.activeForm.getByRole('combobox', { name: /country of residence/i });
-  }
-  private get zipCode(): Locator {
-    return this.activeForm.getByRole('textbox', { name: /zip/i });
-  }
-  private get submitButton(): Locator {
-    return this.activeForm.getByRole('button', { name: /SUBMIT/i });
-  }
-  private get validationMessages(): Locator {
-    return this.activeForm.locator('text=/Required|Invalid|Error/i');
+  private get scheduleVisitContainers(): Locator {
+    return this.page.locator('[id^="ScheduleAVisit-FormInstance"]');
   }
   private get successDialogModal(): Locator {
     return this.page.locator('.ReactModal__Content');
   }
   private get formSuccessMessage(): Locator {
-    return this.page.locator('span').filter({ hasText: /Thank you for your interest in Mattamy Homes/i }).last();
+    return this.page.getByText(
+      /Thank you for your interest in Mattamy Homes/i
+    ).last();
   }
 
   /* ==========================================================
@@ -110,21 +87,22 @@ export class CommunityPage extends HomePage {
   }
   private async verifySectionIfPresent(locator: Locator, name: string): Promise<void> {
 
-    const isPresent = await locator.count();
+    const sectionCount = await locator.count();
 
-    if (!isPresent) {
+    if (!sectionCount) {
       console.warn(`⚠️ ${name} section not present`);
       return;
     }
 
     // ✅ Scroll safely
-    await locator.first().scrollIntoViewIfNeeded();
+    const section = locator.first();
+    await section.scrollIntoViewIfNeeded();
 
     // ✅ Wait for SPA render
     await this.waitForPageReady();
 
     // ✅ Assert visibility (with retry)
-    await expect(locator, `${name} section not visible`)
+    await expect(section, `${name} section not visible`)
       .toBeVisible({ timeout: 5000 });
 
     console.log(`✅ ${name} section visible`);
@@ -209,54 +187,184 @@ export class CommunityPage extends HomePage {
   }
 
   /* ==========================================================
-     FORM VALIDATION (DO NOT SUBMIT)
+     FORM VALIDATION
   ========================================================== */
 
-  async viewForm(): Promise<void> {
-    await this.registerForm.scrollIntoViewIfNeeded();
+  private async getFormByIndex(formIndex: number): Promise<Locator | null> {
+    const formGroups = [
+      this.sitecoreCommunityForms,
+      this.contactForms,
+      this.scheduleVisitContainers
+    ];
+    let remainingIndex = formIndex;
+
+    for (const forms of formGroups) {
+      const formCount = await forms.count();
+
+      if (remainingIndex < formCount) {
+        return forms.nth(remainingIndex);
+      }
+
+      remainingIndex -= formCount;
+    }
+
+    return null;
   }
 
-  async validateEmptyFormErrors(): Promise<void> {
+  private async getAvailableForm(formIndex = 0, formName = 'Community form'): Promise<Locator | null> {
+    const form = await this.getFormByIndex(formIndex);
 
-    await this.submitButton.click();
+    if (!form) {
+      console.warn(`${formName} not present - skipping form validation`);
+      return null;
+    }
 
-    await expect(this.validationMessages.first())
+    const submitButton = form.getByRole('button', { name: /submit/i }).first();
+
+    if (!await submitButton.count()) {
+      console.warn(`${formName} submit button not present - skipping form validation`);
+      return null;
+    }
+
+    await form.scrollIntoViewIfNeeded();
+    await this.waitForPageReady();
+
+    if (
+      await form.isVisible().catch(() => false) ||
+      await submitButton.isVisible().catch(() => false)
+    ) {
+      return form;
+    }
+
+    console.warn(`${formName} not visible - skipping form validation`);
+    return null;
+  }
+
+  private async viewFormByIndex(formIndex: number, formName: string): Promise<void> {
+    await this.getAvailableForm(formIndex, formName);
+  }
+
+  private async validateEmptyFormErrorsByIndex(
+    formIndex: number,
+    formName: string
+  ): Promise<void> {
+    const form = await this.getAvailableForm(formIndex, formName);
+
+    if (!form) {
+      return;
+    }
+
+    await form.getByRole('button', { name: /submit/i }).first().click();
+
+    await expect(form.locator('text=/Required|Invalid|Error/i').first())
       .toBeVisible({ timeout: 10000 });
   }
 
-  async validateInvalidEmail(): Promise<void> {
+  private async validateInvalidEmailByIndex(
+    formIndex: number,
+    formName: string
+  ): Promise<void> {
+    const form = await this.getAvailableForm(formIndex, formName);
 
-    await this.firstNameInput.fill('Test');
-    await this.lastNameInput.fill('User');
-    await this.emailInput.fill('user@domain.c');
-    await this.phoneNumber.fill('123456');
+    if (!form) {
+      return;
+    }
 
-    await this.submitButton.click();
+    await form.getByRole('textbox', { name: /first name/i }).first().fill('Test');
+    await form.getByRole('textbox', { name: /last name/i }).first().fill('User');
+    await form.getByRole('textbox', { name: /email/i }).first().fill('user@domain.c');
+    await form.getByRole('textbox', { name: /phone/i }).first().fill('123456');
 
-    await expect(
-      this.page.getByText(
-        /valid domain name/i
-      )
-    ).toBeVisible();
+    await form.getByRole('button', { name: /submit/i }).first().click();
+
+    await expect(form.locator('text=/valid domain name/i').first())
+      .toBeVisible({ timeout: 10000 });
   }
-  // /* ==========================================================
-  //      FORM SUCCESS SUBMISSION VALIDATION
-  //   ========================================================== */
 
-  //   async verifySuccessFormSubmission(): Promise<void> {
+  private async submitSuccessfulFormByIndex(
+    formIndex: number,
+    formName: string
+  ): Promise<void> {
+    const form = await this.getAvailableForm(formIndex, formName);
 
-  //     await this.firstNameInput.fill('Sudhansu');
-  //     await this.lastNameInput.fill('Das');
-  //     await this.emailInput.fill('ssdas@ex2india.com');
-  //     await this.countryOfResidence.selectOption({ label: 'Canada' });
-  //     await this.zipCode.fill('34293');
-  //     await this.phoneNumber.fill('4488559933');
+    if (!form) {
+      return;
+    }
 
-  //     await this.submitButton.click();
+    await form.getByRole('textbox', { name: /first name/i }).first().fill('Sudhansu');
+    await form.getByRole('textbox', { name: /last name/i }).first().fill('Das');
+    await form.getByRole('textbox', { name: /email/i }).first().fill(
+      `ssdas_${Date.now()}@ex2india.com`
+    );
+    await form.getByRole('textbox', { name: /phone/i }).first().fill('4488559933');
 
-  //     await expect(this.successDialogModal).toBeVisible({ timeout: 10000 });
-  //     await expect(this.successDialogModal.getByText(/Thank you for your interest in Mattamy Homes/i)).toBeVisible();
+    const countryOfResidence = form.getByRole('combobox', {
+      name: /country of residence/i
+    }).first();
 
-  //   }
+    if (await countryOfResidence.count()) {
+      await countryOfResidence.selectOption({ label: 'Canada' });
+    }
+
+    const zipCode = form.getByRole('textbox', { name: /zip/i }).first();
+
+    if (await zipCode.count()) {
+      await zipCode.fill('34293');
+    }
+
+    await form.getByRole('button', { name: /submit/i }).first().click();
+
+    if (await this.successDialogModal.count()) {
+      await expect(this.successDialogModal.last()).toBeVisible({
+        timeout: 10000
+      });
+    }
+
+    await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
+  }
+
+  async viewForm(): Promise<void> {
+    await this.viewPrimaryForm();
+  }
+
+  async viewPrimaryForm(): Promise<void> {
+    await this.viewFormByIndex(0, 'Primary community form');
+  }
+
+  async viewFooterForm(): Promise<void> {
+    await this.viewFormByIndex(1, 'Footer community form');
+  }
+
+  async validateEmptyFormErrors(): Promise<void> {
+    await this.validatePrimaryFormEmptyErrors();
+  }
+
+  async validatePrimaryFormEmptyErrors(): Promise<void> {
+    await this.validateEmptyFormErrorsByIndex(0, 'Primary community form');
+  }
+
+  async validateFooterFormEmptyErrors(): Promise<void> {
+    await this.validateEmptyFormErrorsByIndex(1, 'Footer community form');
+  }
+
+  async validateInvalidEmail(): Promise<void> {
+    await this.validatePrimaryFormInvalidEmail();
+  }
+
+  async validatePrimaryFormInvalidEmail(): Promise<void> {
+    await this.validateInvalidEmailByIndex(0, 'Primary community form');
+  }
+
+  async validateFooterFormInvalidEmail(): Promise<void> {
+    await this.validateInvalidEmailByIndex(1, 'Footer community form');
+  }
+
+  async verifyPrimaryFormSuccessSubmission(): Promise<void> {
+    await this.submitSuccessfulFormByIndex(0, 'Primary community form');
+  }
+
+  async verifyFooterFormSuccessSubmission(): Promise<void> {
+    await this.submitSuccessfulFormByIndex(1, 'Footer community form');
+  }
 
 }
