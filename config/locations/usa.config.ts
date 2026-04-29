@@ -7,8 +7,8 @@ export const USA = {
     url: '/florida/sarasota-bradenton/venice/wellen-park'
   },
   community: 'Landmarke',
-  qmiAddress: '263 W FLAX DR',
-  qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/blush/263-w-flax-dr',
+  qmiAddress: '315 W FLAX DR',
+  qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/mahogany/315-w-flax-dr',
   planName: 'Aqua',
   expectedPlanUrlPart: '/aqua',
   markets: [

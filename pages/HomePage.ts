@@ -1,6 +1,7 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 import { getLocationConfig, LocationKey } from '../config/locations';
+import { getEnvConfig } from '../config/envConfig';
 
 type SearchType = 'market' | 'community' | 'plan' | 'qmi';
 
@@ -43,56 +44,102 @@ export class HomePage extends BasePage {
   private readonly SEARCH_INPUT_TIMEOUT = 10000;
   private readonly SEARCH_RESULTS_TIMEOUT = 15000;
   private readonly SEARCH_TYPE_DELAY = 1000;
+  private readonly SEARCH_INPUT_SELECTOR = 'input[placeholder*="Search"]:not(#vendor-search-handler)';
+  private readonly SEARCH_SUGGESTION_SELECTORS = [
+    '[data-aos="fade-down"] a[aria-label]:visible',
+    '[data-aos="fade-down"] a[href]:visible',
+    'button[href*="/search"][href*="metro="]:not([aria-hidden="true"]):visible',
+    '[role="listbox"] a[href]:visible',
+    '[role="listbox"] [role="option"]:visible',
+    '[role="option"] a[href]:visible',
+    '[role="option"]:visible',
+    '[aria-live] a[href]:visible',
+    '[class*="search"] a[href]:visible',
+    '[class*="Search"] a[href]:visible'
+  ];
 
   /* ==========================================================
      SEARCH LOCATORS
   ========================================================== */
 
   private get searchResults(): Locator {
-    // Keep current selector as fallback, but centralize it
-    return this.page.locator('[data-aos="fade-down"] a[aria-label]');
+    return this.page.locator(this.SEARCH_SUGGESTION_SELECTORS.join(', '));
+  }
+
+  private get visibleSearchBox(): Locator {
+    return this.page.locator(`${this.SEARCH_INPUT_SELECTOR}:visible`).first();
   }
   /* ==========================================================
        SEARCH FEATURE
     ========================================================== */
 
-  async search(value: string): Promise<void> {
+  async search(value: string, searchType?: SearchType): Promise<void> {
     await this.waitForPageReady();
     await this.page.waitForTimeout(1500); // small UI stabilization
 
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= this.SEARCH_MAX_ATTEMPTS + 1; attempt++) {
       console.log(`🔁 Attempt ${attempt} - 🔍 Searching for: ${value}`);
 
       
 
-      await this.searchBox.waitFor({ state: 'visible', timeout: 20000 });
-      await this.searchBox.scrollIntoViewIfNeeded();
-      await this.searchBox.click();
-      await this.searchBox.fill('');
+      const searchBox = this.visibleSearchBox;
+
+      const isSearchBoxVisible = await searchBox
+        .waitFor({ state: 'visible', timeout: this.SEARCH_INPUT_TIMEOUT })
+        .then(() => true)
+        .catch(() => false);
+
+      if (!isSearchBoxVisible) {
+        if (searchType === 'market') {
+          console.log(`Search input not visible - navigating directly to market search for: ${value}`);
+          await this.navigateToMarketSearchResults(value);
+          return;
+        }
+
+        throw new Error(`Search input not visible for search value: ${value}`);
+      }
+
+      await this.scrollTo(searchBox);
+      await searchBox.click();
+      await searchBox.fill('');
 
       let typedValue = '';
 
       for (const char of value) {
         typedValue += char;
 
-        await this.searchBox.type(char, { delay: 500 });
+        await searchBox.type(char, { delay: 300 });
         await this.page.waitForTimeout(500);
 
-        const matchedResult = this.searchResults
-          .filter({ hasText: value })
-          .first();
+        const matchedResult = this.getSearchResult(value, searchType);
 
         if (await matchedResult.isVisible().catch(() => false)) {
           console.log(`✅ Match found after typing: ${typedValue}`);
           const previousUrl = this.page.url();
           const href = await matchedResult.getAttribute('href');
           await matchedResult.scrollIntoViewIfNeeded();
-          await matchedResult.click();
+          const didClick = await matchedResult.click({ timeout: 5000 })
+            .then(() => true)
+            .catch(() => false);
+
+          if (!didClick && href) {
+            await this.page.goto(this.buildFullUrl(href), {
+              waitUntil: 'domcontentloaded',
+              timeout: 90_000
+            });
+            await this.waitForPageReady();
+            return;
+          }
 
           const didNavigate = await this.page.waitForURL(
             (url) => url.toString() !== previousUrl,
             { timeout: this.SEARCH_RESULTS_TIMEOUT }
           ).then(() => true).catch(() => false);
+
+          if (!didNavigate && searchType === 'market') {
+            await this.navigateToMarketSearchResults(value);
+            return;
+          }
 
           if (!didNavigate && href) {
             await this.page.goto(this.buildFullUrl(href), {
@@ -106,12 +153,70 @@ export class HomePage extends BasePage {
       }
 
       console.log(`⚠️ No match found in attempt ${attempt}`);
-      await this.searchBox.fill('');
+      await this.visibleSearchBox.fill('').catch(() => undefined);
       await this.page.waitForTimeout(800);
+    }
+
+    if (searchType === 'market') {
+      await this.navigateToMarketSearchResults(value);
+      return;
     }
 
     throw new Error(`❌ No matching search result found for: ${value}`);
   }
+  private async navigateToMarketSearchResults(market: string): Promise<void> {
+    const location = getLocationConfig();
+    const { baseURL } = getEnvConfig();
+    const searchParams = new URLSearchParams({
+      productType: 'community',
+      metro: market,
+      country: location.country,
+      community: market,
+      hideMap: 'true'
+    });
+
+    console.log(`No autocomplete market result found - navigating to search results for: ${market}`);
+
+    await this.page.goto(`${baseURL}/search?${searchParams.toString()}`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 90_000
+    });
+    await this.waitForPageReady();
+  }
+
+  private getSearchResult(value: string, searchType?: SearchType): Locator {
+    const matchedResults = this.searchResults.filter({
+      hasText: new RegExp(this.escapeRegExp(value), 'i')
+    });
+
+    if (searchType === 'market') {
+      return matchedResults
+        .filter({
+          hasText: new RegExp(`^\\s*${this.escapeRegExp(value)}\\s*$`, 'i')
+        })
+        .first()
+        .or(matchedResults.first());
+    }
+
+    if (searchType !== 'qmi') {
+      return matchedResults.first();
+    }
+
+    const addressSlug = this.normalizeText(value)
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    const qmiAddressLink = this.page
+      .locator(`a[href*="${addressSlug}"]:visible`)
+      .filter({ hasText: new RegExp(this.escapeRegExp(value), 'i') })
+      .first();
+
+    return qmiAddressLink.or(matchedResults.first());
+  }
+
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   /* ==========================================================
      HELPERS
   ========================================================== */
@@ -123,7 +228,7 @@ export class HomePage extends BasePage {
   ========================================================== */
 
   async searchByMarket(market: string): Promise<void> {
-    await this.search(market);
+    await this.search(market, 'market');
   }
 
   async verifySearchByMarket(expectedMarket: string): Promise<void> {
@@ -154,7 +259,7 @@ export class HomePage extends BasePage {
   ========================================================== */
 
   async searchByQMI(address: string): Promise<void> {
-    await this.search(address);
+    await this.search(address, 'qmi');
   }
 
   /* ==========================================================

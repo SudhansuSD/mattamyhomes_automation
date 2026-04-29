@@ -65,6 +65,15 @@ export class BasePage {
       await acceptBtn.click();
       console.log('Cookie banner accepted');
     }
+
+    const closeBtn = this.page
+      .getByRole('button', { name: /^Close$/i })
+      .first();
+
+    if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await closeBtn.click();
+      console.log('Cookie banner closed');
+    }
   }
 
   /* ==========================================================

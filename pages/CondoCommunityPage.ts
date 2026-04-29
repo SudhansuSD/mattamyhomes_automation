@@ -24,44 +24,62 @@ const TEXT = {
 };
 
 export class CondoCommunityPage extends HomePage {
+  /* ==========================================================
+     Page Locators
+  ========================================================== */
+
+  /** Locator: main page H1 heading. */
   private get heading(): Locator {
     return this.page.getByRole('heading', { level: 1 });
   }
 
+  /** Locator: full page body content. */
   private get body(): Locator {
     return this.page.locator('body');
   }
 
+  /** Locator: primary hero or app root container. */
   private get hero(): Locator {
     return this.page.locator('main, #root').first();
   }
 
+  /** Locator: all page navigation and CTA links. */
   private get navLinks(): Locator {
     return this.page.locator('a[href]');
   }
 
+  /** Locator: register/contact action buttons and links. */
   private get registerOrContactButtons(): Locator {
     return this.page.locator('a, button').filter({ hasText: TEXT.cta });
   }
 
+  /** Locator: possible condo lead forms on the page. */
   private get condoForms(): Locator {
     return this.page.locator(
       'form, [id^="Sitecore-ScheduleAVisit-FormInstance"], [id^="ScheduleAVisit-FormInstance"]'
     );
   }
 
+  /** Locator: React modal shown after successful form submission. */
   private get successDialogModal(): Locator {
     return this.page.locator('.ReactModal__Content');
   }
 
+  /** Locator: lead form success confirmation message. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(TEXT.successMessage).last();
   }
 
+  /* ==========================================================
+     Search and Page Load
+  ========================================================== */
+
+  /** Action: search for a condo community from the home page search box. */
   async searchByCondoCommunity(condoCommunity: string): Promise<void> {
     await this.search(condoCommunity);
   }
 
+  /** Verify: condo community search redirects to the expected community page. */
   async verifySearchByCondoCommunity(expectedCommunity: string): Promise<void> {
     await this.waitForPageReady();
 
@@ -70,12 +88,18 @@ export class CondoCommunityPage extends HomePage {
     await expect(this.page).not.toHaveURL(/\?country=/i);
   }
 
+  /* ==========================================================
+     Page Content Validation
+  ========================================================== */
+
+  /** Verify: hero area contains expected community and condo-related content. */
   async verifyHeroContent(expectedCommunity: string): Promise<void> {
     await this.expectHeadingContains(expectedCommunity);
     await expect(this.hero).toBeVisible({ timeout: TIMEOUT.medium });
     await expect(this.body).toContainText(TEXT.condoHero, { timeout: TIMEOUT.medium });
   }
 
+  /** Verify: page includes visible condo community content section headings. */
   async verifyCondoPageSections(): Promise<void> {
     const sectionHeadings = this.page.getByRole('heading', {
       name: TEXT.sectionHeading
@@ -91,6 +115,7 @@ export class CondoCommunityPage extends HomePage {
     }
   }
 
+  /** Verify: page includes condo-specific copy and condo-related navigation. */
   async verifyCondoSpecificContent(): Promise<void> {
     await expect(this.body).toContainText(TEXT.condo, { timeout: TIMEOUT.short });
 
@@ -104,6 +129,7 @@ export class CondoCommunityPage extends HomePage {
     ).toBeGreaterThan(0);
   }
 
+  /** Verify: all navigation links have usable href values. */
   async verifyAllNavigationLinks(): Promise<void> {
     const linkCount = await this.navLinks.count();
 
@@ -122,6 +148,7 @@ export class CondoCommunityPage extends HomePage {
     }
   }
 
+  /** Verify: primary register/contact CTA is present and visible. */
   async verifyPrimaryCtas(): Promise<void> {
     const ctaCount = await this.registerOrContactButtons.count();
 
@@ -133,6 +160,7 @@ export class CondoCommunityPage extends HomePage {
     });
   }
 
+  /** Verify: page includes suite or floorplan-related content. */
   async verifySuiteOrFloorplanContent(): Promise<void> {
     const suiteContent = this.page.locator('section, div').filter({
       hasText: /suite|floorplan|floor plan|bedroom|bath|sq\.?\s*ft/i
@@ -144,6 +172,7 @@ export class CondoCommunityPage extends HomePage {
     ).toBeGreaterThan(0);
   }
 
+  /** Verify: available floorplans section contains floorplan links and a working View All CTA. */
   async verifyAvailableFloorplansSection(expectedCommunity: string): Promise<void> {
     await this.waitForPageReady();
 
@@ -164,46 +193,65 @@ export class CondoCommunityPage extends HomePage {
     await this.verifyAvailableFloorplansViewAll(section, expectedCommunity);
   }
 
+  /* ==========================================================
+     Public Form Validation
+  ========================================================== */
+
+  /** Verify: primary condo form fields and submit button are visible. */
   async validatePrimaryFormFields(): Promise<void> {
     await this.validateFormFieldsByIndex(0, 'Primary condo form');
   }
 
+  /** Verify: footer condo form fields and submit button are visible. */
   async validateFooterFormFields(): Promise<void> {
     await this.validateFormFieldsByIndex(1, 'Footer condo form');
   }
 
+  /** Verify: default required-field validation errors on the primary condo form. */
   async validateRequiredFieldErrors(): Promise<void> {
     await this.validatePrimaryFormRequiredErrors();
   }
 
+  /** Verify: primary condo form shows required-field validation errors. */
   async validatePrimaryFormRequiredErrors(): Promise<void> {
     await this.validateRequiredFieldErrorsByIndex(0, 'Primary condo form');
   }
 
+  /** Verify: footer condo form shows required-field validation errors. */
   async validateFooterFormRequiredErrors(): Promise<void> {
     await this.validateRequiredFieldErrorsByIndex(1, 'Footer condo form');
   }
 
+  /** Verify: default invalid-email validation on the primary condo form. */
   async validateInvalidEmailError(): Promise<void> {
     await this.validatePrimaryFormInvalidEmailError();
   }
 
+  /** Verify: primary condo form rejects invalid email addresses. */
   async validatePrimaryFormInvalidEmailError(): Promise<void> {
     await this.validateInvalidEmailErrorByIndex(0, 'Primary condo form');
   }
 
+  /** Verify: footer condo form rejects invalid email addresses. */
   async validateFooterFormInvalidEmailError(): Promise<void> {
     await this.validateInvalidEmailErrorByIndex(1, 'Footer condo form');
   }
 
+  /** Verify: primary condo form can be submitted successfully. */
   async verifyPrimaryFormSuccessSubmission(): Promise<void> {
     await this.submitSuccessfulFormByIndex(0, 'Primary condo form');
   }
 
+  /** Verify: footer condo form can be submitted successfully. */
   async verifyFooterFormSuccessSubmission(): Promise<void> {
     await this.submitSuccessfulFormByIndex(1, 'Footer condo form');
   }
 
+  /* ==========================================================
+     Private Form Validation Helpers
+  ========================================================== */
+
+  /** Helper: validate visible fields for a form selected by index. */
   private async validateFormFieldsByIndex(
     formIndex: number,
     formName: string
@@ -220,6 +268,7 @@ export class CondoCommunityPage extends HomePage {
     await expect(this.getSubmitButton(form)).toBeVisible({ timeout: TIMEOUT.short });
   }
 
+  /** Helper: trigger and validate required-field errors for a form selected by index. */
   private async validateRequiredFieldErrorsByIndex(
     formIndex: number,
     formName: string
@@ -235,6 +284,7 @@ export class CondoCommunityPage extends HomePage {
     });
   }
 
+  /** Helper: trigger and validate invalid-email errors for a form selected by index. */
   private async validateInvalidEmailErrorByIndex(
     formIndex: number,
     formName: string
@@ -251,6 +301,7 @@ export class CondoCommunityPage extends HomePage {
     });
   }
 
+  /** Helper: submit a form selected by index with valid lead data. */
   private async submitSuccessfulFormByIndex(
     formIndex: number,
     formName: string
@@ -272,6 +323,7 @@ export class CondoCommunityPage extends HomePage {
     console.log(`${formName} successful submission validated`);
   }
 
+  /** Helper: fill lead form with data that should fail email validation. */
   private async fillLeadFormWithInvalidEmail(form: Locator): Promise<void> {
     await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Test');
     await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'User');
@@ -283,6 +335,7 @@ export class CondoCommunityPage extends HomePage {
     await this.checkTermsIfPresent(form);
   }
 
+  /** Helper: fill lead form with valid data for successful submission. */
   private async fillLeadFormWithValidData(form: Locator): Promise<void> {
     await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Sudhansu');
     await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Das');
@@ -299,6 +352,7 @@ export class CondoCommunityPage extends HomePage {
     await this.checkTermsIfPresent(form);
   }
 
+  /** Helper: find an available condo form by index. */
   private async getAvailableForm(
     formIndex: number,
     formName: string
@@ -330,10 +384,12 @@ export class CondoCommunityPage extends HomePage {
     return form;
   }
 
+  /** Helper: locate submit button inside a specific condo form. */
   private getSubmitButton(form: Locator): Locator {
     return form.getByRole('button', { name: TEXT.submit }).first();
   }
 
+  /** Helper: select country of residence when the field exists. */
   private async selectCountryIfPresent(form: Locator): Promise<void> {
     const country = form.getByRole('combobox', {
       name: /country of residence/i
@@ -346,12 +402,14 @@ export class CondoCommunityPage extends HomePage {
     });
   }
 
+  /** Helper: select the first non-placeholder option when a dropdown exists. */
   private async selectFirstOptionIfPresent(field: Locator): Promise<void> {
     if (!(await field.count())) return;
 
     await field.selectOption({ index: 1 }).catch(() => undefined);
   }
 
+  /** Helper: check the first terms checkbox when present. */
   private async checkTermsIfPresent(form: Locator): Promise<void> {
     const terms = form.getByRole('checkbox').first();
 
@@ -360,6 +418,11 @@ export class CondoCommunityPage extends HomePage {
     }
   }
 
+  /* ==========================================================
+     Floorplan Section Helpers
+  ========================================================== */
+
+  /** Helper: find the available floorplans section when it exists. */
   private async getAvailableFloorplansSectionIfAvailable(): Promise<Locator | null> {
     const heading = this.page.getByRole('heading', {
       name: TEXT.availableFloorplansHeading
@@ -380,6 +443,7 @@ export class CondoCommunityPage extends HomePage {
     return heading.locator('xpath=ancestor::div[1]');
   }
 
+  /** Helper: validate and log available floorplan links inside a section. */
   private async verifyAvailableFloorplanLinks(
     section: Locator,
     condoCommunityPath: string
@@ -423,6 +487,7 @@ export class CondoCommunityPage extends HomePage {
     ).toBeGreaterThan(0);
   }
 
+  /** Helper: validate and follow the available floorplans View All link. */
   private async verifyAvailableFloorplansViewAll(
     section: Locator,
     expectedCommunity: string
@@ -464,6 +529,11 @@ export class CondoCommunityPage extends HomePage {
       });
   }
 
+  /* ==========================================================
+     Shared Helpers
+  ========================================================== */
+
+  /** Helper: assert a field is visible only when present in the form. */
   private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
     if (await field.count()) {
       await expect(field.first(), `${label} field should be visible`)
@@ -471,18 +541,21 @@ export class CondoCommunityPage extends HomePage {
     }
   }
 
+  /** Helper: fill a field only when it exists. */
   private async fillIfPresent(field: Locator, value: string): Promise<void> {
     if (await field.count()) {
       await field.first().fill(value);
     }
   }
 
+  /** Helper: assert the H1 contains expected text. */
   private async expectHeadingContains(expectedText: string): Promise<void> {
     await expect(this.heading).toContainText(
       new RegExp(this.escapeRegex(expectedText), 'i')
     );
   }
 
+  /** Helper: identify empty, anchor, phone, mail, and JavaScript hrefs. */
   private isIgnorableHref(href: string | null): boolean {
     return !href ||
       href.startsWith('#') ||
@@ -491,10 +564,12 @@ export class CondoCommunityPage extends HomePage {
       href.startsWith('javascript:');
   }
 
+  /** Helper: normalize any href to a pathname without trailing slash. */
   private getPathnameFromHref(href: string): string {
     return new URL(href, this.page.url()).pathname.replace(/\/$/, '');
   }
 
+  /** Helper: derive a readable plan name from a floorplan URL. */
   private getPlanNameFromHref(href: string): string {
     const pathname = this.getPathnameFromHref(href);
     const slug = pathname.split('/').filter(Boolean).pop();
@@ -502,6 +577,7 @@ export class CondoCommunityPage extends HomePage {
     return slug ? slug.replace(/-/g, ' ').toUpperCase() : 'Condo plan';
   }
 
+  /** Helper: escape dynamic text before creating a regular expression. */
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }

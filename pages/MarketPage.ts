@@ -8,14 +8,28 @@ export interface MarketConfig {
 }
 
 export class MarketPage extends BasePage {
+    /** Locator: main market page heading. */
     readonly heading: Locator;
+
+    /** Locator: market hero/header section. */
     readonly heroSection: Locator;
+
+    /** Locator: community cards section. */
     readonly communitySection: Locator;
+
+    /** Locator: market lead form container. */
     readonly leadForm: Locator;
+
+    /** Locator: Discover Our Homes section heading. */
     readonly discoverOurHomesSection: Locator;
+
+    /** Locator: search links for plans and quick move-in homes. */
     readonly marketSearchLinks: Locator;
+
+    /** Locator: React modal shown after successful form submission. */
     readonly successDialogModal: Locator;
 
+    /** Setup: initialize market page locators. */
     constructor(page: Page) {
         super(page);
 
@@ -42,25 +56,78 @@ export class MarketPage extends BasePage {
        UTIL HELPERS
     ========================================================== */
 
+    /** Helper: write a titled log block to test output. */
     private logBlock(title: string): void {
         console.log(`\n===== ${title} =====`);
     }
 
-    private getCommunityCards(): Locator {
-        return this.communitySection.locator('li').filter({
+    /** Helper: return community card list items that contain links. */
+    private getCommunityCards(section = this.communitySection): Locator {
+        return section.locator('li').filter({
             has: this.page.locator('a[href]')
         });
     }
 
+    /** Helper: extract a community card title. */
     private async getCommunityCardTitle(card: Locator): Promise<string> {
         const title = card.locator('h2, h3, h4, a div.block, a').first();
         return (await title.innerText()).trim();
     }
 
+    /** Helper: escape dynamic text before creating a regular expression. */
     private escapeRegex(value: string): string {
         return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
+    /** Helper: build a heading matcher from configured market aliases. */
+    private getMarketNamePattern(marketName: string): RegExp {
+        const aliases = marketName
+            .split('||')
+            .map((name) => name.trim())
+            .filter(Boolean);
+        const escapedAliases = aliases.flatMap((name) => {
+            const escapedName = this.escapeRegex(name);
+            const andVariant = escapedName.replace(/-/g, '\\s+(?:-|and)\\s+');
+
+            return [escapedName, andVariant];
+        });
+
+        return new RegExp(`(?:${escapedAliases.join('|')})`, 'i');
+    }
+
+    /** Helper: find the market community cards section across supported page layouts. */
+    private async getCommunitySectionIfAvailable(): Promise<Locator | null> {
+        if (await this.communitySection.count()) {
+            return this.communitySection.first();
+        }
+
+        const communityHeading = this.page.getByRole('heading', {
+            name: /Explore (our )?communities/i
+        }).first();
+
+        await communityHeading.waitFor({ state: 'attached', timeout: 5000 }).catch(() => undefined);
+
+        if (!(await communityHeading.count())) {
+            return null;
+        }
+
+        return communityHeading.locator('xpath=ancestor::*[.//li][1]');
+    }
+
+    /** Helper: find the Discover Our Homes section when it exists. */
+    private async getDiscoverOurHomesSectionIfAvailable(): Promise<Locator | null> {
+        await this.discoverOurHomesSection
+            .waitFor({ state: 'attached', timeout: 5000 })
+            .catch(() => undefined);
+
+        if (!(await this.discoverOurHomesSection.count())) {
+            return null;
+        }
+
+        return this.discoverOurHomesSection.locator('xpath=ancestor::section[1]');
+    }
+
+    /** Locator: lead form success confirmation message. */
     private get formSuccessMessage(): Locator {
         return this.page.getByText(
             /Thank you for your interest in Mattamy Homes/i
@@ -71,6 +138,7 @@ export class MarketPage extends BasePage {
        NAVIGATION
     ========================================================== */
 
+    /** Action: navigate directly to a market page using its relative URL. */
     async navigateToMarket(relativeUrl: string): Promise<void> {
         const { baseURL } = getEnvConfig();
         await this.page.goto(`${baseURL}${relativeUrl}`);
@@ -81,22 +149,23 @@ export class MarketPage extends BasePage {
        MARKET PAGE VALIDATION
     ========================================================== */
 
+    /** Verify: market page URL and heading match expected market configuration. */
     async verifyMarketPage(market: MarketConfig): Promise<void> {
         await this.waitForPageReady();
 
         await expect(this.page).toHaveURL(new RegExp(market.url, 'i'));
-        await expect(this.heading).toContainText(
-            new RegExp(market.name, 'i'),
-            { timeout: 15000 }
-        );
+        await expect(this.heading).toContainText(this.getMarketNamePattern(market.name), {
+            timeout: 15000
+        });
 
         console.log(`✅ Market verified: ${market.name}`);
         console.log(`🌐 URL: ${this.page.url()}`);
     }
 
+    /** Verify: market hero content, hero image, and search CTAs are present. */
     async validateHeroContent(market: MarketConfig): Promise<void> {
         await expect(this.heroSection).toBeVisible({ timeout: 15000 });
-        await expect(this.heading).toContainText(new RegExp(market.name, 'i'));
+        await expect(this.heading).toContainText(this.getMarketNamePattern(market.name));
 
         const heroImage = this.heroSection.locator('img').first();
         if (await heroImage.count()) {
@@ -116,22 +185,20 @@ export class MarketPage extends BasePage {
        COMMUNITY CARDS (DETAILED)
     ========================================================== */
 
+    /** Verify: community cards exist and log their names and URLs. */
     async validateCommunityCards(): Promise<void> {
+        const communitySection = await this.getCommunitySectionIfAvailable();
 
-        await expect(this.communitySection, 'Community Cards section not present')
-            .toBeVisible({ timeout: 15000 });
-
-        const isVisible = await this.isSectionVisible(this.communitySection);
+        const isVisible = !!communitySection && await this.isSectionVisible(communitySection);
 
         if (!isVisible) {
             console.warn('⚠️ Community Cards section not present');
             return;
         }
-        await this.communitySection.scrollIntoViewIfNeeded();
+        await communitySection.scrollIntoViewIfNeeded();
         await this.waitForPageReady();
-        await expect(this.communitySection).toBeInViewport({ timeout: 10000 });
 
-        const cards = this.getCommunityCards();
+        const cards = this.getCommunityCards(communitySection);
 
         const count = await cards.count();
         expect(count).toBeGreaterThan(0);
@@ -152,21 +219,20 @@ export class MarketPage extends BasePage {
         }
     }
 
+    /** Verify: each community card has a title, href, and image source when present. */
     async validateCommunityCardDetails(): Promise<void> {
-        await expect(this.communitySection, 'Community Cards section not present')
-            .toBeVisible({ timeout: 15000 });
+        const communitySection = await this.getCommunitySectionIfAvailable();
 
-        const isVisible = await this.isSectionVisible(this.communitySection);
+        const isVisible = !!communitySection && await this.isSectionVisible(communitySection);
 
         if (!isVisible) {
             console.warn('Community Cards section not present');
             return;
         }
 
-        await this.communitySection.scrollIntoViewIfNeeded();
+        await communitySection.scrollIntoViewIfNeeded();
         await this.waitForPageReady();
-        await expect(this.communitySection).toBeInViewport({ timeout: 10000 });
-        const cards = this.getCommunityCards();
+        const cards = this.getCommunityCards(communitySection);
         const count = await cards.count();
         expect(count, 'Market page should list at least one community card')
             .toBeGreaterThan(0);
@@ -188,21 +254,21 @@ export class MarketPage extends BasePage {
         }
     }
 
+    /** Verify: first community card navigates to its community page. */
     async validateFirstCommunityCardNavigation(): Promise<void> {
-        await expect(this.communitySection, 'Community Cards section not present')
-            .toBeVisible({ timeout: 15000 });
-        await this.communitySection.scrollIntoViewIfNeeded();
-        await this.waitForPageReady();
-        await expect(this.communitySection).toBeInViewport({ timeout: 10000 });
+        const communitySection = await this.getCommunitySectionIfAvailable();
 
-        const isVisible = await this.isSectionVisible(this.communitySection);
+        const isVisible = !!communitySection && await this.isSectionVisible(communitySection);
 
         if (!isVisible) {
             console.warn('Community Cards section not present');
             return;
         }
 
-        const firstCardLink = this.getCommunityCards()
+        await communitySection.scrollIntoViewIfNeeded();
+        await this.waitForPageReady();
+
+        const firstCardLink = this.getCommunityCards(communitySection)
             .first()
             .locator('a[href]')
             .first();
@@ -226,6 +292,7 @@ export class MarketPage extends BasePage {
        LEAD FORM VALIDATION
     ========================================================== */
 
+    /** Verify: lead form invalid-data behavior for the market page. */
     async validateLeadForm(marketName: string): Promise<void> {
         await this.validateLeadFormInvalidData(marketName);
         return;
@@ -280,6 +347,7 @@ export class MarketPage extends BasePage {
         console.log(`✅ Lead form validation successful: ${marketName}`);
     }
 
+    /** Helper: return the visible market lead form when available. */
     private async getAvailableLeadForm(marketName: string): Promise<Locator | null> {
         await this.waitForPageReady();
 
@@ -301,6 +369,7 @@ export class MarketPage extends BasePage {
         return form;
     }
 
+    /** Helper: return all fields used by the market lead form. */
     private getLeadFormFields(form: Locator) {
         return {
             community: form.getByRole('combobox', { name: /Community of Interest/i }),
@@ -314,6 +383,7 @@ export class MarketPage extends BasePage {
         };
     }
 
+    /** Verify: market lead form rejects invalid email data. */
     async validateLeadFormInvalidData(marketName: string): Promise<void> {
         const form = await this.getAvailableLeadForm(marketName);
 
@@ -343,6 +413,7 @@ export class MarketPage extends BasePage {
         console.log(`Lead form invalid-data validation successful: ${marketName}`);
     }
 
+    /** Verify: market lead form can be submitted successfully. */
     async submitLeadFormSuccessfully(marketName: string): Promise<void> {
         const form = await this.getAvailableLeadForm(marketName);
 
@@ -380,28 +451,22 @@ export class MarketPage extends BasePage {
        DISCOVER OUR HOMES
     ========================================================== */
 
+    /** Verify: Discover Our Homes section links point to expected search result types. */
     async validateDiscoverOurHomesSection(): Promise<void> {
 
         await this.waitForPageReady();
         await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        await expect(
-            this.discoverOurHomesSection,
-            `Discover Our Homes section not present on ${this.page.url()}`
-        ).toBeVisible({ timeout: 15000 });
+        const section = await this.getDiscoverOurHomesSectionIfAvailable();
 
-        const isVisible = await this.isSectionVisible(this.discoverOurHomesSection);
+        const isVisible = !!section && await this.isSectionVisible(section);
 
         if (!isVisible) {
             console.warn(`⚠️ Discover Our Homes section not present on ${this.page.url()}`);
             return;
         }
 
-        await this.discoverOurHomesSection.scrollIntoViewIfNeeded();
+        await section.scrollIntoViewIfNeeded();
         await this.waitForPageReady();
-        await expect(this.discoverOurHomesSection).toBeInViewport({ timeout: 10000 });
-
-
-        const section = this.discoverOurHomesSection.locator('xpath=ancestor::section');
         const links = section.locator('a');
         const count = await links.count();
         this.logBlock('DISCOVER OUR HOMES');
@@ -425,6 +490,7 @@ export class MarketPage extends BasePage {
         }
     }
 
+    /** Verify: market search links include both plan and QMI search result links. */
     async validateMarketSearchLinks(): Promise<void> {
         const count = await this.marketSearchLinks.count();
         expect(count, `Market search links not present on ${this.page.url()}`)

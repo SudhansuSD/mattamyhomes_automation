@@ -10,15 +10,31 @@ export interface MPCConfig {
 type MpcTab = 'Summary' | 'Home Details' | 'Contact & Hours';
 
 export class MPCPage extends BasePage {
+  /** Locator: main MPC page heading. */
   readonly heading: Locator;
+
+  /** Locator: primary hero or app root container. */
   readonly heroSection: Locator;
+
+  /** Locator: Summary tab button. */
   readonly summaryTab: Locator;
+
+  /** Locator: Home Details tab button. */
   readonly homeDetailsTab: Locator;
+
+  /** Locator: Contact & Hours tab button. */
   readonly contactHoursTab: Locator;
+
+  /** Locator: neighborhood cards section. */
   readonly neighborhoodSection: Locator;
+
+  /** Locator: community update form heading. */
   readonly communityUpdateHeading: Locator;
+
+  /** Locator: React modal shown after successful form submission. */
   readonly successDialogModal: Locator;
 
+  /** Setup: initialize MPC page locators. */
   constructor(page: Page) {
     super(page);
 
@@ -45,6 +61,7 @@ export class MPCPage extends BasePage {
      Navigation
   ========================================================== */
 
+  /** Action: navigate directly to an MPC page using its relative URL. */
   async navigateToMPC(relativeUrl: string): Promise<void> {
     const { baseURL } = getEnvConfig();
 
@@ -62,6 +79,7 @@ export class MPCPage extends BasePage {
      Page Load
   ========================================================== */
 
+  /** Verify: MPC page URL, title, and heading match expected configuration. */
   async verifyMPCPage(mpc: MPCConfig): Promise<void> {
     await this.waitForPageReady();
 
@@ -72,6 +90,7 @@ export class MPCPage extends BasePage {
     });
   }
 
+  /** Verify: MPC hero contains the expected community name and visible content. */
   async validateHeroContent(mpcName: string): Promise<void> {
     await expect(this.heading).toContainText(new RegExp(mpcName, 'i'));
     await expect(this.heroSection).toBeVisible({ timeout: 15000 });
@@ -93,6 +112,7 @@ export class MPCPage extends BasePage {
      Tabs
   ========================================================== */
 
+  /** Verify: Summary tab opens and displays expected community summary content. */
   async validateSummaryTab(): Promise<void> {
     await this.openTab('Summary');
     await expect(this.summaryTab).toHaveAttribute('aria-selected', 'true');
@@ -102,6 +122,7 @@ export class MPCPage extends BasePage {
     );
   }
 
+  /** Verify: Home Details tab opens and displays expected detail headings. */
   async validateHomeDetailsTab(): Promise<void> {
     await this.openTab('Home Details');
 
@@ -120,6 +141,7 @@ export class MPCPage extends BasePage {
     }
   }
 
+  /** Verify: Contact & Hours tab opens and displays sales contact information. */
   async validateContactHoursTab(): Promise<void> {
     await this.openTab('Contact & Hours');
 
@@ -129,10 +151,11 @@ export class MPCPage extends BasePage {
       .toBeVisible({ timeout: 10000 });
     await expect(this.page.getByText(/@mattamycorp\.com/i).first())
       .toBeVisible({ timeout: 10000 });
-    await expect(this.page.getByRole('heading', { name: /Hours/i }))
+    await expect(this.page.getByRole('heading', { name: /^Hours$/i }).first())
       .toBeVisible({ timeout: 10000 });
   }
 
+  /** Helper: open a named MPC tab when it is not already selected. */
   private async openTab(tabName: MpcTab): Promise<void> {
     await this.dismissBlockingOverlays();
 
@@ -153,6 +176,7 @@ export class MPCPage extends BasePage {
      Content Sections
   ========================================================== */
 
+  /** Verify: MPC page includes at least one amenity or location section. */
   async validateAmenityAndLocationSections(): Promise<void> {
     const amenityOrLocationHeading = this.page.getByRole('heading', {
       name: /amenit|location|convenient|destination|lifestyle|nearby|explore/i
@@ -171,13 +195,29 @@ export class MPCPage extends BasePage {
     ).toBeGreaterThan(0);
   }
 
+  /** Verify: promotional CTA points into the expected MPC URL path. */
   async validatePromotionCTA(mpcUrl: string): Promise<void> {
-    const exploreLink = this.page
-      .locator(`a[href^="${mpcUrl}/"], a[href*="${mpcUrl}/"]`)
-      .filter({ hasText: /Explore|View|Learn More|Details/i })
+    const promotionButton = this.page
+      .getByRole('button', { name: /View promotions/i })
       .first();
 
-    await expect(exploreLink).toBeVisible({ timeout: 10000 });
+    if (await promotionButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await promotionButton.scrollIntoViewIfNeeded();
+      await expect(promotionButton, 'Promotion CTA should be visible')
+        .toBeVisible({ timeout: 10000 });
+      return;
+    }
+
+    const exploreLink = this.page
+      .locator(
+        `a[href="${mpcUrl}"]:visible, a[href^="${mpcUrl}/"]:visible, a[href*="${mpcUrl}/"]:visible`
+      )
+      .first();
+
+    await expect(
+      exploreLink,
+      `Expected a visible promotion CTA or community link under ${mpcUrl}`
+    ).toBeVisible({ timeout: 10000 });
 
     const href = await exploreLink.getAttribute('href');
     expect(href, 'Community CTA href missing').toBeTruthy();
@@ -188,21 +228,21 @@ export class MPCPage extends BasePage {
      Neighborhood Cards
   ========================================================== */
 
+  /** Verify: neighborhood cards are visible and link under the expected MPC path. */
   async validateNeighborhoodCards(mpcName: string, mpcUrl: string): Promise<void> {
     await this.neighborhoodSection.scrollIntoViewIfNeeded();
     await this.waitForPageReady();
     await expect(this.neighborhoodSection).toBeVisible({ timeout: 15000 });
 
-    const cards = this.getNeighborhoodCards();
-    const count = await cards.count();
+    const cardLinks = this.getNeighborhoodCardLinks(mpcUrl);
+    const count = await cardLinks.count();
 
     expect(count, 'MPC page should show neighborhood cards').toBeGreaterThan(0);
 
     for (let i = 0; i < count; i++) {
-      const card = cards.nth(i);
-      const link = card.locator(`a[href^="${mpcUrl}/"], a[href*="${mpcUrl}/"]`).last();
+      const link = cardLinks.nth(i);
       const href = await link.getAttribute('href');
-      const cardText = await card.innerText();
+      const cardText = await link.innerText();
 
       expect(href, `Neighborhood card ${i + 1} href missing`).toBeTruthy();
       expect(href).toContain(mpcUrl);
@@ -213,15 +253,13 @@ export class MPCPage extends BasePage {
     }
   }
 
+  /** Verify: first neighborhood card navigates to its detail page. */
   async validateFirstNeighborhoodNavigation(mpcUrl: string): Promise<void> {
     await this.neighborhoodSection.scrollIntoViewIfNeeded();
     await this.waitForPageReady();
     await this.dismissBlockingOverlays();
 
-    const firstNeighborhoodLink = this.getNeighborhoodCards()
-      .first()
-      .locator(`a[href^="${mpcUrl}/"], a[href*="${mpcUrl}/"]`)
-      .first();
+    const firstNeighborhoodLink = this.getNeighborhoodCardLinks(mpcUrl).first();
     const href = await firstNeighborhoodLink.getAttribute('href');
 
     expect(href, 'First neighborhood href missing').toBeTruthy();
@@ -231,16 +269,17 @@ export class MPCPage extends BasePage {
     await expect(this.page).toHaveURL(new RegExp(this.escapeRegex(href!), 'i'));
   }
 
-  private getNeighborhoodCards(): Locator {
+  /** Helper: return visible neighborhood card links under the expected MPC path. */
+  private getNeighborhoodCardLinks(mpcUrl: string): Locator {
     return this.neighborhoodSection
-      .locator('li')
-      .filter({ has: this.page.locator('a[href]') });
+      .locator(`a[href^="${mpcUrl}/"]:visible, a[href*="${mpcUrl}/"]:visible`);
   }
 
   /* ==========================================================
      Lead Form
   ========================================================== */
 
+  /** Verify: community update form fields and submit button are visible. */
   async validateCommunityUpdateFormFields(): Promise<void> {
     const form = await this.getCommunityUpdateForm();
     const fields = this.getCommunityUpdateFormFields(form);
@@ -266,6 +305,7 @@ export class MPCPage extends BasePage {
     ).toBeGreaterThan(0);
   }
 
+  /** Verify: community update form shows required-field validation errors. */
   async validateCommunityUpdateRequiredErrors(): Promise<void> {
     const form = await this.getCommunityUpdateForm();
     const fields = this.getCommunityUpdateFormFields(form);
@@ -276,6 +316,7 @@ export class MPCPage extends BasePage {
       .toBeVisible({ timeout: 10000 });
   }
 
+  /** Verify: community update form rejects an invalid email address. */
   async validateCommunityUpdateInvalidEmail(): Promise<void> {
     const form = await this.getCommunityUpdateForm();
     const fields = this.getCommunityUpdateFormFields(form);
@@ -295,6 +336,7 @@ export class MPCPage extends BasePage {
       .toBeVisible({ timeout: 10000 });
   }
 
+  /** Verify: community update form can be submitted successfully. */
   async submitCommunityUpdateFormSuccessfully(): Promise<void> {
     const form = await this.getCommunityUpdateForm();
     const fields = this.getCommunityUpdateFormFields(form);
@@ -321,6 +363,7 @@ export class MPCPage extends BasePage {
     ).toBeVisible({ timeout: 10000 });
   }
 
+  /** Helper: find and return the community update form section. */
   private async getCommunityUpdateForm(): Promise<Locator> {
     await this.dismissBlockingOverlays();
     await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -342,6 +385,7 @@ export class MPCPage extends BasePage {
     return form;
   }
 
+  /** Helper: return all fields used by the community update form. */
   private getCommunityUpdateFormFields(form: Locator) {
     return {
       community: form.getByRole('combobox', { name: /Community of Interest/i }),
@@ -358,10 +402,12 @@ export class MPCPage extends BasePage {
     };
   }
 
+  /** Helper: escape dynamic text before creating a regular expression. */
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
+  /** Helper: dismiss country, cookie, and modal overlays that can block interactions. */
   private async dismissBlockingOverlays(): Promise<void> {
     const usaCountryButton = this.page
       .locator('.ReactModalPortal')

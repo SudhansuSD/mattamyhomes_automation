@@ -27,26 +27,62 @@ export type PlanDetails = {
 
 export class PlanDetailPage extends HomePage {
 
+    /** Locator: main plan detail heading. */
     readonly heading: Locator;
+
+    /** Locator: breadcrumb navigation container. */
     readonly breadcrumb: Locator;
+
+    /** Locator: starting price label. */
     readonly priceSection: Locator;
+
+    /** Locator: gallery images on the plan detail page. */
     readonly galleryImages: Locator;
+
+    /** Locator: gallery next button. */
     readonly nextGalleryBtn: Locator;
+
+    /** Locator: gallery previous button. */
     readonly prevGalleryBtn: Locator;
+
+    /** Locator: interactive floorplan section. */
     readonly floorPlanSection: Locator;
+
+    /** Locator: exterior styles section. */
     readonly exteriorStylesSection: Locator;
+
+    /** Locator: mortgage calculator Get Started button. */
     readonly mortgageBtn: Locator;
+
+    /** Locator: mortgage calculator component. */
     readonly mortgageComponent: Locator;
+
+    /** Locator: modal close button. */
     readonly closeModalBtn: Locator;
+
+    /** Locator: available quick move-in homes section. */
     readonly qmiSection: Locator;
+
+    /** Locator: View All QMI CTA. */
     readonly viewAllQMIButton: Locator;
+
+    /** Locator: related QMI home links. */
     readonly qmiHomeslist: Locator;
+
+    /** Locator: Get Information CTA. */
     readonly getInformationCta: Locator;
+
+    /** Locator: community updates form section. */
     readonly signUpFormSection: Locator;
+
+    /** Locator: sales office section. */
     readonly salesOfficeSection: Locator;
+
+    /** Locator: React modal shown after successful form submission. */
     readonly successDialogModal: Locator;
 
 
+    /** Setup: initialize plan detail page locators. */
     constructor(page: Page) {
 
         super(page);
@@ -82,18 +118,22 @@ export class PlanDetailPage extends HomePage {
         this.successDialogModal = page.locator('.ReactModal__Content');
     }
 
+    /** Locator: Sitecore-generated plan forms. */
     private get sitecorePlanForms(): Locator {
         return this.page.locator('[id^="Sitecore-ScheduleAVisit-FormInstance"]');
     }
 
+    /** Locator: contact forms inside the contact section. */
     private get contactForms(): Locator {
         return this.page.locator('#contact form');
     }
 
+    /** Locator: schedule visit form containers. */
     private get scheduleVisitContainers(): Locator {
         return this.page.locator('[id^="ScheduleAVisit-FormInstance"]');
     }
 
+    /** Locator: lead form success confirmation message. */
     private get formSuccessMessage(): Locator {
         return this.page.getByText(
             /Thank you for your interest in Mattamy Homes/i
@@ -104,6 +144,7 @@ export class PlanDetailPage extends HomePage {
     // Page Load Validation
     // ----------------------------------
 
+    /** Verify: plan detail page heading and breadcrumb are visible. */
     async verifyPageLoaded() {
         await expect(this.heading).toBeVisible({ timeout: 20000 });
         await expect(this.breadcrumb).toBeVisible();
@@ -113,6 +154,7 @@ export class PlanDetailPage extends HomePage {
     // Plan detail Validation 
     // ----------------------------------
 
+    /** Verify: search by plan lands on the expected plan URL and shows a heading. */
     async verifySearchByPlan(expectedSlug: string) {
 
         await this.waitForPageReady();
@@ -124,6 +166,7 @@ export class PlanDetailPage extends HomePage {
         await expect(this.heading).toBeVisible({ timeout: 20000 });
     }
 
+    /** Action: navigate directly to a configured plan path. */
     async navigateToPlanPath(planPath: string): Promise<void> {
         const { baseURL } = getEnvConfig();
         await this.page.goto(`${baseURL}${planPath}`, {
@@ -134,6 +177,7 @@ export class PlanDetailPage extends HomePage {
         await this.waitForPageReady();
     }
 
+    /** Verify: plan URL and optional browser title match expected details. */
     async verifyPlanUrlAndTitle(plan: PlanDetails): Promise<void> {
         await expect(this.page).toHaveURL(new RegExp(`${plan.path}$`, 'i'));
 
@@ -142,19 +186,23 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: current URL contains an expected plan URL fragment. */
     async verifyPlanUrlContains(expectedUrlPart: string): Promise<void> {
         await expect(this.page).toHaveURL(new RegExp(expectedUrlPart, 'i'));
     }
 
+    /** Verify: hero heading is visible. */
     async verifyHeroSection() {
         await expect(this.heading).toBeVisible({ timeout: 20000 });
     }
 
+    /** Verify: hero heading contains a specific plan name. */
     async verifyHeroSummaryForPlan(planName: string): Promise<void> {
         await expect(this.heading).toBeVisible({ timeout: 20000 });
         await expect(this.heading).toContainText(new RegExp(planName, 'i'));
     }
 
+    /** Verify: page body includes standard home specs. */
     async verifyHomeSpecsPresent(): Promise<void> {
         const pageText = this.page.locator('body');
 
@@ -163,6 +211,7 @@ export class PlanDetailPage extends HomePage {
         await expect(pageText).toContainText(/Sq\.?\s*Ft\.?/i);
     }
 
+    /** Verify: hero summary contains configured plan name, price, specs, and product line. */
     async verifyHeroSummary(plan: PlanDetails): Promise<void> {
         await expect(this.heading).toBeVisible({ timeout: 20000 });
         await expect(this.heading).toContainText(new RegExp(plan.name, 'i'));
@@ -181,12 +230,14 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: breadcrumb is visible when present. */
     async verifyBreadcrumb() {
         if (await this.breadcrumb.count() > 0) {
             await expect(this.breadcrumb.first()).toBeVisible();
         }
     }
 
+    /** Verify: breadcrumb includes expected items from the configured plan path. */
     async verifyBreadcrumbMatchesPlanPath(plan: PlanDetails): Promise<void> {
         await expect(this.breadcrumb).toBeVisible();
 
@@ -195,17 +246,20 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: breadcrumb contains the expected plan name. */
     async verifyBreadcrumbContainsPlan(planName: string): Promise<void> {
         await expect(this.breadcrumb).toBeVisible();
         await expect(this.breadcrumb).toContainText(new RegExp(planName, 'i'));
     }
 
+    /** Verify: starting price label is visible when present. */
     async verifyPriceOrCTA() {
         if (await this.priceSection.count() > 0) {
             await expect(this.priceSection.first()).toBeVisible();
         }
     }
 
+    /** Verify: gallery image is visible and gallery controls work when present. */
     async verifyGallery() {
         await expect(this.galleryImages.first()).toBeVisible();
 
@@ -218,6 +272,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: floorplan section is visible when present. */
     async verifyFloorPlan() {
         if (await this.floorPlanSection.isVisible().catch(() => false)) {
             await this.floorPlanSection.scrollIntoViewIfNeeded();
@@ -225,6 +280,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: interactive floorplan section and optional iframe source match expected plan details. */
     async verifyInteractiveFloorPlan(plan: PlanDetails): Promise<void> {
         await this.floorPlanSection.scrollIntoViewIfNeeded();
         await expect(
@@ -241,6 +297,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: interactive floorplan section is available when present. */
     async verifyInteractiveFloorPlanSection(): Promise<void> {
         const floorPlanHeading = this.page.getByRole('heading', {
             name: /Interactive Floorplan|Floor ?Plan/i
@@ -256,6 +313,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: configured exterior styles are visible. */
     async verifyExteriorStyles(styles: string[]): Promise<void> {
         await this.exteriorStylesSection.scrollIntoViewIfNeeded();
         await expect(
@@ -268,6 +326,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: exterior styles section is visible when present. */
     async verifyExteriorStylesSection(): Promise<void> {
         const exteriorHeading = this.page.getByRole('heading', {
             name: /Exterior Styles/i
@@ -281,6 +340,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: mortgage form CTA opens and can be closed when present. */
     async verifyMortgageForm() {
         if (await this.mortgageBtn.isVisible().catch(() => false)) {
             await this.mortgageBtn.scrollIntoViewIfNeeded();
@@ -293,6 +353,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: mortgage calculator CTA is visible when the section exists. */
     async verifyMortgageCalculatorCta(): Promise<void> {
         const mortgageTitle = this.page.getByText(/Mortgage Calculator/i).first();
 
@@ -305,6 +366,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: QMI section logs available homes and View All URL when present. */
     async verifyQMISection() {
         if (await this.qmiSection.isVisible().catch(() => false)) {
 
@@ -337,6 +399,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: configured quick move-in homes section content and links. */
     async verifyQuickMoveInHomes(plan: PlanDetails): Promise<void> {
         await expect(this.qmiSection).toBeVisible();
 
@@ -354,6 +417,7 @@ export class PlanDetailPage extends HomePage {
         expect(await this.qmiHomeslist.count()).toBeGreaterThan(0);
     }
 
+    /** Verify: quick move-in homes section is visible when present. */
     async verifyQuickMoveInHomesSection(): Promise<void> {
         if (await this.qmiSection.isVisible().catch(() => false)) {
             await this.qmiSection.scrollIntoViewIfNeeded();
@@ -367,6 +431,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: sales office content matches configured plan details. */
     async verifySalesOffice(plan: PlanDetails): Promise<void> {
         await expect(this.page.getByText(/^Sales Office$/i)).toBeVisible();
 
@@ -379,6 +444,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: sales office section is visible when present. */
     async verifySalesOfficeSection(): Promise<void> {
         const salesOfficeTitle = this.page.getByText(/^Sales Office$/i).first();
 
@@ -391,10 +457,12 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Verify: community updates form fields are visible. */
     async verifyCommunityUpdatesForm(): Promise<void> {
         await this.verifyPlanDetailForm();
     }
 
+    /** Helper: return a form by index from a specific form locator group. */
     private async getFormFromLocator(
         forms: Locator,
         formIndex: number
@@ -408,6 +476,7 @@ export class PlanDetailPage extends HomePage {
         return forms.nth(formIndex);
     }
 
+    /** Helper: find a plan form by index across supported form containers. */
     private async getFormByIndex(formIndex: number): Promise<Locator | null> {
         return (
             await this.getFormFromLocator(this.sitecorePlanForms, formIndex) ??
@@ -416,6 +485,7 @@ export class PlanDetailPage extends HomePage {
         );
     }
 
+    /** Helper: return a visible plan form with a submit button when available. */
     private async getAvailableForm(
         formIndex = 0,
         formName = 'Plan detail form'
@@ -448,6 +518,7 @@ export class PlanDetailPage extends HomePage {
         return null;
     }
 
+    /** Helper: verify required community update form fields by form index. */
     private async verifyCommunityUpdatesFormByIndex(
         formIndex: number,
         formName: string
@@ -470,6 +541,7 @@ export class PlanDetailPage extends HomePage {
         }
     }
 
+    /** Helper: submit an empty form and verify required-field errors. */
     private async validateEmptyFormErrorsByIndex(
         formIndex: number,
         formName: string
@@ -486,6 +558,7 @@ export class PlanDetailPage extends HomePage {
             .toBeVisible({ timeout: 10000 });
     }
 
+    /** Helper: submit invalid email data and verify email validation errors. */
     private async validateInvalidEmailByIndex(
         formIndex: number,
         formName: string
@@ -507,6 +580,7 @@ export class PlanDetailPage extends HomePage {
             .toBeVisible({ timeout: 10000 });
     }
 
+    /** Helper: fill and submit a valid form selected by index. */
     private async submitSuccessfulFormByIndex(
         formIndex: number,
         formName: string
@@ -549,18 +623,22 @@ export class PlanDetailPage extends HomePage {
         await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
     }
 
+    /** Verify: plan detail bottom form fields are visible. */
     async verifyPlanDetailForm(): Promise<void> {
         await this.verifyCommunityUpdatesFormByIndex(0, 'Plan detail bottom form');
     }
 
+    /** Verify: plan detail bottom form shows empty required-field errors. */
     async validatePlanDetailFormEmptyErrors(): Promise<void> {
         await this.validateEmptyFormErrorsByIndex(0, 'Plan detail bottom form');
     }
 
+    /** Verify: plan detail bottom form rejects invalid email addresses. */
     async validatePlanDetailFormInvalidEmail(): Promise<void> {
         await this.validateInvalidEmailByIndex(0, 'Plan detail bottom form');
     }
 
+    /** Verify: plan detail bottom form can be submitted successfully. */
     async verifyPlanDetailFormSuccessSubmission(): Promise<void> {
         await this.submitSuccessfulFormByIndex(0, 'Plan detail bottom form');
     }
