@@ -33,6 +33,19 @@ export default defineConfig({
     //   name: 'WebKit',
     //   use: { browserName: 'webkit' },
     // },
+    {
+      name: 'Mobile Chrome - Pixel 7',
+      use: {
+        ...devices['Pixel 7'],
+        browserName: 'chromium',
+      },
+    },
+    {
+      name: 'Mobile Safari',
+      use: {
+        browserName: 'webkit',
+      },
+    },
   ],
   reporter: [
     ['html', { outputFolder: 'playwright-report', open: 'never' }],
@@ -41,4 +54,4 @@ export default defineConfig({
   ],
 
 });
-                     
+

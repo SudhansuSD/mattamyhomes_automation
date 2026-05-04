@@ -5,8 +5,8 @@ export const CAN = {
   market: 'Greater Toronto Area',
   community: 'Yorkville',
   condoCommunity: 'Martha James Condominiums',
-  qmiAddress: '1230 148 Avenue NW',
-  qmiPath: '/alberta/calgary/calgary/carrington/brinkley-ii/1230-148-avenue-nw',
+  qmiAddress: '634 Newlove St.',
+  qmiPath: '/ontario/simcoe/innisfil/lakehaven/sawyer/634-newlove-st',
   planName: 'Brinkley I',
   expectedPlanUrlPart: '/brinkley-i',
   markets:[

@@ -1,13 +1,46 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
-import { getLocationConfig, LocationKey } from '../config/locations';
+import { getLocationConfig } from '../config/locations';
 import { getEnvConfig } from '../config/envConfig';
 
 type SearchType = 'market' | 'community' | 'plan' | 'qmi';
+type HeroVideoState = {
+  autoplayAttribute: boolean;
+  autoplayProperty: boolean;
+  muted: boolean;
+  defaultMuted: boolean;
+  playsInlineAttribute: boolean;
+  sourceCount: number;
+  src: string;
+};
+type MarketSlide = {
+  marketName: string;
+  href: string;
+};
+type RawMarketSlide = MarketSlide & {
+  isCloned: boolean;
+};
+type MarketValidationRow = {
+  name: string;
+  configUrl: string;
+  uiUrl: string;
+  status: string;
+};
+type MissingMarketRow = {
+  configName: string;
+  configUrl: string;
+  status: string;
+};
+type UnmatchedMarketRow = {
+  uiName: string;
+  uiUrl: string;
+  status: string;
+};
 
 export class HomePage extends BasePage {
 
   readonly heroSection: Locator;
+  readonly heroVideo: Locator;
   readonly header: Locator;
   readonly searchBox: Locator;
 
@@ -17,6 +50,7 @@ export class HomePage extends BasePage {
     super(page);
 
     this.heroSection = page.locator('section').first();
+    this.heroVideo = this.heroSection.locator('video').first();
     this.header = page.locator('header');
     this.searchBox = page.locator(
       'input[placeholder*="Search"]:not(#vendor-search-handler)'
@@ -36,6 +70,89 @@ export class HomePage extends BasePage {
     await expect(this.page).toHaveTitle(/Mattamy Homes/i);
   }
 
+  async validateHeroVideoAutoplay(): Promise<void> {
+    await this.waitForPageReady();
+    await this.heroSection.waitFor({ state: 'visible', timeout: 30000 });
+    await this.heroVideo.waitFor({ state: 'attached', timeout: 15000 });
+
+    await expect(this.heroVideo, 'Hero section video should be visible').toBeVisible();
+
+    const videoState = await this.getHeroVideoState();
+
+    this.expectHeroVideoAutoplayAttributes(videoState);
+    await this.expectHeroVideoReadyForPlayback();
+
+    const playbackStartTime = await this.getHeroVideoPlaybackStartTime();
+    await this.expectHeroVideoPlaybackProgress(playbackStartTime);
+  }
+
+  private async getHeroVideoState(): Promise<HeroVideoState> {
+    return this.heroVideo.evaluate((video: HTMLVideoElement) => ({
+      autoplayAttribute: video.hasAttribute('autoplay'),
+      autoplayProperty: video.autoplay,
+      muted: video.muted,
+      defaultMuted: video.defaultMuted,
+      playsInlineAttribute: video.hasAttribute('playsinline') || video.hasAttribute('webkit-playsinline'),
+      sourceCount: video.querySelectorAll('source').length,
+      src: video.currentSrc || video.src
+    }));
+  }
+
+  private expectHeroVideoAutoplayAttributes(videoState: HeroVideoState): void {
+    expect(
+      videoState.autoplayAttribute || videoState.autoplayProperty,
+      'Hero video should have autoplay enabled'
+    ).toBeTruthy();
+
+    expect(
+      videoState.muted || videoState.defaultMuted,
+      'Hero autoplay video should be muted so browsers allow autoplay'
+    ).toBeTruthy();
+
+    expect(videoState.playsInlineAttribute, 'Hero autoplay video should include playsinline for mobile playback')
+      .toBeTruthy();
+    expect(videoState.src || videoState.sourceCount > 0, 'Hero video should have a playable source').toBeTruthy();
+  }
+
+  private async expectHeroVideoReadyForPlayback(): Promise<void> {
+    await expect
+      .poll(
+        async () => this.heroVideo.evaluate((video: HTMLVideoElement) => video.readyState >= 2),
+        {
+          message: 'Hero video should load enough data to start playback',
+          timeout: 15000
+        }
+      )
+      .toBeTruthy();
+  }
+
+  private async getHeroVideoPlaybackStartTime(): Promise<number> {
+    return this.heroVideo.evaluate((video: HTMLVideoElement) => {
+      if (video.paused) {
+        return video.play()
+          .then(() => video.currentTime)
+          .catch(() => video.currentTime);
+      }
+
+      return video.currentTime;
+    });
+  }
+
+  private async expectHeroVideoPlaybackProgress(playbackStartTime: number): Promise<void> {
+    await expect
+      .poll(
+        async () => this.heroVideo.evaluate(
+          (video: HTMLVideoElement, startTime) => !video.paused && video.currentTime > startTime,
+          playbackStartTime
+        ),
+        {
+          message: 'Hero video should autoplay and advance playback time',
+          timeout: 10000
+        }
+      )
+      .toBeTruthy();
+  }
+
   /* ==========================================================
      SHARED CONSTANTS
   ========================================================== */
@@ -43,9 +160,8 @@ export class HomePage extends BasePage {
   private readonly SEARCH_MAX_ATTEMPTS = 2;
   private readonly SEARCH_INPUT_TIMEOUT = 10000;
   private readonly SEARCH_RESULTS_TIMEOUT = 15000;
-  private readonly SEARCH_TYPE_DELAY = 1000;
   private readonly SEARCH_INPUT_SELECTOR = 'input[placeholder*="Search"]:not(#vendor-search-handler)';
-  private readonly SEARCH_SUGGESTION_SELECTORS = [
+  private readonly PRIMARY_SEARCH_SUGGESTION_SELECTORS = [
     '[data-aos="fade-down"] a[aria-label]:visible',
     '[data-aos="fade-down"] a[href]:visible',
     'button[href*="/search"][href*="metro="]:not([aria-hidden="true"]):visible',
@@ -54,6 +170,8 @@ export class HomePage extends BasePage {
     '[role="option"] a[href]:visible',
     '[role="option"]:visible',
     '[aria-live] a[href]:visible',
+  ];
+  private readonly FALLBACK_SEARCH_SUGGESTION_SELECTORS = [
     '[class*="search"] a[href]:visible',
     '[class*="Search"] a[href]:visible'
   ];
@@ -62,8 +180,12 @@ export class HomePage extends BasePage {
      SEARCH LOCATORS
   ========================================================== */
 
-  private get searchResults(): Locator {
-    return this.page.locator(this.SEARCH_SUGGESTION_SELECTORS.join(', '));
+  private get primarySearchResults(): Locator {
+    return this.page.locator(this.PRIMARY_SEARCH_SUGGESTION_SELECTORS.join(', '));
+  }
+
+  private get fallbackSearchResults(): Locator {
+    return this.page.locator(this.FALLBACK_SEARCH_SUGGESTION_SELECTORS.join(', '));
   }
 
   private get visibleSearchBox(): Locator {
@@ -84,12 +206,7 @@ export class HomePage extends BasePage {
 
       const searchBox = this.visibleSearchBox;
 
-      const isSearchBoxVisible = await searchBox
-        .waitFor({ state: 'visible', timeout: this.SEARCH_INPUT_TIMEOUT })
-        .then(() => true)
-        .catch(() => false);
-
-      if (!isSearchBoxVisible) {
+      if (!await this.isSearchBoxVisible(searchBox)) {
         if (searchType === 'market') {
           console.log(`Search input not visible - navigating directly to market search for: ${value}`);
           await this.navigateToMarketSearchResults(value);
@@ -99,9 +216,7 @@ export class HomePage extends BasePage {
         throw new Error(`Search input not visible for search value: ${value}`);
       }
 
-      await this.scrollTo(searchBox);
-      await searchBox.click();
-      await searchBox.fill('');
+      await this.prepareSearchBox(searchBox);
 
       let typedValue = '';
 
@@ -111,7 +226,7 @@ export class HomePage extends BasePage {
         await searchBox.type(char, { delay: 300 });
         await this.page.waitForTimeout(500);
 
-        const matchedResult = this.getSearchResult(value, searchType);
+        const matchedResult = await this.getSearchResult(value, searchType);
 
         if (await matchedResult.isVisible().catch(() => false)) {
           console.log(`✅ Match found after typing: ${typedValue}`);
@@ -164,6 +279,19 @@ export class HomePage extends BasePage {
 
     throw new Error(`❌ No matching search result found for: ${value}`);
   }
+  private async isSearchBoxVisible(searchBox: Locator): Promise<boolean> {
+    return searchBox
+      .waitFor({ state: 'visible', timeout: this.SEARCH_INPUT_TIMEOUT })
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  private async prepareSearchBox(searchBox: Locator): Promise<void> {
+    await this.scrollTo(searchBox);
+    await searchBox.click();
+    await searchBox.fill('');
+  }
+
   private async navigateToMarketSearchResults(market: string): Promise<void> {
     const location = getLocationConfig();
     const { baseURL } = getEnvConfig();
@@ -184,8 +312,22 @@ export class HomePage extends BasePage {
     await this.waitForPageReady();
   }
 
-  private getSearchResult(value: string, searchType?: SearchType): Locator {
-    const matchedResults = this.searchResults.filter({
+  private async getSearchResult(value: string, searchType?: SearchType): Promise<Locator> {
+    const primaryMatch = this.getSearchResultFromLocator(this.primarySearchResults, value, searchType);
+
+    if (await primaryMatch.isVisible().catch(() => false)) {
+      return primaryMatch;
+    }
+
+    return this.getSearchResultFromLocator(this.fallbackSearchResults, value, searchType);
+  }
+
+  private getSearchResultFromLocator(
+    searchResults: Locator,
+    value: string,
+    searchType?: SearchType
+  ): Locator {
+    const matchedResults = searchResults.filter({
       hasText: new RegExp(this.escapeRegExp(value), 'i')
     });
 
@@ -279,6 +421,48 @@ export class HomePage extends BasePage {
       .map(part => this.normalizeText(part));
   }
 
+  private async getMarketSlides(): Promise<RawMarketSlide[]> {
+    return this.page.$$eval('#cards .slick-slide', (elements) => {
+      return elements.map((slide) => {
+        const isCloned = slide.classList.contains('slick-cloned');
+        const marketName =
+          slide.querySelector('h2')?.textContent?.trim() ||
+          slide.querySelector('[class*="title"]')?.textContent?.trim() ||
+          slide.querySelector('p')?.textContent?.trim() ||
+          '';
+        const href = slide.querySelector('a')?.getAttribute('href')?.trim() || '';
+
+        return { isCloned, marketName, href };
+      });
+    });
+  }
+
+  private getUniqueMarketSlides(slides: MarketSlide[]): MarketSlide[] {
+    const uniqueMarkets = new Map<string, MarketSlide>();
+
+    for (const slide of slides) {
+      if (!uniqueMarkets.has(slide.href)) {
+        uniqueMarkets.set(slide.href, {
+          marketName: slide.marketName,
+          href: slide.href,
+        });
+      }
+    }
+
+    return Array.from(uniqueMarkets.values());
+  }
+
+  private doesSlideMatchMarket(slide: MarketSlide, market: { name: string; url: string }): boolean {
+    const acceptedNames = this.getAcceptedNames(market.name);
+    const normalizedName = this.normalizeText(slide.marketName);
+    const normalizedHref = slide.href.toLowerCase().trim();
+
+    return (
+      acceptedNames.includes(normalizedName) &&
+      normalizedHref === market.url.toLowerCase().trim()
+    );
+  }
+
   async validateMarketCards(): Promise<void> {
     await this.waitForPageReady();
 
@@ -291,75 +475,26 @@ export class HomePage extends BasePage {
     // Wait for slider to load
     await this.page.waitForSelector('#cards .slick-slide');
 
-    // Extract all slides data
-    const slides = await this.page.$$eval('#cards .slick-slide', (elements) => {
-      return elements.map((slide) => {
-        const isCloned = slide.classList.contains('slick-cloned');
-
-        const marketName =
-          slide.querySelector('h2')?.textContent?.trim() ||
-          slide.querySelector('[class*="title"]')?.textContent?.trim() ||
-          slide.querySelector('p')?.textContent?.trim() ||
-          '';
-
-        const href =
-          slide.querySelector('a')?.getAttribute('href')?.trim() ||
-          '';
-
-        return { isCloned, marketName, href };
-      });
-    });
+    const slides = await this.getMarketSlides();
 
     console.log(`📊 Total market cards: ${slides.length}`);
 
-    // Filter valid non-cloned cards
     const validSlides = slides.filter(
       (slide) => !slide.isCloned && slide.marketName && slide.href
     );
 
     console.log(`✅ Valid market cards after filtering: ${validSlides.length}`);
 
-    // Remove duplicate cards by href
-    const uniqueMarkets = new Map<string, { marketName: string; href: string }>();
-
-    for (const slide of validSlides) {
-      if (!uniqueMarkets.has(slide.href)) {
-        uniqueMarkets.set(slide.href, {
-          marketName: slide.marketName,
-          href: slide.href,
-        });
-      }
-    }
-
-    const uniqueSlides = Array.from(uniqueMarkets.values());
+    const uniqueSlides = this.getUniqueMarketSlides(validSlides);
 
     console.log(`🎯 Unique markets found: ${uniqueSlides.length}`);
 
     expect(uniqueSlides.length, '❌ No unique market cards found').toBeGreaterThan(0);
 
     // Tables (short + readable)
-    const matchedMarkets: {
-
-      name: string;
-      configUrl: string;
-      uiUrl: string;
-      status: string;
-    }[] = [];
-
-    const missingMarkets: {
-      configName: string;
-      configUrl: string;
-      status: string;
-    }[] = [];
-
-    const unmatchedUICards: {
-      uiName: string;
-      uiUrl: string;
-      status: string;
-    }[] = [];
-
-    // Extra logs for full URLs
-    const matchedFullUrls: string[] = [];
+    const matchedMarkets: MarketValidationRow[] = [];
+    const missingMarkets: MissingMarketRow[] = [];
+    const unmatchedUICards: UnmatchedMarketRow[] = [];
 
     // =========================
     // CONFIG → UI COMPARISON
@@ -405,16 +540,7 @@ export class HomePage extends BasePage {
     // UI → CONFIG COMPARISON
     // =========================
     for (const slide of uniqueSlides) {
-      const existsInConfig = location.markets.some((market) => {
-        const acceptedNames = this.getAcceptedNames(market.name);
-        const normalizedName = this.normalizeText(slide.marketName);
-        const normalizedHref = slide.href.toLowerCase().trim();
-
-        return (
-          acceptedNames.includes(normalizedName) &&
-          normalizedHref === market.url.toLowerCase().trim()
-        );
-      });
+      const existsInConfig = location.markets.some((market) => this.doesSlideMatchMarket(slide, market));
 
       if (!existsInConfig) {
         unmatchedUICards.push({

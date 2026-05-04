@@ -41,6 +41,14 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     });
   });
 
+  test('@smoke @regression Validate hero video autoplay on Home Page', async ({}, testInfo) => {
+    test.skip(testInfo.project.name !== 'Chromium', 'Hero autoplay video is validated on the desktop home page.');
+
+    await test.step('Verify hero video autoplays', async () => {
+      await homePage.validateHeroVideoAutoplay();
+    });
+  });
+
   /* ==========================================================
      Header Validation
   ========================================================== */
