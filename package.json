@@ -20,6 +20,7 @@
   },
   "scripts": {
     "test": "playwright test",
+    "test:ci": "playwright test --project=Chromium --grep @ci",
     "test:mobile:appium": "wdio run wdio.mobile.conf.js",
     "appium:driver:install": "appium driver install uiautomator2",
     "appium:doctor:android": "appium driver doctor uiautomator2",
@@ -36,7 +37,7 @@
     "@wdio/appium-service": "^9.27.0",
     "@wdio/cli": "^9.27.0",
     "@wdio/local-runner": "^9.27.0",
-    "@wdio/mocha-framework": "^6.1.17",
+    "@wdio/mocha-framework": "^9.27.1",
     "@wdio/spec-reporter": "^9.27.0",
     "allure-commandline": "^2.38.1",
     "allure-playwright": "^3.7.1",

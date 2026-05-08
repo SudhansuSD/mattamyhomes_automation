@@ -3,6 +3,7 @@ import process from 'node:process';
 
 
 export default defineConfig({
+  testIgnore: ['tests/appium/**'],
   use: {
     // baseURL: 'https://mattamyhomes.com/',
     headless: process.env.CI ? true : false

@@ -31,6 +31,18 @@ export class MPCPage extends BasePage {
   /** Locator: community update form heading. */
   readonly communityUpdateHeading: Locator;
 
+  /** Locator: optional MPC image gallery section. */
+  readonly imageGallerySection: Locator;
+
+  /** Locator: images inside the optional MPC image gallery. */
+  readonly imageGalleryImages: Locator;
+
+  /** Locator: optional gallery next button. */
+  readonly nextGalleryButton: Locator;
+
+  /** Locator: optional gallery previous button. */
+  readonly previousGalleryButton: Locator;
+
   /** Locator: React modal shown after successful form submission. */
   readonly successDialogModal: Locator;
 
@@ -54,6 +66,30 @@ export class MPCPage extends BasePage {
     this.communityUpdateHeading = page.getByRole('heading', {
       name: /Sign Up For Community Updates/i
     });
+    this.imageGallerySection = page
+      .locator('#gallery')
+      .filter({ has: page.locator('img') })
+      .or(
+        page.locator('section')
+          .filter({ has: page.locator('img') })
+          .filter({
+            has: page.getByRole('heading', {
+              name: /gallery|photos|images/i
+            })
+          })
+      )
+      .first();
+    this.imageGalleryImages = this.imageGallerySection.locator('img');
+    this.nextGalleryButton = this.imageGallerySection
+      .locator(
+        'button[aria-label*="Next" i], button:has-text("Next"), [role="button"][aria-label*="Next" i]'
+      )
+      .first();
+    this.previousGalleryButton = this.imageGallerySection
+      .locator(
+        'button[aria-label*="Previous" i], button[aria-label*="Prev" i], button:has-text("Previous"), [role="button"][aria-label*="Previous" i], [role="button"][aria-label*="Prev" i]'
+      )
+      .first();
     this.successDialogModal = page.locator('.ReactModal__Content');
   }
 
@@ -222,6 +258,32 @@ export class MPCPage extends BasePage {
     const href = await exploreLink.getAttribute('href');
     expect(href, 'Community CTA href missing').toBeTruthy();
     expect(href).toContain(mpcUrl);
+  }
+
+  /** Verify: image gallery content and navigation when the optional gallery is available. */
+  async validateImageGalleryIfAvailable(): Promise<void> {
+    if (!(await this.isVisible(this.imageGallerySection, 5000))) {
+      console.log('MPC image gallery not present - skipping validation');
+      return;
+    }
+
+    await this.imageGallerySection.scrollIntoViewIfNeeded();
+    await expect(this.imageGallerySection, 'MPC image gallery should be visible')
+      .toBeVisible({ timeout: 10000 });
+
+    const imageCount = await this.imageGalleryImages.count();
+    expect(imageCount, 'MPC image gallery should include at least one image')
+      .toBeGreaterThan(0);
+
+    const firstImage = this.imageGalleryImages.first();
+    await expect(firstImage, 'First MPC gallery image should be visible')
+      .toBeVisible({ timeout: 10000 });
+
+    const src = await firstImage.getAttribute('src');
+    expect(src, 'First MPC gallery image src missing').toBeTruthy();
+
+    await this.clickIfVisible(this.nextGalleryButton);
+    await this.clickIfVisible(this.previousGalleryButton);
   }
 
   /* ==========================================================
@@ -405,6 +467,19 @@ export class MPCPage extends BasePage {
   /** Helper: escape dynamic text before creating a regular expression. */
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  /** Helper: return true when a locator becomes visible within the timeout. */
+  private async isVisible(locator: Locator, timeout = 2000): Promise<boolean> {
+    return locator.isVisible({ timeout }).catch(() => false);
+  }
+
+  /** Helper: click an optional locator only when visible. */
+  private async clickIfVisible(locator: Locator): Promise<void> {
+    if (await this.isVisible(locator)) {
+      await locator.click();
+      await this.waitForPageReady();
+    }
   }
 
   /** Helper: dismiss country, cookie, and modal overlays that can block interactions. */

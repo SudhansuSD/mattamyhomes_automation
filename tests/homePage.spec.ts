@@ -34,7 +34,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Page Load
   ========================================================== */
 
-  test('@smoke @regression @sanity Home page should load correctly', async () => {
+  test('@ci @smoke @regression @sanity Home page should load correctly', async () => {
 
     await test.step('Verify page loaded successfully', async () => {
       await homePage.verifyPageLoaded();

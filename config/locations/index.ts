@@ -17,7 +17,7 @@ export function getLocationConfig(
   const key =
     overrideLocation ??
     (process?.env?.LOCATION as LocationKey) ??
-    'CAN'; // Default location if not specified
+    'USA'; // Default location if not specified
 
   const location = LOCATIONS[key];
 

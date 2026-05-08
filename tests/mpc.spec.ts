@@ -50,6 +50,10 @@ test.describe(`MPC page tests - ${location.country}`, () => {
     test('@regression Validate community promotion CTA', async () => {
       await mpcPage.validatePromotionCTA(mpc!.url);
     });
+
+    test('@regression Validate image gallery if available', async () => {
+      await mpcPage.validateImageGalleryIfAvailable();
+    });
   });
 
   test.describe('Neighborhood Cards', () => {
