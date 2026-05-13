@@ -5,6 +5,12 @@ export const CAN = {
   market: 'Greater Toronto Area',
   community: 'Yorkville',
   condoCommunity: 'Martha James Condominiums',
+  condoPlan: {
+    name: 'M2ad',
+    url: '/ontario/gta/burlington/martha-james-condominiums/m2ad',
+    community: 'Martha James Condominiums',
+    market: 'Greater Toronto Area',
+  },
   qmiAddress: '634 Newlove St.',
   qmiPath: '/ontario/simcoe/innisfil/lakehaven/sawyer/634-newlove-st',
   planName: 'Brinkley I',

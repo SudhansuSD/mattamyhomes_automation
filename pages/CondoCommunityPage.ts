@@ -55,9 +55,18 @@ export class CondoCommunityPage extends HomePage {
 
   /** Locator: possible condo lead forms on the page. */
   private get condoForms(): Locator {
+    return this.page.locator('form')
+      .filter({ has: this.page.getByRole('button', { name: TEXT.submit }) })
+      .filter({ has: this.page.locator('input, select, textarea') });
+  }
+
+  /** Locator: form containers used when the page does not render form tags. */
+  private get condoFormContainers(): Locator {
     return this.page.locator(
       'form, [id^="Sitecore-ScheduleAVisit-FormInstance"], [id^="ScheduleAVisit-FormInstance"]'
-    );
+    )
+      .filter({ has: this.page.getByRole('button', { name: TEXT.submit }) })
+      .filter({ has: this.page.locator('input, select, textarea') });
   }
 
   /** Locator: React modal shown after successful form submission. */
@@ -357,20 +366,18 @@ export class CondoCommunityPage extends HomePage {
     formIndex: number,
     formName: string
   ): Promise<Locator | null> {
-    const matchingForms = this.condoForms.filter({
-      has: this.page.getByRole('button', { name: TEXT.submit })
-    });
+    const matchingForms = (await this.condoForms.count()) > 0
+      ? this.condoForms
+      : this.condoFormContainers;
 
     const count = await matchingForms.count();
 
     if (count === 0) {
-      console.warn(`${formName} not present - skipping form validation`);
-      return null;
+      throw new Error(`${formName} not present - no condo lead forms found`);
     }
 
     if (formIndex >= count) {
-      console.warn(`${formName} not present - only ${count} condo form(s) found`);
-      return null;
+      throw new Error(`${formName} not present - only ${count} condo form(s) found`);
     }
 
     const form = matchingForms.nth(formIndex);

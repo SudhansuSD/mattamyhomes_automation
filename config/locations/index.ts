@@ -14,15 +14,16 @@ declare const process: { env: { LOCATION?: string } };
 export function getLocationConfig(
   overrideLocation?: LocationKey
 ): LocationConfig {
-  const key =
+  const rawKey =
     overrideLocation ??
-    (process?.env?.LOCATION as LocationKey) ??
+    (process?.env?.LOCATION as string | undefined) ??
     'USA'; // Default location if not specified
+  const key = rawKey.toUpperCase() as LocationKey;
 
   const location = LOCATIONS[key];
 
   if (!location) {
-    throw new Error(`Invalid LOCATION provided: ${key}`);
+    throw new Error(`Invalid LOCATION provided: ${rawKey}`);
   }
 
   return location;

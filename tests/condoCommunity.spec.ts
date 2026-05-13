@@ -89,8 +89,8 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
     //   await condoCommunityPage.verifyPrimaryFormSuccessSubmission();
     // });
 
-    // test('@regression @STAGE Validate footer condo form successful submission', async () => {
-    //   await condoCommunityPage.verifyFooterFormSuccessSubmission();
-    // });
+    test('@regression @STAGE Validate footer condo form successful submission', async () => {
+      await condoCommunityPage.verifyFooterFormSuccessSubmission();
+    });
   });
 });

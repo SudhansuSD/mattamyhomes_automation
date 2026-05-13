@@ -6,6 +6,7 @@ export class Header extends BasePage {
   readonly header: Locator;
   readonly findYourHomeLink: Locator;
   readonly aboutUsLink: Locator;
+  readonly contactUsLink: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -28,6 +29,8 @@ export class Header extends BasePage {
     // Avoid role-based locator
     this.aboutUsLink = this.header
       .getByRole('button', { name: /About/i });
+
+    this.contactUsLink = this.header.locator('[id="Contact Us"]');
 
   }
 
@@ -66,6 +69,10 @@ export class Header extends BasePage {
   }
   async clickAboutUs(): Promise<void> {
     await this.clickElement(this.aboutUsLink);
+  }
+
+  async clickContactUs(): Promise<void> {
+    await this.clickElement(this.contactUsLink);
   }
   /* ==========================================================
   Verify Find Your Homes links and navigations

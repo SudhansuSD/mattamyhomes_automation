@@ -42,6 +42,14 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
     await searchPage.verifyResults('Quick Move-Ins');
   });
 
+  test('@regression Verify search result cards display required details', async () => {
+    await searchPage.validateAllResultCardsRequiredDetails();
+  });
+
+  test('@regression Verify result card CTAs navigate to correct detail pages', async () => {
+    await searchPage.validateAllResultCardCtaNavigation();
+  });
+
 
   /* -------------------------------------------------------
      Filter Tests
@@ -55,6 +63,10 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
   test('@regression Validate filter by beds and bathrooms functionality', async () => {
     await searchPage.filterByBedroomsAndBathrooms(3, 3);
     await searchPage.validateBedsBathsAcrossTabs(3, 3);
+  });
+
+  test('@regression Verify Clear Reset filters behavior', async () => {
+    await searchPage.validateClearResetFiltersBehavior();
   });
 
   /* -------------------------------------------------------

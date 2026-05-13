@@ -62,7 +62,7 @@ export class BasePage {
       .catch(() => false);
 
     if (isVisible) {
-      await acceptBtn.click();
+      await acceptBtn.click({ force: true, timeout: 5000 }).catch(() => undefined);
       console.log('Cookie banner accepted');
     }
 
@@ -71,7 +71,7 @@ export class BasePage {
       .first();
 
     if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await closeBtn.click();
+      await closeBtn.click({ force: true, timeout: 5000 }).catch(() => undefined);
       console.log('Cookie banner closed');
     }
   }

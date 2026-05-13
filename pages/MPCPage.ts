@@ -501,7 +501,9 @@ export class MPCPage extends BasePage {
 
     const cookieClose = this.page.locator('.onetrust-close-btn-handler').first();
     if (await cookieClose.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await cookieClose.click({ force: true });
+      await cookieClose.dispatchEvent('click').catch(async () => {
+        await cookieClose.click({ force: true });
+      });
     }
 
     const modalCloseButtons = this.page.locator(

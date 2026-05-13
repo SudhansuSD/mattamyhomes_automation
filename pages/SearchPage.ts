@@ -17,12 +17,14 @@ export class SearchPage extends HomePage {
 
     readonly sortButton: Locator;
     readonly sortMenuItems: Locator;
+    readonly resetFiltersButton: Locator;
 
     constructor(page: Page) {
         super(page);
 
         this.sortButton = page.locator('div[aria-label^="Sort by:"] button[aria-label*="dropdown"]');
         this.sortMenuItems = page.locator('div.px-2 button');
+        this.resetFiltersButton = page.getByRole('button', { name: /Reset all filters/i });
     }
 
     /* ------------------------------------------------------------------
@@ -83,7 +85,9 @@ export class SearchPage extends HomePage {
                 break;
 
             case 'communities':
-                tab = this.page.locator('div[aria-label*="Communities"]').first();
+                tab = this.page.locator('button, [role="button"], div[aria-label]')
+                    .filter({ hasText: /Communities/i })
+                    .first();
                 break;
 
             default:
@@ -194,15 +198,15 @@ export class SearchPage extends HomePage {
             metro,
             country,
             community,
-            hideMap: 'true'
+            hideMap: 'false'
         });
 
         console.log(`Recovering ${tabName} results by reopening search URL for market: ${metro}`);
 
-        await this.page.goto(`${baseURL}/search?${searchParams.toString()}`, {
-            waitUntil: 'domcontentloaded',
-            timeout: 90_000
-        });
+        // await this.page.goto(`${baseURL}/search?${searchParams.toString()}`, {
+        //     waitUntil: 'domcontentloaded',
+        //     timeout: 90_000
+        // });
         await this.waitForPageReady();
     }
 
@@ -219,6 +223,148 @@ export class SearchPage extends HomePage {
             .filter(value => !Number.isNaN(value)) ?? [];
 
         return values[0] ?? null;
+    }
+
+    private getCardTextLines(text: string): string[] {
+        return text
+            .split('\n')
+            .map(line => line.replace(/\s+/g, ' ').trim())
+            .filter(Boolean);
+    }
+
+    private getLocationLine(lines: string[], tabName: ResultsTab): string {
+        const locationPattern = tabName === 'Communities'
+            ? /^[A-Za-z .'-]+,\s*[A-Za-z .'-]+$/
+            : /^[A-Za-z .'-]+,\s*[A-Za-z0-9 .&'-]+$/;
+
+        return lines.find(line => locationPattern.test(line)) ?? '';
+    }
+
+    private getCardTitleLocator(card: Locator): Locator {
+        return card.locator('h1, h2, h3, h4, [data-testid*="title"], [class*="title"]').first();
+    }
+
+    private async getResultCardContainer(card: Locator): Promise<Locator> {
+        const container = card.locator('xpath=ancestor::*[.//img and .//*[@id="ProductInfo"]][1]');
+
+        if (await container.count()) {
+            return container.first();
+        }
+
+        return card;
+    }
+
+    private async validateCardImage(card: Locator, cardIndex: number, tabName: ResultsTab): Promise<void> {
+        const cardContainer = await this.getResultCardContainer(card);
+        const image = cardContainer.locator('img[src]').first();
+
+        await expect(
+            image,
+            `${tabName} card ${cardIndex} should include an image`
+        ).toBeAttached({ timeout: 10000 });
+        await expect(image, `${tabName} card ${cardIndex} image should have a source`)
+            .toHaveAttribute('src', /.+/);
+
+    }
+
+    private async validateCardDetailsLink(card: Locator, cardIndex: number, tabName: ResultsTab): Promise<void> {
+        const detailsLink = card.locator('a[href]').first();
+        const href = await detailsLink.getAttribute('href');
+
+        expect(href, `${tabName} card ${cardIndex} should include a CTA/details link`).toBeTruthy();
+        expect(
+            href,
+            `${tabName} card ${cardIndex} CTA/details link should navigate to a detail page`
+        ).toMatch(/^\/(?!search(?:\?|$)).+/);
+    }
+
+    private async getCardDetails(card: Locator, tabName: ResultsTab, cardIndex: number): Promise<{
+        title: string;
+        locationLine: string;
+        href: string;
+    }> {
+        const text = await card.innerText();
+        const lines = this.getCardTextLines(text);
+        const title = await this.getCardTitleLocator(card).innerText().catch(() => '');
+        const href = await card.locator('a[href]').first().getAttribute('href');
+
+        expect(
+            title.trim(),
+            `${tabName} card ${cardIndex} should show ${tabName === 'Communities' ? 'community name' : 'result name'}`
+        ).toBeTruthy();
+        expect(href, `${tabName} card ${cardIndex} should include a CTA/details link`).toBeTruthy();
+
+        return {
+            title: title.trim(),
+            locationLine: this.validateCardLocationLine(lines, tabName, cardIndex),
+            href: href!
+        };
+    }
+
+    private async validateDetailPageMatchesCard(
+        tabName: ResultsTab,
+        cardIndex: number,
+        title: string,
+        locationLine: string,
+        href: string
+    ): Promise<void> {
+        const { baseURL } = getEnvConfig();
+        const detailPage = await this.page.context().newPage();
+        const detailUrl = new URL(href, baseURL).href;
+
+        try {
+            await detailPage.goto(detailUrl, {
+                waitUntil: 'domcontentloaded',
+                timeout: 90_000
+            });
+            await detailPage.waitForLoadState('domcontentloaded');
+            await detailPage.waitForTimeout(3000);
+
+            await expect(
+                detailPage,
+                `${tabName} card ${cardIndex} CTA should navigate to its detail URL`
+            ).toHaveURL(new RegExp(this.escapeRegex(new URL(detailUrl).pathname), 'i'));
+
+            const body = detailPage.locator('body');
+            const [city, locationContext] = locationLine.split(',').map(value => value.trim());
+
+            await expect(body, `${tabName} detail page should contain card title: ${title}`)
+                .toContainText(new RegExp(this.escapeRegex(title), 'i'), { timeout: 15000 });
+            await expect(body, `${tabName} detail page should contain city: ${city}`)
+                .toContainText(new RegExp(this.escapeRegex(city), 'i'));
+            await expect(
+                body,
+                `${tabName} detail page should contain ${tabName === 'Communities' ? 'state' : 'community'}: ${locationContext}`
+            ).toContainText(new RegExp(this.escapeRegex(locationContext), 'i'));
+        } finally {
+            await detailPage.close().catch(() => undefined);
+        }
+    }
+
+    private validateCardLocationLine(
+        lines: string[],
+        tabName: ResultsTab,
+        cardIndex: number
+    ): string {
+        const locationLine = this.getLocationLine(lines, tabName);
+        const expectedFormat = tabName === 'Communities'
+            ? 'City, State'
+            : 'City, Community';
+
+        expect(
+            locationLine,
+            `${tabName} card ${cardIndex} should show location in ${expectedFormat} format`
+        ).toBeTruthy();
+
+        const [city, locationContext] = locationLine.split(',').map(value => value.trim());
+
+        expect(city, `${tabName} card ${cardIndex} should show a city`).toBeTruthy();
+        expect(
+            locationContext,
+            `${tabName} card ${cardIndex} should show ${tabName === 'Communities' ? 'state' : 'community'}`
+        ).toBeTruthy();
+
+        return locationLine;
     }
 
     /* ------------------------------------------------------------------
@@ -420,6 +566,48 @@ export class SearchPage extends HomePage {
         await this.page.getByRole('checkbox', { name: `${minBaths} Bathrooms` }).click();
 
     }
+
+    async resetFilters(): Promise<void> {
+        await expect(this.resetFiltersButton).toBeVisible({ timeout: 15000 });
+        await this.resetFiltersButton.click();
+        await this.waitForResultsToLoad();
+    }
+
+    async validateClearResetFiltersBehavior(): Promise<void> {
+        await this.verifyResults('Communities');
+
+        const initialCount = await this.getCardCount();
+        const initialUrl = this.page.url();
+
+        await this.filterByPrice(400000, 500000);
+
+        const filteredUrl = this.page.url();
+        const filteredCount = await this.getCardCount();
+        const filteredSignature = await this.getVisibleCardSignature();
+
+        expect(filteredCount, 'Filtered search should still show refreshed results').toBeGreaterThan(0);
+        expect(
+            filteredUrl,
+            'Applying a price filter should update the search URL/state'
+        ).not.toBe(initialUrl);
+
+        await this.resetFilters();
+
+        const resetCount = await this.getCardCount();
+        const priceFilter = this.filterButton('Dropdown price filter').first();
+
+        await expect(priceFilter).toHaveAttribute('aria-label', /No price range selected/i);
+        await expect(this.page.getByText(/filters successfully cleared|No filters selected/i).first())
+            .toBeVisible({ timeout: 10000 });
+        expect(
+            resetCount,
+            `Reset filters should restore default result count. Before filter: ${initialCount}, after reset: ${resetCount}`
+        ).toBe(initialCount);
+        expect(
+            this.page.url(),
+            'Reset filters should clear the filtered URL/state'
+        ).not.toBe(filteredUrl);
+    }
     /* ------------------------------------------------------------------
        Validation: Beds & Baths
     ------------------------------------------------------------------ */
@@ -565,6 +753,70 @@ export class SearchPage extends HomePage {
 
         throw new Error(`❌ ${tabName}: No results AND no "No results" message found`);
     }
+    /* ------------------------------------------------------------------
+       Result Card Required Details Validation
+    ------------------------------------------------------------------ */
+
+    async validateResultCardsRequiredDetails(tabName: ResultsTab): Promise<void> {
+        await this.verifyResults(tabName);
+
+        const cards = this.resultCards();
+        const count = await cards.count();
+
+        expect(count, `${tabName} should display at least one result card`).toBeGreaterThan(0);
+        console.log(`\n========== RESULT CARD DETAILS VALIDATION: ${tabName} ==========`);
+
+        for (let i = 0; i < count; i++) {
+            const cardIndex = i + 1;
+            const card = cards.nth(i);
+            const { title, locationLine } = await this.getCardDetails(card, tabName, cardIndex);
+
+            await this.validateCardImage(card, cardIndex, tabName);
+            await this.validateCardDetailsLink(card, cardIndex, tabName);
+
+            console.log(`Card ${cardIndex}: ${title} | ${locationLine}`);
+        }
+
+        console.log(`=============================================================\n`);
+    }
+
+    async validateAllResultCardsRequiredDetails(): Promise<void> {
+        const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
+
+        for (const tab of tabs) {
+            await this.validateResultCardsRequiredDetails(tab);
+        }
+    }
+
+    async validateResultCardCtaNavigation(tabName: ResultsTab, cardsToValidate = 3): Promise<void> {
+        await this.verifyResults(tabName);
+
+        const cards = this.resultCards();
+        const count = await cards.count();
+        const validationCount = Math.min(count, cardsToValidate);
+
+        expect(validationCount, `${tabName} should have cards available for CTA validation`).toBeGreaterThan(0);
+        console.log(`\n========== RESULT CARD CTA NAVIGATION VALIDATION: ${tabName} ==========`);
+
+        for (let i = 0; i < validationCount; i++) {
+            const cardIndex = i + 1;
+            const { title, locationLine, href } = await this.getCardDetails(cards.nth(i), tabName, cardIndex);
+
+            await this.validateDetailPageMatchesCard(tabName, cardIndex, title, locationLine, href);
+            console.log(`Card ${cardIndex}: ${title} -> ${href}`);
+        }
+
+        console.log(`=============================================================\n`);
+    }
+
+    async validateAllResultCardCtaNavigation(cardsToValidatePerTab = 3): Promise<void> {
+        const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
+
+        for (const tab of tabs) {
+            await this.validateResultCardCtaNavigation(tab, cardsToValidatePerTab);
+        }
+    }
+
     /* ------------------------------------------------------------------
        Sort Options Validation
     ------------------------------------------------------------------ */

@@ -190,12 +190,25 @@ export class CommunityPage extends HomePage {
      FORM VALIDATION
   ========================================================== */
 
+  private get communityForms(): Locator {
+    return this.page.locator('form')
+      .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+      .filter({ has: this.page.locator('input, select, textarea') });
+  }
+
+  private get communityFormContainers(): Locator {
+    return this.page.locator(
+      '[id^="Sitecore-ScheduleAVisit-FormInstance"], [id^="ScheduleAVisit-FormInstance"], #contact'
+    )
+      .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+      .filter({ has: this.page.locator('input, select, textarea') });
+  }
+
   private async getFormByIndex(formIndex: number): Promise<Locator | null> {
-    const formGroups = [
-      this.sitecoreCommunityForms,
-      this.contactForms,
-      this.scheduleVisitContainers
-    ];
+    const formGroups = (await this.communityForms.count()) > 0
+      ? [this.communityForms]
+      : [this.sitecoreCommunityForms, this.contactForms, this.scheduleVisitContainers, this.communityFormContainers];
+
     let remainingIndex = formIndex;
 
     for (const forms of formGroups) {
@@ -215,15 +228,13 @@ export class CommunityPage extends HomePage {
     const form = await this.getFormByIndex(formIndex);
 
     if (!form) {
-      console.warn(`${formName} not present - skipping form validation`);
-      return null;
+      throw new Error(`${formName} not present - expected form index ${formIndex} to be available`);
     }
 
     const submitButton = form.getByRole('button', { name: /submit/i }).first();
 
     if (!await submitButton.count()) {
-      console.warn(`${formName} submit button not present - skipping form validation`);
-      return null;
+      throw new Error(`${formName} submit button not present`);
     }
 
     await form.scrollIntoViewIfNeeded();
@@ -236,8 +247,7 @@ export class CommunityPage extends HomePage {
       return form;
     }
 
-    console.warn(`${formName} not visible - skipping form validation`);
-    return null;
+    throw new Error(`${formName} not visible`);
   }
 
   private async viewFormByIndex(formIndex: number, formName: string): Promise<void> {
