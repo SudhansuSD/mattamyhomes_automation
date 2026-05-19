@@ -27,6 +27,14 @@ test.describe(`Community Detail - ${location.community}`, () => {
         test('@regression Validate community core sections', async () => {
             await communityPage.verifyCoreSections();
         });
+
+        test('@regression Validate overview copy, address, market details, and key attributes', async () => {
+            await communityPage.verifyOverviewAddressMarketAndAttributes(location.community);
+        });
+
+        test('@regression Validate QMI card community name matches current community', async () => {
+            await communityPage.verifyQmiCardCommunityNameMatchesCurrentCommunity(location.community);
+        });
     });
 
     /* ==========================================================

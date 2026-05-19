@@ -11,6 +11,28 @@ export const USA = {
   qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/mahogany/315-w-flax-dr',
   planName: 'Aqua',
   expectedPlanUrlPart: '/aqua',
+  aboutUsLinks: [
+    {
+      name: 'About Us',
+      url: '/about/about-mattamy'
+    },
+    {
+      name: 'Community Involvement',
+      url: '/about/community-involvement'
+    },
+    {
+      name: 'Sustainability',
+      url: '/about/sustainability'
+    },
+    {
+      name: 'Media and Investor Relations',
+      url: '/about/media-and-investor-relations'
+    },
+    {
+      name: 'Careers',
+      url: '/about/careers'
+    }
+  ],
   markets: [
     {
       name: 'Charlotte',

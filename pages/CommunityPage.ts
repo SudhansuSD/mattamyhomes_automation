@@ -1,5 +1,6 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { HomePage } from './HomePage';
+import { getEnvConfig } from '../config/envConfig';
 
 /* ==========================================================
    Community Page – Page Object Model
@@ -35,6 +36,14 @@ export class CommunityPage extends HomePage {
   }
   private get contactSection(): Locator {
     return this.page.locator('#contact');
+  }
+  private get productOverviewSection(): Locator {
+    return this.page.locator('#ProductOverview');
+  }
+  private get salesCenterSection(): Locator {
+    return this.page.locator('section, div').filter({
+      hasText: /showhome|sales|directions|hours/i
+    }).first();
   }
   private get navLinks(): Locator {
     return this.page.locator('a');
@@ -196,6 +205,115 @@ export class CommunityPage extends HomePage {
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
+  async verifyOverviewAddressMarketAndAttributes(expectedCommunity: string): Promise<void> {
+    await expect(this.productOverviewSection, 'Community overview section should be visible')
+      .toBeVisible({ timeout: 15000 });
+
+    await expect(this.productOverviewSection.getByRole('heading', {
+      name: new RegExp(`Welcome to ${this.escapeRegex(expectedCommunity)}`, 'i')
+    }).first(), 'Overview heading should include the current community')
+      .toBeVisible({ timeout: 15000 });
+
+    const overviewText = await this.getNormalizedText(this.productOverviewSection);
+
+    expect(overviewText, 'Overview copy should include the current community name')
+      .toContain(expectedCommunity);
+    expect(overviewText.length, 'Overview copy should render meaningful content')
+      .toBeGreaterThan(150);
+
+    await this.verifyAddressAndMarketDetails(expectedCommunity);
+    await this.verifyKeyAttributes();
+  }
+
+  async verifyQmiCardCommunityNameMatchesCurrentCommunity(expectedCommunity: string): Promise<void> {
+    if (!(await this.availableHomesSection.isVisible({ timeout: 5000 }).catch(() => false))) {
+      console.log('Available homes section not present - skipping QMI community-name validation');
+      return;
+    }
+
+    const qmiCards = this.availableHomesSection
+      .locator('a[href]:visible')
+      .filter({ hasNotText: /view all/i });
+    const qmiCardCount = await qmiCards.count();
+
+    if (!qmiCardCount) {
+      console.log('No QMI cards present - skipping QMI community-name validation');
+      return;
+    }
+
+    const expectedCommunitySlug = this.toSlug(expectedCommunity);
+
+    for (let i = 0; i < qmiCardCount; i++) {
+      const card = qmiCards.nth(i);
+      const cardText = await this.getNormalizedText(card);
+      const href = await card.getAttribute('href');
+      const hrefPath = href ? new URL(href, this.page.url()).pathname.toLowerCase() : '';
+      const displayedCommunityMatch = this.normalizeText(cardText)
+        .includes(this.normalizeText(expectedCommunity));
+
+      if (displayedCommunityMatch) {
+        expect(cardText, `QMI card ${i + 1} displayed community should match current community`)
+          .toMatch(new RegExp(this.escapeRegex(expectedCommunity), 'i'));
+      } else {
+        console.log(`QMI card ${i + 1} does not render a visible community label; validating href context instead`);
+      }
+
+      expect(
+        hrefPath,
+        `QMI card ${i + 1} should remain under the current community URL path`
+      ).toContain(expectedCommunitySlug);
+    }
+  }
+
+  private async verifyAddressAndMarketDetails(expectedCommunity: string): Promise<void> {
+    await this.page.evaluate(() => window.scrollTo(0, 0));
+    await this.waitForPageReady();
+
+    const addressHeading = this.page.locator('h1, h2, h3, h4').filter({
+      hasText: /\d{1,}.+,\s*.+\b[A-Z]{2}\b/i
+    }).first();
+    const currentPath = new URL(this.page.url()).pathname;
+    const marketFromUrl = this.getMarketFromCurrentUrl();
+
+    await expect(addressHeading, 'Community address should render in the page')
+      .toBeAttached({ timeout: 15000 });
+
+    const addressText = await this.getNormalizedText(addressHeading);
+
+    expect(addressText, 'Community address should include a street number')
+      .toMatch(/\d{1,}/);
+    expect(addressText, 'Community address should include province/state and postal/ZIP details')
+      .toMatch(/\b[A-Z]{2}\b/);
+
+    if (marketFromUrl) {
+      expect(
+        currentPath.toLowerCase(),
+        'Community URL should include the current market/city context'
+      ).toContain(this.toSlug(marketFromUrl));
+      await expect(this.page.locator('body'), 'Community page should include visible market/city context')
+        .toContainText(new RegExp(this.escapeRegex(marketFromUrl), 'i'), { timeout: 15000 });
+    }
+
+    await expect(this.heading, 'Main heading should still show the current community')
+      .toContainText(new RegExp(this.escapeRegex(expectedCommunity), 'i'));
+  }
+
+  private async verifyKeyAttributes(): Promise<void> {
+    const requiredAttributes = [
+      /Home Types/i,
+      /Bedrooms/i,
+      /Full Bathrooms/i,
+      /Sq\.?\s*Ft\./i,
+      /Stories/i,
+      /Garages/i
+    ];
+
+    for (const attribute of requiredAttributes) {
+      await expect(this.productOverviewSection, `Key attribute ${attribute} should render`)
+        .toContainText(attribute, { timeout: 10000 });
+    }
+  }
+
   private get communityFormContainers(): Locator {
     return this.page.locator(
       '[id^="Sitecore-ScheduleAVisit-FormInstance"], [id^="ScheduleAVisit-FormInstance"], #contact'
@@ -295,6 +413,13 @@ export class CommunityPage extends HomePage {
     formIndex: number,
     formName: string
   ): Promise<void> {
+    const { envName } = getEnvConfig();
+
+    if (envName === 'PROD') {
+      console.log(`${formName} successful submission skipped in PROD`);
+      return;
+    }
+
     const form = await this.getAvailableForm(formIndex, formName);
 
     if (!form) {
@@ -375,6 +500,43 @@ export class CommunityPage extends HomePage {
 
   async verifyFooterFormSuccessSubmission(): Promise<void> {
     await this.submitSuccessfulFormByIndex(1, 'Footer community form');
+  }
+
+  private async getNormalizedText(locator: Locator): Promise<string> {
+    const text = await locator.innerText({ timeout: 15000 });
+
+    return text.replace(/\s+/g, ' ').trim();
+  }
+
+  private getMarketFromCurrentUrl(): string | null {
+    const segments = new URL(this.page.url()).pathname
+      .split('/')
+      .filter(Boolean);
+
+    if (segments.length < 3) {
+      return null;
+    }
+
+    return this.toTitleCase(segments[1]);
+  }
+
+  private toSlug(value: string): string {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  private toTitleCase(value: string): string {
+    return value
+      .split('-')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
 }

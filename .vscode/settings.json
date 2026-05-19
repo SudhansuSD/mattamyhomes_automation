@@ -1,4 +1,6 @@
 {
+  "playwright.configPath": "playwright.config.ts",
+  "typescript.tsdk": "node_modules/typescript/lib",
   "[typescript]": {
     "editor.codeActionsOnSave": {
       "source.organizeImports": "explicit"

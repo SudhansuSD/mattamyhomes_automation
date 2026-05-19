@@ -1,37 +1,27 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
+export type HeaderNavigationLink = {
+  name: string;
+  url: string;
+};
+
 export class Header extends BasePage {
 
   readonly header: Locator;
   readonly findYourHomeLink: Locator;
   readonly aboutUsLink: Locator;
   readonly contactUsLink: Locator;
+  readonly aboutUsMenuLinks: Locator;
 
   constructor(page: Page) {
     super(page);
 
-    /* ==========================================================
-       Scoped Header Container (CRITICAL)
-    ========================================================== */
-
     this.header = page.locator('header');
-
-    /* ==========================================================
-       Header Links
-    ========================================================== */
-
-    // Stable locator using id (no escaping issues)
-    this.findYourHomeLink = this.header.locator(
-      '[id="Find Your Dream Home"]'
-    );
-
-    // Avoid role-based locator
-    this.aboutUsLink = this.header
-      .getByRole('button', { name: /About/i });
-
+    this.findYourHomeLink = this.header.locator('[id="Find Your Dream Home"]');
+    this.aboutUsLink = this.header.getByRole('button', { name: /^About$/i });
     this.contactUsLink = this.header.locator('[id="Contact Us"]');
-
+    this.aboutUsMenuLinks = page.locator('[aria-hidden="false"] a[href^="/about"]:visible');
   }
 
   /* ==========================================================
@@ -39,24 +29,16 @@ export class Header extends BasePage {
   ========================================================== */
 
   async verifyHeaderLinksVisible(): Promise<void> {
-
-    // 1️⃣ Wait for header hydration
     await this.page.waitForSelector('header', { timeout: 20000 });
-
-    // 2️⃣ Ensure header is in viewport (headless fix)
     await this.page.evaluate(() => window.scrollTo(0, 0));
 
-    // 3️⃣ Wait for CTA to be attached
     await this.findYourHomeLink.waitFor({
       state: 'attached',
       timeout: 20000
     });
 
-    // 4️⃣ Assert visibility
     await expect(this.findYourHomeLink).toBeVisible({ timeout: 10000 });
     await expect(this.aboutUsLink).toBeVisible({ timeout: 10000 });
-
-    // 5️⃣ Safe hover
     await this.aboutUsLink.first().hover();
   }
 
@@ -67,6 +49,7 @@ export class Header extends BasePage {
   async clickFindYourHome(): Promise<void> {
     await this.clickElement(this.findYourHomeLink);
   }
+
   async clickAboutUs(): Promise<void> {
     await this.clickElement(this.aboutUsLink);
   }
@@ -74,95 +57,147 @@ export class Header extends BasePage {
   async clickContactUs(): Promise<void> {
     await this.clickElement(this.contactUsLink);
   }
+
+  async openAboutUsMenu(): Promise<void> {
+    await this.page.waitForSelector('header', { timeout: 20000 });
+    await this.page.evaluate(() => window.scrollTo(0, 0));
+    await expect(this.aboutUsLink).toBeVisible({ timeout: 10000 });
+
+    if (!await this.aboutUsMenuLinks.first().isVisible({ timeout: 1000 }).catch(() => false)) {
+      await this.aboutUsLink.hover();
+      await this.aboutUsLink.click();
+    }
+
+    await expect(this.aboutUsMenuLinks.first()).toBeVisible({ timeout: 10000 });
+  }
+
   /* ==========================================================
-  Verify Find Your Homes links and navigations
+     Find Your Home Link Validation
   ========================================================== */
 
   async verifyFindYourHomeLinks(): Promise<void> {
-
     await this.clickFindYourHome();
 
     const fyhLinkButtons = this.page.locator('button[href^="/search"]');
     const count = await fyhLinkButtons.count();
 
-    console.log(`✅ Total Find Your Dream Home links: ${count}`);
+    console.log(`Total Find Your Dream Home links: ${count}`);
 
     for (let i = 0; i < count; i++) {
-
-      // 🔁 Re-locate each time (important after navigation)
       const button = fyhLinkButtons.nth(i);
 
       const href = await button.getAttribute('href');
       const text = await button.innerText();
 
-      console.log(`🔗 Testing: ${text} -> ${href}`);
+      console.log(`Testing: ${text} -> ${href}`);
 
-      // ✅ Extract metro value from href
       const metroMatch = href?.match(/metro=([^&]+)/);
       const metroValue = metroMatch ? metroMatch[1] : '';
 
       await this.clickElement(button);
-      await this.waitForPageReady(); // optional
+      await this.waitForPageReady();
 
       const url = new URL(this.page.url());
       const metro = url.searchParams.get('metro');
 
       expect(metro).toBe(metroValue);
 
-      console.log(`✅ Passed: ${metroValue}`);
+      console.log(`Passed: ${metroValue}`);
 
-      // 🔙 Go back
       await this.page.goBack();
       await this.page.waitForLoadState('domcontentloaded');
-
-      // 🔁 Re-open menu for next iteration
       await this.clickFindYourHome();
     }
   }
 
   /* ==========================================================
-    Validate About Us link and navigation
+     About Us Link Validation
   ========================================================== */
-  async verifyAboutUsLinks(): Promise<void> {
 
-    await this.clickAboutUs();
+  async getVisibleAboutUsMenuLinks(): Promise<HeaderNavigationLink[]> {
+    await this.openAboutUsMenu();
 
-    const aboutLinks = this.page.locator('[aria-hidden="false"] a[href^="/about"]');
-    const count = await aboutLinks.count();
+    const links = await this.aboutUsMenuLinks.evaluateAll((elements) =>
+      elements.map((element) => ({
+        name: element.textContent?.trim().replace(/\s+/g, ' ') || '',
+        url: element.getAttribute('href') || ''
+      }))
+    );
 
-    console.log(`✅ Total About links: ${count}`);
+    const uniqueLinks = new Map<string, HeaderNavigationLink>();
 
-    for (let i = 0; i < count; i++) {
-
-      // 🔁 Re-locate every time
-      const link = aboutLinks.nth(i);
-
-      const href = await link.getAttribute('href');   // e.g. /about/careers
-      const text = await link.innerText();
-
-      console.log(`🔗 Testing: ${text} -> ${href}`);
-
-      // ✅ Extract expected path from href
-      const expectedPath = href?.split('/about/')[1]; // careers, about-mattamy etc.
-
-      await this.clickElement(link);
-
-      // ✅ Validate using URL object to avoid encoding issues
-      await this.waitForPageReady();
-      const url = new URL(this.page.url());
-      const actualPath = url.pathname;
-
-      expect(actualPath).toContain(expectedPath!);
-
-      console.log(`✅ Passed: ${text}`);
-
-      // 🔙 Go back
-      await this.page.goBack();
-      await this.page.waitForLoadState('domcontentloaded');
-
-      // 🔁 Re-open menu
-      await this.clickAboutUs();
+    for (const link of links) {
+      if (link.name && link.url && !uniqueLinks.has(link.url)) {
+        uniqueLinks.set(link.url, link);
+      }
     }
 
+    return Array.from(uniqueLinks.values());
+  }
+
+  async verifyAboutUsMenuLinks(expectedLinks: readonly HeaderNavigationLink[]): Promise<void> {
+    const actualLinks = await this.getVisibleAboutUsMenuLinks();
+
+    expect(actualLinks, 'About Us menu links should match country configuration').toEqual(expectedLinks);
+
+    for (const expectedLink of expectedLinks) {
+      const menuLink = this.getAboutUsMenuLink(expectedLink);
+
+      await expect(menuLink, `${expectedLink.name} should be visible in the About Us menu`)
+        .toBeVisible({ timeout: 10000 });
+      await expect(menuLink, `${expectedLink.name} should point to ${expectedLink.url}`)
+        .toHaveAttribute('href', expectedLink.url);
+    }
+  }
+
+  async verifyAboutUsLinks(expectedLinks: readonly HeaderNavigationLink[]): Promise<void> {
+    await this.verifyAboutUsMenuLinks(expectedLinks);
+
+    for (const expectedLink of expectedLinks) {
+      await this.openAboutUsMenu();
+
+      const menuLink = this.getAboutUsMenuLink(expectedLink);
+      await expect(menuLink).toBeVisible({ timeout: 10000 });
+
+      await menuLink.click();
+      await this.page.waitForURL(
+        (url) => url.pathname === expectedLink.url,
+        { timeout: 30000 }
+      );
+      await this.waitForPageReady();
+
+      await expect(this.page, `${expectedLink.name} should navigate to the configured About URL`)
+        .toHaveURL(new RegExp(`${this.escapeRegExp(expectedLink.url)}(?:\\?.*)?$`));
+
+      await expect(this.page.locator('h1').first(), `${expectedLink.name} page should expose a visible H1`)
+        .toBeVisible({ timeout: 15000 });
+
+      await this.page.goBack({ waitUntil: 'domcontentloaded' });
+      await this.waitForPageReady();
+    }
+  }
+
+  async clickAboutUsMenuLink(expectedLink: HeaderNavigationLink): Promise<void> {
+    const menuLink = this.getAboutUsMenuLink(expectedLink);
+
+    await expect(menuLink, `${expectedLink.name} should be visible before clicking`)
+      .toBeVisible({ timeout: 10000 });
+    await menuLink.click();
+    await this.page.waitForURL(
+      (url) => url.pathname === expectedLink.url,
+      { timeout: 30000 }
+    );
+    await this.waitForPageReady();
+  }
+
+  private getAboutUsMenuLink(expectedLink: HeaderNavigationLink): Locator {
+    return this.aboutUsMenuLinks
+      .filter({ hasText: new RegExp(`^\\s*${this.escapeRegExp(expectedLink.name)}\\s*$`, 'i') })
+      .and(this.page.locator(`a[href="${expectedLink.url}"]`))
+      .first();
+  }
+
+  private escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

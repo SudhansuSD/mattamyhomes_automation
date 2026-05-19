@@ -1,24 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
 import process from 'node:process';
 
+const isVsCodePlaywrightRun = Boolean(process.env.PW_TEST_REPORTER);
 
 export default defineConfig({
-  testIgnore: ['tests/appium/**'],
+  testDir: './tests',
+  testMatch: '**/*.spec.ts',
+  testIgnore: ['appium/**'],
   use: {
     // baseURL: 'https://mattamyhomes.com/',
-    headless: process.env.CI ? true : false
-    ,   // see browser UI
-    viewport: null,    // IMPORTANT: full screen
-
+    headless: process.env.CI ? true : false,
+    viewport: null,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: {
       args: ['--start-maximized'],
     },
     video: 'retain-on-failure',
-
   },
-  workers: 3, // 🔒 force single worker
+  workers: 3,
   fullyParallel: false,
   timeout: 50 * 60 * 1000,
   projects: [
@@ -48,11 +48,11 @@ export default defineConfig({
       },
     },
   ],
-  reporter: [
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['json', { outputFile: 'test-results/results.json' }],
-    ['allure-playwright', { resultsDir: 'allure-results' }]
-  ],
-
+  reporter: isVsCodePlaywrightRun
+    ? [['line']]
+    : [
+        ['html', { outputFolder: 'playwright-report', open: 'never' }],
+        ['json', { outputFile: 'test-results/results.json' }],
+        ['allure-playwright', { resultsDir: 'allure-results' }],
+      ],
 });
-

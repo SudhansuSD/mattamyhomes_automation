@@ -11,20 +11,24 @@ export type LocationConfig = typeof LOCATIONS[LocationKey];
 
 declare const process: { env: { LOCATION?: string } };
 
-export function getLocationConfig(
+export function getLocationKey(
   overrideLocation?: LocationKey
-): LocationConfig {
+): LocationKey {
   const rawKey =
     overrideLocation ??
     (process?.env?.LOCATION as string | undefined) ??
-    'USA'; // Default location if not specified
+    'CAN'; // Default location if not specified
   const key = rawKey.toUpperCase() as LocationKey;
 
-  const location = LOCATIONS[key];
-
-  if (!location) {
+  if (!LOCATIONS[key]) {
     throw new Error(`Invalid LOCATION provided: ${rawKey}`);
   }
 
-  return location;
+  return key;
+}
+
+export function getLocationConfig(
+  overrideLocation?: LocationKey
+): LocationConfig {
+  return LOCATIONS[getLocationKey(overrideLocation)];
 }

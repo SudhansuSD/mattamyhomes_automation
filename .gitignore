@@ -12,3 +12,5 @@ node_modules/
 *MTTMY-*
 */sitemapXml.spec.ts
 */formSubmissionEvidence.spec.ts
+*/allure-results/
+*/allure-report/

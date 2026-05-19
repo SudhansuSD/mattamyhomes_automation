@@ -48,6 +48,10 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
     test('@regression Validate available condo floorplans section when available', async () => {
       await condoCommunityPage.verifyAvailableFloorplansSection(condoCommunity!);
     });
+
+    test('@regression Validate gallery modal opens, navigates media, and closes when available', async () => {
+      await condoCommunityPage.verifyGalleryModalIfAvailable();
+    });
   });
 
   test.describe('Navigation and CTAs', () => {

@@ -35,4 +35,4 @@ data/automation-tests.json
 
 ### 3. Turn JSON Into Playwright Specs
 
-Use the generated actions as planning input, then create or update repository specs under `tests/`. Reuse existing page objects under `pages/` and keep generated test files ticket-specific when possible.
+Use the generated actions as planning input, then create or update repository specs under `tests/generated/`. Reuse existing page objects under `pages/` and keep generated test files ticket-specific when possible.

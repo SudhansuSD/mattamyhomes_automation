@@ -15,6 +15,24 @@ export const CAN = {
   qmiPath: '/ontario/simcoe/innisfil/lakehaven/sawyer/634-newlove-st',
   planName: 'Brinkley I',
   expectedPlanUrlPart: '/brinkley-i',
+  aboutUsLinks: [
+    {
+      name: 'About Us',
+      url: '/about/about-mattamy'
+    },
+    {
+      name: 'Community Involvement',
+      url: '/about/community-involvement'
+    },
+    {
+      name: 'Media and Investor Relations',
+      url: '/about/media-and-investor-relations'
+    },
+    {
+      name: 'Careers',
+      url: '/about/careers'
+    }
+  ],
   markets:[
     {
       name: 'Greater Toronto Area || GTA',

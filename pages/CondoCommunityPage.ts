@@ -1,5 +1,6 @@
 import { Locator, expect } from '@playwright/test';
 import { HomePage } from './HomePage';
+import { getEnvConfig } from '../config/envConfig';
 
 const TIMEOUT = {
   short: 10000,
@@ -77,6 +78,40 @@ export class CondoCommunityPage extends HomePage {
   /** Locator: lead form success confirmation message. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(TEXT.successMessage).last();
+  }
+
+  /** Locator: optional condo community media gallery section. */
+  private get gallerySection(): Locator {
+    return this.page.locator('#gallery').first();
+  }
+
+  /** Locator: button that opens the full gallery modal. */
+  private get galleryModalOpenButton(): Locator {
+    return this.gallerySection.locator('button[aria-label="Community Gallery"]').first();
+  }
+
+  /** Locator: visible gallery modal/dialog after opening media. */
+  private get galleryModal(): Locator {
+    return this.page.locator('.ReactModal__Content:visible, [role="dialog"]:visible')
+      .filter({ has: this.page.locator('img, video, iframe, picture') })
+      .last();
+  }
+
+  /** Locator: close button inside the visible gallery modal. */
+  private get galleryModalCloseButton(): Locator {
+    return this.galleryModal
+      .locator('button[aria-label*="Close" i], button:has-text("Close"), button:has-text("Close Icon")')
+      .first();
+  }
+
+  /** Locator: in-page gallery next button. */
+  private get galleryNextButton(): Locator {
+    return this.gallerySection.locator('button[aria-label*="Next slide" i]').first();
+  }
+
+  /** Locator: in-page gallery previous button. */
+  private get galleryPreviousButton(): Locator {
+    return this.gallerySection.locator('button[aria-label*="Previous slide" i]').first();
   }
 
   /* ==========================================================
@@ -202,6 +237,51 @@ export class CondoCommunityPage extends HomePage {
     await this.verifyAvailableFloorplansViewAll(section, expectedCommunity);
   }
 
+  /** Verify: optional gallery modal opens, navigates media, and closes correctly. */
+  async verifyGalleryModalIfAvailable(): Promise<void> {
+    if (!(await this.gallerySection.isVisible({ timeout: 5000 }).catch(() => false))) {
+      console.log('Condo community gallery not present - skipping modal validation');
+      return;
+    }
+
+    await this.gallerySection.scrollIntoViewIfNeeded();
+    await expect(this.gallerySection, 'Condo community gallery should be visible')
+      .toBeVisible({ timeout: TIMEOUT.short });
+
+    const galleryImages = this.gallerySection.locator('img');
+    const galleryImageCount = await galleryImages.count();
+
+    expect(galleryImageCount, 'Condo community gallery should include media')
+      .toBeGreaterThan(0);
+
+    const firstImage = galleryImages.first();
+    await expect(firstImage, 'First condo community gallery image should be visible')
+      .toBeVisible({ timeout: TIMEOUT.short });
+    expect(await firstImage.getAttribute('src'), 'First condo community gallery image src missing')
+      .toBeTruthy();
+
+    if (!(await this.galleryModalOpenButton.isVisible({ timeout: 5000 }).catch(() => false))) {
+      console.log('Condo community gallery modal open button not present - skipping modal open validation');
+      return;
+    }
+
+    await this.galleryModalOpenButton.click({ force: true });
+
+    if (!(await this.galleryModal.isVisible({ timeout: 5000 }).catch(() => false))) {
+      console.log('Condo community gallery is available as an in-page carousel; modal not present - validating carousel navigation only');
+      await this.navigateInPageGalleryMediaIfAvailable();
+      return;
+    }
+
+    await expect(this.galleryModal, 'Condo community gallery modal should open')
+      .toBeVisible({ timeout: TIMEOUT.short });
+    await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'Gallery modal should show media')
+      .toBeVisible({ timeout: TIMEOUT.short });
+
+    await this.navigateGalleryModalMediaIfAvailable();
+    await this.closeGalleryModal();
+  }
+
   /* ==========================================================
      Public Form Validation
   ========================================================== */
@@ -315,6 +395,13 @@ export class CondoCommunityPage extends HomePage {
     formIndex: number,
     formName: string
   ): Promise<void> {
+    const { envName } = getEnvConfig();
+
+    if (envName === 'PROD') {
+      console.log(`${formName} successful submission skipped in PROD`);
+      return;
+    }
+
     const form = await this.getAvailableForm(formIndex, formName);
 
     if (!form) return;
@@ -330,6 +417,111 @@ export class CondoCommunityPage extends HomePage {
 
     await expect(this.formSuccessMessage).toBeVisible({ timeout: TIMEOUT.long });
     console.log(`${formName} successful submission validated`);
+  }
+
+  /** Helper: navigate gallery modal media when next/previous controls are available. */
+  private async navigateGalleryModalMediaIfAvailable(): Promise<void> {
+    const nextButton = this.galleryModal
+      .locator('button[aria-label*="Next" i], button:has-text("Next")')
+      .first();
+    const previousButton = this.galleryModal
+      .locator('button[aria-label*="Previous" i], button:has-text("Previous")')
+      .first();
+    const initialMediaKey = await this.getVisibleGalleryModalMediaKey();
+
+    if (await nextButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await nextButton.click({ force: true });
+      await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'Gallery modal media should remain visible after next')
+        .toBeVisible({ timeout: TIMEOUT.short });
+      await expect
+        .poll(
+          () => this.getVisibleGalleryModalMediaKey(),
+          {
+            message: 'Gallery modal next control should navigate or keep visible media stable',
+            timeout: TIMEOUT.short
+          }
+        )
+        .not.toEqual('');
+    }
+
+    if (await previousButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await previousButton.click({ force: true });
+      await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'Gallery modal media should remain visible after previous')
+        .toBeVisible({ timeout: TIMEOUT.short });
+    }
+
+    expect(initialMediaKey, 'Gallery modal should expose a visible media source before navigation')
+      .toBeTruthy();
+  }
+
+  /** Helper: navigate the in-page gallery carousel when a modal is not available. */
+  private async navigateInPageGalleryMediaIfAvailable(): Promise<void> {
+    const initialMediaKey = await this.getVisibleInPageGalleryMediaKey();
+
+    if (await this.galleryNextButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.galleryNextButton.click({ force: true });
+      await expect(this.gallerySection.locator('img').first(), 'Gallery media should remain visible after next')
+        .toBeVisible({ timeout: TIMEOUT.short });
+    }
+
+    if (await this.galleryPreviousButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.galleryPreviousButton.click({ force: true });
+      await expect(this.gallerySection.locator('img').first(), 'Gallery media should remain visible after previous')
+        .toBeVisible({ timeout: TIMEOUT.short });
+    }
+
+    expect(initialMediaKey, 'Condo community gallery should expose visible media before navigation')
+      .toBeTruthy();
+  }
+
+  /** Helper: close the gallery modal with its close button or Escape fallback. */
+  private async closeGalleryModal(): Promise<void> {
+    if (await this.galleryModalCloseButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await this.galleryModalCloseButton.click({ force: true });
+    } else {
+      await this.page.keyboard.press('Escape');
+    }
+
+    await expect(this.galleryModal, 'Condo community gallery modal should close')
+      .toBeHidden({ timeout: TIMEOUT.short });
+  }
+
+  /** Helper: return the first visible media source rendered in the gallery modal. */
+  private async getVisibleGalleryModalMediaKey(): Promise<string> {
+    return this.galleryModal.locator('img:visible, video:visible, iframe:visible, picture:visible')
+      .first()
+      .evaluate((element) => {
+        if (element instanceof HTMLImageElement) {
+          return element.currentSrc || element.src || element.getAttribute('src') || '';
+        }
+
+        if (element instanceof HTMLIFrameElement) {
+          return element.src || element.getAttribute('src') || '';
+        }
+
+        if (element instanceof HTMLVideoElement) {
+          return element.currentSrc || element.src || element.getAttribute('src') || '';
+        }
+
+        const image = element.querySelector('img');
+
+        return image?.currentSrc || image?.src || image?.getAttribute('src') || element.textContent || '';
+      })
+      .catch(() => '');
+  }
+
+  /** Helper: return the first visible media source rendered in the in-page gallery. */
+  private async getVisibleInPageGalleryMediaKey(): Promise<string> {
+    return this.gallerySection.locator('img:visible')
+      .first()
+      .evaluate((element) => {
+        if (element instanceof HTMLImageElement) {
+          return element.currentSrc || element.src || element.getAttribute('src') || element.alt || '';
+        }
+
+        return element.getAttribute('src') || element.textContent || '';
+      })
+      .catch(() => '');
   }
 
   /** Helper: fill lead form with data that should fail email validation. */
