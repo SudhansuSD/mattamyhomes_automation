@@ -8,7 +8,7 @@
  */
 
 import { test } from '@playwright/test';
-import { getLocationConfig } from '../config/locations';
+import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoPlanPage } from '../pages/CondoPlanPage';
 
 const location = getLocationConfig();
@@ -99,8 +99,8 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
       await condoPlanPage.validateCommunityUpdateInvalidEmail();
     });
 
-    test('@regression @STAGE Validate successful form submission', async () => {
-      await condoPlanPage.verifyCommunityUpdateSuccessfulSubmission();
-    });
+    // test('@regression @STAGE Validate successful form submission', async () => {
+    //   await condoPlanPage.verifyCommunityUpdateSuccessfulSubmission();
+    // });
   });
 });

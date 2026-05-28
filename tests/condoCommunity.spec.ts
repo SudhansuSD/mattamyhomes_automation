@@ -1,5 +1,5 @@
 import { test } from '@playwright/test';
-import { getLocationConfig } from '../config/locations';
+import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoCommunityPage } from '../pages/CondoCommunityPage';
 
 const location = getLocationConfig();

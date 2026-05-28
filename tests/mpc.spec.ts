@@ -1,6 +1,6 @@
 import { test } from '@playwright/test';
-import { getLocationConfig } from '../config/locations';
-import { MPCPage, MPCConfig } from '../pages/MPCPage';
+import { getLocationConfig } from '../config/locations/locationConfig';
+import { MPCConfig, MPCPage } from '../pages/MPCPage';
 
 const location = getLocationConfig();
 const mpc = location.country === 'USA' && 'mpc' in location

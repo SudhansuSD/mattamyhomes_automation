@@ -1,6 +1,13 @@
 import { Locator, expect } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
+import {
+    escapeRegex,
+    getMediaSource,
+    getPathnameFromHref,
+    isIgnorableHref,
+    isLocatorVisible
+} from '../utils/pageObjectUtils';
 import { HomePage } from './HomePage';
-import { getEnvConfig } from '../config/envConfig';
 
 const TIMEOUT = {
   short: 10000,
@@ -182,7 +189,7 @@ export class CondoCommunityPage extends HomePage {
     for (let i = 0; i < linkCount; i++) {
       const href = await this.navLinks.nth(i).getAttribute('href');
 
-      if (this.isIgnorableHref(href)) {
+      if (isIgnorableHref(href)) {
         continue;
       }
 
@@ -231,7 +238,7 @@ export class CondoCommunityPage extends HomePage {
     await this.waitForPageReady();
     await expect(section).toBeVisible({ timeout: TIMEOUT.short });
 
-    const condoCommunityPath = new URL(this.page.url()).pathname.replace(/\/$/, '');
+    const condoCommunityPath = getPathnameFromHref(this.page.url());
 
     await this.verifyAvailableFloorplanLinks(section, condoCommunityPath);
     await this.verifyAvailableFloorplansViewAll(section, expectedCommunity);
@@ -239,7 +246,7 @@ export class CondoCommunityPage extends HomePage {
 
   /** Verify: optional gallery modal opens, navigates media, and closes correctly. */
   async verifyGalleryModalIfAvailable(): Promise<void> {
-    if (!(await this.gallerySection.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isLocatorVisible(this.gallerySection, 5000))) {
       console.log('Condo community gallery not present - skipping modal validation');
       return;
     }
@@ -260,14 +267,14 @@ export class CondoCommunityPage extends HomePage {
     expect(await firstImage.getAttribute('src'), 'First condo community gallery image src missing')
       .toBeTruthy();
 
-    if (!(await this.galleryModalOpenButton.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isLocatorVisible(this.galleryModalOpenButton, 5000))) {
       console.log('Condo community gallery modal open button not present - skipping modal open validation');
       return;
     }
 
     await this.galleryModalOpenButton.click({ force: true });
 
-    if (!(await this.galleryModal.isVisible({ timeout: 5000 }).catch(() => false))) {
+    if (!(await isLocatorVisible(this.galleryModal, 5000))) {
       console.log('Condo community gallery is available as an in-page carousel; modal not present - validating carousel navigation only');
       await this.navigateInPageGalleryMediaIfAvailable();
       return;
@@ -429,7 +436,7 @@ export class CondoCommunityPage extends HomePage {
       .first();
     const initialMediaKey = await this.getVisibleGalleryModalMediaKey();
 
-    if (await nextButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isLocatorVisible(nextButton, 3000)) {
       await nextButton.click({ force: true });
       await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'Gallery modal media should remain visible after next')
         .toBeVisible({ timeout: TIMEOUT.short });
@@ -444,7 +451,7 @@ export class CondoCommunityPage extends HomePage {
         .not.toEqual('');
     }
 
-    if (await previousButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isLocatorVisible(previousButton, 3000)) {
       await previousButton.click({ force: true });
       await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'Gallery modal media should remain visible after previous')
         .toBeVisible({ timeout: TIMEOUT.short });
@@ -458,13 +465,13 @@ export class CondoCommunityPage extends HomePage {
   private async navigateInPageGalleryMediaIfAvailable(): Promise<void> {
     const initialMediaKey = await this.getVisibleInPageGalleryMediaKey();
 
-    if (await this.galleryNextButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isLocatorVisible(this.galleryNextButton, 3000)) {
       await this.galleryNextButton.click({ force: true });
       await expect(this.gallerySection.locator('img').first(), 'Gallery media should remain visible after next')
         .toBeVisible({ timeout: TIMEOUT.short });
     }
 
-    if (await this.galleryPreviousButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isLocatorVisible(this.galleryPreviousButton, 3000)) {
       await this.galleryPreviousButton.click({ force: true });
       await expect(this.gallerySection.locator('img').first(), 'Gallery media should remain visible after previous')
         .toBeVisible({ timeout: TIMEOUT.short });
@@ -476,7 +483,7 @@ export class CondoCommunityPage extends HomePage {
 
   /** Helper: close the gallery modal with its close button or Escape fallback. */
   private async closeGalleryModal(): Promise<void> {
-    if (await this.galleryModalCloseButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await isLocatorVisible(this.galleryModalCloseButton, 3000)) {
       await this.galleryModalCloseButton.click({ force: true });
     } else {
       await this.page.keyboard.press('Escape');
@@ -488,40 +495,16 @@ export class CondoCommunityPage extends HomePage {
 
   /** Helper: return the first visible media source rendered in the gallery modal. */
   private async getVisibleGalleryModalMediaKey(): Promise<string> {
-    return this.galleryModal.locator('img:visible, video:visible, iframe:visible, picture:visible')
-      .first()
-      .evaluate((element) => {
-        if (element instanceof HTMLImageElement) {
-          return element.currentSrc || element.src || element.getAttribute('src') || '';
-        }
+    const media = this.galleryModal.locator('img:visible, video:visible, iframe:visible, picture:visible').first();
 
-        if (element instanceof HTMLIFrameElement) {
-          return element.src || element.getAttribute('src') || '';
-        }
-
-        if (element instanceof HTMLVideoElement) {
-          return element.currentSrc || element.src || element.getAttribute('src') || '';
-        }
-
-        const image = element.querySelector('img');
-
-        return image?.currentSrc || image?.src || image?.getAttribute('src') || element.textContent || '';
-      })
-      .catch(() => '');
+    return await isLocatorVisible(media, 3000) ? getMediaSource(media) : '';
   }
 
   /** Helper: return the first visible media source rendered in the in-page gallery. */
   private async getVisibleInPageGalleryMediaKey(): Promise<string> {
-    return this.gallerySection.locator('img:visible')
-      .first()
-      .evaluate((element) => {
-        if (element instanceof HTMLImageElement) {
-          return element.currentSrc || element.src || element.getAttribute('src') || element.alt || '';
-        }
+    const media = this.gallerySection.locator('img:visible').first();
 
-        return element.getAttribute('src') || element.textContent || '';
-      })
-      .catch(() => '');
+    return await isLocatorVisible(media, 3000) ? getMediaSource(media) : '';
   }
 
   /** Helper: fill lead form with data that should fail email validation. */
@@ -657,11 +640,11 @@ export class CondoCommunityPage extends HomePage {
       const linkText = (await link.innerText().catch(() => '')).trim();
       const href = await link.getAttribute('href');
 
-      if (TEXT.viewAll.test(linkText) || this.isIgnorableHref(href)) {
+      if (TEXT.viewAll.test(linkText) || isIgnorableHref(href)) {
         continue;
       }
 
-      const pathname = this.getPathnameFromHref(href!);
+      const pathname = getPathnameFromHref(href!, this.page.url());
 
       if (loggedHrefs.has(pathname)) {
         continue;
@@ -723,7 +706,7 @@ export class CondoCommunityPage extends HomePage {
     }
 
     await expect(this.body, 'FYH page should contain the condo community name')
-      .toContainText(new RegExp(this.escapeRegex(expectedCommunity), 'i'), {
+      .toContainText(new RegExp(escapeRegex(expectedCommunity), 'i'), {
         timeout: TIMEOUT.long
       });
   }
@@ -750,34 +733,15 @@ export class CondoCommunityPage extends HomePage {
   /** Helper: assert the H1 contains expected text. */
   private async expectHeadingContains(expectedText: string): Promise<void> {
     await expect(this.heading).toContainText(
-      new RegExp(this.escapeRegex(expectedText), 'i')
+      new RegExp(escapeRegex(expectedText), 'i')
     );
-  }
-
-  /** Helper: identify empty, anchor, phone, mail, and JavaScript hrefs. */
-  private isIgnorableHref(href: string | null): boolean {
-    return !href ||
-      href.startsWith('#') ||
-      href.startsWith('mailto:') ||
-      href.startsWith('tel:') ||
-      href.startsWith('javascript:');
-  }
-
-  /** Helper: normalize any href to a pathname without trailing slash. */
-  private getPathnameFromHref(href: string): string {
-    return new URL(href, this.page.url()).pathname.replace(/\/$/, '');
   }
 
   /** Helper: derive a readable plan name from a floorplan URL. */
   private getPlanNameFromHref(href: string): string {
-    const pathname = this.getPathnameFromHref(href);
+    const pathname = getPathnameFromHref(href, this.page.url());
     const slug = pathname.split('/').filter(Boolean).pop();
 
     return slug ? slug.replace(/-/g, ' ').toUpperCase() : 'Condo plan';
-  }
-
-  /** Helper: escape dynamic text before creating a regular expression. */
-  private escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

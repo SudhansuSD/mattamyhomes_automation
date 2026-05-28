@@ -1,6 +1,14 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
+import {
+  escapeRegex,
+  getLastPathSegment,
+  getNormalizedText,
+  getPathSegments,
+  toSlug,
+  toTitleCase
+} from '../utils/pageObjectUtils';
 import { HomePage } from './HomePage';
-import { getEnvConfig } from '../config/envConfig';
 
 /* ==========================================================
    Community Page – Page Object Model
@@ -210,14 +218,14 @@ export class CommunityPage extends HomePage {
       .toBeVisible({ timeout: 15000 });
 
     await expect(this.productOverviewSection.getByRole('heading', {
-      name: new RegExp(`Welcome to ${this.escapeRegex(expectedCommunity)}`, 'i')
-    }).first(), 'Overview heading should include the current community')
+      name: /Designed For the Way You Live|Welcome/i
+    }).first(), 'Overview heading should render current community overview content')
       .toBeVisible({ timeout: 15000 });
 
-    const overviewText = await this.getNormalizedText(this.productOverviewSection);
+    const overviewText = await getNormalizedText(this.productOverviewSection);
 
-    expect(overviewText, 'Overview copy should include the current community name')
-      .toContain(expectedCommunity);
+    await expect(this.heading, 'Main heading should include the current community name')
+      .toContainText(new RegExp(escapeRegex(expectedCommunity), 'i'));
     expect(overviewText.length, 'Overview copy should render meaningful content')
       .toBeGreaterThan(150);
 
@@ -226,14 +234,27 @@ export class CommunityPage extends HomePage {
   }
 
   async verifyQmiCardCommunityNameMatchesCurrentCommunity(expectedCommunity: string): Promise<void> {
-    if (!(await this.availableHomesSection.isVisible({ timeout: 5000 }).catch(() => false))) {
+    const availableHomesSection = await this.getAvailableHomesSection();
+
+    if (!availableHomesSection) {
       console.log('Available homes section not present - skipping QMI community-name validation');
       return;
     }
 
-    const qmiCards = this.availableHomesSection
+    await this.scrollTo(availableHomesSection);
+    await this.waitForPageReady();
+
+    if (!(await availableHomesSection.isVisible({ timeout: 5000 }).catch(() => false))) {
+      console.log('Available homes section not visible - skipping QMI community-name validation');
+      return;
+    }
+
+    const qmiCards = availableHomesSection
       .locator('a[href]:visible')
       .filter({ hasNotText: /view all/i });
+
+    await qmiCards.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined);
+
     const qmiCardCount = await qmiCards.count();
 
     if (!qmiCardCount) {
@@ -241,28 +262,45 @@ export class CommunityPage extends HomePage {
       return;
     }
 
-    const expectedCommunitySlug = this.toSlug(expectedCommunity);
+    const currentCommunitySegment = getLastPathSegment(this.page.url());
+
+    expect(
+      currentCommunitySegment,
+      `Current community URL segment should be available for ${expectedCommunity}`
+    ).toBeTruthy();
 
     for (let i = 0; i < qmiCardCount; i++) {
       const card = qmiCards.nth(i);
-      const cardText = await this.getNormalizedText(card);
       const href = await card.getAttribute('href');
-      const hrefPath = href ? new URL(href, this.page.url()).pathname.toLowerCase() : '';
-      const displayedCommunityMatch = this.normalizeText(cardText)
-        .includes(this.normalizeText(expectedCommunity));
+      const hrefSegments = href
+        ? new URL(href, this.page.url()).pathname.toLowerCase().split('/').filter(Boolean)
+        : [];
 
-      if (displayedCommunityMatch) {
-        expect(cardText, `QMI card ${i + 1} displayed community should match current community`)
-          .toMatch(new RegExp(this.escapeRegex(expectedCommunity), 'i'));
-      } else {
-        console.log(`QMI card ${i + 1} does not render a visible community label; validating href context instead`);
-      }
+      console.log(`QMI card ${i + 1}: href='${href}' | current community segment='${currentCommunitySegment}'`);
 
       expect(
-        hrefPath,
-        `QMI card ${i + 1} should remain under the current community URL path`
-      ).toContain(expectedCommunitySlug);
+        hrefSegments,
+        `QMI card ${i + 1} href should include the exact current community URL segment`
+      ).toContain(currentCommunitySegment);
     }
+  }
+
+  private async getAvailableHomesSection(): Promise<Locator | null> {
+    const sectionById = this.availableHomesSection.first();
+
+    if (await sectionById.count()) {
+      return sectionById;
+    }
+
+    const qmiHeading = this.page
+      .getByRole('heading', { name: /Quick Move-In Homes ready when you are/i })
+      .first();
+
+    if (!(await qmiHeading.count())) {
+      return null;
+    }
+
+    return qmiHeading.locator('xpath=ancestor::*[(self::section or self::div) and .//a[@href]][1]');
   }
 
   private async verifyAddressAndMarketDetails(expectedCommunity: string): Promise<void> {
@@ -278,7 +316,7 @@ export class CommunityPage extends HomePage {
     await expect(addressHeading, 'Community address should render in the page')
       .toBeAttached({ timeout: 15000 });
 
-    const addressText = await this.getNormalizedText(addressHeading);
+    const addressText = await getNormalizedText(addressHeading);
 
     expect(addressText, 'Community address should include a street number')
       .toMatch(/\d{1,}/);
@@ -289,13 +327,13 @@ export class CommunityPage extends HomePage {
       expect(
         currentPath.toLowerCase(),
         'Community URL should include the current market/city context'
-      ).toContain(this.toSlug(marketFromUrl));
+      ).toContain(toSlug(marketFromUrl));
       await expect(this.page.locator('body'), 'Community page should include visible market/city context')
-        .toContainText(new RegExp(this.escapeRegex(marketFromUrl), 'i'), { timeout: 15000 });
+        .toContainText(new RegExp(escapeRegex(marketFromUrl), 'i'), { timeout: 15000 });
     }
 
     await expect(this.heading, 'Main heading should still show the current community')
-      .toContainText(new RegExp(this.escapeRegex(expectedCommunity), 'i'));
+      .toContainText(new RegExp(escapeRegex(expectedCommunity), 'i'));
   }
 
   private async verifyKeyAttributes(): Promise<void> {
@@ -502,41 +540,14 @@ export class CommunityPage extends HomePage {
     await this.submitSuccessfulFormByIndex(1, 'Footer community form');
   }
 
-  private async getNormalizedText(locator: Locator): Promise<string> {
-    const text = await locator.innerText({ timeout: 15000 });
-
-    return text.replace(/\s+/g, ' ').trim();
-  }
-
   private getMarketFromCurrentUrl(): string | null {
-    const segments = new URL(this.page.url()).pathname
-      .split('/')
-      .filter(Boolean);
+    const segments = getPathSegments(this.page.url());
 
     if (segments.length < 3) {
       return null;
     }
 
-    return this.toTitleCase(segments[1]);
-  }
-
-  private toSlug(value: string): string {
-    return value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-  }
-
-  private toTitleCase(value: string): string {
-    return value
-      .split('-')
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-  }
-
-  private escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return toTitleCase(segments[1]);
   }
 
 }

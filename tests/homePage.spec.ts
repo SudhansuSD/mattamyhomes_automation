@@ -4,13 +4,13 @@
  */
 
 import { test } from '@playwright/test';
-import { HomePage } from '../pages/HomePage';
-import { Header } from '../pages/Header';
-import { Footer } from '../pages/Footer';
-import { QMIPage } from '../pages/QMIPage';
-import { PlanDetailPage } from '../pages/PlanDetailPage';
-import { getLocationConfig } from '../config/locations';
+import { getLocationConfig } from '../config/locations/locationConfig';
 import { CommunityPage } from '../pages/CommunityPage';
+import { Footer } from '../pages/Footer';
+import { Header } from '../pages/Header';
+import { HomePage } from '../pages/HomePage';
+import { PlanDetailPage } from '../pages/PlanDetailPage';
+import { QMIPage } from '../pages/QMIPage';
 
 const location = getLocationConfig();
 
@@ -41,7 +41,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     });
   });
 
-  test('@smoke @regression Validate hero video autoplay on Home Page', async ({}, testInfo) => {
+  test('@smoke @regression Validate hero video autoplay on Home Page', async ({ }, testInfo) => {
     test.skip(testInfo.project.name !== 'Chromium', 'Hero autoplay video is validated on the desktop home page.');
 
     await test.step('Verify hero video autoplays', async () => {
@@ -63,9 +63,6 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     await test.step('Verify Find Your Home link and navigation', async () => {
       await header.verifyFindYourHomeLinks();
     });
-    // await test.step('Verify About Us link and navigation', async () => {
-    //   await header.verifyAboutUsLinks();
-    // });
   });
 
   /* ==========================================================
@@ -144,6 +141,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
 
     await test.step('Verify plan search result', async () => {
       await planPage.verifySearchByPlan(location.expectedPlanUrlPart);
+      await planPage.verifyPlanUrlContains(location.communityPath);
     });
   });
 

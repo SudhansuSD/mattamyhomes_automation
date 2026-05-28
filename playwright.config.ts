@@ -1,7 +1,14 @@
 import { defineConfig, devices } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
 import process from 'node:process';
 
 const isVsCodePlaywrightRun = Boolean(process.env.PW_TEST_REPORTER);
+const allureResultsDir = path.resolve(__dirname, 'allure-results');
+
+if (!isVsCodePlaywrightRun) {
+  fs.rmSync(allureResultsDir, { recursive: true, force: true });
+}
 
 export default defineConfig({
   testDir: './tests',
@@ -18,7 +25,7 @@ export default defineConfig({
     },
     video: 'retain-on-failure',
   },
-  workers: 3,
+  workers: 1,
   fullyParallel: false,
   timeout: 50 * 60 * 1000,
   projects: [
@@ -34,19 +41,19 @@ export default defineConfig({
     //   name: 'WebKit',
     //   use: { browserName: 'webkit' },
     // },
-    {
-      name: 'Mobile Chrome - Pixel 7',
-      use: {
-        ...devices['Pixel 7'],
-        browserName: 'chromium',
-      },
-    },
-    {
-      name: 'Mobile Safari',
-      use: {
-        browserName: 'webkit',
-      },
-    },
+    // {
+    //   name: 'Mobile Chrome - Pixel 7',
+    //   use: {
+    //     ...devices['Pixel 7'],
+    //     browserName: 'chromium',
+    //   },
+    // },
+    // {
+    //   name: 'Mobile Safari',
+    //   use: {
+    //     browserName: 'webkit',
+    //   },
+    // },
   ],
   reporter: isVsCodePlaywrightRun
     ? [['line']]

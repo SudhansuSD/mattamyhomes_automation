@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 import { BasePage } from './BasePage';
-import { getEnvConfig } from '../config/envConfig';
-import { getLocationConfig, LocationKey } from '../config/locations';
 
 export type CustomerCareArea = {
   name: string;
@@ -205,10 +205,12 @@ export class CustomerCarePage extends BasePage {
       'In the event of total heat or A/C loss',
       'In the event of a plumbing issue'
     ];
-    const pageText = await this.getMainText();
 
     for (const heading of emergencyHeadings) {
-      expect(pageText, `${heading} should be present on the page`).toContain(heading);
+      await expect(
+        this.main.getByRole('heading', { name: new RegExp(`^${this.escapeRegExp(heading)}$`, 'i') }).first(),
+        `${heading} should be present on the page`
+      ).toBeVisible({ timeout: 15000 });
     }
   }
 
@@ -266,21 +268,17 @@ export class CustomerCarePage extends BasePage {
       "We've Got You Covered:",
       'Caring For Your Home'
     ];
-    const pageText = await this.getMainText();
 
     for (const heading of expectedHeadings) {
-      expect(pageText, `${heading} should be present on the page`).toContain(heading);
+      await expect(
+        this.main.getByRole('heading', { name: new RegExp(this.escapeRegExp(heading), 'i') }).first(),
+        `${heading} should be present on the page`
+      ).toBeVisible({ timeout: 15000 });
     }
   }
 
   private getAreaButtons(): Locator {
-    return this.main.locator('button[aria-label^="View contact details of"]');
-  }
-
-  private async getMainText(): Promise<string> {
-    const text = await this.main.innerText({ timeout: 15000 });
-
-    return text.replace(/\s+/g, ' ').trim();
+    return this.main.locator('button[aria-label^="View contact details of"]:visible');
   }
 
   private getAreaButton(areaName: string): Locator {

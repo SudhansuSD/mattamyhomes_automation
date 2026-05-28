@@ -5,12 +5,10 @@
  */
 
 import { test } from '@playwright/test';
+import { getLocationConfig } from '../config/locations/locationConfig';
 import { QMIPage } from '../pages/QMIPage';
-import { getLocationConfig } from '../config/locations';
-import { getEnvConfig } from '../config/envConfig';
 
 const location = getLocationConfig();
-const { envName } = getEnvConfig();
 
 test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   let qmiPage: QMIPage;

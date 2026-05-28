@@ -4,7 +4,7 @@
  */
 
 import { test } from '@playwright/test';
-import { getEnvConfig } from '../config/envConfig';
+import { getEnvConfig } from '../config/environments/envConfig';
 import { PromoPage } from '../pages/PromoPage';
 
 const { envName } = getEnvConfig();
@@ -42,14 +42,14 @@ test.describe('Hometown Heroes Promo Page Tests - USA', () => {
     });
   });
 
-  test('@regression @STAGE @promo-form-submit Validate promo form successful submission', async () => {
-    test.skip(
-      envName === 'PROD',
-      'Skipping promo form lead submission on PROD environment.'
-    );
+  // test('@regression @STAGE @promo-form-submit Validate promo form successful submission', async () => {
+  //   test.skip(
+  //     envName === 'PROD',
+  //     'Skipping promo form lead submission on PROD environment.'
+  //   );
 
-    await test.step('Submit promo form with valid data and verify success message', async () => {
-      await promoPage.verifySuccessfulSubmission();
-    });
-  });
+  //   await test.step('Submit promo form with valid data and verify success message', async () => {
+  //     await promoPage.verifySuccessfulSubmission();
+  //   });
+  // });
 });

@@ -1,6 +1,7 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
+import { escapeRegex, getNormalizedText } from '../utils/pageObjectUtils';
 import { BasePage } from './BasePage';
-import { getEnvConfig } from '../config/envConfig';
 
 export interface MarketConfig {
     name: string;
@@ -71,12 +72,7 @@ export class MarketPage extends BasePage {
     /** Helper: extract a community card title. */
     private async getCommunityCardTitle(card: Locator): Promise<string> {
         const title = card.locator('h2, h3, h4, a div.block, a').first();
-        return (await title.innerText()).trim();
-    }
-
-    /** Helper: escape dynamic text before creating a regular expression. */
-    private escapeRegex(value: string): string {
-        return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return getNormalizedText(title);
     }
 
     /** Helper: build a heading matcher from configured market aliases. */
@@ -86,7 +82,7 @@ export class MarketPage extends BasePage {
             .map((name) => name.trim())
             .filter(Boolean);
         const escapedAliases = aliases.flatMap((name) => {
-            const escapedName = this.escapeRegex(name);
+            const escapedName = escapeRegex(name);
             const andVariant = escapedName.replace(/-/g, '\\s+(?:-|and)\\s+');
 
             return [escapedName, andVariant];
@@ -125,6 +121,25 @@ export class MarketPage extends BasePage {
         }
 
         return this.discoverOurHomesSection.locator('xpath=ancestor::section[1]');
+    }
+
+    /** Helper: return a visible community cards section and prepare it for card assertions. */
+    private async getVisibleCommunitySection(): Promise<Locator | null> {
+        const communitySection = await this.getCommunitySectionIfAvailable();
+
+        if (!communitySection || !(await this.isSectionVisible(communitySection))) {
+            return null;
+        }
+
+        await this.prepareSection(communitySection);
+
+        return communitySection;
+    }
+
+    /** Helper: scroll a section into view and wait for the page to stabilize. */
+    private async prepareSection(section: Locator): Promise<void> {
+        await section.scrollIntoViewIfNeeded();
+        await this.waitForPageReady();
     }
 
     /** Locator: lead form success confirmation message. */
@@ -172,7 +187,7 @@ export class MarketPage extends BasePage {
             await expect(heroImage).toBeVisible();
         }
 
-        const heroText = (await this.heroSection.innerText()).trim();
+        const heroText = await getNormalizedText(this.heroSection);
         expect(heroText, 'Hero should include visible market copy')
             .toBeTruthy();
 
@@ -187,17 +202,12 @@ export class MarketPage extends BasePage {
 
     /** Verify: community cards exist and log their names and URLs. */
     async validateCommunityCards(): Promise<void> {
-        const communitySection = await this.getCommunitySectionIfAvailable();
+        const communitySection = await this.getVisibleCommunitySection();
 
-        const isVisible = !!communitySection && await this.isSectionVisible(communitySection);
-
-        if (!isVisible) {
+        if (!communitySection) {
             console.warn('⚠️ Community Cards section not present');
             return;
         }
-        await communitySection.scrollIntoViewIfNeeded();
-        await this.waitForPageReady();
-
         const cards = this.getCommunityCards(communitySection);
 
         const count = await cards.count();
@@ -221,17 +231,13 @@ export class MarketPage extends BasePage {
 
     /** Verify: each community card has a title, href, and image source when present. */
     async validateCommunityCardDetails(): Promise<void> {
-        const communitySection = await this.getCommunitySectionIfAvailable();
+        const communitySection = await this.getVisibleCommunitySection();
 
-        const isVisible = !!communitySection && await this.isSectionVisible(communitySection);
-
-        if (!isVisible) {
+        if (!communitySection) {
             console.warn('Community Cards section not present');
             return;
         }
 
-        await communitySection.scrollIntoViewIfNeeded();
-        await this.waitForPageReady();
         const cards = this.getCommunityCards(communitySection);
         const count = await cards.count();
         expect(count, 'Market page should list at least one community card')
@@ -256,17 +262,12 @@ export class MarketPage extends BasePage {
 
     /** Verify: first community card navigates to its community page. */
     async validateFirstCommunityCardNavigation(): Promise<void> {
-        const communitySection = await this.getCommunitySectionIfAvailable();
+        const communitySection = await this.getVisibleCommunitySection();
 
-        const isVisible = !!communitySection && await this.isSectionVisible(communitySection);
-
-        if (!isVisible) {
+        if (!communitySection) {
             console.warn('Community Cards section not present');
             return;
         }
-
-        await communitySection.scrollIntoViewIfNeeded();
-        await this.waitForPageReady();
 
         const firstCardLink = this.getCommunityCards(communitySection)
             .first()
@@ -285,7 +286,7 @@ export class MarketPage extends BasePage {
             firstCardLink.click()
         ]);
         await this.waitForPageReady();
-        await expect(this.page).toHaveURL(new RegExp(this.escapeRegex(href!), 'i'));
+        await expect(this.page).toHaveURL(new RegExp(escapeRegex(href!), 'i'));
     }
 
     /* ==========================================================
@@ -295,56 +296,6 @@ export class MarketPage extends BasePage {
     /** Verify: lead form invalid-data behavior for the market page. */
     async validateLeadForm(marketName: string): Promise<void> {
         await this.validateLeadFormInvalidData(marketName);
-        return;
-
-        await this.waitForPageReady();
-
-        const form = this.leadForm.first();
-
-        await expect(form, `Lead form not available on ${marketName}`)
-            .toBeAttached({ timeout: 20000 });
-        await form.scrollIntoViewIfNeeded();
-        await this.waitForPageReady();
-        await expect(form, `Lead form not in viewport on ${marketName}`)
-            .toBeInViewport({ timeout: 10000 });
-        await expect(form, `Lead form not visible on ${marketName}`)
-            .toBeVisible({ timeout: 10000 });
-
-        const fields = {
-            community: form.getByRole('combobox', { name: /Community of Interest/i }),
-            firstName: form.getByRole('textbox', { name: /First name/i }),
-            lastName: form.getByRole('textbox', { name: /Last name/i }),
-            email: form.getByRole('textbox', { name: /^Email/i }),
-            country: form.getByRole('combobox', { name: /Country of Residence/i }),
-            zip: form.getByRole('textbox', { name: /Zip|Postal/i }),
-            phone: form.getByRole('textbox', { name: /Phone/i }),
-            submit: form.getByRole('button', { name: /SUBMIT/i })
-        };
-
-        // Visibility check
-        for (const field of Object.values(fields)) {
-            await expect(field).toBeVisible({ timeout: 10000 });
-        }
-
-        // Select dropdowns
-        await fields.community.selectOption({ index: 1 });
-        await fields.country.selectOption({ index: 1 });
-
-        // Submit to trigger validation
-        await fields.submit.click();
-
-        const errors = [
-            /First name.*Required/i,
-            /Last name.*Required/i,
-            /Email.*Required/i,
-            /Zip.*Required/i
-        ];
-
-        for (const error of errors) {
-            await expect(form.getByText(error)).toBeVisible();
-        }
-
-        console.log(`✅ Lead form validation successful: ${marketName}`);
     }
 
     /** Helper: return the visible market lead form when available. */
@@ -383,6 +334,19 @@ export class MarketPage extends BasePage {
         };
     }
 
+    /** Helper: assert every market lead form field is visible. */
+    private async expectLeadFormFieldsVisible(fields: ReturnType<MarketPage['getLeadFormFields']>): Promise<void> {
+        for (const field of Object.values(fields)) {
+            await expect(field).toBeVisible({ timeout: 10000 });
+        }
+    }
+
+    /** Helper: select the standard required dropdown values on the market lead form. */
+    private async selectDefaultLeadFormOptions(fields: ReturnType<MarketPage['getLeadFormFields']>): Promise<void> {
+        await fields.community.selectOption({ index: 1 });
+        await fields.country.selectOption({ index: 1 });
+    }
+
     /** Verify: market lead form rejects invalid email data. */
     async validateLeadFormInvalidData(marketName: string): Promise<void> {
         const form = await this.getAvailableLeadForm(marketName);
@@ -393,12 +357,8 @@ export class MarketPage extends BasePage {
 
         const fields = this.getLeadFormFields(form);
 
-        for (const field of Object.values(fields)) {
-            await expect(field).toBeVisible({ timeout: 10000 });
-        }
-
-        await fields.community.selectOption({ index: 1 });
-        await fields.country.selectOption({ index: 1 });
+        await this.expectLeadFormFieldsVisible(fields);
+        await this.selectDefaultLeadFormOptions(fields);
         await fields.firstName.fill('Test');
         await fields.lastName.fill('User');
         await fields.email.fill('user@domain.c');
@@ -423,12 +383,8 @@ export class MarketPage extends BasePage {
 
         const fields = this.getLeadFormFields(form);
 
-        for (const field of Object.values(fields)) {
-            await expect(field).toBeVisible({ timeout: 10000 });
-        }
-
-        await fields.community.selectOption({ index: 1 });
-        await fields.country.selectOption({ index: 1 });
+        await this.expectLeadFormFieldsVisible(fields);
+        await this.selectDefaultLeadFormOptions(fields);
         await fields.firstName.fill('Sudhansu');
         await fields.lastName.fill('Das');
         await fields.email.fill(`ssdas+market${Date.now()}@ex2india.com`);
@@ -474,7 +430,7 @@ export class MarketPage extends BasePage {
         for (let i = 0; i < count; i++) {
             const link = links.nth(i);
             await this.waitForPageReady();
-            const text = (await link.innerText()).trim();
+            const text = await getNormalizedText(link);
             const href = await link.getAttribute('href');
             expect(href).toBeTruthy();
             const normalizedText = text.toLowerCase();

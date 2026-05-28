@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 import { BasePage } from './BasePage';
-import { getEnvConfig } from '../config/envConfig';
-import { getLocationConfig, LocationKey } from '../config/locations';
 
 export type ContactOfficeEmail = {
   label: string;
@@ -29,7 +29,6 @@ export const CONTACT_COUNTRIES: readonly ContactCountryConfig[] = [
     expectedTitle: /Contact \| Mattamy Homes/i,
     areas: [
       { name: 'CHARLOTTE, NC', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
-      { name: 'CLOVER, SC', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
       { name: 'DALLAS-FORT WORTH, TX', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
       { name: 'FORT LAUDERDALE, FL', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
       { name: 'JACKSONVILLE-ST. AUGUSTINE, FL', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
@@ -40,7 +39,6 @@ export const CONTACT_COUNTRIES: readonly ContactCountryConfig[] = [
       { name: 'PHOENIX, AZ', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
       { name: 'PORT ST. LUCIE, FL', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
       { name: 'RALEIGH, NC', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
-      { name: 'ROCK HILL, SC', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
       { name: 'SARASOTA-BRADENTON, FL', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
       { name: 'TAMPA, FL', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] },
       { name: 'TUCSON, AZ', detailActions: ['CUSTOMER CARE', 'NEW HOME GALLERY', 'DESIGN STUDIO'] }

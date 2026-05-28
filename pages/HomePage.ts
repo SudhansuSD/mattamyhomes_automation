@@ -1,7 +1,8 @@
-import { Page, Locator, expect } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationConfig } from '../config/locations/locationConfig';
+import { escapeRegex, isLocatorVisible } from '../utils/pageObjectUtils';
 import { BasePage } from './BasePage';
-import { getLocationConfig } from '../config/locations';
-import { getEnvConfig } from '../config/envConfig';
 
 type SearchType = 'market' | 'community' | 'plan' | 'qmi';
 type HeroVideoState = {
@@ -66,7 +67,6 @@ export class HomePage extends BasePage {
 
   async verifyPageLoaded(): Promise<void> {
     await this.waitForPageReady();
-    await this.heroSection.waitFor({ state: 'visible', timeout: 30000 });
     await expect(this.page).toHaveTitle(/Mattamy Homes/i);
   }
 
@@ -207,6 +207,10 @@ export class HomePage extends BasePage {
       const searchBox = this.visibleSearchBox;
 
       if (!await this.isSearchBoxVisible(searchBox)) {
+        if (await this.recoverSearchBoxVisibility(attempt)) {
+          continue;
+        }
+
         if (searchType === 'market') {
           console.log(`Search input not visible - navigating directly to market search for: ${value}`);
           await this.navigateToMarketSearchResults(value);
@@ -226,9 +230,9 @@ export class HomePage extends BasePage {
         await searchBox.type(char, { delay: 300 });
         await this.page.waitForTimeout(500);
 
-        const matchedResult = await this.getSearchResult(value, searchType);
+        const matchedResult = await this.getSearchResult(typedValue, searchType);
 
-        if (await matchedResult.isVisible().catch(() => false)) {
+        if (await isLocatorVisible(matchedResult)) {
           console.log(`✅ Match found after typing: ${typedValue}`);
           const previousUrl = this.page.url();
           const href = await matchedResult.getAttribute('href');
@@ -292,6 +296,32 @@ export class HomePage extends BasePage {
     await searchBox.fill('');
   }
 
+  private async recoverSearchBoxVisibility(attempt: number): Promise<boolean> {
+    await this.page.keyboard.press('Home').catch(() => undefined);
+
+    const searchToggle = this.page.getByRole('button', { name: /search/i }).first();
+    if (await searchToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await searchToggle.click({ force: true }).catch(() => undefined);
+      if (await this.isSearchBoxVisible(this.visibleSearchBox)) {
+        return true;
+      }
+    }
+
+    if (attempt <= this.SEARCH_MAX_ATTEMPTS) {
+      console.log(`Search input not visible on attempt ${attempt}; reloading home page before retry`);
+      await this.page.reload({
+        waitUntil: 'domcontentloaded',
+        timeout: 90_000
+      });
+      await this.acceptCookiesIfPresent();
+      await this.waitForPageReady();
+
+      return this.isSearchBoxVisible(this.visibleSearchBox);
+    }
+
+    return false;
+  }
+
   private async navigateToMarketSearchResults(market: string): Promise<void> {
     const location = getLocationConfig();
     const { baseURL } = getEnvConfig();
@@ -315,7 +345,7 @@ export class HomePage extends BasePage {
   private async getSearchResult(value: string, searchType?: SearchType): Promise<Locator> {
     const primaryMatch = this.getSearchResultFromLocator(this.primarySearchResults, value, searchType);
 
-    if (await primaryMatch.isVisible().catch(() => false)) {
+    if (await isLocatorVisible(primaryMatch)) {
       return primaryMatch;
     }
 
@@ -328,42 +358,50 @@ export class HomePage extends BasePage {
     searchType?: SearchType
   ): Locator {
     const matchedResults = searchResults.filter({
-      hasText: new RegExp(this.escapeRegExp(value), 'i')
+      hasText: new RegExp(escapeRegex(value), 'i')
     });
 
     if (searchType === 'market') {
       return matchedResults
         .filter({
-          hasText: new RegExp(`^\\s*${this.escapeRegExp(value)}\\s*$`, 'i')
+          hasText: new RegExp(`^\\s*${escapeRegex(value)}\\s*$`, 'i')
         })
         .first()
         .or(matchedResults.first());
+    }
+
+    if (searchType === 'plan') {
+      const preferredPlanPath = this.getPreferredPlanPath();
+      const preferredPlanLink = preferredPlanPath
+        ? this.page
+          .locator(`a[href*="${preferredPlanPath}"]:visible`)
+          .filter({ hasText: new RegExp(escapeRegex(value), 'i') })
+          .first()
+        : this.page.locator('a[href="__no_preferred_plan_path__"]:visible').first();
+
+      return preferredPlanLink;
+    }
+
+    if (searchType === 'community') {
+      const location = getLocationConfig();
+      return this.page
+        .locator(`a[href*="${location.communityPath}"]:visible`)
+        .filter({ hasText: new RegExp(escapeRegex(value), 'i') })
+        .first();
     }
 
     if (searchType !== 'qmi') {
       return matchedResults.first();
     }
 
-    const addressSlug = this.normalizeText(value)
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    const location = getLocationConfig();
     const qmiAddressLink = this.page
-      .locator(`a[href*="${addressSlug}"]:visible`)
-      .filter({ hasText: new RegExp(this.escapeRegExp(value), 'i') })
+      .locator(`a[href*="${location.qmiPath}"]:visible`)
+      .filter({ hasText: new RegExp(escapeRegex(location.qmiAddress), 'i') })
       .first();
 
-    return qmiAddressLink.or(matchedResults.first());
+    return qmiAddressLink;
   }
-
-  private escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  /* ==========================================================
-     HELPERS
-  ========================================================== */
-
-
 
   /* ==========================================================
      MARKET SEARCH
@@ -393,7 +431,7 @@ export class HomePage extends BasePage {
   ========================================================== */
 
   async searchByCommunity(community: string): Promise<void> {
-    await this.search(community);
+    await this.search(community, 'community');
   }
 
   /* ==========================================================
@@ -409,7 +447,21 @@ export class HomePage extends BasePage {
   ========================================================== */
 
   async searchByPlan(planName: string): Promise<void> {
-    await this.search(planName);
+    await this.search(planName, 'plan');
+  }
+
+  private getPreferredPlanPath(): string {
+    const location = getLocationConfig();
+    const communityPath = location.communityPath.replace(/\/$/, '');
+    const expectedPlanPath = location.expectedPlanUrlPart.startsWith('/')
+      ? location.expectedPlanUrlPart
+      : `/${location.expectedPlanUrlPart}`;
+
+    if (expectedPlanPath.startsWith(`${communityPath}/`)) {
+      return expectedPlanPath.toLowerCase();
+    }
+   
+    return `${communityPath}/${expectedPlanPath.replace(/^\/+/, '')}`.toLowerCase();
   }
   /* ==========================================================
       MARKET CARD UI AND LINK VALIDATION

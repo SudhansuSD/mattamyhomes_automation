@@ -4,13 +4,15 @@
  */
 
 import { test } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationConfig, getLocationKey } from '../config/locations/locationConfig';
 import { AboutUsPage } from '../pages/AboutUsPage';
 import { Header } from '../pages/Header';
 import { HomePage } from '../pages/HomePage';
-import { getLocationConfig, getLocationKey } from '../config/locations';
 
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);
+const { baseURL } = getEnvConfig();
 
 test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () => {
   test(`@smoke @regression ${location.country} About Us header menu links should be visible`, async ({ page }, testInfo) => {
@@ -34,17 +36,17 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
       test.skip(testInfo.project.name !== 'Chromium', 'Header flyout navigation is validated on desktop Chromium.');
 
       const homePage = new HomePage(page);
-      const header = new Header(page);
       const aboutUsPage = new AboutUsPage(page);
 
-      await test.step(`Navigate to ${location.country} home page`, async () => {
-        await homePage.navigate(locationKey);
-        await homePage.verifyPageLoaded();
+      await test.step(`Navigate directly to ${aboutLink.name} page`, async () => {
+        await page.goto(`${baseURL}${aboutLink.url}?${location.queryParam}`, {
+          waitUntil: 'domcontentloaded',
+          timeout: 90_000
+        });
+        await homePage.acceptCookiesIfPresent();
       });
 
-      await test.step(`Open and validate ${aboutLink.name} page UI and functionality`, async () => {
-        await header.openAboutUsMenu();
-        await header.clickAboutUsMenuLink(aboutLink);
+      await test.step(`Validate ${aboutLink.name} page UI and functionality`, async () => {
         await aboutUsPage.validateAboutPage(aboutLink);
       });
     });

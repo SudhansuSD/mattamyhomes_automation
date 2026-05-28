@@ -14,3 +14,8 @@ node_modules/
 */formSubmissionEvidence.spec.ts
 */allure-results/
 */allure-report/
+test_cases_checklist.csv
+*/pasadenaRidge404.spec.ts
+local.log 
+debug.log 
+manual-tests.md 

@@ -1,7 +1,7 @@
-import { Page, expect, Locator } from '@playwright/test';
+import { expect, Locator, Page } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationConfig } from '../config/locations/locationConfig';
 import { HomePage } from '../pages/HomePage';
-import { getEnvConfig } from '../config/envConfig';
-import { getLocationConfig } from '../config/locations';
 
 type ResultsTab = 'Communities' | 'Plans' | 'Quick Move-Ins';
 type SortOrder = 'asc' | 'desc';

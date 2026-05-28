@@ -1,6 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
 import { BasePage } from './BasePage';
-import { getEnvConfig } from '../config/envConfig';
 
 export type StaticLegalPageLink = {
   label: string;

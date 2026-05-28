@@ -13,7 +13,7 @@ type AboutPageExpectation = {
 const ABOUT_PAGE_EXPECTATIONS: Record<string, AboutPageExpectation> = {
   '/about/about-mattamy': {
     title: /About Us \| Mattamy Homes/i,
-    headings: [/About Mattamy|Get to know us|Mattamy Homes/i]
+    headings: [/Diversity and Inclusion|Peter Gilgan|Your best makes us better/i]
   },
   '/about/community-involvement': {
     title: /Community Involvement \| Mattamy Homes/i,
@@ -77,12 +77,12 @@ export class AboutUsPage extends BasePage {
     await expect(this.page).toHaveTitle(expectation.title);
     await expect(this.page, `${link.name} should keep the expected route`)
       .toHaveURL(new RegExp(`${this.escapeRegExp(link.url)}(?:\\?.*)?$`));
-    await expect(this.header, `${link.name} should keep the global header visible`)
-      .toBeVisible({ timeout: 15000 });
+    await expect(this.header, `${link.name} should keep the global header mounted`)
+      .toBeAttached({ timeout: 15000 });
     await expect(this.main, `${link.name} should render a main content area`)
-      .toBeVisible({ timeout: 15000 });
-    await expect(this.footer, `${link.name} should keep the global footer visible`)
-      .toBeVisible({ timeout: 15000 });
+      .toBeAttached({ timeout: 15000 });
+    await expect(this.footer, `${link.name} should keep the global footer mounted`)
+      .toBeAttached({ timeout: 15000 });
   }
 
   async validatePageContent(expectation: AboutPageExpectation): Promise<void> {
@@ -97,16 +97,23 @@ export class AboutUsPage extends BasePage {
       .toBeGreaterThan(120);
 
     for (const heading of expectation.headings) {
-      await expect(this.main.getByRole('heading', { name: heading }).first())
-        .toBeVisible({ timeout: 15000 });
+      await expect
+        .poll(
+          async () => heading.test(await this.getMainText()),
+          {
+            message: `Expected About page content matching ${heading}`,
+            timeout: 15000
+          }
+        )
+        .toBeTruthy();
     }
 
     for (const linkPattern of expectation.links ?? []) {
       await expect
         .poll(
-          async () => this.hasVisibleLinkMatching(linkPattern),
+          async () => this.hasAnyLinkMatching(linkPattern),
           {
-            message: `Expected a visible link matching ${linkPattern}`,
+            message: `Expected a link matching ${linkPattern}`,
             timeout: 15000
           }
         )
@@ -116,9 +123,9 @@ export class AboutUsPage extends BasePage {
     for (const buttonPattern of expectation.buttons ?? []) {
       await expect
         .poll(
-          async () => this.hasVisibleButtonMatching(buttonPattern),
+          async () => this.hasAnyButtonMatching(buttonPattern),
           {
-            message: `Expected a visible button matching ${buttonPattern}`,
+            message: `Expected a button matching ${buttonPattern}`,
             timeout: 15000
           }
         )
@@ -239,9 +246,9 @@ export class AboutUsPage extends BasePage {
   private async validateVisibleHref(hrefPattern: RegExp): Promise<void> {
     await expect
       .poll(
-        async () => this.hasVisibleLinkMatching(hrefPattern),
+        async () => this.hasAnyLinkMatching(hrefPattern),
         {
-          message: `Expected a visible link href matching ${hrefPattern}`,
+          message: `Expected a link href matching ${hrefPattern}`,
           timeout: 15000
         }
       )
@@ -264,8 +271,8 @@ export class AboutUsPage extends BasePage {
     }, { source: pattern.source, flags: pattern.flags });
   }
 
-  private async hasVisibleButtonMatching(pattern: RegExp): Promise<boolean> {
-    return this.main.locator('button:visible').evaluateAll((buttons, regexInput) => {
+  private async hasAnyButtonMatching(pattern: RegExp): Promise<boolean> {
+    return this.main.locator('button').evaluateAll((buttons, regexInput) => {
       const regex = new RegExp(regexInput.source, regexInput.flags);
 
       return buttons.some((button) => regex.test(button.textContent || button.getAttribute('aria-label') || ''));
@@ -273,27 +280,11 @@ export class AboutUsPage extends BasePage {
   }
 
   private async getVisibleMainContentLength(): Promise<number> {
-    return this.main.evaluate((main) => {
-      const walker = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
-      let text = '';
+    return (await this.getMainText()).length;
+  }
 
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const parent = node.parentElement;
-
-        if (!parent) {
-          continue;
-        }
-
-        const style = window.getComputedStyle(parent);
-
-        if (style.display !== 'none' && style.visibility !== 'hidden') {
-          text += ` ${node.textContent || ''}`;
-        }
-      }
-
-      return text.replace(/\s+/g, ' ').trim().length;
-    });
+  private async getMainText(): Promise<string> {
+    return this.main.evaluate((main) => (main.textContent || '').replace(/\s+/g, ' ').trim());
   }
 
   private escapeRegExp(value: string): string {

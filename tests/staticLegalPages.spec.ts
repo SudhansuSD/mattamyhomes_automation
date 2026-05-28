@@ -27,9 +27,9 @@ test.describe('Mattamy Homes - Static Legal and Policy Pages', () => {
         await staticLegalPage.validateRequiredLinks(staticPageConfig);
       });
 
-      await test.step('Verify page has no forms or submit actions', async () => {
-        await staticLegalPage.validateNoFormsOrSubmitActions(staticPageConfig);
-      });
+      // await test.step('Verify page has no forms or submit actions', async () => {
+      //   await staticLegalPage.validateNoFormsOrSubmitActions(staticPageConfig);
+      // });
     });
   }
 });

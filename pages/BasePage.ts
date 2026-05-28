@@ -1,6 +1,6 @@
-import { Page, Locator, expect } from '@playwright/test';
-import { getEnvConfig } from '../config/envConfig';
-import { getLocationConfig, LocationKey } from '../config/locations';
+import { expect, Locator, Page } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 
 /* ==========================================================
    Base Page – Shared Navigation & Common Utilities

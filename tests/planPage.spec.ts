@@ -5,7 +5,7 @@
  */
 
 import { test } from '@playwright/test';
-import { getLocationConfig } from '../config/locations';
+import { getLocationConfig } from '../config/locations/locationConfig';
 import { PlanDetailPage } from '../pages/PlanDetailPage';
 
 const location = getLocationConfig();
@@ -21,10 +21,14 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
   test.beforeEach(async ({ page }) => {
     planPage = new PlanDetailPage(page);
 
-    await test.step('Navigate to Plan Detail page', async () => {
+    await test.step('Search Plan from Home Page', async () => {
       await planPage.navigate();
       await planPage.searchByPlan(location.planName);
+    });
+
+    await test.step('Validate searched Plan Detail page', async () => {
       await planPage.verifySearchByPlan(location.expectedPlanUrlPart);
+      await planPage.verifyPlanUrlContains(location.communityPath);
       await planPage.verifyPageLoaded();
     });
   });
