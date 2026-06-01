@@ -19,3 +19,5 @@ test_cases_checklist.csv
 local.log 
 debug.log 
 manual-tests.md 
+*.log
+*/generated.spec.ts
