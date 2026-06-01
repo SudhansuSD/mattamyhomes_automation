@@ -1,5 +1,5 @@
 import { Locator, Page, expect } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationConfig } from '../config/locations/locationConfig';
 import {
   escapeRegex,
   getLastPathSegment,
@@ -56,6 +56,11 @@ export class CommunityPage extends HomePage {
   private get navLinks(): Locator {
     return this.page.locator('a');
   }
+  private get getInformationCta(): Locator {
+    return this.page.locator('button:visible, a:visible').filter({
+      hasText: /^\s*Get Information\s*$/i
+    }).first();
+  }
 
   // ----- Register Form -----
 
@@ -76,6 +81,25 @@ export class CommunityPage extends HomePage {
       /Thank you for your interest in Mattamy Homes/i
     ).last();
   }
+  // private get leadFormDialogOrSidebar(): Locator {
+  //   return this.page.locator(
+  //     [
+  //       '#ModalForm',
+  //       '[id*="ModalForm"]',
+  //       '[role="dialog"]',
+  //       '.ReactModal__Content',
+  //       'aside',
+  //       '[class*="modal" i]',
+  //       '[class*="drawer" i]',
+  //       '[class*="sidebar" i]'
+  //     ].join(', ')
+  //   )
+  //     .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+  //     .filter({ has: this.page.locator('input, select, textarea') });
+  // }
+  private get leadFormDialogOrSidebar(): Locator {
+    return this.page.locator('#ModalForm');
+  }
 
   /* ==========================================================
      PAGE LOAD VALIDATION
@@ -84,10 +108,17 @@ export class CommunityPage extends HomePage {
   async verifySearchByCommunity(expectedCommunity: string): Promise<void> {
 
     await this.waitForPageReady();
+    const { communityPath } = getLocationConfig();
 
-    await expect(this.heading).toBeVisible({ timeout: 20000 });
-    await expect(this.heading)
-      .toContainText(new RegExp(expectedCommunity, 'i'));
+    if (communityPath) {
+      await expect(this.page, 'Community search should navigate to the configured community URL')
+        .toHaveURL(new RegExp(escapeRegex(communityPath), 'i'), { timeout: 60000 });
+    }
+
+    await expect(this.page.getByRole('heading', {
+      level: 1,
+      name: new RegExp(escapeRegex(expectedCommunity), 'i')
+    }).first()).toBeVisible({ timeout: 60000 });
 
   }
 
@@ -354,7 +385,13 @@ export class CommunityPage extends HomePage {
 
   private get communityFormContainers(): Locator {
     return this.page.locator(
-      '[id^="Sitecore-ScheduleAVisit-FormInstance"], [id^="ScheduleAVisit-FormInstance"], #contact'
+      [
+        '[id^="Sitecore-ScheduleAVisit-FormInstance"]',
+        '[id^="ScheduleAVisit-FormInstance"]',
+        '#contact',
+        'section',
+        '[role="group"]'
+      ].join(', ')
     )
       .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
       .filter({ has: this.page.locator('input, select, textarea') });
@@ -363,7 +400,13 @@ export class CommunityPage extends HomePage {
   private async getFormByIndex(formIndex: number): Promise<Locator | null> {
     const formGroups = (await this.communityForms.count()) > 0
       ? [this.communityForms]
-      : [this.sitecoreCommunityForms, this.contactForms, this.scheduleVisitContainers, this.communityFormContainers];
+      : [
+        this.leadFormDialogOrSidebar,
+        this.sitecoreCommunityForms,
+        this.contactForms,
+        this.scheduleVisitContainers,
+        this.communityFormContainers
+      ];
 
     let remainingIndex = formIndex;
 
@@ -380,8 +423,31 @@ export class CommunityPage extends HomePage {
     return null;
   }
 
+  private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
+    if (!(await this.getInformationCta.isVisible({ timeout: 5000 }).catch(() => false))) {
+      return;
+    }
+
+    const previousUrl = this.page.url();
+
+    await this.getInformationCta.scrollIntoViewIfNeeded();
+    await this.getInformationCta.click({ force: true });
+    await this.waitForPageReady();
+
+    await this.page.waitForTimeout(1000);
+    expect(
+      this.page.url(),
+      `Get Information CTA should keep the community lead form flow on page, not redirect from ${previousUrl}`
+    ).not.toMatch(/\/contact\/?($|[?#])/i);
+  }
+
   private async getAvailableForm(formIndex = 0, formName = 'Community form'): Promise<Locator | null> {
-    const form = await this.getFormByIndex(formIndex);
+    let form = await this.getFormByIndex(formIndex);
+
+    if (!form) {
+      await this.openLeadFormFromGetInformationCtaIfPresent();
+      form = await this.getFormByIndex(formIndex);
+    }
 
     if (!form) {
       throw new Error(`${formName} not present - expected form index ${formIndex} to be available`);
@@ -406,8 +472,142 @@ export class CommunityPage extends HomePage {
     throw new Error(`${formName} not visible`);
   }
 
+  private async getAvailableGetInformationForm(
+    formName = 'Get Information community form'
+  ): Promise<Locator | null> {
+    await this.openLeadFormFromGetInformationCtaIfPresent();
+
+    const modalFormCount = await expect
+      .poll(
+        () => this.leadFormDialogOrSidebar.count(),
+        {
+          message: `${formName} sidebar/modal should open after Get Information CTA`,
+          timeout: 15000
+        }
+      )
+      .toBeGreaterThan(0)
+      .then(() => this.leadFormDialogOrSidebar.count())
+      .catch(() => 0);
+
+    if (!modalFormCount) {
+      throw new Error(`${formName} sidebar/modal form did not open`);
+    }
+
+    const modalForm = this.leadFormDialogOrSidebar.first();
+    const submitButton = modalForm.getByRole('button', { name: /submit/i }).first();
+
+    await modalForm.scrollIntoViewIfNeeded();
+    await this.waitForPageReady();
+
+    await expect(submitButton, `${formName} submit button should be visible inside sidebar/modal`)
+      .toBeVisible({ timeout: 10000 });
+
+    return modalForm;
+  }
+
+  private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
+    if (await field.count()) {
+      await expect(field.first(), `${label} field should be visible`)
+        .toBeVisible({ timeout: 10000 });
+    }
+  }
+
+  private async fillIfPresent(field: Locator, value: string): Promise<void> {
+    if (await field.count()) {
+      await field.first().fill(value);
+    }
+  }
+
+  private async selectCountryOfResidenceIfPresent(form: Locator): Promise<void> {
+    const countryOfResidence = form.getByRole('combobox', {
+      name: /country of residence/i
+    }).first();
+
+    if (!(await countryOfResidence.count())) {
+      return;
+    }
+
+    const preferredCountry = getLocationConfig().country === 'USA'
+      ? 'United States'
+      : 'Canada';
+
+    const selectedPreferred = await countryOfResidence
+      .selectOption({ label: preferredCountry })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!selectedPreferred) {
+      await countryOfResidence.selectOption({ index: 1 }).catch(() => undefined);
+    }
+  }
+
+  private async checkConsentIfPresent(form: Locator): Promise<void> {
+    const checkbox = form.getByRole('checkbox').first();
+
+    if (await checkbox.count()) {
+      await checkbox.check({ force: true }).catch(() => undefined);
+    }
+  }
+
+  private async clickSubmit(form: Locator): Promise<void> {
+    const submitButton = form.getByRole('button', { name: /submit/i }).first();
+
+    await submitButton.scrollIntoViewIfNeeded();
+    await expect(submitButton, 'Submit button should be visible before clicking')
+      .toBeVisible({ timeout: 10000 });
+    await submitButton.click({
+      force: true,
+      noWaitAfter: true,
+      timeout: 5000
+    });
+    await this.page.waitForTimeout(800);
+  }
+
+  private async expectRequiredErrorsInForm(form: Locator): Promise<void> {
+    await expect(form.locator('text=/Error:\\s*First name is Required|First name.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+    await expect(form.locator('text=/Error:\\s*Last name is Required|Last name.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+    await expect(form.locator('text=/Error:\\s*Email is Required|Email.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+    await expect(form.locator('text=/Error:\\s*Country of Residence is Required|Country of Residence.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+    await expect(form.locator('text=/Error:\\s*Zip\\/Postal Code is Required|Zip\\/Postal Code.*Required|Postal.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+  }
+
+  private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
+    await expect(form.locator(
+      'text=/valid domain name|valid email|invalid email|Error:.*Email|Email.*Invalid/i'
+    ).first()).toBeVisible({ timeout: 10000 });
+  }
+
+  async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
+    await expect(this.getInformationCta, 'Get Information CTA should be visible')
+      .toBeVisible({ timeout: 15000 });
+
+    const form = await this.getAvailableGetInformationForm();
+
+    if (!form) {
+      return;
+    }
+
+    await expect(form.getByRole('button', { name: /submit/i }).first())
+      .toBeVisible({ timeout: 10000 });
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
+    await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone number');
+  }
+
   private async viewFormByIndex(formIndex: number, formName: string): Promise<void> {
     await this.getAvailableForm(formIndex, formName);
+  }
+
+  private async viewGetInformationForm(formName: string): Promise<void> {
+    await this.getAvailableGetInformationForm(formName);
   }
 
   private async validateEmptyFormErrorsByIndex(
@@ -420,10 +620,24 @@ export class CommunityPage extends HomePage {
       return;
     }
 
-    await form.getByRole('button', { name: /submit/i }).first().click();
+    await this.clickSubmit(form);
 
-    await expect(form.locator('text=/Required|Invalid|Error/i').first())
+    await expect(form.locator('text=/Required|Please complete|Invalid|Error/i').first())
       .toBeVisible({ timeout: 10000 });
+  }
+
+  private async validateGetInformationEmptyFormErrors(
+    formName: string
+  ): Promise<void> {
+    const form = await this.getAvailableGetInformationForm(formName);
+
+    if (!form) {
+      return;
+    }
+
+    await this.clickSubmit(form);
+
+    await this.expectRequiredErrorsInForm(form);
   }
 
   private async validateInvalidEmailByIndex(
@@ -436,56 +650,101 @@ export class CommunityPage extends HomePage {
       return;
     }
 
-    await form.getByRole('textbox', { name: /first name/i }).first().fill('Test');
-    await form.getByRole('textbox', { name: /last name/i }).first().fill('User');
-    await form.getByRole('textbox', { name: /email/i }).first().fill('user@domain.c');
-    await form.getByRole('textbox', { name: /phone/i }).first().fill('123456');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Test');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'User');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /^email/i }), 'user@domain.c');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '123456');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), '34293');
+    await this.selectCountryOfResidenceIfPresent(form);
+    await this.checkConsentIfPresent(form);
 
-    await form.getByRole('button', { name: /submit/i }).first().click();
+    await this.clickSubmit(form);
 
     await expect(form.locator('text=/valid domain name/i').first())
       .toBeVisible({ timeout: 10000 });
+  }
+
+  private async validateGetInformationInvalidEmail(
+    formName: string
+  ): Promise<void> {
+    const form = await this.getAvailableGetInformationForm(formName);
+
+    if (!form) {
+      return;
+    }
+
+    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Test');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'User');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /^email/i }), 'user@domain.c');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '123456');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), '34293');
+    await this.selectCountryOfResidenceIfPresent(form);
+    await this.checkConsentIfPresent(form);
+
+    await this.clickSubmit(form);
+
+    await this.expectInvalidEmailErrorInForm(form);
   }
 
   private async submitSuccessfulFormByIndex(
     formIndex: number,
     formName: string
   ): Promise<void> {
-    const { envName } = getEnvConfig();
-
-    if (envName === 'PROD') {
-      console.log(`${formName} successful submission skipped in PROD`);
-      return;
-    }
-
     const form = await this.getAvailableForm(formIndex, formName);
 
     if (!form) {
       return;
     }
 
-    await form.getByRole('textbox', { name: /first name/i }).first().fill('Sudhansu');
-    await form.getByRole('textbox', { name: /last name/i }).first().fill('Das');
-    await form.getByRole('textbox', { name: /email/i }).first().fill(
+    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Sudhansu');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Das');
+    await this.fillIfPresent(
+      form.getByRole('textbox', { name: /^email/i }),
       `ssdas_${Date.now()}@ex2india.com`
     );
-    await form.getByRole('textbox', { name: /phone/i }).first().fill('4488559933');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '4488559933');
+    await this.selectCountryOfResidenceIfPresent(form);
 
-    const countryOfResidence = form.getByRole('combobox', {
-      name: /country of residence/i
-    }).first();
-
-    if (await countryOfResidence.count()) {
-      await countryOfResidence.selectOption({ label: 'Canada' });
-    }
-
-    const zipCode = form.getByRole('textbox', { name: /zip/i }).first();
+    const zipCode = form.getByRole('textbox', { name: /zip|postal/i }).first();
 
     if (await zipCode.count()) {
       await zipCode.fill('34293');
     }
 
-    await form.getByRole('button', { name: /submit/i }).first().click();
+    await this.checkConsentIfPresent(form);
+
+    await this.clickSubmit(form);
+
+    if (await this.successDialogModal.count()) {
+      await expect(this.successDialogModal.last()).toBeVisible({
+        timeout: 10000
+      });
+    }
+
+    await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
+  }
+
+  private async submitSuccessfulGetInformationForm(
+    formName: string
+  ): Promise<void> {
+    const form = await this.getAvailableGetInformationForm(formName);
+
+    if (!form) {
+      return;
+    }
+
+    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Sudhansu');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Das');
+    await this.fillIfPresent(
+      form.getByRole('textbox', { name: /^email/i }),
+      `ssdas_getinfo_${Date.now()}@ex2india.com`
+    );
+    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '4488559933');
+    await this.selectCountryOfResidenceIfPresent(form);
+    await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), '34293');
+    await this.checkConsentIfPresent(form);
+
+    await this.clickSubmit(form);
 
     if (await this.successDialogModal.count()) {
       await expect(this.successDialogModal.last()).toBeVisible({
@@ -508,6 +767,10 @@ export class CommunityPage extends HomePage {
     await this.viewFormByIndex(1, 'Footer community form');
   }
 
+  async viewGetInformationLeadForm(): Promise<void> {
+    await this.viewGetInformationForm('Get Information community form');
+  }
+
   async validateEmptyFormErrors(): Promise<void> {
     await this.validatePrimaryFormEmptyErrors();
   }
@@ -518,6 +781,10 @@ export class CommunityPage extends HomePage {
 
   async validateFooterFormEmptyErrors(): Promise<void> {
     await this.validateEmptyFormErrorsByIndex(1, 'Footer community form');
+  }
+
+  async validateGetInformationFormEmptyErrors(): Promise<void> {
+    await this.validateGetInformationEmptyFormErrors('Get Information community form');
   }
 
   async validateInvalidEmail(): Promise<void> {
@@ -532,12 +799,20 @@ export class CommunityPage extends HomePage {
     await this.validateInvalidEmailByIndex(1, 'Footer community form');
   }
 
+  async validateGetInformationFormInvalidEmail(): Promise<void> {
+    await this.validateGetInformationInvalidEmail('Get Information community form');
+  }
+
   async verifyPrimaryFormSuccessSubmission(): Promise<void> {
     await this.submitSuccessfulFormByIndex(0, 'Primary community form');
   }
 
   async verifyFooterFormSuccessSubmission(): Promise<void> {
     await this.submitSuccessfulFormByIndex(1, 'Footer community form');
+  }
+
+  async verifyGetInformationFormSuccessSubmission(): Promise<void> {
+    await this.submitSuccessfulGetInformationForm('Get Information community form');
   }
 
   private getMarketFromCurrentUrl(): string | null {

@@ -1,8 +1,10 @@
 import { test } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { MPCConfig, MPCPage } from '../pages/MPCPage';
 
 const location = getLocationConfig();
+const { envName } = getEnvConfig();
 const mpc = location.country === 'USA' && 'mpc' in location
   ? location.mpc as MPCConfig
   : undefined;
@@ -66,20 +68,47 @@ test.describe(`MPC page tests - ${location.country}`, () => {
     });
   });
 
-  test.describe('Community Update Form', () => {
-    test('@sanity Validate community update form fields', async () => {
+  /* ==========================================================
+     FORM VALIDATION
+  ========================================================== */
+
+  test.describe('Form Validation', () => {
+    
+    /**********Modal form Validation**********/
+
+    test('@sanity Validate Get Information CTA opens MPC lead form', async () => {
+      await mpcPage.verifyGetInformationCtaOpensLeadForm();
+    });
+
+    test('@sanity Validate Get Information form required field errors', async () => {
+      await mpcPage.validateGetInformationFormEmptyErrors();
+    });
+
+    test('@sanity Validate Get Information form invalid email format', async () => {
+      await mpcPage.validateGetInformationFormInvalidEmail();
+    });
+
+    // test('@regression @STAGE Validate Get Information form successful submission', async () => {
+    //   test.skip(envName === 'PROD', 'Skipping Get Information form lead submission on PROD environment.');
+    //   await mpcPage.verifyGetInformationFormSuccessSubmission();
+    // });
+
+    /**********Community Update form Validation**********/
+
+    test('@sanity Validate MPC community update form fields', async () => {
       await mpcPage.validateCommunityUpdateFormFields();
     });
 
-    test('@sanity Validate required field errors', async () => {
+    test('@sanity Validate MPC community update form required field errors', async () => {
       await mpcPage.validateCommunityUpdateRequiredErrors();
     });
 
-    test('@sanity Validate invalid email error', async () => {
+    test('@sanity Validate MPC community update form invalid email error', async () => {
       await mpcPage.validateCommunityUpdateInvalidEmail();
     });
 
     // test('@regression @STAGE Validate successful community update submission', async () => {
+    //   test.skip(envName === 'PROD', 'Skipping community update form lead submission on PROD environment.');
     //   await mpcPage.submitCommunityUpdateFormSuccessfully();
     // });
   });

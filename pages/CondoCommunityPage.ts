@@ -1,5 +1,4 @@
 import { Locator, expect } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
 import {
     escapeRegex,
     getMediaSource,
@@ -61,6 +60,13 @@ export class CondoCommunityPage extends HomePage {
     return this.page.locator('a, button').filter({ hasText: TEXT.cta });
   }
 
+  /** Locator: Get Information CTA that opens the lead form sidebar/modal. */
+  private get getInformationCta(): Locator {
+    return this.page.locator('button:visible, a:visible').filter({
+      hasText: /^\s*Get Information\s*$/i
+    }).first();
+  }
+
   /** Locator: possible condo lead forms on the page. */
   private get condoForms(): Locator {
     return this.page.locator('form')
@@ -85,6 +91,24 @@ export class CondoCommunityPage extends HomePage {
   /** Locator: lead form success confirmation message. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(TEXT.successMessage).last();
+  }
+
+  /** Locator: Get Information lead form rendered in a modal, drawer, or sidebar. */
+  private get leadFormDialogOrSidebar(): Locator {
+    return this.page.locator(
+      [
+        '#ModalForm',
+        '[id*="ModalForm"]',
+        '[role="dialog"]',
+        '.ReactModal__Content',
+        'aside',
+        '[class*="modal" i]',
+        '[class*="drawer" i]',
+        '[class*="sidebar" i]'
+      ].join(', ')
+    )
+      .filter({ has: this.page.getByRole('button', { name: TEXT.submit }) })
+      .filter({ has: this.page.locator('input, select, textarea') });
   }
 
   /** Locator: optional condo community media gallery section. */
@@ -303,6 +327,56 @@ export class CondoCommunityPage extends HomePage {
     await this.validateFormFieldsByIndex(1, 'Footer condo form');
   }
 
+  /** Verify: Get Information CTA opens the condo lead form sidebar/modal. */
+  async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
+    await expect(this.getInformationCta, 'Get Information CTA should be visible')
+      .toBeVisible({ timeout: TIMEOUT.medium });
+
+    const form = await this.getAvailableGetInformationForm();
+
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
+    await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone');
+    await expect(this.getSubmitButton(form)).toBeVisible({ timeout: TIMEOUT.short });
+  }
+
+  /** Verify: Get Information condo form shows required-field validation errors. */
+  async validateGetInformationFormEmptyErrors(): Promise<void> {
+    const form = await this.getAvailableGetInformationForm();
+
+    await this.clickSubmit(form);
+    await this.expectRequiredErrorsInForm(form);
+  }
+
+  /** Verify: Get Information condo form rejects invalid email addresses. */
+  async validateGetInformationFormInvalidEmail(): Promise<void> {
+    const form = await this.getAvailableGetInformationForm();
+
+    await this.fillLeadFormWithInvalidEmail(form);
+    await this.clickSubmit(form);
+
+    await this.expectInvalidEmailErrorInForm(form);
+  }
+
+  /** Verify: Get Information condo form can be submitted successfully. */
+  async verifyGetInformationFormSuccessSubmission(): Promise<void> {
+    const form = await this.getAvailableGetInformationForm();
+
+    await this.fillLeadFormWithValidData(form);
+    await this.clickSubmit(form);
+
+    if (await this.successDialogModal.count()) {
+      await expect(this.successDialogModal.last()).toBeVisible({
+        timeout: TIMEOUT.short
+      });
+    }
+
+    await expect(this.formSuccessMessage).toBeVisible({ timeout: TIMEOUT.long });
+  }
+
   /** Verify: default required-field validation errors on the primary condo form. */
   async validateRequiredFieldErrors(): Promise<void> {
     await this.validatePrimaryFormRequiredErrors();
@@ -373,7 +447,7 @@ export class CondoCommunityPage extends HomePage {
 
     if (!form) return;
 
-    await this.getSubmitButton(form).click();
+    await this.clickSubmit(form);
 
     await expect(form.locator(`text=${TEXT.requiredError}`).first()).toBeVisible({
       timeout: TIMEOUT.short
@@ -390,7 +464,7 @@ export class CondoCommunityPage extends HomePage {
     if (!form) return;
 
     await this.fillLeadFormWithInvalidEmail(form);
-    await this.getSubmitButton(form).click();
+    await this.clickSubmit(form);
 
     await expect(form.locator(`text=${TEXT.emailError}`).first()).toBeVisible({
       timeout: TIMEOUT.short
@@ -402,19 +476,12 @@ export class CondoCommunityPage extends HomePage {
     formIndex: number,
     formName: string
   ): Promise<void> {
-    const { envName } = getEnvConfig();
-
-    if (envName === 'PROD') {
-      console.log(`${formName} successful submission skipped in PROD`);
-      return;
-    }
-
     const form = await this.getAvailableForm(formIndex, formName);
 
     if (!form) return;
 
     await this.fillLeadFormWithValidData(form);
-    await this.getSubmitButton(form).click();
+    await this.clickSubmit(form);
 
     if (await this.successDialogModal.count()) {
       await expect(this.successDialogModal.last()).toBeVisible({
@@ -424,6 +491,54 @@ export class CondoCommunityPage extends HomePage {
 
     await expect(this.formSuccessMessage).toBeVisible({ timeout: TIMEOUT.long });
     console.log(`${formName} successful submission validated`);
+  }
+
+  /** Helper: click the Get Information CTA when the sidebar/modal form is not already open. */
+  private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
+    if (await this.leadFormDialogOrSidebar.count()) {
+      return;
+    }
+
+    await expect(this.getInformationCta, 'Get Information CTA should be visible')
+      .toBeVisible({ timeout: TIMEOUT.medium });
+
+    const previousUrl = this.page.url();
+
+    await this.getInformationCta.scrollIntoViewIfNeeded();
+    await this.getInformationCta.click({ force: true });
+    await this.waitForPageReady();
+    await this.page.waitForTimeout(1000);
+
+    expect(
+      this.page.url(),
+      `Get Information CTA should keep the condo lead form flow on page, not redirect from ${previousUrl}`
+    ).not.toMatch(/\/contact\/?($|[?#])/i);
+  }
+
+  /** Helper: find the Get Information lead form after opening its CTA. */
+  private async getAvailableGetInformationForm(
+    formName = 'Get Information condo form'
+  ): Promise<Locator> {
+    await this.openLeadFormFromGetInformationCtaIfPresent();
+
+    await expect
+      .poll(
+        () => this.leadFormDialogOrSidebar.count(),
+        {
+          message: `${formName} sidebar/modal should open after Get Information CTA`,
+          timeout: TIMEOUT.medium
+        }
+      )
+      .toBeGreaterThan(0);
+
+    const form = this.leadFormDialogOrSidebar.first();
+
+    await form.scrollIntoViewIfNeeded();
+    await this.waitForPageReady();
+    await expect(this.getSubmitButton(form), `${formName} submit button should be visible inside sidebar/modal`)
+      .toBeVisible({ timeout: TIMEOUT.short });
+
+    return form;
   }
 
   /** Helper: navigate gallery modal media when next/previous controls are available. */
@@ -569,6 +684,42 @@ export class CondoCommunityPage extends HomePage {
   /** Helper: locate submit button inside a specific condo form. */
   private getSubmitButton(form: Locator): Locator {
     return form.getByRole('button', { name: TEXT.submit }).first();
+  }
+
+  /** Helper: click a form submit button without waiting on third-party submit requests. */
+  private async clickSubmit(form: Locator): Promise<void> {
+    const submitButton = this.getSubmitButton(form);
+
+    await submitButton.scrollIntoViewIfNeeded();
+    await expect(submitButton, 'Submit button should be visible before clicking')
+      .toBeVisible({ timeout: TIMEOUT.short });
+    await submitButton.click({
+      force: true,
+      noWaitAfter: true,
+      timeout: 5000
+    });
+    await this.page.waitForTimeout(800);
+  }
+
+  /** Helper: assert expected required-field messages within a lead form. */
+  private async expectRequiredErrorsInForm(form: Locator): Promise<void> {
+    await expect(form.locator('text=/Error:\\s*First name is Required|First name.*Required/i').first())
+      .toBeVisible({ timeout: TIMEOUT.short });
+    await expect(form.locator('text=/Error:\\s*Last name is Required|Last name.*Required/i').first())
+      .toBeVisible({ timeout: TIMEOUT.short });
+    await expect(form.locator('text=/Error:\\s*Email is Required|Email.*Required/i').first())
+      .toBeVisible({ timeout: TIMEOUT.short });
+    await expect(form.locator('text=/Error:\\s*Country of Residence is Required|Country of Residence.*Required/i').first())
+      .toBeVisible({ timeout: TIMEOUT.short });
+    await expect(form.locator('text=/Error:\\s*Zip\\/Postal Code is Required|Zip\\/Postal Code.*Required|Postal.*Required/i').first())
+      .toBeVisible({ timeout: TIMEOUT.short });
+  }
+
+  /** Helper: assert invalid-email validation within a lead form. */
+  private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
+    await expect(form.locator(
+      'text=/valid domain name|valid email|invalid email|Error:.*Email|Email.*Invalid/i'
+    ).first()).toBeVisible({ timeout: TIMEOUT.short });
   }
 
   /** Helper: select country of residence when the field exists. */

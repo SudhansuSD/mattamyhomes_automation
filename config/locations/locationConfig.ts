@@ -100,9 +100,9 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
     CAN: {
       country: 'CAN',
       queryParam: 'country=CAN',
-      market: 'Greater Toronto Area',
+      market: 'Calgary',
       community: 'Yorkville',
-      communityPath: '/ontario/gta/caledon/yorkville',
+      communityPath: '/alberta/calgary/calgary/yorkville',
       condoCommunity: 'Martha James Condominiums',
       condoPlan: {
         name: 'M2ad',
@@ -110,10 +110,10 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
         community: 'Martha James Condominiums',
         market: 'Greater Toronto Area',
       },
-      qmiAddress: '634 Newlove St.',
-      qmiPath: '/ontario/simcoe/innisfil/lakehaven/sawyer/634-newlove-st',
-      planName: 'Sawyer',
-      expectedPlanPath: '/ontario/simcoe/innisfil/lakehaven/sawyer',
+      qmiAddress: '48 YORKSTONE CRESCENT SW',
+      qmiPath: '/alberta/calgary/calgary/yorkville/fullerton/48-yorkstone-crescent-sw',
+      planName: 'Fullerton',
+      expectedPlanPath: '/alberta/calgary/calgary/yorkville/fullerton',
       aboutUsLinks: [
         {
           name: 'About Us',

@@ -1,8 +1,10 @@
 import { test } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CommunityPage } from '../pages/CommunityPage';
 
 const location = getLocationConfig();
+const { envName } = getEnvConfig();
 
 test.describe(`Community Detail - ${location.community}`, () => {
     let communityPage: CommunityPage;
@@ -58,9 +60,29 @@ test.describe(`Community Detail - ${location.community}`, () => {
        FORM VALIDATION
     ========================================================== */
 
-    /**********Primary form Validation**********/
-
     test.describe('Form Validation', () => {
+        
+        /**********Modal form Validation**********/
+
+        test('@sanity Validate Get Information CTA opens community lead form', async () => {
+            await communityPage.verifyGetInformationCtaOpensLeadForm();
+        });
+
+        test('@sanity Validate Get Information form required field errors', async () => {
+            await communityPage.validateGetInformationFormEmptyErrors();
+        });
+
+        test('@sanity Validate Get Information form invalid email format', async () => {
+            await communityPage.validateGetInformationFormInvalidEmail();
+        });
+
+        // test('@regression @STAGE Validate Get Information form successful submission', async () => {
+        //     test.skip(envName === 'PROD', 'Skipping Get Information form lead submission on PROD environment.');
+        //     await communityPage.verifyGetInformationFormSuccessSubmission();
+        // });
+
+        /**********Primary form Validation**********/
+
         test('@sanity Validate primary form required field errors', async () => {
             await communityPage.validatePrimaryFormEmptyErrors();
         });
@@ -70,6 +92,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
         });
 
         // test('@regression @STAGE Validate primary form successful submission', async () => {
+        //     test.skip(envName === 'PROD', 'Skipping primary form lead submission on PROD environment.');
         //     await communityPage.verifyPrimaryFormSuccessSubmission();
         // });
 
@@ -84,6 +107,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
         });
 
         // test('@regression @STAGE Validate footer form successful submission', async () => {
+        //     test.skip(envName === 'PROD', 'Skipping footer form lead submission on PROD environment.');
         //     await communityPage.verifyFooterFormSuccessSubmission();
         // });
     });

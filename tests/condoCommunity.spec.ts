@@ -1,8 +1,11 @@
 import { test } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoCommunityPage } from '../pages/CondoCommunityPage';
+import { Footer } from '../pages/Footer';
 
 const location = getLocationConfig();
+const { envName } = getEnvConfig();
 const condoCommunity = location.country === 'CAN' && 'condoCommunity' in location
   ? location.condoCommunity
   : undefined;
@@ -64,37 +67,67 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
     });
   });
 
+  /* ==========================================================
+         FORM VALIDATION
+      ========================================================== */
+
   test.describe('Lead Form Validation', () => {
+
+    /**********Modal form Validation**********/
+
+    test('@sanity Validate Get Information CTA opens condo community lead form', async () => {
+      await condoCommunityPage.verifyGetInformationCtaOpensLeadForm();
+    });
+
+    test('@sanity Validate Get Information form required field errors', async () => {
+      await condoCommunityPage.validateGetInformationFormEmptyErrors();
+    });
+
+    test('@sanity Validate Get Information form invalid email format', async () => {
+      await condoCommunityPage.validateGetInformationFormInvalidEmail();
+    });
+
+    // test('@regression @STAGE Validate Get Information form successful submission', async () => {
+    //   test.skip(envName === 'PROD', 'Skipping Get Information form lead submission on PROD environment.');
+    //   await condoCommunityPage.verifyGetInformationFormSuccessSubmission();
+    // });
+
+    /**********Primary form Validation**********/
+
     test('@sanity Validate primary condo form fields', async () => {
       await condoCommunityPage.validatePrimaryFormFields();
-    });
-
-    test('@sanity Validate footer condo form fields', async () => {
-      await condoCommunityPage.validateFooterFormFields();
-    });
-
-    test('@sanity Validate primary condo form required field errors', async () => {
-      await condoCommunityPage.validatePrimaryFormRequiredErrors();
-    });
-
-    test('@sanity Validate footer condo form required field errors', async () => {
-      await condoCommunityPage.validateFooterFormRequiredErrors();
     });
 
     test('@sanity Validate primary condo form invalid email error', async () => {
       await condoCommunityPage.validatePrimaryFormInvalidEmailError();
     });
 
+    test('@sanity Validate primary condo form required field errors', async () => {
+      await condoCommunityPage.validatePrimaryFormRequiredErrors();
+    });
+
+    // test('@regression @STAGE Validate primary condo form successful submission', async () => {
+    //   test.skip(envName === 'PROD', 'Skipping primary condo form lead submission on PROD environment.');
+    //   await condoCommunityPage.verifyPrimaryFormSuccessSubmission();
+    // });
+
+    /*******Footer form Validation**********/
+
+    test('@sanity Validate footer condo form fields', async () => {
+      await condoCommunityPage.validateFooterFormFields();
+    });
+
+    test('@sanity Validate footer condo form required field errors', async () => {
+      await condoCommunityPage.validateFooterFormRequiredErrors();
+    });
+
     test('@sanity Validate footer condo form invalid email error', async () => {
       await condoCommunityPage.validateFooterFormInvalidEmailError();
     });
 
-    // test('@regression @STAGE Validate primary condo form successful submission', async () => {
-    //   await condoCommunityPage.verifyPrimaryFormSuccessSubmission();
+    // test('@regression @STAGE Validate footer condo form successful submission', async () => {
+    //   test.skip(envName === 'PROD', 'Skipping footer condo form lead submission on PROD environment.');
+    //   await condoCommunityPage.verifyFooterFormSuccessSubmission();
     // });
-
-    test('@regression @STAGE Validate footer condo form successful submission', async () => {
-      await condoCommunityPage.verifyFooterFormSuccessSubmission();
-    });
   });
 });

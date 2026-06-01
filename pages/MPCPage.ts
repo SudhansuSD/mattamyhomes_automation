@@ -1,5 +1,6 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationConfig } from '../config/locations/locationConfig';
 import {
     escapeRegex,
     getLastPathSegment,
@@ -92,21 +93,68 @@ export class MPCPage extends BasePage {
     this.successDialogModal = page.locator('.ReactModal__Content');
   }
 
+  /** Locator: Get Information CTA that opens the lead form sidebar/modal. */
+  private get getInformationCta(): Locator {
+    return this.page.locator('button:visible, a:visible').filter({
+      hasText: /^\s*Get Information\s*$/i
+    }).first();
+  }
+
+  /** Locator: Get Information lead form rendered in a modal, drawer, or sidebar. */
+  private get leadFormDialogOrSidebar(): Locator {
+    return this.page.locator(
+      [
+        '#ModalForm',
+        '[id*="ModalForm"]',
+        '[role="dialog"]',
+        '.ReactModal__Content',
+        'aside',
+        '[class*="modal" i]',
+        '[class*="drawer" i]',
+        '[class*="sidebar" i]'
+      ].join(', ')
+    )
+      .filter({ has: this.page.getByRole('button', { name: /submit|register|request|send/i }) })
+      .filter({ has: this.page.locator('input, select, textarea') });
+  }
+
+  /** Locator: lead form success confirmation message. */
+  private get formSuccessMessage(): Locator {
+    return this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last();
+  }
+
   /* ==========================================================
      Navigation
   ========================================================== */
 
   /** Action: navigate directly to an MPC page using its relative URL. */
   async navigateToMPC(relativeUrl: string): Promise<void> {
-    const { baseURL } = getEnvConfig();
+    const { baseURL, envName } = getEnvConfig();
+    const location = getLocationConfig();
+    const homeUrl = `${baseURL}/?${location.queryParam}`;
+    const mpcUrl = `${baseURL}${relativeUrl}`;
 
-    await this.page.goto(`${baseURL}${relativeUrl}`, {
+    console.log(
+      `[NAVIGATE MPC] ENV=${envName} | COUNTRY=${location.country} | HOME=${homeUrl} | MPC=${mpcUrl}`
+    );
+
+    await this.page.goto(homeUrl, {
       waitUntil: 'domcontentloaded',
       timeout: 90_000
     });
 
     await this.acceptCookiesIfPresent();
     await this.dismissBlockingOverlays();
+    await this.waitForPageReady();
+
+    await this.page.goto(mpcUrl, {
+      waitUntil: 'domcontentloaded',
+      timeout: 90_000
+    });
+
+    await this.acceptCookiesIfPresent();
+    await this.dismissBlockingOverlays();
+    await this.ensureConfiguredCountrySelected();
     await this.waitForPageReady();
   }
 
@@ -464,6 +512,57 @@ export class MPCPage extends BasePage {
      Lead Form
   ========================================================== */
 
+  /** Verify: Get Information CTA opens the MPC lead form sidebar/modal. */
+  async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
+    await expect(this.getInformationCta, 'Get Information CTA should be visible')
+      .toBeVisible({ timeout: 15000 });
+
+    const form = await this.getAvailableGetInformationForm();
+
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
+    await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
+    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone');
+    await expect(this.getSubmitButton(form), 'Get Information MPC form submit button should be visible')
+      .toBeVisible({ timeout: 10000 });
+  }
+
+  /** Verify: Get Information MPC form shows required-field validation errors. */
+  async validateGetInformationFormEmptyErrors(): Promise<void> {
+    const form = await this.getAvailableGetInformationForm();
+
+    await this.clickSubmit(form);
+    await this.expectRequiredErrorsInForm(form);
+  }
+
+  /** Verify: Get Information MPC form rejects invalid email addresses. */
+  async validateGetInformationFormInvalidEmail(): Promise<void> {
+    const form = await this.getAvailableGetInformationForm();
+
+    await this.fillGetInformationFormWithInvalidEmail(form);
+    await this.clickSubmit(form);
+
+    await this.expectInvalidEmailErrorInForm(form);
+  }
+
+  /** Verify: Get Information MPC form can be submitted successfully. */
+  async verifyGetInformationFormSuccessSubmission(): Promise<void> {
+    const form = await this.getAvailableGetInformationForm();
+
+    await this.fillGetInformationFormWithValidData(form);
+    await this.clickSubmit(form);
+
+    if (await this.successDialogModal.count()) {
+      await expect(this.successDialogModal.last()).toBeVisible({
+        timeout: 10000
+      });
+    }
+
+    await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
+  }
+
   /** Verify: community update form fields and submit button are visible. */
   async validateCommunityUpdateFormFields(): Promise<void> {
     const form = await this.getCommunityUpdateForm();
@@ -587,6 +686,196 @@ export class MPCPage extends BasePage {
     };
   }
 
+  /** Helper: click the Get Information CTA when the sidebar/modal form is not already open. */
+  private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
+    if (await this.leadFormDialogOrSidebar.count()) {
+      return;
+    }
+
+    await expect(this.getInformationCta, 'Get Information CTA should be visible')
+      .toBeVisible({ timeout: 15000 });
+
+    const previousUrl = this.page.url();
+
+    await this.getInformationCta.scrollIntoViewIfNeeded();
+    await this.getInformationCta.click({ force: true });
+    await this.waitForPageReady();
+    await this.page.waitForTimeout(1000);
+
+    expect(
+      this.page.url(),
+      `Get Information CTA should keep the MPC lead form flow on page, not redirect from ${previousUrl}`
+    ).not.toMatch(/\/contact\/?($|[?#])/i);
+  }
+
+  /** Helper: find the Get Information lead form after opening its CTA. */
+  private async getAvailableGetInformationForm(
+    formName = 'Get Information MPC form'
+  ): Promise<Locator> {
+    await this.dismissBlockingOverlays();
+    await this.openLeadFormFromGetInformationCtaIfPresent();
+
+    await expect
+      .poll(
+        () => this.leadFormDialogOrSidebar.count(),
+        {
+          message: `${formName} sidebar/modal should open after Get Information CTA`,
+          timeout: 15000
+        }
+      )
+      .toBeGreaterThan(0);
+
+    const form = this.leadFormDialogOrSidebar.first();
+
+    await form.scrollIntoViewIfNeeded();
+    await this.waitForPageReady();
+    await expect(this.getSubmitButton(form), `${formName} submit button should be visible inside sidebar/modal`)
+      .toBeVisible({ timeout: 10000 });
+
+    return form;
+  }
+
+  /** Helper: fill Get Information lead form with data that should fail email validation. */
+  private async fillGetInformationFormWithInvalidEmail(form: Locator): Promise<void> {
+    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Test');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'User');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /^email/i }), 'user@domain.c');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '8135551212');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), '33545');
+
+    await this.selectFirstOptionIfPresent(form.getByRole('combobox', { name: /community of interest/i }).first());
+    await this.selectCountryOfResidenceIfPresent(form);
+    await this.checkConsentIfPresent(form);
+  }
+
+  /** Helper: fill Get Information lead form with valid data for successful submission. */
+  private async fillGetInformationFormWithValidData(form: Locator): Promise<void> {
+    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Sudhansu');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Das');
+    await this.fillIfPresent(
+      form.getByRole('textbox', { name: /^email/i }),
+      `ssdas_mpc_getinfo_${Date.now()}@ex2india.com`
+    );
+    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '8135551212');
+    await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), '33545');
+
+    await this.selectFirstOptionIfPresent(form.getByRole('combobox', { name: /community of interest/i }).first());
+    await this.selectCountryOfResidenceIfPresent(form);
+    await this.checkConsentIfPresent(form);
+  }
+
+  /** Helper: locate submit button inside a specific lead form. */
+  private getSubmitButton(form: Locator): Locator {
+    return form.getByRole('button', { name: /submit|register|request|send/i }).first();
+  }
+
+  /** Helper: click a form submit button without waiting on third-party submit requests. */
+  private async clickSubmit(form: Locator): Promise<void> {
+    const submitButton = this.getSubmitButton(form);
+
+    await submitButton.scrollIntoViewIfNeeded();
+    await expect(submitButton, 'Submit button should be visible before clicking')
+      .toBeVisible({ timeout: 10000 });
+    await submitButton.click({
+      force: true,
+      noWaitAfter: true,
+      timeout: 5000
+    });
+    await this.page.waitForTimeout(800);
+  }
+
+  /** Helper: assert expected required-field messages within a lead form. */
+  private async expectRequiredErrorsInForm(form: Locator): Promise<void> {
+    await expect(form.locator('text=/Error:\\s*First name is Required|First name.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+    await expect(form.locator('text=/Error:\\s*Last name is Required|Last name.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+    await expect(form.locator('text=/Error:\\s*Email is Required|Email.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+    await expect(form.locator('text=/Error:\\s*Country of Residence is Required|Country of Residence.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+    await expect(form.locator('text=/Error:\\s*Zip\\/Postal Code is Required|Zip\\/Postal Code.*Required|Postal.*Required/i').first())
+      .toBeVisible({ timeout: 10000 });
+  }
+
+  /** Helper: assert invalid-email validation within a lead form. */
+  private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
+    await expect(form.locator(
+      'text=/valid domain name|valid email|invalid email|Error:.*Email|Email.*Invalid/i'
+    ).first()).toBeVisible({ timeout: 10000 });
+  }
+
+  /** Helper: assert a field is visible only when present in the form. */
+  private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
+    if (await field.count()) {
+      await expect(field.first(), `${label} field should be visible`)
+        .toBeVisible({ timeout: 10000 });
+    }
+  }
+
+  /** Helper: fill a field only when it exists. */
+  private async fillIfPresent(field: Locator, value: string): Promise<void> {
+    if (await field.count()) {
+      await field.first().fill(value);
+    }
+  }
+
+  /** Helper: select the first non-placeholder option when a dropdown exists. */
+  private async selectFirstOptionIfPresent(field: Locator): Promise<void> {
+    if (!(await field.count())) {
+      return;
+    }
+
+    await field.selectOption({ index: 1 }).catch(() => undefined);
+  }
+
+  /** Helper: select country of residence when the field exists. */
+  private async selectCountryOfResidenceIfPresent(form: Locator): Promise<void> {
+    const countryOfResidence = form.getByRole('combobox', {
+      name: /country of residence/i
+    }).first();
+
+    if (!(await countryOfResidence.count())) {
+      return;
+    }
+
+    const selectedPreferred = await countryOfResidence
+      .selectOption({ label: 'United States' })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!selectedPreferred) {
+      await countryOfResidence.selectOption({ index: 1 }).catch(() => undefined);
+    }
+  }
+
+  /** Helper: check the first consent checkbox when present. */
+  private async checkConsentIfPresent(form: Locator): Promise<void> {
+    const checkbox = form.getByRole('checkbox', {
+      name: /express consent|providing consent|privacy policy/i
+    }).first();
+
+    if (await checkbox.count()) {
+      await checkbox.check({ force: true }).catch(() => undefined);
+      return;
+    }
+
+    const fallbackCheckboxes = form.getByRole('checkbox');
+    const count = await fallbackCheckboxes.count();
+
+    for (let i = 0; i < count; i++) {
+      const candidate = fallbackCheckboxes.nth(i);
+      const label = await candidate.getAttribute('aria-label').catch(() => null);
+
+      if (label && /real estate agent/i.test(label)) {
+        continue;
+      }
+
+      await candidate.check({ force: true }).catch(() => undefined);
+      return;
+    }
+  }
+
   /** Helper: return true when a locator becomes visible within the timeout. */
   private async isVisible(locator: Locator, timeout = 2000): Promise<boolean> {
     return locator.isVisible({ timeout }).catch(() => false);
@@ -626,6 +915,36 @@ export class MPCPage extends BasePage {
       if (await closeButton.isVisible({ timeout: 500 }).catch(() => false)) {
         await closeButton.click({ force: true });
       }
+    }
+  }
+
+  /** Helper: select the configured country from the header country selector when needed. */
+  private async ensureConfiguredCountrySelected(): Promise<void> {
+    const expectedCountry = getLocationConfig().country === 'USA' ? 'USA' : 'CANADA';
+    const countrySelector = this.page
+      .locator('button[aria-label^="Select your country."]')
+      .first();
+
+    if (!(await countrySelector.isVisible({ timeout: 5000 }).catch(() => false))) {
+      return;
+    }
+
+    const currentLabel = await countrySelector.getAttribute('aria-label').catch(() => '');
+
+    if (currentLabel && new RegExp(`${expectedCountry} country is selected`, 'i').test(currentLabel)) {
+      return;
+    }
+
+    await countrySelector.click({ force: true });
+    await this.page.waitForTimeout(500);
+
+    const expectedCountryButton = this.page
+      .getByRole('button', { name: new RegExp(`^${expectedCountry}$`, 'i') })
+      .last();
+
+    if (await expectedCountryButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expectedCountryButton.click({ force: true });
+      await this.waitForPageReady();
     }
   }
 }
