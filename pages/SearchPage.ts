@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
-import { HomePage } from '../pages/HomePage';
+import { SearchablePage } from './SearchablePage';
 
 type ResultsTab = 'Communities' | 'Plans' | 'Quick Move-Ins';
 type SortOrder = 'asc' | 'desc';
@@ -13,7 +13,7 @@ type SortValidationConfig = {
     label: string;
 };
 
-export class SearchPage extends HomePage {
+export class SearchPage extends SearchablePage {
 
     readonly sortButton: Locator;
     readonly sortMenuItems: Locator;

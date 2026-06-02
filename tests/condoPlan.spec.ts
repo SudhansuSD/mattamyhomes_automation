@@ -25,13 +25,8 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   test.beforeEach(async ({ page }) => {
     condoPlanPage = new CondoPlanPage(page);
 
-    await test.step('Navigate to Canada home page', async () => {
-      await condoPlanPage.navigate();
-    });
-
-    await test.step(`Search condo plan: ${condoPlan?.name}`, async () => {
-      await condoPlanPage.searchByCondoPlan(condoPlan!.name);
-      await condoPlanPage.verifySearchByCondoPlan(condoPlan!);
+    await test.step(`Search and validate condo plan: ${condoPlan?.name}`, async () => {
+      await condoPlanPage.searchAndValidateByValue('condoPlan', condoPlan!.name);
     });
   });
 

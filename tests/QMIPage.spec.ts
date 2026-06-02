@@ -16,14 +16,8 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   test.beforeEach(async ({ page }) => {
     qmiPage = new QMIPage(page);
 
-    await test.step('Search QMI from Home Page', async () => {
-      await qmiPage.navigate();
-      await qmiPage.searchByQMI(location.qmiAddress);
-    });
-
-    await test.step('Validate searched QMI detail page', async () => {
-      await qmiPage.verifySearchByQMI(location.qmiAddress);
-      await qmiPage.verifyPageLoaded();
+    await test.step('Search and validate QMI', async () => {
+      await qmiPage.searchAndValidateByValue('qmi', location.qmiAddress);
     });
   });
 

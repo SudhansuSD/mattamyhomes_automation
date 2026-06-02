@@ -8,13 +8,13 @@ import {
   toSlug,
   toTitleCase
 } from '../utils/pageObjectUtils';
-import { HomePage } from './HomePage';
+import { SearchablePage } from './SearchablePage';
 
 /* ==========================================================
    Community Page – Page Object Model
 ========================================================== */
 
-export class CommunityPage extends HomePage {
+export class CommunityPage extends SearchablePage {
 
   /* ==========================================================
      Constructor

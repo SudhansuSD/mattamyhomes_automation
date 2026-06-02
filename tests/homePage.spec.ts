@@ -5,14 +5,17 @@
 
 import { test } from '@playwright/test';
 import { getLocationConfig } from '../config/locations/locationConfig';
-import { CommunityPage } from '../pages/CommunityPage';
 import { Footer } from '../pages/Footer';
 import { Header } from '../pages/Header';
 import { HomePage } from '../pages/HomePage';
-import { PlanDetailPage } from '../pages/PlanDetailPage';
-import { QMIPage } from '../pages/QMIPage';
 
 const location = getLocationConfig();
+const condoCommunity =
+  'condoCommunity' in location ? location.condoCommunity : undefined;
+const condoPlan =
+  'condoPlan' in location ? location.condoPlan : undefined;
+const mpc =
+  'mpc' in location ? location.mpc?.[0] : undefined;
 
 test.describe(`Mattamy Homes - ${location.country}`, () => {
 
@@ -84,12 +87,8 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
 
   test('@regression Search market functionality should work', async () => {
 
-    await test.step('Search by market', async () => {
-      await homePage.searchByMarket(location.market);
-    });
-
-    await test.step('Verify market search result', async () => {
-      await homePage.verifySearchByMarket(location.market);
+    await test.step('Search and validate by market', async () => {
+      await homePage.searchAndValidateByValue('market', location.market);
     });
   });
 
@@ -97,16 +96,21 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Search – Community
   ========================================================== */
 
-  test('@regression Search by community functionality should work', async ({ page }) => {
+  test('@regression Search by community functionality should work', async () => {
 
-    const communityPage = new CommunityPage(page);
-
-    await test.step('Search by community', async () => {
-      await communityPage.searchByCommunity(location.community);
+    await test.step('Search and validate by community', async () => {
+      await homePage.searchAndValidateByValue('community', location.community);
     });
+  });
+  /* ==========================================================
+       Search – Condo Community
+    ========================================================== */
 
-    await test.step('Verify community search result', async () => {
-      await communityPage.verifySearchByCommunity(location.community);
+  test('@regression Search by condo community functionality should work', async () => {
+    test.skip(!condoCommunity, 'Condo community is not configured for this location');
+
+    await test.step('Search and validate by condo community', async () => {
+      await homePage.searchAndValidateByValue('condoCommunity', condoCommunity!);
     });
   });
 
@@ -114,16 +118,10 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Search – QMI
   ========================================================== */
 
-  test('@regression Search by QMI home functionality should work', async ({ page }) => {
+  test('@regression Search by QMI home functionality should work', async () => {
 
-    const qmiPage = new QMIPage(page);
-
-    await test.step('Search by QMI address', async () => {
-      await qmiPage.searchByQMI(location.qmiAddress);
-    });
-
-    await test.step('Verify QMI search result', async () => {
-      await qmiPage.verifySearchByQMI(location.qmiAddress);
+    await test.step('Search and validate by QMI address', async () => {
+      await homePage.searchAndValidateByValue('qmi', location.qmiAddress);
     });
   });
 
@@ -131,20 +129,36 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Search – Plan
   ========================================================== */
 
-  test('@regression Search by plan functionality should work', async ({ page }) => {
+  test('@regression Search by plan functionality should work', async () => {
 
-    const planPage = new PlanDetailPage(page);
-
-    await test.step('Search by plan name', async () => {
-      await planPage.searchByPlan(location.planName);
-    });
-
-    await test.step('Verify plan search result', async () => {
-      await planPage.verifySearchByPlan(location.expectedPlanUrlPart);
-      await planPage.verifyPlanUrlContains(location.communityPath);
+    await test.step('Search and validate by plan name', async () => {
+      await homePage.searchAndValidateByValue('plan', location.planName);
     });
   });
+  /* ==========================================================
+     Search – Condo Plan
+  ========================================================== */
 
+  test('@regression Search by condo plan functionality should work', async () => {
+    test.skip(!condoPlan?.name, 'Condo plan is not configured for this location');
+
+    await test.step('Search and validate by condo plan name', async () => {
+      await homePage.searchAndValidateByValue('condoPlan', condoPlan!.name!);
+    });
+  });
+  /* ==========================================================
+       Search – Master Planned Community (MPC)
+    ========================================================== */
+  test('@regression Search by MPC functionality should work', async () => {
+    test.skip(!mpc?.name, 'MPC is not configured for this location');
+
+    await test.step('Search and validate by MPC', async () => {
+      await homePage.searchAndValidateByValue('mpc', mpc!.name);
+    });
+  });
+  /* ==========================================================
+       Validate Market Cards on Home Page
+    ========================================================== */
   test('@regression Validate market Cards on Home Page', async ({ page }) => {
     // Validate market cards are visible and correctly linked
     await homePage.validateMarketCards();

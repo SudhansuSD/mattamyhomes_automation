@@ -21,10 +21,9 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
 
   test.beforeEach(async ({ page }) => {
     searchPage = new SearchPage(page);
-
-    await searchPage.navigate();
-    await searchPage.searchByMarket(location.market);
-    await searchPage.verifySearchByMarket(location.market);
+    await test.step('Search and validate market', async () => {
+      await searchPage.searchAndValidateByValue('market', location.market);
+    });
   });
 
   /* -------------------------------------------------------
@@ -87,6 +86,6 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
     await searchPage.validateQMISortOptions();
     await searchPage.validateSortingBehavior('Quick Move-Ins');
   });
-  
+
 
 });

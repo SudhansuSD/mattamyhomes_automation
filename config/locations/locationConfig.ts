@@ -1,3 +1,4 @@
+import { MarketPage } from '../../pages/MarketPage';
 import { getEnvConfig } from '../environments/envConfig';
 
 const ENVIRONMENT_LOCATION_OVERRIDES = {
@@ -6,10 +7,11 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       country: 'USA',
       queryParam: 'country=USA',
       market: 'Phoenix',
-      mpc: {
+      mpc: [{
         name: 'Wellen Park - Master-Planned Community',
+        market: ['Sarasota and Bradenton', 'Sarasota-Bradenton', 'Sarasota/Bradenton'],
         url: '/florida/sarasota-bradenton/venice/wellen-park'
-      },
+      }],
       community: 'Landmarke',
       communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
       qmiAddress: '294 W FLAX DR',
@@ -165,10 +167,11 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       country: 'USA',
       queryParam: 'country=USA',
       market: 'Phoenix',
-      mpc: {
+      mpc: [{
         name: 'Wellen Park - Master-Planned Community',
+        market: ['Sarasota and Bradenton', 'Sarasota-Bradenton', 'Sarasota/Bradenton'],
         url: '/florida/sarasota-bradenton/venice/wellen-park'
-      },
+      }],
       community: 'Landmarke',
       communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
       qmiAddress: '629 W RIPARIAN DR',

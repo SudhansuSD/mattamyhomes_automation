@@ -1,6 +1,5 @@
 import { Locator, Page, expect } from '@playwright/test';
-import { HomePage } from './HomePage';
-import { BasePage } from './BasePage';
+import { SearchablePage } from './SearchablePage';
 
 const TIMEOUT = {
   short: 10000,
@@ -75,7 +74,7 @@ const EXPECTED_CONDO_PLAN = {
    because live lead forms must not be submitted.
 ========================================================== */
 
-export class CondoPlanPage extends HomePage {
+export class CondoPlanPage extends SearchablePage {
   readonly heading: Locator;
   readonly breadcrumb: Locator;
   readonly body: Locator;
@@ -139,18 +138,6 @@ export class CondoPlanPage extends HomePage {
   /** Locator: lead form success message. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(TEXT.successMessage).last();
-  }
-
-  /** Action: search for a condo plan from the home page search box. */
-  async searchByCondoPlan(condoPlanName: string): Promise<void> {
-    await this.search(condoPlanName);
-  }
-
-  /** Verify: condo plan search redirects to the expected plan URL and heading. */
-  async verifySearchByCondoPlan(plan: CondoPlanDetails): Promise<void> {
-    await this.waitForPageReady();
-    await expect(this.page).toHaveURL(new RegExp(`${this.escapeRegex(plan.url)}\\/?$`, 'i'));
-    await this.verifyPageLoaded(plan.name);
   }
 
   /** Verify: condo plan page has loaded with the expected heading. */

@@ -16,9 +16,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
         communityPage = new CommunityPage(page);
 
         await test.step('Navigate & search community', async () => {
-            await communityPage.navigate();
-            await communityPage.searchByCommunity(location.community);
-            await communityPage.verifySearchByCommunity(location.community);
+            await communityPage.searchAndValidateByValue('community', location.community);
         });
     });
 

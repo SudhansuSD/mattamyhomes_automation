@@ -8,7 +8,7 @@ import {
     isLocatorVisible,
     toTitleCase
 } from '../utils/pageObjectUtils';
-import { HomePage } from './HomePage';
+import { SearchablePage } from './SearchablePage';
 
 /* ==========================================================
     QMI Page Object Model
@@ -16,7 +16,7 @@ import { HomePage } from './HomePage';
 
 const location = getLocationConfig();
 
-export class QMIPage extends HomePage {
+export class QMIPage extends SearchablePage {
     private static readonly PAGE_LOAD_TIMEOUT = 20000;
     private static readonly UTOUR_TIMEOUT = 15000;
     private static readonly QMI_URL_PATTERN = /\/\d{1,}-/;

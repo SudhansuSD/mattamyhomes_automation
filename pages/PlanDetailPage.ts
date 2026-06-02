@@ -1,5 +1,5 @@
 import { Locator, Page, expect } from '@playwright/test';
-import { HomePage } from './HomePage';
+import { SearchablePage } from './SearchablePage';
 import { escapeRegex, isLocatorVisible } from '../utils/pageObjectUtils';
 
 /* ==========================================================
@@ -25,7 +25,7 @@ export type PlanDetails = {
     };
 };
 
-export class PlanDetailPage extends HomePage {
+export class PlanDetailPage extends SearchablePage {
 
     /** Locator: main plan detail heading. */
     readonly heading: Locator;

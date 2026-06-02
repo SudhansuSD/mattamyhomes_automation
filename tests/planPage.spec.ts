@@ -21,18 +21,10 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
   test.beforeEach(async ({ page }) => {
     planPage = new PlanDetailPage(page);
 
-    await test.step('Search Plan from Home Page', async () => {
-      await planPage.navigate();
-      await planPage.searchByPlan(location.planName);
-    });
-
-    await test.step('Validate searched Plan Detail page', async () => {
-      await planPage.verifySearchByPlan(location.expectedPlanUrlPart);
-      await planPage.verifyPlanUrlContains(location.communityPath);
-      await planPage.verifyPageLoaded();
+    await test.step('Search and validate Plan', async () => {
+      await planPage.searchAndValidateByValue('plan', location.planName);
     });
   });
-
   /* -------------------------------------------------------
      UI & Functional Validation
   -------------------------------------------------------- */

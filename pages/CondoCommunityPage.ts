@@ -6,7 +6,7 @@ import {
     isIgnorableHref,
     isLocatorVisible
 } from '../utils/pageObjectUtils';
-import { HomePage } from './HomePage';
+import { SearchablePage } from './SearchablePage';
 
 const TIMEOUT = {
   short: 10000,
@@ -30,7 +30,7 @@ const TEXT = {
   successMessage: /Thank you for your interest in Mattamy Homes/i
 };
 
-export class CondoCommunityPage extends HomePage {
+export class CondoCommunityPage extends SearchablePage {
   /* ==========================================================
      Page Locators
   ========================================================== */
@@ -151,7 +151,7 @@ export class CondoCommunityPage extends HomePage {
 
   /** Action: search for a condo community from the home page search box. */
   async searchByCondoCommunity(condoCommunity: string): Promise<void> {
-    await this.search(condoCommunity);
+    await super.searchByCondoCommunity(condoCommunity);
   }
 
   /** Verify: condo community search redirects to the expected community page. */

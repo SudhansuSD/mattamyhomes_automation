@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoCommunityPage } from '../pages/CondoCommunityPage';
-import { Footer } from '../pages/Footer';
+
 
 const location = getLocationConfig();
 const { envName } = getEnvConfig();
@@ -19,13 +19,8 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
   test.beforeEach(async ({ page }) => {
     condoCommunityPage = new CondoCommunityPage(page);
 
-    await test.step('Navigate to Canada home page', async () => {
-      await condoCommunityPage.navigate();
-    });
-
-    await test.step(`Search condo community: ${condoCommunity}`, async () => {
-      await condoCommunityPage.searchByCondoCommunity(condoCommunity!);
-      await condoCommunityPage.verifySearchByCondoCommunity(condoCommunity!);
+    await test.step(`Search and validate condo community: ${condoCommunity}`, async () => {
+      await condoCommunityPage.searchAndValidateByValue('condoCommunity', condoCommunity!);
     });
   });
 
