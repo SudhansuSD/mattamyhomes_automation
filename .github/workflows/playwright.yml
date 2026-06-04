@@ -1,30 +1,184 @@
 name: Playwright Tests
+
 on:
+  schedule:
+    # Daily smoke run at 03:30 UTC.
+    - cron: '30 3 * * *'
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-jobs:
-  test:
-    timeout-minutes: 60
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-node@v4
-      with:
-        node-version: lts/*
-    - name: Install dependencies
-      run: npm ci
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps chromium
-    - name: Run Playwright tests
-      run: npm run test:ci
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Test suite to run
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - ci
+          - smoke
+          - regression
       env:
-        ENV: STAGE
-        LOCATION: CAN
-    - uses: actions/upload-artifact@v4
-      if: ${{ !cancelled() }}
-      with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 30
+        description: Test environment
+        required: true
+        default: STAGE
+        type: choice
+        options:
+          - STAGE
+          - PROD
+      location:
+        description: Test location
+        required: true
+        default: CAN
+        type: choice
+        options:
+          - CAN
+          - USA
+
+jobs:
+  playwright:
+    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    env:
+      TEST_ENV: ${{ github.event.inputs.env || 'STAGE' }}
+      TEST_LOCATION: ${{ github.event.inputs.location || 'CAN' }}
+      TEST_SUITE: ${{ github.event_name == 'push' && 'regression' || github.event.inputs.suite || 'smoke' }}
+      SMOKE_EMAIL_TO: ${{ vars.SMOKE_EMAIL_TO || 'ssdas@ex2india.com' }}
+      REGRESSION_EMAIL_TO: ${{ vars.REGRESSION_EMAIL_TO || 'ssdas@ex2india.com' }}
+      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      MAIL_FROM: ${{ secrets.MAIL_FROM }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run single CI test
+        if: env.TEST_SUITE == 'ci'
+        run: npm run test:ci
+        env:
+          ENV: ${{ env.TEST_ENV }}
+          LOCATION: ${{ env.TEST_LOCATION }}
+
+      - name: Run smoke tests
+        if: env.TEST_SUITE == 'smoke'
+        run: npm run test:smoke
+        env:
+          ENV: ${{ env.TEST_ENV }}
+          LOCATION: ${{ env.TEST_LOCATION }}
+
+      - name: Run regression tests
+        if: env.TEST_SUITE == 'regression'
+        run: npm run test:regression
+        env:
+          ENV: ${{ env.TEST_ENV }}
+          LOCATION: ${{ env.TEST_LOCATION }}
+
+      - name: Package reports
+        if: always()
+        run: |
+          zip -r playwright-report.zip playwright-report test-results reports allure-results || true
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TEST_SUITE }}-playwright-report
+          path: |
+            playwright-report/
+            playwright-report.zip
+            test-results/
+            reports/
+            allure-results/
+          retention-days: 30
+
+      - name: Send smoke email report
+        if: always() && env.TEST_SUITE == 'smoke' && env.SMTP_SERVER != '' && env.SMOKE_EMAIL_TO != ''
+        uses: dawidd6/action-send-mail@v6
+        with:
+          server_address: ${{ env.SMTP_SERVER }}
+          server_port: ${{ env.SMTP_PORT || '587' }}
+          username: ${{ env.SMTP_USERNAME }}
+          password: ${{ env.SMTP_PASSWORD }}
+          from: ${{ env.MAIL_FROM }}
+          to: ${{ env.SMOKE_EMAIL_TO }}
+          subject: Mattamy Smoke ${{ job.status }} | ${{ github.workflow }} #${{ github.run_number }}
+          body: |
+            Hi Team,
+
+            Smoke automation execution completed with status: ${{ job.status }}.
+
+            Environment: ${{ env.TEST_ENV }}
+            Location: ${{ env.TEST_LOCATION }}
+            Branch: ${{ github.ref_name }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            The Playwright report ZIP is attached.
+
+            Regards,
+            GitHub Actions
+          attachments: playwright-report.zip
+
+      - name: Send single test email report
+        if: always() && env.TEST_SUITE == 'ci' && env.SMTP_SERVER != '' && env.SMOKE_EMAIL_TO != ''
+        uses: dawidd6/action-send-mail@v6
+        with:
+          server_address: ${{ env.SMTP_SERVER }}
+          server_port: ${{ env.SMTP_PORT || '587' }}
+          username: ${{ env.SMTP_USERNAME }}
+          password: ${{ env.SMTP_PASSWORD }}
+          from: ${{ env.MAIL_FROM }}
+          to: ${{ env.SMOKE_EMAIL_TO }}
+          subject: Mattamy Single Test ${{ job.status }} | ${{ github.workflow }} #${{ github.run_number }}
+          body: |
+            Hi Team,
+
+            Single CI automation test execution completed with status: ${{ job.status }}.
+
+            Environment: ${{ env.TEST_ENV }}
+            Location: ${{ env.TEST_LOCATION }}
+            Branch: ${{ github.ref_name }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            The Playwright report ZIP is attached.
+
+            Regards,
+            GitHub Actions
+          attachments: playwright-report.zip
+
+      - name: Send regression email report
+        if: always() && env.TEST_SUITE == 'regression' && env.SMTP_SERVER != '' && env.REGRESSION_EMAIL_TO != ''
+        uses: dawidd6/action-send-mail@v6
+        with:
+          server_address: ${{ env.SMTP_SERVER }}
+          server_port: ${{ env.SMTP_PORT || '587' }}
+          username: ${{ env.SMTP_USERNAME }}
+          password: ${{ env.SMTP_PASSWORD }}
+          from: ${{ env.MAIL_FROM }}
+          to: ${{ env.REGRESSION_EMAIL_TO }}
+          subject: Mattamy Regression ${{ job.status }} | ${{ github.workflow }} #${{ github.run_number }}
+          body: |
+            Hi Team,
+
+            Regression automation execution completed with status: ${{ job.status }}.
+
+            Environment: ${{ env.TEST_ENV }}
+            Location: ${{ env.TEST_LOCATION }}
+            Branch: ${{ github.ref_name }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            The Playwright report ZIP is attached.
+
+            Regards,
+            GitHub Actions
+          attachments: playwright-report.zip

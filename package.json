@@ -20,7 +20,9 @@
   },
   "scripts": {
     "test": "playwright test",
-    "test:ci": "playwright test --project=Chromium --grep @ci",
+    "test:ci": "playwright test --project=Chrome --grep @ci",
+    "test:smoke": "playwright test --project=Chrome --grep @smoke",
+    "test:regression": "playwright test --project=Chrome --grep @regression",
     "jira:scenario": "ts-node scripts/fetch-jira-scenarios.ts",
     "mcp:fetch-jira": "ts-node scripts/fetch-mcp-requirement.ts",
     "mcp:ingest": "ts-node scripts/ingest-mcp-requirement.ts",
