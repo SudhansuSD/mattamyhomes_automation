@@ -34,6 +34,10 @@ on:
           - CAN
           - USA
 
+concurrency:
+  group: playwright-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   playwright:
     timeout-minutes: 90
@@ -51,6 +55,7 @@ jobs:
       SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       MAIL_FROM: ${{ secrets.MAIL_FROM }}
+      GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     steps:
       - uses: actions/checkout@v4
@@ -86,7 +91,9 @@ jobs:
       - name: Package reports
         if: always()
         run: |
-          zip -r playwright-report.zip playwright-report test-results reports allure-results || true
+          npm run report:email
+          find playwright-report test-results reports allure-results -type f \( -name "*.webm" -o -name "*.mp4" \) -delete 2>/dev/null || true
+          zip -r playwright-report.zip playwright-report reports test-results/results.json allure-results -x "*.webm" "*.mp4" "*/video*" || true
 
       - name: Upload Playwright report
         if: always()
@@ -96,14 +103,16 @@ jobs:
           path: |
             playwright-report/
             playwright-report.zip
-            test-results/
+            test-results/results.json
             reports/
             allure-results/
+            !**/*.webm
+            !**/*.mp4
           retention-days: 30
 
       - name: Send smoke email report
         if: always() && env.TEST_SUITE == 'smoke' && env.SMTP_SERVER != '' && env.SMOKE_EMAIL_TO != ''
-        uses: dawidd6/action-send-mail@v6
+        uses: dawidd6/action-send-mail@v17
         with:
           server_address: ${{ env.SMTP_SERVER }}
           server_port: ${{ env.SMTP_PORT || '587' }}
@@ -112,25 +121,12 @@ jobs:
           from: ${{ env.MAIL_FROM }}
           to: ${{ env.SMOKE_EMAIL_TO }}
           subject: Mattamy Smoke ${{ job.status }} | ${{ github.workflow }} #${{ github.run_number }}
-          body: |
-            Hi Team,
-
-            Smoke automation execution completed with status: ${{ job.status }}.
-
-            Environment: ${{ env.TEST_ENV }}
-            Location: ${{ env.TEST_LOCATION }}
-            Branch: ${{ github.ref_name }}
-            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            The Playwright report ZIP is attached.
-
-            Regards,
-            GitHub Actions
-          attachments: playwright-report.zip
+          html_body: file://reports/email-summary.html
+          attachments: playwright-report.zip,reports/email-summary.html
 
       - name: Send single test email report
         if: always() && env.TEST_SUITE == 'ci' && env.SMTP_SERVER != '' && env.SMOKE_EMAIL_TO != ''
-        uses: dawidd6/action-send-mail@v6
+        uses: dawidd6/action-send-mail@v17
         with:
           server_address: ${{ env.SMTP_SERVER }}
           server_port: ${{ env.SMTP_PORT || '587' }}
@@ -139,25 +135,12 @@ jobs:
           from: ${{ env.MAIL_FROM }}
           to: ${{ env.SMOKE_EMAIL_TO }}
           subject: Mattamy Single Test ${{ job.status }} | ${{ github.workflow }} #${{ github.run_number }}
-          body: |
-            Hi Team,
-
-            Single CI automation test execution completed with status: ${{ job.status }}.
-
-            Environment: ${{ env.TEST_ENV }}
-            Location: ${{ env.TEST_LOCATION }}
-            Branch: ${{ github.ref_name }}
-            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            The Playwright report ZIP is attached.
-
-            Regards,
-            GitHub Actions
-          attachments: playwright-report.zip
+          html_body: file://reports/email-summary.html
+          attachments: playwright-report.zip,reports/email-summary.html
 
       - name: Send regression email report
         if: always() && env.TEST_SUITE == 'regression' && env.SMTP_SERVER != '' && env.REGRESSION_EMAIL_TO != ''
-        uses: dawidd6/action-send-mail@v6
+        uses: dawidd6/action-send-mail@v17
         with:
           server_address: ${{ env.SMTP_SERVER }}
           server_port: ${{ env.SMTP_PORT || '587' }}
@@ -166,18 +149,5 @@ jobs:
           from: ${{ env.MAIL_FROM }}
           to: ${{ env.REGRESSION_EMAIL_TO }}
           subject: Mattamy Regression ${{ job.status }} | ${{ github.workflow }} #${{ github.run_number }}
-          body: |
-            Hi Team,
-
-            Regression automation execution completed with status: ${{ job.status }}.
-
-            Environment: ${{ env.TEST_ENV }}
-            Location: ${{ env.TEST_LOCATION }}
-            Branch: ${{ github.ref_name }}
-            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-            The Playwright report ZIP is attached.
-
-            Regards,
-            GitHub Actions
-          attachments: playwright-report.zip
+          html_body: file://reports/email-summary.html
+          attachments: playwright-report.zip,reports/email-summary.html

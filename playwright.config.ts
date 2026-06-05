@@ -23,14 +23,14 @@ export default defineConfig({
     launchOptions: {
       args: ['--start-maximized'],
     },
-    video: 'retain-on-failure',
+    video: 'off',
   },
   workers: 1,
   fullyParallel: false,
   timeout: 50 * 60 * 1000,
   projects: [
     {
-      name: 'Chromium',
+      name: 'Chrome',
       use: { browserName: 'chromium' },
     },
     // {
@@ -41,25 +41,13 @@ export default defineConfig({
     //   name: 'WebKit',
     //   use: { browserName: 'webkit' },
     // },
-    // {
-    //   name: 'Mobile Chrome - Pixel 7',
-    //   use: {
-    //     ...devices['Pixel 7'],
-    //     browserName: 'chromium',
-    //   },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: {
-    //     browserName: 'webkit',
-    //   },
-    // },
   ],
   reporter: isVsCodePlaywrightRun
     ? [['line']]
     : [
-        ['html', { outputFolder: 'playwright-report', open: 'never' }],
-        ['json', { outputFile: 'test-results/results.json' }],
-        ['allure-playwright', { resultsDir: 'allure-results' }],
-      ],
+      ['html', { outputFolder: 'playwright-report', open: 'never' }],
+      ['json', { outputFile: 'test-results/results.json' }],
+      ['./reporters/MattamyAutomationReporter.ts'],
+      ['allure-playwright', { resultsDir: 'allure-results' }],
+    ],
 });

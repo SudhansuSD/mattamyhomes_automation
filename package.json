@@ -29,6 +29,7 @@
     "generate:testcases": "ts-node scripts/generate-testcases.ts",
     "generate:automation": "ts-node scripts/generate-automation.ts",
     "generate:spec": "ts-node scripts/generate-playwright.ts",
+    "report:email": "ts-node scripts/generate-email-summary.ts",
     "generate:from-mcp": "npm run mcp:ingest && npm run generate:testcases && npm run generate:automation && npm run generate:spec",
     "generate:from-jira-input": "npm run generate:testcases && npm run generate:automation && npm run generate:spec",
     "test:mobile:appium": "wdio run wdio.mobile.conf.js",
