@@ -38,6 +38,8 @@ jobs:
   playwright:
     timeout-minutes: 90
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
     env:
       TEST_ENV: ${{ github.event.inputs.env || 'STAGE' }}
       TEST_LOCATION: ${{ github.event.inputs.location || 'CAN' }}
@@ -59,14 +61,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Install Chromium for single test
-        if: env.TEST_SUITE == 'ci'
-        run: npx playwright install chromium
-
-      - name: Install Playwright Browsers
-        if: env.TEST_SUITE != 'ci'
-        run: npx playwright install --with-deps chromium
 
       - name: Run single CI test
         if: env.TEST_SUITE == 'ci'
