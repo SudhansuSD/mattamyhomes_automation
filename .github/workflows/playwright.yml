@@ -48,6 +48,7 @@ jobs:
       TEST_ENV: ${{ github.event.inputs.env || 'STAGE' }}
       TEST_LOCATION: ${{ github.event.inputs.location || 'CAN' }}
       TEST_SUITE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[single-test]') && 'ci' || github.event_name == 'push' && 'regression' || github.event.inputs.suite || 'smoke' }}
+      BROWSER: Chrome
 
     steps:
       - uses: actions/checkout@v4
@@ -101,3 +102,19 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 30
+
+      - name: Send email report
+        if: always()
+        run: npm run report:email
+        env:
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+          EMAIL_SECURE: ${{ secrets.EMAIL_SECURE }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          EMAIL_CC: ${{ secrets.EMAIL_CC }}
+          TEST_ENV: ${{ env.TEST_ENV }}
+          BROWSER: ${{ env.BROWSER }}
+          ALLURE_REPORT_URL: ${{ vars.ALLURE_REPORT_URL || secrets.ALLURE_REPORT_URL }}
