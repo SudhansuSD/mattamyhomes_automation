@@ -63,29 +63,36 @@ export class PromoPage extends BasePage {
   }
 
   async verifyPageLoaded(): Promise<void> {
-    await expect(this.page).toHaveURL(/\/florida\/orlando\/promos\/hometown-heroes/i);
-    await expect(this.page).toHaveTitle(/Hometown Heroes.*Orlando/i);
-    await expect(this.heroImage).toBeVisible({ timeout: PromoPage.PAGE_LOAD_TIMEOUT });
-    await expect(this.promoHeading).toBeVisible({ timeout: PromoPage.PAGE_LOAD_TIMEOUT });
-    await expect(this.offerHeading).toBeVisible();
-    await expect(this.discoverOrlandoSection).toBeVisible();
+    await this.assertPageUrl(
+      /\/florida\/orlando\/promos\/hometown-heroes/i,
+      'Hometown Heroes promo URL should match expected route',
+      PromoPage.PAGE_LOAD_TIMEOUT
+    );
+    await this.assertPageTitle(
+      /Hometown Heroes.*Orlando/i,
+      'Hometown Heroes promo page title should match'
+    );
+    await this.assertVisible(this.heroImage, 'Hometown Heroes promo hero image should be visible', PromoPage.PAGE_LOAD_TIMEOUT);
+    await this.assertVisible(this.promoHeading, 'Hometown Heroes promo heading should be visible', PromoPage.PAGE_LOAD_TIMEOUT);
+    await this.assertVisible(this.offerHeading, 'Hometown Heroes offer heading should be visible');
+    await this.assertVisible(this.discoverOrlandoSection, 'Discover Orlando section should be visible');
   }
 
   async verifyPromoFormFields(): Promise<void> {
     await this.scrollToForm();
 
-    await expect(this.formTitle).toBeVisible({ timeout: PromoPage.PAGE_LOAD_TIMEOUT });
-    await expect(this.promoForm).toBeVisible({ timeout: PromoPage.PAGE_LOAD_TIMEOUT });
-    await expect(this.communityField).toBeVisible();
-    await expect(this.firstNameField).toBeVisible();
-    await expect(this.lastNameField).toBeVisible();
-    await expect(this.emailField).toBeVisible();
-    await expect(this.countryField).toBeVisible();
-    await expect(this.zipPostalField).toBeVisible();
-    await expect(this.phoneField).toBeVisible();
+    await this.assertVisible(this.formTitle, 'Promo form title should be visible', PromoPage.PAGE_LOAD_TIMEOUT);
+    await this.assertVisible(this.promoForm, 'Promo lead form should be visible', PromoPage.PAGE_LOAD_TIMEOUT);
+    await this.assertVisible(this.communityField, 'Community of Interest field should be visible');
+    await this.assertVisible(this.firstNameField, 'First name field should be visible');
+    await this.assertVisible(this.lastNameField, 'Last name field should be visible');
+    await this.assertVisible(this.emailField, 'Email field should be visible');
+    await this.assertVisible(this.countryField, 'Country field should be visible');
+    await this.assertVisible(this.zipPostalField, 'Zip/Postal Code field should be visible');
+    await this.assertVisible(this.phoneField, 'Phone number field should be visible');
     await this.expectFieldIfPresent(this.questionsField);
-    await expect(this.termsCheckbox).toBeVisible();
-    await expect(this.submitButton).toBeVisible();
+    await this.assertVisible(this.termsCheckbox, 'Terms checkbox should be visible');
+    await this.assertVisible(this.submitButton, 'Promo form submit button should be visible');
   }
 
   async validateRequiredFieldErrors(): Promise<void> {
@@ -119,7 +126,7 @@ export class PromoPage extends BasePage {
       .first();
 
     if (await emailError.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expect(emailError).toBeVisible();
+      await this.assertVisible(emailError, 'Invalid email error should be visible');
       return;
     }
 
@@ -128,10 +135,10 @@ export class PromoPage extends BasePage {
       return input.validationMessage;
     });
 
-    expect(
+    this.assertTruthy(
       nativeValidationMessage,
       'Promo email field should reject invalid email format'
-    ).toBeTruthy();
+    );
   }
 
   async verifySuccessfulSubmission(): Promise<void> {
@@ -140,11 +147,14 @@ export class PromoPage extends BasePage {
     await this.submitButton.click();
 
     if (await this.successDialogModal.isVisible({ timeout: 10000 }).catch(() => false)) {
-      await expect(this.successDialogModal).toBeVisible();
+      await this.assertVisible(this.successDialogModal, 'Promo success dialog should be visible');
     }
 
-    await expect(this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last())
-      .toBeVisible({ timeout: PromoPage.PAGE_LOAD_TIMEOUT });
+    await this.assertVisible(
+      this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last(),
+      'Promo success thank-you message should be visible',
+      PromoPage.PAGE_LOAD_TIMEOUT
+    );
   }
 
   private get communityField(): Locator {
@@ -241,7 +251,7 @@ export class PromoPage extends BasePage {
 
   private async expectFieldIfPresent(field: Locator): Promise<void> {
     if (await field.count()) {
-      await expect(field).toBeVisible();
+      await this.assertVisible(field, 'Optional promo form field should be visible when present');
     }
   }
 

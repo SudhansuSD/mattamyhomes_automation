@@ -6,7 +6,7 @@ import { MPCConfig, MPCPage } from '../pages/MPCPage';
 const location = getLocationConfig();
 const { envName } = getEnvConfig();
 const mpc = location.country === 'USA' && 'mpc' in location
-  ? location.mpc as MPCConfig
+  ? location.mpc?.[0] as MPCConfig | undefined
   : undefined;
 
 test.describe(`MPC page tests - ${location.country}`, () => {

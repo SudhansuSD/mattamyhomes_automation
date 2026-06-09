@@ -168,10 +168,16 @@ export class MarketPage extends BasePage {
     async verifyMarketPage(market: MarketConfig): Promise<void> {
         await this.waitForPageReady();
 
-        await expect(this.page).toHaveURL(new RegExp(market.url, 'i'));
-        await expect(this.heading).toContainText(this.getMarketNamePattern(market.name), {
-            timeout: 15000
-        });
+        await this.assertPageUrl(
+            new RegExp(market.url, 'i'),
+            `${market.name} market page URL should match configured path`
+        );
+        await this.assertTextContains(
+            this.heading,
+            this.getMarketNamePattern(market.name),
+            `${market.name} market heading should match configured name`,
+            15_000
+        );
 
         console.log(`✅ Market verified: ${market.name}`);
         console.log(`🌐 URL: ${this.page.url()}`);
@@ -179,21 +185,23 @@ export class MarketPage extends BasePage {
 
     /** Verify: market hero content, hero image, and search CTAs are present. */
     async validateHeroContent(market: MarketConfig): Promise<void> {
-        await expect(this.heroSection).toBeVisible({ timeout: 15000 });
-        await expect(this.heading).toContainText(this.getMarketNamePattern(market.name));
+        await this.assertVisible(this.heroSection, `${market.name} market hero section should be visible`, 15_000);
+        await this.assertTextContains(
+            this.heading,
+            this.getMarketNamePattern(market.name),
+            `${market.name} market heading should be visible in hero`
+        );
 
         const heroImage = this.heroSection.locator('img').first();
         if (await heroImage.count()) {
-            await expect(heroImage).toBeVisible();
+            await this.assertVisible(heroImage, `${market.name} market hero image should be visible`);
         }
 
         const heroText = await getNormalizedText(this.heroSection);
-        expect(heroText, 'Hero should include visible market copy')
-            .toBeTruthy();
+        this.assertTruthy(heroText, 'Hero should include visible market copy');
 
         const pageSearchLinkCount = await this.marketSearchLinks.count();
-        expect(pageSearchLinkCount, 'Market page should include search CTAs')
-            .toBeGreaterThan(0);
+        this.assertGreaterThan(pageSearchLinkCount, 0, 'Market page should include search CTAs');
     }
 
     /* ==========================================================
@@ -211,7 +219,7 @@ export class MarketPage extends BasePage {
         const cards = this.getCommunityCards(communitySection);
 
         const count = await cards.count();
-        expect(count).toBeGreaterThan(0);
+        this.assertGreaterThan(count, 0, 'Market page should list community cards');
 
         this.logBlock('COMMUNITY CARDS');
 
@@ -240,8 +248,7 @@ export class MarketPage extends BasePage {
 
         const cards = this.getCommunityCards(communitySection);
         const count = await cards.count();
-        expect(count, 'Market page should list at least one community card')
-            .toBeGreaterThan(0);
+        this.assertGreaterThan(count, 0, 'Market page should list at least one community card');
 
         for (let i = 0; i < count; i++) {
             const card = cards.nth(i);
@@ -255,7 +262,12 @@ export class MarketPage extends BasePage {
 
             const image = card.locator('img').first();
             if (await image.count()) {
-                await expect(image).toHaveAttribute('src', /.+/);
+                await this.assertAttribute(
+                    image,
+                    'src',
+                    /.+/,
+                    `Community card ${i + 1} image should expose a src`
+                );
             }
         }
     }
@@ -274,11 +286,10 @@ export class MarketPage extends BasePage {
             .locator('a[href]')
             .first();
 
-        await expect(firstCardLink, 'No community card link available')
-            .toBeVisible({ timeout: 10000 });
+        await this.assertVisible(firstCardLink, 'No community card link available');
 
         const href = await firstCardLink.getAttribute('href');
-        expect(href).toBeTruthy();
+        this.assertTruthy(href, 'First community card href missing');
 
         await firstCardLink.scrollIntoViewIfNeeded();
         await Promise.all([
@@ -286,7 +297,10 @@ export class MarketPage extends BasePage {
             firstCardLink.click()
         ]);
         await this.waitForPageReady();
-        await expect(this.page).toHaveURL(new RegExp(escapeRegex(href!), 'i'));
+        await this.assertPageUrlContains(
+            href,
+            `First community card should navigate to ${href}`
+        );
     }
 
     /* ==========================================================
@@ -314,8 +328,7 @@ export class MarketPage extends BasePage {
 
         await expect(form, `Lead form not in viewport on ${marketName}`)
             .toBeInViewport({ timeout: 10000 });
-        await expect(form, `Lead form not visible on ${marketName}`)
-            .toBeVisible({ timeout: 10000 });
+        await this.assertVisible(form, `Lead form not visible on ${marketName}`);
 
         return form;
     }

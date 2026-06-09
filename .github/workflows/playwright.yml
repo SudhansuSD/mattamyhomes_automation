@@ -48,14 +48,6 @@ jobs:
       TEST_ENV: ${{ github.event.inputs.env || 'STAGE' }}
       TEST_LOCATION: ${{ github.event.inputs.location || 'CAN' }}
       TEST_SUITE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[single-test]') && 'ci' || github.event_name == 'push' && 'regression' || github.event.inputs.suite || 'smoke' }}
-      SMOKE_EMAIL_TO: ${{ vars.SMOKE_EMAIL_TO || 'ssdas@ex2india.com' }}
-      REGRESSION_EMAIL_TO: ${{ vars.REGRESSION_EMAIL_TO || 'ssdas@ex2india.com' }}
-      SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
-      SMTP_PORT: ${{ secrets.SMTP_PORT }}
-      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
-      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-      MAIL_FROM: ${{ secrets.MAIL_FROM }}
-      GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
     steps:
       - uses: actions/checkout@v4
@@ -88,12 +80,17 @@ jobs:
           ENV: ${{ env.TEST_ENV }}
           LOCATION: ${{ env.TEST_LOCATION }}
 
-      - name: Package reports
+      - name: Generate Allure HTML report
         if: always()
-        run: |
-          npm run report:email
-          find playwright-report test-results reports allure-results -type f \( -name "*.webm" -o -name "*.mp4" \) -delete 2>/dev/null || true
-          zip -r playwright-report.zip playwright-report reports test-results/results.json allure-results -x "*.webm" "*.mp4" "*/video*" || true
+        run: npm run allure:generate
+
+      - name: Upload Allure Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-html-report
+          path: allure-report
+          retention-days: 30
 
       - name: Upload Playwright report
         if: always()
@@ -102,52 +99,5 @@ jobs:
           name: ${{ env.TEST_SUITE }}-playwright-report
           path: |
             playwright-report/
-            playwright-report.zip
-            test-results/results.json
-            reports/
-            allure-results/
-            !**/*.webm
-            !**/*.mp4
+            test-results/
           retention-days: 30
-
-      - name: Send smoke email report
-        if: always() && env.TEST_SUITE == 'smoke' && env.SMTP_SERVER != '' && env.SMOKE_EMAIL_TO != ''
-        uses: dawidd6/action-send-mail@v17
-        with:
-          server_address: ${{ env.SMTP_SERVER }}
-          server_port: ${{ env.SMTP_PORT || '587' }}
-          username: ${{ env.SMTP_USERNAME }}
-          password: ${{ env.SMTP_PASSWORD }}
-          from: ${{ env.MAIL_FROM }}
-          to: ${{ env.SMOKE_EMAIL_TO }}
-          subject: Mattamy Smoke ${{ job.status }} | ${{ github.workflow }} #${{ github.run_number }}
-          html_body: file://reports/email-summary.html
-          attachments: playwright-report.zip,reports/email-summary.html
-
-      - name: Send single test email report
-        if: always() && env.TEST_SUITE == 'ci' && env.SMTP_SERVER != '' && env.SMOKE_EMAIL_TO != ''
-        uses: dawidd6/action-send-mail@v17
-        with:
-          server_address: ${{ env.SMTP_SERVER }}
-          server_port: ${{ env.SMTP_PORT || '587' }}
-          username: ${{ env.SMTP_USERNAME }}
-          password: ${{ env.SMTP_PASSWORD }}
-          from: ${{ env.MAIL_FROM }}
-          to: ${{ env.SMOKE_EMAIL_TO }}
-          subject: Mattamy Single Test ${{ job.status }} | ${{ github.workflow }} #${{ github.run_number }}
-          html_body: file://reports/email-summary.html
-          attachments: playwright-report.zip,reports/email-summary.html
-
-      - name: Send regression email report
-        if: always() && env.TEST_SUITE == 'regression' && env.SMTP_SERVER != '' && env.REGRESSION_EMAIL_TO != ''
-        uses: dawidd6/action-send-mail@v17
-        with:
-          server_address: ${{ env.SMTP_SERVER }}
-          server_port: ${{ env.SMTP_PORT || '587' }}
-          username: ${{ env.SMTP_USERNAME }}
-          password: ${{ env.SMTP_PASSWORD }}
-          from: ${{ env.MAIL_FROM }}
-          to: ${{ env.REGRESSION_EMAIL_TO }}
-          subject: Mattamy Regression ${{ job.status }} | ${{ github.workflow }} #${{ github.run_number }}
-          html_body: file://reports/email-summary.html
-          attachments: playwright-report.zip,reports/email-summary.html

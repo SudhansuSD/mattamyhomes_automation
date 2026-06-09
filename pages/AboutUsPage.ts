@@ -74,15 +74,14 @@ export class AboutUsPage extends BasePage {
   async validatePageShell(link: HeaderNavigationLink, expectation: AboutPageExpectation): Promise<void> {
     await this.waitForPageReady();
 
-    await expect(this.page).toHaveTitle(expectation.title);
-    await expect(this.page, `${link.name} should keep the expected route`)
-      .toHaveURL(new RegExp(`${this.escapeRegExp(link.url)}(?:\\?.*)?$`));
-    await expect(this.header, `${link.name} should keep the global header mounted`)
-      .toBeAttached({ timeout: 15000 });
-    await expect(this.main, `${link.name} should render a main content area`)
-      .toBeAttached({ timeout: 15000 });
-    await expect(this.footer, `${link.name} should keep the global footer mounted`)
-      .toBeAttached({ timeout: 15000 });
+    await this.assertPageTitle(expectation.title, `${link.name} title should match expected value`);
+    await this.assertPageUrl(
+      new RegExp(`${this.escapeRegExp(link.url)}(?:\\?.*)?$`),
+      `${link.name} should keep the expected route`
+    );
+    await this.assertAttached(this.header, `${link.name} should keep the global header mounted`, 15_000);
+    await this.assertAttached(this.main, `${link.name} should render a main content area`, 15_000);
+    await this.assertAttached(this.footer, `${link.name} should keep the global footer mounted`, 15_000);
   }
 
   async validatePageContent(expectation: AboutPageExpectation): Promise<void> {
@@ -146,8 +145,11 @@ export class AboutUsPage extends BasePage {
 
   async validateMediaAndInvestorFunctionality(): Promise<void> {
     const releaseLinks = this.main.locator('a[href*="mediaroom.com"]:visible');
-    await expect(releaseLinks.first(), 'News Releases should list visible release links')
-      .toBeVisible({ timeout: 15000 });
+    await this.assertVisible(
+      releaseLinks.first(),
+      'News Releases should list visible release links',
+      15_000
+    );
 
     const releaseCount = await releaseLinks.count();
     const seeMoreButton = this.main.getByRole('button', { name: /See More Releases/i });
@@ -175,8 +177,11 @@ export class AboutUsPage extends BasePage {
     if (await nextSlideButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await nextSlideButton.scrollIntoViewIfNeeded();
       await nextSlideButton.click();
-      await expect(nextSlideButton, 'Career carousel next control should remain usable after click')
-        .toBeVisible({ timeout: 5000 });
+      await this.assertVisible(
+        nextSlideButton,
+        'Career carousel next control should remain usable after click',
+        5_000
+      );
     }
 
     const previousSlideButton = this.main.getByRole('button', { name: /Previous slide/i }).first();

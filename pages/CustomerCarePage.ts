@@ -141,47 +141,62 @@ export class CustomerCarePage extends BasePage {
   }
 
   async verifyPageLoaded(config: CustomerCareCountryConfig): Promise<void> {
-    await expect(this.page).toHaveTitle(config.expectedTitle);
-    await expect(this.page).toHaveURL(/\/customer-care/i);
-    await expect(this.heading).toBeVisible({ timeout: 15000 });
-    await expect(this.heading).toHaveText(config.expectedHeading);
-    await expect(this.main.getByText(config.heroCopy)).toBeVisible();
-    await expect(this.areaHeading).toBeVisible();
+    await this.assertPageTitle(config.expectedTitle, `${config.locationKey} Customer Care page title should match`);
+    await this.assertPageUrl(/\/customer-care/i, `${config.locationKey} Customer Care page URL should match`);
+    await this.assertVisible(this.heading, 'Customer Care page heading should be visible', 15_000);
+    await this.assertText(this.heading, config.expectedHeading, 'Customer Care heading should match configured country');
+    await this.assertVisible(this.main.getByText(config.heroCopy), 'Customer Care hero copy should be visible');
+    await this.assertVisible(this.areaHeading, 'Customer Care area heading should be visible');
 
     const selectedCountry = config.locationKey === 'USA' ? 'USA' : 'Canada';
-    await expect(this.countrySelectorButton).toHaveAttribute(
+    await this.assertAttribute(
+      this.countrySelectorButton,
       'aria-label',
-      new RegExp(`${this.escapeRegExp(selectedCountry)} country is selected`, 'i')
+      new RegExp(`${this.escapeRegExp(selectedCountry)} country is selected`, 'i'),
+      `${selectedCountry} should be selected in Customer Care country selector`
     );
   }
 
   async validateAreaList(config: CustomerCareCountryConfig): Promise<void> {
     const areaButtons = this.getAreaButtons();
 
-    await expect(areaButtons.first()).toBeVisible({ timeout: 15000 });
-    await expect(areaButtons, `${config.locationKey} customer care area count should match configured markets`)
-      .toHaveCount(config.areas.length);
+    await this.assertVisible(areaButtons.first(), `${config.locationKey} customer care areas should render`, 15_000);
+    await this.assertCount(
+      areaButtons,
+      config.areas.length,
+      `${config.locationKey} customer care area count should match configured markets`
+    );
 
     for (const area of config.areas) {
       const button = this.getAreaButton(area.name);
 
-      await expect(button, `${area.name} customer care area should be visible`)
-        .toBeVisible();
-      await expect(button, `${area.name} should expose an accessible contact-details label`)
-        .toHaveAttribute('aria-label', /View contact details of .+ State/i);
-      await expect(button).toHaveAttribute('aria-expanded', /false|true/);
+      await this.assertVisible(button, `${area.name} customer care area should be visible`);
+      await this.assertAttribute(
+        button,
+        'aria-label',
+        /View contact details of .+ State/i,
+        `${area.name} should expose an accessible contact-details label`
+      );
+      await this.assertAttribute(
+        button,
+        'aria-expanded',
+        /false|true/,
+        `${area.name} should expose expanded/collapsed state`
+      );
     }
   }
 
   async validateAreaDetails(area: CustomerCareArea): Promise<void> {
     const button = this.getAreaButton(area.name);
 
-    await expect(button).toBeVisible({ timeout: 15000 });
+    await this.assertVisible(button, `${area.name} customer care area should be visible`, 15_000);
     await button.click({ force: true });
 
     for (const expectedDetail of area.expectedDetails) {
-      await expect(this.main.getByText(new RegExp(this.escapeRegExp(expectedDetail), 'i')).first())
-        .toBeVisible({ timeout: 10000 });
+      await this.assertVisible(
+        this.main.getByText(new RegExp(this.escapeRegExp(expectedDetail), 'i')).first(),
+        `${area.name} should show customer care detail: ${expectedDetail}`
+      );
     }
   }
 
@@ -191,8 +206,10 @@ export class CustomerCarePage extends BasePage {
         .locator(`a[href*="${resourceLink.hrefContains}"]`)
         .first();
 
-      await expect(resourceLinkLocator, `${resourceLink.name} should point to the expected resource`)
-        .toBeVisible({ timeout: 10000 });
+      await this.assertVisible(
+        resourceLinkLocator,
+        `${resourceLink.name} should point to the expected resource`
+      );
     }
   }
 
@@ -207,17 +224,18 @@ export class CustomerCarePage extends BasePage {
     ];
 
     for (const heading of emergencyHeadings) {
-      await expect(
+      await this.assertVisible(
         this.main.getByRole('heading', { name: new RegExp(`^${this.escapeRegExp(heading)}$`, 'i') }).first(),
-        `${heading} should be present on the page`
-      ).toBeVisible({ timeout: 15000 });
+        `${heading} should be present on the page`,
+        15_000
+      );
     }
   }
 
   async validateUsServiceRequestForm(): Promise<void> {
-    await expect(this.serviceRequestSection).toBeVisible({ timeout: 15000 });
-    await expect(this.serviceRequestForm).toBeVisible();
-    await expect(this.submitButton).toBeVisible();
+    await this.assertVisible(this.serviceRequestSection, 'Service request section should be visible', 15_000);
+    await this.assertVisible(this.serviceRequestForm, 'Service request form should be visible');
+    await this.assertVisible(this.submitButton, 'Service request submit button should be visible');
 
     const requiredFieldStates = await this.getServiceRequestFieldStates(REQUIRED_SERVICE_REQUEST_FIELDS);
 

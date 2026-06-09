@@ -552,22 +552,17 @@ export class SearchablePage extends BasePage {
     const { communityPath } = getLocationConfig();
 
     if (communityPath) {
-      await expect(
-        this.page,
+      await this.assertPageUrlContains(
+        communityPath,
         'Community search should navigate to the configured community URL'
-      ).toHaveURL(new RegExp(escapeRegex(communityPath), 'i'), {
-        timeout: 60000
-      });
+      );
     }
 
-    await expect(
-      this.page
-        .getByRole('heading', {
-          level: 1,
-          name: new RegExp(escapeRegex(expectedCommunity), 'i')
-        })
-        .first()
-    ).toBeVisible({ timeout: 60000 });
+    await this.assertHeadingVisible(
+      new RegExp(escapeRegex(expectedCommunity), 'i'),
+      'Community detail page heading should show searched community',
+      60_000
+    );
   }
 
   /* ==========================================================
@@ -581,12 +576,17 @@ export class SearchablePage extends BasePage {
   async verifySearchByCondoCommunity(expectedCommunity: string): Promise<void> {
     await this.waitForPageReady();
 
-    await expect(this.page.getByRole('heading', { level: 1 }).first()).toContainText(
+    await this.assertTextContains(
+      this.page.getByRole('heading', { level: 1 }).first(),
       new RegExp(escapeRegex(expectedCommunity), 'i'),
-      { timeout: 20000 }
+      'Condo community heading should show searched community',
+      20_000
     );
 
-    await expect(this.page).not.toHaveURL(/\?country=/i);
+    await this.assertPageUrlDoesNotMatch(
+      /\?country=/i,
+      'Condo community search should navigate away from home country query'
+    );
   }
 
   /* ==========================================================
@@ -638,10 +638,11 @@ export class SearchablePage extends BasePage {
       .filter({ hasText: new RegExp(escapeRegex(mpcName), 'i') })
       .first();
 
-    await expect(
+    await this.assertVisible(
       mpcCard,
-      `MPC card should be visible on search result page: ${mpcName}`
-    ).toBeVisible({ timeout: 60000 });
+      `MPC card should be visible on search result page: ${mpcName}`,
+      60_000
+    );
 
     await mpcCard.scrollIntoViewIfNeeded();
 
@@ -650,10 +651,11 @@ export class SearchablePage extends BasePage {
       .first()
       .or(mpcCard.getByRole('button', { name: /learn more/i }).first());
 
-    await expect(
+    await this.assertVisible(
       learnMoreCta,
-      `Learn More CTA should be visible for MPC card: ${mpcName}`
-    ).toBeVisible({ timeout: 30000 });
+      `Learn More CTA should be visible for MPC card: ${mpcName}`,
+      30_000
+    );
 
     await learnMoreCta.click();
 
@@ -663,19 +665,16 @@ export class SearchablePage extends BasePage {
   async verifyMpcDetailPage(mpc: MpcConfig): Promise<void> {
     await this.waitForPageReady();
 
-    await expect(
-      this.page,
+    await this.assertPageUrlContains(
+      mpc.url,
       `MPC detail page URL should contain config URL: ${mpc.url}`
-    ).toHaveURL(new RegExp(escapeRegex(mpc.url), 'i'), {
-      timeout: 60000,
-    });
+    );
 
-    await expect(
-      this.page.locator('h1').first(),
-      `MPC detail page heading should contain config MPC name: ${mpc.name}`
-    ).toContainText(new RegExp(escapeRegex(mpc.name), 'i'), {
-      timeout: 30000,
-    });
+    await this.assertHeadingContains(
+      new RegExp(escapeRegex(mpc.name), 'i'),
+      `MPC detail page heading should contain config MPC name: ${mpc.name}`,
+      30_000
+    );
   }
 
   /* ==========================================================
@@ -689,17 +688,18 @@ export class SearchablePage extends BasePage {
   async verifySearchByPlan(expectedSlug: string): Promise<void> {
     await this.waitForPageReady();
 
-    await expect(this.page).toHaveURL(new RegExp(escapeRegex(expectedSlug), 'i'), {
-      timeout: 60000
-    });
+    await this.assertPageUrlContains(
+      expectedSlug,
+      `Plan search URL should contain expected slug: ${expectedSlug}`
+    );
 
-    await expect(this.page.locator('h1')).toBeVisible({ timeout: 20000 });
+    await this.assertHeadingVisible(undefined, 'Plan detail page should expose a visible H1');
   }
 
   async verifyPlanUrlContains(expectedUrlPart: string): Promise<void> {
-    await expect(this.page).toHaveURL(
-      new RegExp(escapeRegex(expectedUrlPart), 'i'),
-      { timeout: 60000 }
+    await this.assertPageUrlContains(
+      expectedUrlPart,
+      `Plan detail URL should contain expected path: ${expectedUrlPart}`
     );
   }
 
@@ -736,12 +736,12 @@ export class SearchablePage extends BasePage {
 
     await this.waitForPageReady();
 
-    await expect(this.page).toHaveURL(
-      new RegExp(escapeRegex(location.condoPlan.url), 'i'),
-      { timeout: 60000 }
+    await this.assertPageUrlContains(
+      location.condoPlan.url,
+      `Condo plan URL should contain configured path: ${location.condoPlan.url}`
     );
 
-    await expect(this.page.locator('h1')).toBeVisible({ timeout: 20000 });
+    await this.assertHeadingVisible(undefined, 'Condo plan detail page should expose a visible H1');
   }
 
   /* ==========================================================
@@ -755,13 +755,14 @@ export class SearchablePage extends BasePage {
   async verifySearchByQMI(expectedAddress: string): Promise<void> {
     await this.waitForPageReady();
 
-    await expect(this.page).toHaveURL(/\/\d{1,}-/, {
-      timeout: 60000
-    });
+    await this.assertPageUrl(
+      /\/\d{1,}-/,
+      'QMI search should navigate to a QMI detail URL'
+    );
 
-    await expect(this.page.locator('h1')).toContainText(
+    await this.assertHeadingContains(
       new RegExp(escapeRegex(expectedAddress), 'i'),
-      { timeout: 20000 }
+      `QMI detail heading should contain searched address: ${expectedAddress}`
     );
   }
 

@@ -138,15 +138,14 @@ export class StaticLegalPage extends BasePage {
   }
 
   async validatePageShell(config: StaticLegalPageConfig): Promise<void> {
-    await expect(this.page).toHaveTitle(config.expectedTitle);
-    await expect(this.page, `${config.name} should keep the expected route`)
-      .toHaveURL(new RegExp(`${this.escapeRegExp(config.path)}(?:\\?.*)?$`, 'i'));
-    await expect(this.header, `${config.name} should keep the global header present`)
-      .toBeAttached({ timeout: 15000 });
-    await expect(this.contentRoot, `${config.name} should render page content`)
-      .toBeVisible({ timeout: 15000 });
-    await expect(this.footer, `${config.name} should keep the global footer present`)
-      .toBeAttached({ timeout: 15000 });
+    await this.assertPageTitle(config.expectedTitle, `${config.name} title should match expected value`);
+    await this.assertPageUrl(
+      new RegExp(`${this.escapeRegExp(config.path)}(?:\\?.*)?$`, 'i'),
+      `${config.name} should keep the expected route`
+    );
+    await this.assertAttached(this.header, `${config.name} should keep the global header present`, 15_000);
+    await this.assertVisible(this.contentRoot, `${config.name} should render page content`, 15_000);
+    await this.assertAttached(this.footer, `${config.name} should keep the global footer present`, 15_000);
   }
 
   async validateStaticContent(config: StaticLegalPageConfig): Promise<void> {
@@ -161,8 +160,11 @@ export class StaticLegalPage extends BasePage {
       .toBeGreaterThan(200);
 
     for (const heading of config.headings) {
-      await expect(this.contentRoot.getByRole('heading', { name: heading }).first())
-        .toBeVisible({ timeout: 15000 });
+      await this.assertVisible(
+        this.contentRoot.getByRole('heading', { name: heading }).first(),
+        `${config.name} should show heading ${heading}`,
+        15_000
+      );
     }
 
     const pageText = await this.getVisiblePageText();
@@ -189,10 +191,16 @@ export class StaticLegalPage extends BasePage {
   }
 
   async validateNoFormsOrSubmitActions(config: StaticLegalPageConfig): Promise<void> {
-    await expect(this.contentRoot.locator('form'), `${config.name} should not expose forms`)
-      .toHaveCount(0);
-    await expect(this.contentRoot.getByRole('button', { name: /submit/i }), `${config.name} should not expose submit buttons`)
-      .toHaveCount(0);
+    await this.assertCount(
+      this.contentRoot.locator('form'),
+      0,
+      `${config.name} should not expose forms`
+    );
+    await this.assertCount(
+      this.contentRoot.getByRole('button', { name: /submit/i }),
+      0,
+      `${config.name} should not expose submit buttons`
+    );
   }
 
   private async preventProdFormSubmission(): Promise<void> {

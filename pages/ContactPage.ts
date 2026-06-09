@@ -1,4 +1,4 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 import { BasePage } from './BasePage';
@@ -117,70 +117,88 @@ export class ContactPage extends BasePage {
   async verifyPageLoaded(config: ContactCountryConfig): Promise<void> {
     await this.waitForPageReady();
 
-    await expect(this.page).toHaveTitle(config.expectedTitle);
-    await expect(this.page).toHaveURL(/\/contact/i);
-    await expect(this.heading).toBeVisible({ timeout: 15000 });
-    await expect(this.main.getByText(/Whether you're interested in a new community/i))
-      .toBeVisible();
-    await expect(this.countrySelectorHeading).toBeVisible();
-    await expect(this.areaHeading).toBeVisible();
-    await expect(this.selectedCountryButton).toHaveAttribute(
+    await this.assertPageTitle(config.expectedTitle, `${config.locationKey} Contact page title should match`);
+    await this.assertPageUrl(/\/contact/i, `${config.locationKey} Contact page URL should match`);
+    await this.assertVisible(this.heading, 'Contact page heading should be visible', 15_000);
+    await this.assertVisible(
+      this.main.getByText(/Whether you're interested in a new community/i),
+      'Contact hero copy should be visible'
+    );
+    await this.assertVisible(this.countrySelectorHeading, 'Contact country selector heading should be visible');
+    await this.assertVisible(this.areaHeading, 'Contact area heading should be visible');
+    await this.assertAttribute(
+      this.selectedCountryButton,
       'aria-label',
-      new RegExp(`Country selector, ${this.escapeRegExp(config.countryLabel)} is selected`, 'i')
+      new RegExp(`Country selector, ${this.escapeRegExp(config.countryLabel)} is selected`, 'i'),
+      `${config.countryLabel} should be selected in the Contact country selector`
     );
   }
 
   async validateAreaList(config: ContactCountryConfig): Promise<void> {
     const areaButtons = this.getAreaButtons();
 
-    await expect(areaButtons.first()).toBeVisible({ timeout: 15000 });
-    await expect(areaButtons, `${config.locationKey} contact area count should match configured markets`)
-      .toHaveCount(config.areas.length);
+    await this.assertVisible(areaButtons.first(), `${config.locationKey} contact areas should render`, 15_000);
+    await this.assertCount(
+      areaButtons,
+      config.areas.length,
+      `${config.locationKey} contact area count should match configured markets`
+    );
 
     for (const area of config.areas) {
       const button = this.getAreaButton(area.name);
 
-      await expect(button, `${area.name} contact area should be visible`)
-        .toBeVisible();
-      await expect(button, `${area.name} should expose an accessible contact-details label`)
-        .toHaveAttribute('aria-label', /View contact details of .+ State/i);
+      await this.assertVisible(button, `${area.name} contact area should be visible`);
+      await this.assertAttribute(
+        button,
+        'aria-label',
+        /View contact details of .+ State/i,
+        `${area.name} should expose an accessible contact-details label`
+      );
     }
   }
 
   async validateAreaDetails(area: ContactArea): Promise<void> {
-    await expect(this.getAreaButton(area.name)).toBeVisible({ timeout: 15000 });
+    await this.assertVisible(this.getAreaButton(area.name), `${area.name} contact area should be visible`, 15_000);
     await this.clickAreaButton(area.name);
 
     const formattedAreaName = this.toTitleCase(area.name);
     const selectedArea = this.main.getByText(new RegExp(this.escapeRegExp(formattedAreaName), 'i')).last();
 
-    await expect(selectedArea, `${area.name} details heading should appear after selection`)
-      .toBeVisible({ timeout: 10000 });
+    await this.assertVisible(selectedArea, `${area.name} details heading should appear after selection`);
 
     for (const action of area.detailActions) {
-      await expect(this.main.getByText(new RegExp(`^\\s*${this.escapeRegExp(action)}\\s*$`, 'i')).last())
-        .toBeVisible();
+      await this.assertVisible(
+        this.main.getByText(new RegExp(`^\\s*${this.escapeRegExp(action)}\\s*$`, 'i')).last(),
+        `${area.name} details should show action: ${action}`
+      );
     }
   }
 
   async validateCorporateOfficeEmails(): Promise<void> {
-    await expect(this.corporateOfficeSection).toBeVisible({ timeout: 15000 });
+    await this.assertVisible(this.corporateOfficeSection, 'Corporate office section should be visible', 15_000);
 
     for (const officeEmail of CORPORATE_OFFICE_EMAILS) {
-      await expect(this.corporateOfficeSection.getByText(officeEmail.label, { exact: true }))
-        .toBeVisible();
+      await this.assertVisible(
+        this.corporateOfficeSection.getByText(officeEmail.label, { exact: true }),
+        `${officeEmail.label} corporate office email label should be visible`
+      );
 
       const emailLink = this.corporateOfficeSection.getByRole('link', {
         name: new RegExp(this.escapeRegExp(officeEmail.email), 'i')
       });
 
-      await expect(emailLink).toBeVisible();
-      await expect(emailLink).toHaveAttribute('href', `mailto:${officeEmail.email}`);
+      await this.assertVisible(emailLink, `${officeEmail.email} email link should be visible`);
+      await this.assertAttribute(
+        emailLink,
+        'href',
+        `mailto:${officeEmail.email}`,
+        `${officeEmail.email} email link should use a mailto href`
+      );
     }
   }
 
   async validateFooterAndSocialLinks(config: ContactCountryConfig): Promise<void> {
-    await expect(this.footer).toBeVisible({ timeout: 15000 });
+    await this.assertVisible(this.footer, 'Contact page footer should be visible', 15_000);
 
     const expectedFooterLinks = [
       { name: 'Find My Home', href: '/search' },
@@ -195,22 +213,43 @@ export class ContactPage extends BasePage {
         name: new RegExp(`^${this.escapeRegExp(footerLink.name)}`, 'i')
       }).first();
 
-      await expect(link, `${footerLink.name} footer link should be visible`).toBeVisible();
-      await expect(link).toHaveAttribute('href', new RegExp(this.escapeRegExp(footerLink.href), 'i'));
+      await this.assertVisible(link, `${footerLink.name} footer link should be visible`);
+      await this.assertAttribute(
+        link,
+        'href',
+        new RegExp(this.escapeRegExp(footerLink.href), 'i'),
+        `${footerLink.name} footer link should point to ${footerLink.href}`
+      );
     }
 
     const facebookHref = config.locationKey === 'USA'
       ? /facebook\.com\/MattamyHomesUSA/i
       : /facebook\.com\/MattamyHomes$/i;
 
-    await expect(this.footer.getByRole('link', { name: /Facebook/i }))
-      .toHaveAttribute('href', facebookHref);
-    await expect(this.footer.getByRole('link', { name: /Instagram/i }))
-      .toHaveAttribute('href', /instagram\.com\/mattamyhomes/i);
-    await expect(this.footer.getByRole('link', { name: /Youtube/i }))
-      .toHaveAttribute('href', /youtube\.com\/user\/MattamyHomesOnline/i);
-    await expect(this.footer.getByRole('link', { name: /Linkedin/i }))
-      .toHaveAttribute('href', /linkedin\.com\/company\/mattamy-homes/i);
+    await this.assertAttribute(
+      this.footer.getByRole('link', { name: /Facebook/i }),
+      'href',
+      facebookHref,
+      'Facebook footer link should point to the configured Mattamy page'
+    );
+    await this.assertAttribute(
+      this.footer.getByRole('link', { name: /Instagram/i }),
+      'href',
+      /instagram\.com\/mattamyhomes/i,
+      'Instagram footer link should point to Mattamy Homes'
+    );
+    await this.assertAttribute(
+      this.footer.getByRole('link', { name: /Youtube/i }),
+      'href',
+      /youtube\.com\/user\/MattamyHomesOnline/i,
+      'Youtube footer link should point to Mattamy Homes Online'
+    );
+    await this.assertAttribute(
+      this.footer.getByRole('link', { name: /Linkedin/i }),
+      'href',
+      /linkedin\.com\/company\/mattamy-homes/i,
+      'Linkedin footer link should point to Mattamy Homes'
+    );
   }
 
   private getAreaButtons(): Locator {

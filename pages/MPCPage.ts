@@ -166,28 +166,38 @@ export class MPCPage extends BasePage {
   async verifyMPCPage(mpc: MPCConfig): Promise<void> {
     await this.waitForPageReady();
 
-    await expect(this.page).toHaveURL(new RegExp(escapeRegex(mpc.url), 'i'));
-    await expect(this.page).toHaveTitle(/Mattamy Homes/i);
-    await expect(this.heading).toContainText(new RegExp(mpc.name, 'i'), {
-      timeout: 20000
-    });
+    await this.assertPageUrlContains(mpc.url, `MPC page URL should contain configured path: ${mpc.url}`);
+    await this.assertPageTitle(/Mattamy Homes/i, 'MPC page title should include Mattamy Homes');
+    await this.assertTextContains(
+      this.heading,
+      new RegExp(mpc.name, 'i'),
+      `MPC page heading should contain configured name: ${mpc.name}`,
+      20_000
+    );
   }
 
   /** Verify: MPC hero contains the expected community name and visible content. */
   async validateHeroContent(mpcName: string): Promise<void> {
-    await expect(this.heading).toContainText(new RegExp(mpcName, 'i'));
-    await expect(this.heroSection).toBeVisible({ timeout: 15000 });
+    await this.assertTextContains(
+      this.heading,
+      new RegExp(mpcName, 'i'),
+      `MPC hero heading should contain ${mpcName}`
+    );
+    await this.assertVisible(this.heroSection, 'MPC hero section should be visible', 15_000);
 
     const heroText = await this.heroSection.innerText();
-    expect(heroText.trim().length, 'MPC hero should include descriptive content')
-      .toBeGreaterThan(mpcName.length);
+    this.assertGreaterThan(
+      heroText.trim().length,
+      mpcName.length,
+      'MPC hero should include descriptive content'
+    );
 
     const favoriteButton = this.page.getByRole('button', {
       name: /Mark as favorite/i
     });
 
     if (await favoriteButton.count()) {
-      await expect(favoriteButton.first()).toBeVisible();
+      await this.assertVisible(favoriteButton.first(), 'MPC favorite button should be visible when present');
     }
   }
 
@@ -199,11 +209,16 @@ export class MPCPage extends BasePage {
   async validateSummaryTab(): Promise<void> {
     const openedTab = await this.openTab('Summary');
     if (openedTab) {
-      await expect(this.summaryTab).toHaveAttribute('aria-selected', 'true');
+      await this.assertAttribute(
+        this.summaryTab,
+        'aria-selected',
+        'true',
+        'MPC Summary tab should be selected after opening'
+      );
     }
-    await expect(this.page.locator('body')).toContainText(
+    await this.assertBodyContains(
       /community|homes|neighborhood|designed|location/i,
-      { timeout: 10000 }
+      'MPC Summary tab should display community summary content'
     );
   }
 
@@ -221,7 +236,7 @@ export class MPCPage extends BasePage {
     ];
 
     for (const detail of expectedDetails) {
-      await expect(this.page.locator('body')).toContainText(detail, { timeout: 10000 });
+      await this.assertBodyContains(detail, `MPC Home Details tab should display ${detail}`);
     }
   }
 
@@ -229,12 +244,12 @@ export class MPCPage extends BasePage {
   async validateContactHoursTab(): Promise<void> {
     await this.openTab('Contact & Hours');
 
-    await expect(this.page.locator('body')).toContainText(
+    await this.assertBodyContains(
       /Sales Office|New Home Gallery|Contact/i,
-      { timeout: 10000 }
+      'MPC Contact & Hours tab should display sales contact content'
     );
-    await expect(this.page.locator('body')).toContainText(/\d{3}-\d{3}-\d{4}/, { timeout: 10000 });
-    await expect(this.page.locator('body')).toContainText(/Hours|Open|Closed/i, { timeout: 10000 });
+    await this.assertBodyContains(/\d{3}-\d{3}-\d{4}/, 'MPC Contact & Hours tab should display phone number');
+    await this.assertBodyContains(/Hours|Open|Closed/i, 'MPC Contact & Hours tab should display hours');
   }
 
   /** Helper: open a named MPC tab when it is not already selected. */

@@ -37,8 +37,8 @@ export class Header extends BasePage {
       timeout: 20000
     });
 
-    await expect(this.findYourHomeLink).toBeVisible({ timeout: 10000 });
-    await expect(this.aboutUsLink).toBeVisible({ timeout: 10000 });
+    await this.assertVisible(this.findYourHomeLink, 'Find Your Dream Home header link should be visible');
+    await this.assertVisible(this.aboutUsLink, 'About header menu button should be visible');
     await this.aboutUsLink.first().hover();
   }
 
@@ -65,11 +65,11 @@ export class Header extends BasePage {
     if (await this.aboutUsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
       await this.aboutUsLink.hover();
       await this.aboutUsLink.click();
-      await expect(this.aboutUsMenuLinks.first()).toBeAttached({ timeout: 10000 });
+      await this.assertAttached(this.aboutUsMenuLinks.first(), 'About Us menu should open');
       return;
     }
 
-    await expect(this.aboutUsMenuLinks.first()).toBeAttached({ timeout: 10000 });
+    await this.assertAttached(this.aboutUsMenuLinks.first(), 'About Us menu should be attached');
   }
 
   /* ==========================================================
@@ -144,10 +144,16 @@ export class Header extends BasePage {
     for (const expectedLink of expectedLinks) {
       const menuLink = this.getAboutUsMenuLink(expectedLink);
 
-      await expect(menuLink, `${expectedLink.name} should be present in the About Us menu`)
-        .toBeAttached({ timeout: 10000 });
-      await expect(menuLink, `${expectedLink.name} should point to ${expectedLink.url}`)
-        .toHaveAttribute('href', expectedLink.url);
+      await this.assertAttached(
+        menuLink,
+        `${expectedLink.name} should be present in the About Us menu`
+      );
+      await this.assertAttribute(
+        menuLink,
+        'href',
+        expectedLink.url,
+        `${expectedLink.name} should point to ${expectedLink.url}`
+      );
     }
   }
 
@@ -158,7 +164,7 @@ export class Header extends BasePage {
       await this.openAboutUsMenu();
 
       const menuLink = this.getAboutUsMenuLink(expectedLink);
-      await expect(menuLink).toBeVisible({ timeout: 10000 });
+      await this.assertVisible(menuLink, `${expectedLink.name} should be visible in the About Us menu`);
 
       await menuLink.click();
       await this.page.waitForURL(
@@ -167,11 +173,16 @@ export class Header extends BasePage {
       );
       await this.waitForPageReady();
 
-      await expect(this.page, `${expectedLink.name} should navigate to the configured About URL`)
-        .toHaveURL(new RegExp(`${this.escapeRegExp(expectedLink.url)}(?:\\?.*)?$`));
+      await this.assertPageUrl(
+        new RegExp(`${this.escapeRegExp(expectedLink.url)}(?:\\?.*)?$`),
+        `${expectedLink.name} should navigate to the configured About URL`
+      );
 
-      await expect(this.page.locator('h1').first(), `${expectedLink.name} page should expose a visible H1`)
-        .toBeVisible({ timeout: 15000 });
+      await this.assertHeadingVisible(
+        undefined,
+        `${expectedLink.name} page should expose a visible H1`,
+        15_000
+      );
 
       await this.page.goBack({ waitUntil: 'domcontentloaded' });
       await this.waitForPageReady();
@@ -181,8 +192,10 @@ export class Header extends BasePage {
   async clickAboutUsMenuLink(expectedLink: HeaderNavigationLink): Promise<void> {
     const menuLink = this.getAboutUsMenuLink(expectedLink);
 
-    await expect(menuLink, `${expectedLink.name} should be visible before clicking`)
-      .toBeAttached({ timeout: 10000 });
+    await this.assertAttached(
+      menuLink,
+      `${expectedLink.name} should be visible before clicking`
+    );
     const href = await menuLink.getAttribute('href');
     const didClick = await menuLink.click({ timeout: 5000 })
       .then(() => true)

@@ -17,6 +17,7 @@
     "config/**/*.ts",
     "pages/**/*.ts",
     "scripts/**/*.ts",
+    "reporters/**/*.ts",
     "tests/**/*.ts",
     "utils/**/*.ts",
     "playwright.config.ts"

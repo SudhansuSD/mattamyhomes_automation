@@ -62,8 +62,8 @@ export class HomePage extends SearchablePage {
   ========================================================== */
 
   async verifyPageLoaded(): Promise<void> {
-    await this.waitForPageReady();
-    await expect(this.page).toHaveTitle(/Mattamy Homes/i);
+    await this.assertPageLoaded('Home page should finish loading');
+    await this.assertPageTitle(/Mattamy Homes/i, 'Home page title should include Mattamy Homes');
   }
 
   async validateHeroVideoAutoplay(): Promise<void> {
@@ -71,7 +71,7 @@ export class HomePage extends SearchablePage {
     await this.heroSection.waitFor({ state: 'visible', timeout: 30000 });
     await this.heroVideo.waitFor({ state: 'attached', timeout: 15000 });
 
-    await expect(this.heroVideo, 'Hero section video should be visible').toBeVisible();
+    await this.assertVisible(this.heroVideo, 'Hero section video should be visible');
 
     const videoState = await this.getHeroVideoState();
 
@@ -248,7 +248,7 @@ export class HomePage extends SearchablePage {
 
     console.log(`🎯 Unique markets found: ${uniqueSlides.length}`);
 
-    expect(uniqueSlides.length, '❌ No unique market cards found').toBeGreaterThan(0);
+    this.assertGreaterThan(uniqueSlides.length, 0, 'No unique market cards found');
 
     const matchedMarkets: MarketValidationRow[] = [];
     const missingMarkets: MissingMarketRow[] = [];

@@ -1,19 +1,20 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-const isVsCodePlaywrightRun = Boolean(process.env.PW_TEST_REPORTER);
-const allureResultsDir = path.resolve(__dirname, 'allure-results');
+const repoRoot = __dirname;
+const allureResultsDir = path.resolve(repoRoot, 'allure-results');
+const playwrightReportDir = path.resolve(repoRoot, 'playwright-report');
 
-if (!isVsCodePlaywrightRun) {
-  fs.rmSync(allureResultsDir, { recursive: true, force: true });
-}
+delete process.env.PW_TEST_REPORTER;
+fs.rmSync(allureResultsDir, { recursive: true, force: true });
 
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
   testIgnore: ['appium/**'],
+  globalTeardown: process.env.CI ? undefined : './scripts/generate-allure-report.ts',
   use: {
     // baseURL: 'https://mattamyhomes.com/',
     headless: process.env.CI ? true : false,
@@ -42,12 +43,16 @@ export default defineConfig({
     //   use: { browserName: 'webkit' },
     // },
   ],
-  reporter: isVsCodePlaywrightRun
-    ? [['line']]
-    : [
-      ['html', { outputFolder: 'playwright-report', open: 'never' }],
-      ['json', { outputFile: 'test-results/results.json' }],
-      ['./reporters/MattamyAutomationReporter.ts'],
-      ['allure-playwright', { resultsDir: 'allure-results' }],
+  reporter: [
+    ['line'],
+    ['html', { outputFolder: playwrightReportDir, open: 'never' }],
+    [
+      'allure-playwright',
+      {
+        outputFolder: allureResultsDir,
+        detail: false,
+        suiteTitle: true,
+      },
     ],
+  ],
 });

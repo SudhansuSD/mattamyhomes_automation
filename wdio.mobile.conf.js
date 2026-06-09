@@ -1,9 +1,8 @@
 require("dotenv").config();
 require("ts-node/register/transpile-only");
 
-const path = require("path");
-const fs = require("fs");
-const { getEnvConfig } = require("./config/envConfig");
+const allureReporter = require("@wdio/allure-reporter").default;
+const { getEnvConfig } = require("./config/environments/envConfig");
 
 if (process.env.ANDROID_HOME) {
   process.env.ANDROID_HOME = process.env.ANDROID_HOME.trim();
@@ -130,7 +129,16 @@ exports.config = {
 
   framework: "mocha",
 
-  reporters: ["spec"],
+  reporters: [
+    [
+      "allure",
+      {
+        outputDir: "allure-results",
+        disableWebdriverStepsReporting: false,
+        disableWebdriverScreenshotsReporting: false,
+      },
+    ],
+  ],
 
   mochaOpts: {
     ui: "bdd",
@@ -192,23 +200,13 @@ exports.config = {
   afterTest: async function (test, context, { error }) {
     if (error) {
       try {
-        const screenshotDir = path.join(
-          process.cwd(),
-          "reports",
-          "screenshots",
-        );
-
-        if (!fs.existsSync(screenshotDir)) {
-          fs.mkdirSync(screenshotDir, { recursive: true });
-        }
-
-        const safeTitle = test.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-
-        const filePath = path.join(screenshotDir, `${safeTitle}.png`);
-
         if (browser.sessionId) {
-          await browser.saveScreenshot(filePath);
-          console.log(`Failure screenshot saved: ${filePath}`);
+          const screenshot = await browser.takeScreenshot();
+          allureReporter.addAttachment(
+            "Failure screenshot",
+            Buffer.from(screenshot, "base64"),
+            "image/png",
+          );
         }
       } catch (screenshotError) {
         console.log(

@@ -66,7 +66,9 @@ pipeline {
         )
         '''
 
-        // Zip report ONLY if it exists
+        bat 'npm run allure:generate'
+
+        // Zip Playwright report ONLY if it exists
         bat '''
         if exist playwright-report (
             powershell Compress-Archive `
@@ -78,7 +80,7 @@ pipeline {
 
         // Archive artifacts (THIS creates the Artifacts tab)
         archiveArtifacts(
-            artifacts: 'playwright-report/**, playwright-report.zip, test-results/**',
+            artifacts: 'allure-report/**, allure-results/**, playwright-report/**, playwright-report.zip, test-results/**',
             fingerprint: true
         )
     }
@@ -108,6 +110,9 @@ ${env.BUILD_URL}
 
 Playwright Report (downloadable):
 ${env.BUILD_URL}artifact/playwright-report/
+
+Allure Report:
+${env.BUILD_URL}artifact/allure-report/
 
 The Playwright HTML report is attached as a ZIP
 (download and open index.html locally).
@@ -139,6 +144,9 @@ Country: ${params.LOCATION}
 
 Playwright Report:
 ${env.BUILD_URL}artifact/playwright-report/
+
+Allure Report:
+${env.BUILD_URL}artifact/allure-report/
 
 Regards,
 Jenkins
