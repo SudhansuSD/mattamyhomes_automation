@@ -25,39 +25,39 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
   });
 
   test.describe('Page Load and Hero', () => {
-    test('@smoke Validate condo community page loads from home search', async () => {
+    test('CONDOCOMMUNITY-001 | @smoke | Validate condo community page loads from home search', async () => {
       await condoCommunityPage.verifyHeroContent(condoCommunity!);
     });
   });
 
   test.describe('Content Validation', () => {
-    test('@regression Validate condo community content sections', async () => {
+    test('CONDOCOMMUNITY-002 | @regression | Validate condo community content sections', async () => {
       await condoCommunityPage.verifyCondoPageSections();
     });
 
-    test('@regression Validate condo-specific content', async () => {
+    test('CONDOCOMMUNITY-003 | @regression | Validate condo-specific content', async () => {
       await condoCommunityPage.verifyCondoSpecificContent();
     });
 
-    test('@regression Validate suite or floorplan content', async () => {
+    test('CONDOCOMMUNITY-004 | @regression | Validate suite or floorplan content', async () => {
       await condoCommunityPage.verifySuiteOrFloorplanContent();
     });
 
-    test('@regression Validate available condo floorplans section when available', async () => {
+    test('CONDOCOMMUNITY-005 | @regression | Validate available condo floorplans section when available', async () => {
       await condoCommunityPage.verifyAvailableFloorplansSection(condoCommunity!);
     });
 
-    test('@regression Validate gallery modal opens, navigates media, and closes when available', async () => {
+    test('CONDOCOMMUNITY-006 | @regression | Validate gallery modal opens, navigates media, and closes when available', async () => {
       await condoCommunityPage.verifyGalleryModalIfAvailable();
     });
   });
 
   test.describe('Navigation and CTAs', () => {
-    test('@regression Validate all navigation links', async () => {
+    test('CONDOCOMMUNITY-007 | @regression | Validate all navigation links', async () => {
       await condoCommunityPage.verifyAllNavigationLinks();
     });
 
-    test('@regression Validate primary register/contact CTAs', async () => {
+    test('CONDOCOMMUNITY-008 | @regression | Validate primary register/contact CTAs', async () => {
       await condoCommunityPage.verifyPrimaryCtas();
     });
   });
@@ -70,15 +70,15 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
 
     /**********Modal form Validation**********/
 
-    test('@sanity Validate Get Information CTA opens condo community lead form', async () => {
+    test('CONDOCOMMUNITY-009 | @sanity | Validate Get Information CTA opens condo community lead form', async () => {
       await condoCommunityPage.verifyGetInformationCtaOpensLeadForm();
     });
 
-    test('@sanity Validate Get Information form required field errors', async () => {
+    test('CONDOCOMMUNITY-010 | @sanity | Validate Get Information form required field errors', async () => {
       await condoCommunityPage.validateGetInformationFormEmptyErrors();
     });
 
-    test('@sanity Validate Get Information form invalid email format', async () => {
+    test('CONDOCOMMUNITY-011 | @sanity | Validate Get Information form invalid email format', async () => {
       await condoCommunityPage.validateGetInformationFormInvalidEmail();
     });
 
@@ -89,15 +89,15 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
 
     /**********Primary form Validation**********/
 
-    test('@sanity Validate primary condo form fields', async () => {
+    test('CONDOCOMMUNITY-013 | @sanity | Validate primary condo form fields', async () => {
       await condoCommunityPage.validatePrimaryFormFields();
     });
 
-    test('@sanity Validate primary condo form invalid email error', async () => {
+    test('CONDOCOMMUNITY-014 | @sanity | Validate primary condo form invalid email error', async () => {
       await condoCommunityPage.validatePrimaryFormInvalidEmailError();
     });
 
-    test('@sanity Validate primary condo form required field errors', async () => {
+    test('CONDOCOMMUNITY-015 | @sanity | Validate primary condo form required field errors', async () => {
       await condoCommunityPage.validatePrimaryFormRequiredErrors();
     });
 
@@ -108,15 +108,15 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
 
     /*******Footer form Validation**********/
 
-    test('@sanity Validate footer condo form fields', async () => {
+    test('CONDOCOMMUNITY-017 | @sanity | Validate footer condo form fields', async () => {
       await condoCommunityPage.validateFooterFormFields();
     });
 
-    test('@sanity Validate footer condo form required field errors', async () => {
+    test('CONDOCOMMUNITY-018 | @sanity | Validate footer condo form required field errors', async () => {
       await condoCommunityPage.validateFooterFormRequiredErrors();
     });
 
-    test('@sanity Validate footer condo form invalid email error', async () => {
+    test('CONDOCOMMUNITY-019 | @sanity | Validate footer condo form invalid email error', async () => {
       await condoCommunityPage.validateFooterFormInvalidEmailError();
     });
 

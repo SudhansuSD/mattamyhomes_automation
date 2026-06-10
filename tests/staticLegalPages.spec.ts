@@ -8,7 +8,7 @@ import { STATIC_LEGAL_PAGES, StaticLegalPage } from '../pages/StaticLegalPage';
 
 test.describe('Mattamy Homes - Static Legal and Policy Pages', () => {
   for (const staticPageConfig of STATIC_LEGAL_PAGES) {
-    test(`@smoke @regression ${staticPageConfig.name} page should load with valid static content`, async ({ page }) => {
+    test(`STATICLEGAL-001 | @smoke @regression | ${staticPageConfig.name} page should load with valid static content`, async ({ page }) => {
       const staticLegalPage = new StaticLegalPage(page);
 
       await test.step(`Navigate to ${staticPageConfig.name}`, async () => {

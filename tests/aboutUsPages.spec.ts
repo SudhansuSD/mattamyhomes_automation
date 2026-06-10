@@ -15,7 +15,7 @@ const location = getLocationConfig(locationKey);
 const { baseURL } = getEnvConfig();
 
 test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () => {
-  test(`@smoke @regression ${location.country} About Us header menu links should be visible`, async ({ page }, testInfo) => {
+  test(`ABOUTUS-001 | @smoke @regression | ${location.country} About Us header menu links should be visible`, async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'Chromium', 'Header flyout navigation is validated on desktop Chromium.');
 
     const homePage = new HomePage(page);
@@ -32,7 +32,7 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
   });
 
   for (const aboutLink of location.aboutUsLinks) {
-    test(`@regression ${location.country} ${aboutLink.name} page should load with valid UI and functionality`, async ({ page }, testInfo) => {
+    test(`ABOUTUS-002 | @regression | ${location.country} ${aboutLink.name} page should load with valid UI and functionality`, async ({ page }, testInfo) => {
       test.skip(testInfo.project.name !== 'Chromium', 'Header flyout navigation is validated on desktop Chromium.');
 
       const homePage = new HomePage(page);

@@ -24,15 +24,15 @@ test.describe(`Community Detail - ${location.community}`, () => {
        UI VALIDATION
     ========================================================== */
     test.describe('UI Validation', () => {
-        test('@regression Validate community core sections', async () => {
+        test('COMMUNITY-001 | @regression | Validate community core sections', async () => {
             await communityPage.verifyCoreSections();
         });
 
-        test('@regression Validate overview copy, address, market details, and key attributes', async () => {
+        test('COMMUNITY-002 | @regression | Validate overview copy, address, market details, and key attributes', async () => {
             await communityPage.verifyOverviewAddressMarketAndAttributes(location.community);
         });
 
-        test('@regression Validate QMI card community name matches current community', async () => {
+        test('COMMUNITY-003 | @regression | Validate QMI card community name matches current community', async () => {
             await communityPage.verifyQmiCardCommunityNameMatchesCurrentCommunity(location.community);
         });
     });
@@ -41,15 +41,15 @@ test.describe(`Community Detail - ${location.community}`, () => {
        NAVIGATION VALIDATION
     ========================================================== */
     test.describe('Navigation Validation', () => {
-        test('@regression Validate all navigation links', async () => {
+        test('COMMUNITY-004 | @regression | Validate all navigation links', async () => {
             await communityPage.verifyAllNavigationLinks();
         });
 
-        test('@regression Validate available homes navigation', async () => {
+        test('COMMUNITY-005 | @regression | Validate available homes navigation', async () => {
             await communityPage.verifyAvailableHomesNavigation();
         });
 
-        test('@regression Validate plans navigation', async () => {
+        test('COMMUNITY-006 | @regression | Validate plans navigation', async () => {
             await communityPage.verifyPlansNavigation();
         });
     });
@@ -62,15 +62,15 @@ test.describe(`Community Detail - ${location.community}`, () => {
         
         /**********Modal form Validation**********/
 
-        test('@sanity Validate Get Information CTA opens community lead form', async () => {
+        test('COMMUNITY-007 | @sanity | Validate Get Information CTA opens community lead form', async () => {
             await communityPage.verifyGetInformationCtaOpensLeadForm();
         });
 
-        test('@sanity Validate Get Information form required field errors', async () => {
+        test('COMMUNITY-008 | @sanity | Validate Get Information form required field errors', async () => {
             await communityPage.validateGetInformationFormEmptyErrors();
         });
 
-        test('@sanity Validate Get Information form invalid email format', async () => {
+        test('COMMUNITY-009 | @sanity | Validate Get Information form invalid email format', async () => {
             await communityPage.validateGetInformationFormInvalidEmail();
         });
 
@@ -81,11 +81,11 @@ test.describe(`Community Detail - ${location.community}`, () => {
 
         /**********Primary form Validation**********/
 
-        test('@sanity Validate primary form required field errors', async () => {
+        test('COMMUNITY-011 | @sanity | Validate primary form required field errors', async () => {
             await communityPage.validatePrimaryFormEmptyErrors();
         });
 
-        test('@sanity Validate primary form invalid email format', async () => {
+        test('COMMUNITY-012 | @sanity | Validate primary form invalid email format', async () => {
             await communityPage.validatePrimaryFormInvalidEmail();
         });
 
@@ -96,11 +96,11 @@ test.describe(`Community Detail - ${location.community}`, () => {
 
         /**********Footer form Validation**********/
 
-        test('@sanity Validate footer form required field errors', async () => {
+        test('COMMUNITY-014 | @sanity | Validate footer form required field errors', async () => {
             await communityPage.validateFooterFormEmptyErrors();
         });
 
-        test('@sanity Validate footer form invalid email format', async () => {
+        test('COMMUNITY-015 | @sanity | Validate footer form invalid email format', async () => {
             await communityPage.validateFooterFormInvalidEmail();
         });
 

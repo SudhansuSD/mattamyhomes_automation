@@ -56,6 +56,15 @@ function parseList(value: string): string[] {
     .filter(Boolean);
 }
 
+function maskEmailList(value: string): string {
+  const emails = parseList(value);
+  if (emails.length === 0) {
+    return 'not configured';
+  }
+
+  return `${emails.length} recipient(s) configured`;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -364,7 +373,8 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
   const host = getEnv('EMAIL_HOST');
   const port = Number(getEnv('EMAIL_PORT', '587'));
   const user = getEnv('EMAIL_USER');
-  const password = getEnv('EMAIL_PASSWORD');
+  const rawPassword = getEnv('EMAIL_PASSWORD');
+  const password = host.includes('gmail.com') ? rawPassword.replace(/\s+/g, '') : rawPassword;
   const from = getEnv('EMAIL_FROM', user);
   const to = parseList(getEnv('EMAIL_TO'));
   const cc = parseList(getEnv('EMAIL_CC'));
@@ -382,6 +392,16 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
     throw new Error(`Missing required email environment variables: ${missing.map(([name]) => name).join(', ')}`);
   }
 
+  console.log('Email SMTP configuration:', {
+    host,
+    port,
+    secure,
+    userConfigured: Boolean(user),
+    fromConfigured: Boolean(from),
+    to: maskEmailList(getEnv('EMAIL_TO')),
+    cc: maskEmailList(getEnv('EMAIL_CC')),
+  });
+
   const transporter = nodemailer.createTransport({
     host,
     port,
@@ -391,6 +411,14 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
       pass: password,
     },
   });
+
+  try {
+    await transporter.verify();
+    console.log('SMTP connection verified successfully.');
+  } catch (error) {
+    console.error('SMTP connection verification failed:', error);
+    throw error;
+  }
 
   await transporter.sendMail({
     from,

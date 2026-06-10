@@ -30,25 +30,25 @@ test.describe('Mattamy Homes - Contact Page', () => {
         });
       });
 
-      test(`@smoke @regression ${countryConfig.locationKey} contact page should load with country-specific content`, async () => {
+      test(`CONTACT-001 | @smoke @regression | ${countryConfig.locationKey} contact page should load with country-specific content`, async () => {
         await test.step('Verify hero, title, URL country parameter, and country selector', async () => {
           await contactPage.verifyPageLoaded(countryConfig);
         });
       });
 
-      test(`@regression ${countryConfig.locationKey} contact page should list all selectable areas`, async () => {
+      test(`CONTACT-002 | @regression | ${countryConfig.locationKey} contact page should list all selectable areas`, async () => {
         await test.step('Verify area buttons and accessible labels', async () => {
           await contactPage.validateAreaList(countryConfig);
         });
       });
 
-      test(`@regression ${countryConfig.locationKey} area selection should reveal contact options`, async () => {
+      test(`CONTACT-003 | @regression | ${countryConfig.locationKey} area selection should reveal contact options`, async () => {
         await test.step('Select the primary configured area and verify detail actions', async () => {
           await contactPage.validateAreaDetails(countryConfig.areas[0]);
         });
       });
 
-      test(`@regression ${countryConfig.locationKey} corporate office contacts and footer links should be valid`, async () => {
+      test(`CONTACT-004 | @regression | ${countryConfig.locationKey} corporate office contacts and footer links should be valid`, async () => {
         await test.step('Verify corporate office mailto links', async () => {
           await contactPage.validateCorporateOfficeEmails();
         });

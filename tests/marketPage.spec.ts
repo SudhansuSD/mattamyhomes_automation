@@ -21,7 +21,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
      BASIC MARKET VALIDATION (ALL MARKETS)
   ========================================================== */
 
-  test(`@smoke Validate all markets navigation and heading`, async () => {
+  test(`MARKET-001 | @smoke | Validate all markets navigation and heading`, async () => {
     for (const market of location.markets) {
       await test.step(`Verify market: ${market.name}`, async () => {
         await marketPage.navigateToMarket(market.url);
@@ -40,13 +40,13 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
       test.beforeEach(async () => {
         await marketPage.navigateToMarket(market.url);
       });
-      test(`@regression Validate community cards section of ${market.name}`, async () => {
+      test(`MARKET-002 | @regression | Validate community cards section of ${market.name}`, async () => {
         await test.step('Validate community cards with name + URL', async () => {
           await marketPage.validateCommunityCards();
         });
       });
 
-      test(`@regression Validate Discover Our Homes section`, async () => {
+      test(`MARKET-003 | @regression | Validate Discover Our Homes section`, async () => {
         await test.step('Validate discover section links and URLs', async () => {
           await marketPage.validateDiscoverOurHomesSection();
         });
@@ -64,7 +64,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
       await marketPage.verifyMarketPage(configuredMarket);
     });
 
-    test('@regression Validate market hero and key search links', async () => {
+    test('MARKET-004 | @regression | Validate market hero and key search links', async () => {
       await test.step('Validate hero content', async () => {
         await marketPage.validateHeroContent(configuredMarket);
       });
@@ -74,7 +74,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
       });
     });
 
-    test('@regression Validate community card details and navigation', async () => {
+    test('MARKET-005 | @regression | Validate community card details and navigation', async () => {
       await test.step('Validate community card content quality', async () => {
         await marketPage.validateCommunityCardDetails();
       });
@@ -86,7 +86,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
       });
     });
 
-    test(`@regression Validate lead form with invalid data`, async () => {
+    test(`MARKET-006 | @regression | Validate lead form with invalid data`, async () => {
       await test.step('Validate lead form fields and errors', async () => {
         await marketPage.validateLeadFormInvalidData(configuredMarket.name);
       });

@@ -103,6 +103,19 @@ jobs:
             test-results/
           retention-days: 30
 
+      - name: Validate email configuration
+        if: always()
+        run: |
+          echo "EMAIL_HOST configured: ${{ secrets.EMAIL_HOST != '' }}"
+          echo "EMAIL_PORT configured: ${{ secrets.EMAIL_PORT != '' }}"
+          echo "EMAIL_SECURE configured: ${{ secrets.EMAIL_SECURE != '' }}"
+          echo "EMAIL_USER configured: ${{ secrets.EMAIL_USER != '' }}"
+          echo "EMAIL_PASSWORD configured: ${{ secrets.EMAIL_PASSWORD != '' }}"
+          echo "EMAIL_FROM configured: ${{ secrets.EMAIL_FROM != '' }}"
+          echo "EMAIL_TO configured: ${{ secrets.EMAIL_TO != '' }}"
+          echo "EMAIL_CC configured: ${{ secrets.EMAIL_CC != '' }}"
+          echo "ALLURE_REPORT_URL configured: ${{ vars.ALLURE_REPORT_URL != '' || secrets.ALLURE_REPORT_URL != '' }}"
+
       - name: Send email report
         if: always()
         run: npm run report:email

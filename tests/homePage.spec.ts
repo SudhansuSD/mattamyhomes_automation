@@ -37,14 +37,14 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Page Load
   ========================================================== */
 
-  test('@ci @smoke @regression @sanity Home page should load correctly', async () => {
+  test('HOME-001 | @ci @smoke @regression @sanity | Home page should load correctly', async () => {
 
     await test.step('Verify page loaded successfully', async () => {
       await homePage.verifyPageLoaded();
     });
   });
 
-  test('@smoke @regression Validate hero video autoplay on Home Page', async ({ }, testInfo) => {
+  test('HOME-002 | @smoke @regression | Validate hero video autoplay on Home Page', async ({ }, testInfo) => {
     test.skip(testInfo.project.name !== 'Chromium', 'Hero autoplay video is validated on the desktop home page.');
 
     await test.step('Verify hero video autoplays', async () => {
@@ -56,7 +56,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Header Validation
   ========================================================== */
 
-  test('@smoke Header navigation should be visible', async ({ page }) => {
+  test('HOME-003 | @smoke | Header navigation should be visible', async ({ page }) => {
 
     const header = new Header(page);
 
@@ -72,7 +72,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Footer Validation
   ========================================================== */
 
-  test('@smoke Footer should be visible with Privacy Policy link', async ({ page }) => {
+  test('HOME-004 | @smoke | Footer should be visible with Privacy Policy link', async ({ page }) => {
 
     const footer = new Footer(page);
 
@@ -85,7 +85,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Search – Market
   ========================================================== */
 
-  test('@regression Search market functionality should work', async () => {
+  test('HOME-005 | @regression | Search market functionality should work', async () => {
 
     await test.step('Search and validate by market', async () => {
       await homePage.searchAndValidateByValue('market', location.market);
@@ -96,7 +96,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Search – Community
   ========================================================== */
 
-  test('@regression Search by community functionality should work', async () => {
+  test('HOME-006 | @regression | Search by community functionality should work', async () => {
 
     await test.step('Search and validate by community', async () => {
       await homePage.searchAndValidateByValue('community', location.community);
@@ -106,7 +106,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
        Search – Condo Community
     ========================================================== */
 
-  test('@regression Search by condo community functionality should work', async () => {
+  test('HOME-007 | @regression | Search by condo community functionality should work', async () => {
     test.skip(!condoCommunity, 'Condo community is not configured for this location');
 
     await test.step('Search and validate by condo community', async () => {
@@ -118,7 +118,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Search – QMI
   ========================================================== */
 
-  test('@regression Search by QMI home functionality should work', async () => {
+  test('HOME-008 | @regression | Search by QMI home functionality should work', async () => {
 
     await test.step('Search and validate by QMI address', async () => {
       await homePage.searchAndValidateByValue('qmi', location.qmiAddress);
@@ -129,7 +129,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Search – Plan
   ========================================================== */
 
-  test('@regression Search by plan functionality should work', async () => {
+  test('HOME-009 | @regression | Search by plan functionality should work', async () => {
 
     await test.step('Search and validate by plan name', async () => {
       await homePage.searchAndValidateByValue('plan', location.planName);
@@ -139,7 +139,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
      Search – Condo Plan
   ========================================================== */
 
-  test('@regression Search by condo plan functionality should work', async () => {
+  test('HOME-010 | @regression | Search by condo plan functionality should work', async () => {
     test.skip(!condoPlan?.name, 'Condo plan is not configured for this location');
 
     await test.step('Search and validate by condo plan name', async () => {
@@ -149,7 +149,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
   /* ==========================================================
        Search – Master Planned Community (MPC)
     ========================================================== */
-  test('@regression Search by MPC functionality should work', async () => {
+  test('HOME-011 | @regression | Search by MPC functionality should work', async () => {
     test.skip(!mpc?.name, 'MPC is not configured for this location');
 
     await test.step('Search and validate by MPC', async () => {
@@ -159,7 +159,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
   /* ==========================================================
        Validate Market Cards on Home Page
     ========================================================== */
-  test('@regression Validate market Cards on Home Page', async ({ page }) => {
+  test('HOME-012 | @regression | Validate market Cards on Home Page', async ({ page }) => {
     // Validate market cards are visible and correctly linked
     await homePage.validateMarketCards();
 

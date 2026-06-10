@@ -25,45 +25,45 @@ test.describe(`MPC page tests - ${location.country}`, () => {
   });
 
   test.describe('Page Load and Hero', () => {
-    test('@smoke Validate MPC page loads with hero content', async () => {
+    test('MPC-001 | @smoke | Validate MPC page loads with hero content', async () => {
       await mpcPage.validateHeroContent(mpc!.name);
     });
   });
 
   test.describe('Tab Validation', () => {
-    test('@regression Validate summary tab content', async () => {
+    test('MPC-002 | @regression | Validate summary tab content', async () => {
       await mpcPage.validateSummaryTab();
     });
 
-    test('@regression Validate home details tab content', async () => {
+    test('MPC-003 | @regression | Validate home details tab content', async () => {
       await mpcPage.validateHomeDetailsTab();
     });
 
-    test('@regression Validate contact and hours tab content', async () => {
+    test('MPC-004 | @regression | Validate contact and hours tab content', async () => {
       await mpcPage.validateContactHoursTab();
     });
   });
 
   test.describe('Content Sections', () => {
-    test('@regression Validate amenities and location convenience sections', async () => {
+    test('MPC-005 | @regression | Validate amenities and location convenience sections', async () => {
       await mpcPage.validateAmenityAndLocationSections();
     });
 
-    test('@regression Validate community promotion CTA', async () => {
+    test('MPC-006 | @regression | Validate community promotion CTA', async () => {
       await mpcPage.validatePromotionCTA(mpc!.url);
     });
 
-    test('@regression Validate image gallery if available', async () => {
+    test('MPC-007 | @regression | Validate image gallery if available', async () => {
       await mpcPage.validateImageGalleryIfAvailable();
     });
   });
 
   test.describe('Neighborhood Cards', () => {
-    test('@regression Validate neighborhood card details', async () => {
+    test('MPC-008 | @regression | Validate neighborhood card details', async () => {
       await mpcPage.validateNeighborhoodCards(mpc!.name, mpc!.url);
     });
 
-    test('@regression Validate first neighborhood navigation', async () => {
+    test('MPC-009 | @regression | Validate first neighborhood navigation', async () => {
       await mpcPage.validateFirstNeighborhoodNavigation(mpc!.url);
     });
   });
@@ -76,15 +76,15 @@ test.describe(`MPC page tests - ${location.country}`, () => {
     
     /**********Modal form Validation**********/
 
-    test('@sanity Validate Get Information CTA opens MPC lead form', async () => {
+    test('MPC-010 | @sanity | Validate Get Information CTA opens MPC lead form', async () => {
       await mpcPage.verifyGetInformationCtaOpensLeadForm();
     });
 
-    test('@sanity Validate Get Information form required field errors', async () => {
+    test('MPC-011 | @sanity | Validate Get Information form required field errors', async () => {
       await mpcPage.validateGetInformationFormEmptyErrors();
     });
 
-    test('@sanity Validate Get Information form invalid email format', async () => {
+    test('MPC-012 | @sanity | Validate Get Information form invalid email format', async () => {
       await mpcPage.validateGetInformationFormInvalidEmail();
     });
 
@@ -95,15 +95,15 @@ test.describe(`MPC page tests - ${location.country}`, () => {
 
     /**********Community Update form Validation**********/
 
-    test('@sanity Validate MPC community update form fields', async () => {
+    test('MPC-014 | @sanity | Validate MPC community update form fields', async () => {
       await mpcPage.validateCommunityUpdateFormFields();
     });
 
-    test('@sanity Validate MPC community update form required field errors', async () => {
+    test('MPC-015 | @sanity | Validate MPC community update form required field errors', async () => {
       await mpcPage.validateCommunityUpdateRequiredErrors();
     });
 
-    test('@sanity Validate MPC community update form invalid email error', async () => {
+    test('MPC-016 | @sanity | Validate MPC community update form invalid email error', async () => {
       await mpcPage.validateCommunityUpdateInvalidEmail();
     });
 

@@ -20,7 +20,7 @@ test.describe('Hometown Heroes Promo Page Tests - USA', () => {
     });
   });
 
-  test('@smoke @promo Validate promo page content and form fields', async () => {
+  test('PROMO-001 | @smoke @promo | Validate promo page content and form fields', async () => {
     await test.step('Verify promo page loads with expected USA Orlando content', async () => {
       await promoPage.verifyPageLoaded();
     });
@@ -30,13 +30,13 @@ test.describe('Hometown Heroes Promo Page Tests - USA', () => {
     });
   });
 
-  test('@regression @promo-form-required Validate promo form required field errors', async () => {
+  test('PROMO-002 | @regression @promo-form-required | Validate promo form required field errors', async () => {
     await test.step('Verify required validation errors', async () => {
       await promoPage.validateRequiredFieldErrors();
     });
   });
 
-  test('@regression @promo-form-email Validate promo form invalid email error', async () => {
+  test('PROMO-003 | @regression @promo-form-email | Validate promo form invalid email error', async () => {
     await test.step('Verify invalid email validation error', async () => {
       await promoPage.validateInvalidEmailError();
     });

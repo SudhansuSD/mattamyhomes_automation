@@ -29,7 +29,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      UI & Functional Validation
   -------------------------------------------------------- */
 
-  test('@regression Validate Plan Detail page core content', async () => {
+  test('PLAN-001 | @regression | Validate Plan Detail page core content', async () => {
 
     await test.step('Verify plan URL contains configured plan path', async () => {
       await planPage.verifyPlanUrlContains(location.expectedPlanUrlPart);
@@ -53,7 +53,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
 
   });
 
-  test('@regression Validate Plan Detail page media and interactive sections', async () => {
+  test('PLAN-002 | @regression | Validate Plan Detail page media and interactive sections', async () => {
 
     await test.step('Verify interactive floorplan section when present', async () => {
       await planPage.verifyInteractiveFloorPlanSection();
@@ -69,7 +69,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
 
   });
 
-  test('@regression Validate Plan Detail page conversion and contact sections', async () => {
+  test('PLAN-003 | @regression | Validate Plan Detail page conversion and contact sections', async () => {
 
     await test.step('Verify Quick Move-In Homes section when present', async () => {
       await planPage.verifyQuickMoveInHomesSection();
@@ -86,11 +86,11 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Form Validation', () => {
-    test('@sanity Validate plan detail form required field errors', async () => {
+    test('PLAN-004 | @sanity | Validate plan detail form required field errors', async () => {
       await planPage.validatePlanDetailFormEmptyErrors();
     });
 
-    test('@sanity Validate plan detail form invalid email format', async () => {
+    test('PLAN-005 | @sanity | Validate plan detail form invalid email format', async () => {
       await planPage.validatePlanDetailFormInvalidEmail();
     });
 
@@ -103,7 +103,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      QMI Section Validation
   -------------------------------------------------------- */
 
-  test('@prod @regression Verify QMI Section on Plan Detail page', async () => {
+  test('PLAN-007 | @prod @regression | Verify QMI Section on Plan Detail page', async () => {
 
     await test.step('Verify QMI section is displayed and functional', async () => {
       await planPage.verifyQMISection();

@@ -31,66 +31,66 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Page Load and Hero', () => {
-    test('@smoke Validate condo plan page URL, title, and hero', async () => {
+    test('CONDOPLAN-001 | @smoke | Validate condo plan page URL, title, and hero', async () => {
       await condoPlanPage.verifyUrlAndTitle(condoPlan!);
       await condoPlanPage.verifyHeroSummary(condoPlan!);
     });
 
-    test('@regression Validate condo plan breadcrumb', async () => {
+    test('CONDOPLAN-002 | @regression | Validate condo plan breadcrumb', async () => {
       await condoPlanPage.verifyBreadcrumb(condoPlan!);
     });
   });
 
   test.describe('Content Validation', () => {
-    test('@regression Validate condo plan details content', async () => {
+    test('CONDOPLAN-003 | @regression | Validate condo plan details content', async () => {
       await condoPlanPage.verifyCondoPlanDetailsContent();
     });
 
-    test('@regression Validate floorplan image', async () => {
+    test('CONDOPLAN-004 | @regression | Validate floorplan image', async () => {
       await condoPlanPage.verifyFloorplanImage();
     });
 
-    test('@regression Validate mortgage calculator CTA', async () => {
+    test('CONDOPLAN-005 | @regression | Validate mortgage calculator CTA', async () => {
       await condoPlanPage.verifyMortgageCalculatorCta();
       await condoPlanPage.verifySupportHeadline();
     });
   });
 
   test.describe('Available Floorplans', () => {
-    test('@regression Validate related condo floorplans and View All CTA', async () => {
+    test('CONDOPLAN-006 | @regression | Validate related condo floorplans and View All CTA', async () => {
       await condoPlanPage.verifyAvailableFloorplans(condoPlan!);
     });
 
-    test('@regression Validate Show More floorplans control when present', async () => {
+    test('CONDOPLAN-007 | @regression | Validate Show More floorplans control when present', async () => {
       await condoPlanPage.verifyShowMoreFloorplansIfPresent();
     });
   });
 
   test.describe('Contact and Navigation', () => {
-    test('@regression Validate contact us and hours sections', async () => {
+    test('CONDOPLAN-008 | @regression | Validate contact us and hours sections', async () => {
       await condoPlanPage.verifyContactUsSection();
       await condoPlanPage.verifyHoursSection();
     });
 
-    test('@regression Validate Get Information CTA scrolls to form without submitting', async () => {
+    test('CONDOPLAN-009 | @regression | Validate Get Information CTA scrolls to form without submitting', async () => {
       await condoPlanPage.verifyGetInformationCtaScrollsToForm();
     });
 
-    test('@regression Validate page navigation links', async () => {
+    test('CONDOPLAN-010 | @regression | Validate page navigation links', async () => {
       await condoPlanPage.verifyNavigationLinks();
     });
   });
 
   test.describe('Community Updates Form - No Submit', () => {
-    test('@sanity Validate community updates form fields only', async () => {
+    test('CONDOPLAN-011 | @sanity | Validate community updates form fields only', async () => {
       await condoPlanPage.verifyCommunityUpdateFormFields();
     });
 
-    test.skip('@sanity Validate required field errors - skipped to avoid submitting form', async () => {
+    test.skip('CONDOPLAN-012 | @sanity | Validate required field errors - skipped to avoid submitting form', async () => {
       await condoPlanPage.validateCommunityUpdateRequiredErrors();
     });
 
-    test.skip('@sanity Validate invalid email error - skipped to avoid submitting form', async () => {
+    test.skip('CONDOPLAN-013 | @sanity | Validate invalid email error - skipped to avoid submitting form', async () => {
       await condoPlanPage.validateCommunityUpdateInvalidEmail();
     });
 
