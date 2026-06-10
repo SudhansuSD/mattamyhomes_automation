@@ -5,7 +5,6 @@ import process from 'node:process';
 
 const repoRoot = __dirname;
 const allureResultsDir = path.resolve(repoRoot, 'allure-results');
-const playwrightReportDir = path.resolve(repoRoot, 'playwright-report');
 
 delete process.env.PW_TEST_REPORTER;
 fs.rmSync(allureResultsDir, { recursive: true, force: true });
@@ -26,7 +25,7 @@ export default defineConfig({
     },
     video: 'off',
   },
-  workers: 1,
+  workers: process.env.CI ? 2 : 1,
   fullyParallel: false,
   timeout: 50 * 60 * 1000,
   projects: [
@@ -45,7 +44,6 @@ export default defineConfig({
   ],
   reporter: [
     ['line'],
-    ['html', { outputFolder: playwrightReportDir, open: 'never' }],
     [
       'allure-playwright',
       {

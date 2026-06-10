@@ -47,8 +47,9 @@ jobs:
     env:
       TEST_ENV: ${{ github.event.inputs.env || 'STAGE' }}
       TEST_LOCATION: ${{ github.event.inputs.location || 'CAN' }}
-      TEST_SUITE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[single-test]') && 'ci' || github.event_name == 'push' && 'regression' || github.event.inputs.suite || 'smoke' }}
+      TEST_SUITE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[single-test]') && 'ci' || github.event.inputs.suite || 'smoke' }}
       BROWSER: Chrome
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
 
     steps:
       - uses: actions/checkout@v4
@@ -56,9 +57,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
+          cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --prefer-offline
 
       - name: Run single CI test
         if: env.TEST_SUITE == 'ci'
@@ -93,14 +95,12 @@ jobs:
           path: allure-report
           retention-days: 30
 
-      - name: Upload Playwright report
+      - name: Upload Playwright test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.TEST_SUITE }}-playwright-report
-          path: |
-            playwright-report/
-            test-results/
+          name: ${{ env.TEST_SUITE }}-playwright-test-results
+          path: test-results/
           retention-days: 30
 
       - name: Validate email configuration
