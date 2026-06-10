@@ -369,7 +369,7 @@ function buildEmailHtml(summary: ExecutionSummary): string {
   `;
 }
 
-async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Promise<void> {
+async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Promise<boolean> {
   const host = getEnv('EMAIL_HOST');
   const port = Number(getEnv('EMAIL_PORT', '587'));
   const user = getEnv('EMAIL_USER');
@@ -389,7 +389,8 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
   ].filter(([, value]) => !value);
 
   if (missing.length > 0) {
-    throw new Error(`Missing required email environment variables: ${missing.map(([name]) => name).join(', ')}`);
+    console.warn(`Email report skipped. Missing required environment variables: ${missing.map(([name]) => name).join(', ')}`);
+    return false;
   }
 
   console.log('Email SMTP configuration:', {
@@ -434,6 +435,8 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
       },
     ],
   });
+
+  return true;
 }
 
 export async function sendAllureEmailReport(): Promise<void> {
@@ -452,8 +455,8 @@ export async function sendAllureEmailReport(): Promise<void> {
     reportUrl: summary.reportUrl || 'Report link not configured',
   });
 
-  await sendEmail(summary, generatedChartPath);
-  console.log('Automation report email sent successfully.');
+  const emailSent = await sendEmail(summary, generatedChartPath);
+  console.log(emailSent ? 'Automation report email sent successfully.' : 'Automation report email skipped.');
 }
 
 if (require.main === module) {
