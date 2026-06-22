@@ -52,6 +52,7 @@
     "appium:doctor:android": "appium driver doctor uiautomator2"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "playwright-core": "^1.57.0"
   },
   "devDependencies": {

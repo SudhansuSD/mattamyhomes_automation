@@ -1,5 +1,5 @@
 /**
- * ENV=PROD npx playwright test tests/staticLegalPages.spec.ts --project=Chromium
+ * ENV=PROD npx playwright test tests/staticLegalPages.spec.ts --project=Chrome
  * Static legal and policy page validation. These tests never submit forms in PROD.
  */
 

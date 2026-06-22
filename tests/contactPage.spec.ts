@@ -1,5 +1,5 @@
 /**
- * ENV=STAGE npx playwright test tests/contactPage.spec.ts --project=Chromium
+ * ENV=STAGE npx playwright test tests/contactPage.spec.ts --project=Chrome
  * Contact page validation for USA and Canada country experiences.
  */
 

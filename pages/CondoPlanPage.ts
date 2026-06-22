@@ -375,14 +375,14 @@ export class CondoPlanPage extends SearchablePage {
 
     const formUrl = this.page.url();
 
-    await form.getByRole('button', { name: TEXT.submit }).first().click();
+    await this.submitLeadFormAndCaptureApi({
+      formName: 'Condo plan community update form',
+      submitButton: form.getByRole('button', { name: TEXT.submit }).first(),
+      successModal: this.successDialogModal,
+      successMessage: this.formSuccessMessage,
+      timeout: TIMEOUT.long
+    });
     await this.expectNoContactRedirect(formUrl);
-
-    if (await this.successDialogModal.count()) {
-      await expect(this.successDialogModal.last()).toBeVisible({ timeout: TIMEOUT.short });
-    }
-
-    await expect(this.formSuccessMessage).toBeVisible({ timeout: TIMEOUT.long });
   }
 
   /** Helper: return the visible community update form when available. */

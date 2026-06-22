@@ -1,5 +1,5 @@
 /**
- * ENV=STAGE LOCATION=USA npx playwright test tests/promoPage.spec.ts --project=Chromium
+ * ENV=STAGE LOCATION=USA npx playwright test tests/promoPage.spec.ts --project=Chrome
  * Hometown Heroes Promo Page Tests
  */
 

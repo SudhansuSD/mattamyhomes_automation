@@ -1,4 +1,3 @@
-import { MarketPage } from '../../pages/MarketPage';
 import { getEnvConfig } from '../environments/envConfig';
 
 const ENVIRONMENT_LOCATION_OVERRIDES = {
@@ -6,7 +5,7 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
     USA: {
       country: 'USA',
       queryParam: 'country=USA',
-      market: 'Phoenix',
+      market: 'Charlotte',
       mpc: [{
         name: 'Wellen Park - Master-Planned Community',
         market: ['Sarasota and Bradenton', 'Sarasota-Bradenton', 'Sarasota/Bradenton'],
@@ -350,7 +349,7 @@ export function getLocationKey(
   const rawKey =
     overrideLocation ??
     (process?.env?.LOCATION as string | undefined) ??
-    'CAN'; // Default location if not specified
+    'USA'; // Default location if not specified
   const key = rawKey.toUpperCase() as LocationKey;
   const envName = getEnvConfig().envName as EnvName;
 

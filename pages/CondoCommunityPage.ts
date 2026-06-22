@@ -30,6 +30,14 @@ const TEXT = {
   successMessage: /Thank you for your interest in Mattamy Homes/i
 };
 
+const FORM_CONTAINER_SELECTOR = [
+  'form',
+  '[id^="Sitecore-ScheduleAVisit-FormInstance"]',
+  '[id^="ScheduleAVisit-FormInstance"]',
+  '[id*="FormInstance"]',
+  '[role="group"]'
+].join(', ');
+
 export class CondoCommunityPage extends SearchablePage {
   /* ==========================================================
      Page Locators
@@ -95,20 +103,7 @@ export class CondoCommunityPage extends SearchablePage {
 
   /** Locator: Get Information lead form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
-    return this.page.locator(
-      [
-        '#ModalForm',
-        '[id*="ModalForm"]',
-        '[role="dialog"]',
-        '.ReactModal__Content',
-        'aside',
-        '[class*="modal" i]',
-        '[class*="drawer" i]',
-        '[class*="sidebar" i]'
-      ].join(', ')
-    )
-      .filter({ has: this.page.getByRole('button', { name: TEXT.submit }) })
-      .filter({ has: this.page.locator('input, select, textarea') });
+    return this.page.locator('#ModalForm');
   }
 
   /** Locator: optional condo community media gallery section. */
@@ -366,15 +361,13 @@ export class CondoCommunityPage extends SearchablePage {
     const form = await this.getAvailableGetInformationForm();
 
     await this.fillLeadFormWithValidData(form);
-    await this.clickSubmit(form);
-
-    if (await this.successDialogModal.count()) {
-      await expect(this.successDialogModal.last()).toBeVisible({
-        timeout: TIMEOUT.short
-      });
-    }
-
-    await expect(this.formSuccessMessage).toBeVisible({ timeout: TIMEOUT.long });
+    await this.submitLeadFormAndCaptureApi({
+      formName: 'Get Information condo form',
+      submitButton: this.getSubmitButton(form),
+      successModal: this.successDialogModal,
+      successMessage: this.formSuccessMessage,
+      timeout: TIMEOUT.long
+    });
   }
 
   /** Verify: default required-field validation errors on the primary condo form. */
@@ -481,38 +474,55 @@ export class CondoCommunityPage extends SearchablePage {
     if (!form) return;
 
     await this.fillLeadFormWithValidData(form);
-    await this.clickSubmit(form);
-
-    if (await this.successDialogModal.count()) {
-      await expect(this.successDialogModal.last()).toBeVisible({
-        timeout: TIMEOUT.short
-      });
-    }
-
-    await expect(this.formSuccessMessage).toBeVisible({ timeout: TIMEOUT.long });
+    await this.submitLeadFormAndCaptureApi({
+      formName,
+      submitButton: this.getSubmitButton(form),
+      successModal: this.successDialogModal,
+      successMessage: this.formSuccessMessage,
+      timeout: TIMEOUT.long
+    });
     console.log(`${formName} successful submission validated`);
   }
 
   /** Helper: click the Get Information CTA when the sidebar/modal form is not already open. */
   private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
-    if (await this.leadFormDialogOrSidebar.count()) {
+    if (await this.hasVisibleFields(this.leadFormDialogOrSidebar.first())) {
       return;
     }
 
-    await expect(this.getInformationCta, 'Get Information CTA should be visible')
-      .toBeVisible({ timeout: TIMEOUT.medium });
-
+    const getInformationCtas = this.page.getByRole('button', { name: /Get Information/i });
     const previousUrl = this.page.url();
+    const ctaCount = await getInformationCtas.count();
 
-    await this.getInformationCta.scrollIntoViewIfNeeded();
-    await this.getInformationCta.click({ force: true });
-    await this.waitForPageReady();
-    await this.page.waitForTimeout(1000);
+    expect(ctaCount, 'Get Information CTA should be present').toBeGreaterThan(0);
 
-    expect(
-      this.page.url(),
-      `Get Information CTA should keep the condo lead form flow on page, not redirect from ${previousUrl}`
-    ).not.toMatch(/\/contact\/?($|[?#])/i);
+    for (let i = 0; i < ctaCount; i++) {
+      const cta = getInformationCtas.nth(i);
+
+      if (!(await cta.isVisible().catch(() => false))) {
+        continue;
+      }
+
+      if (await this.isInsideFormContainer(cta)) {
+        continue;
+      }
+
+      await cta.scrollIntoViewIfNeeded();
+      await cta.click({ force: true });
+      await this.waitForPageReady();
+      await this.page.waitForTimeout(1000);
+
+      expect(
+        this.page.url(),
+        `Get Information CTA should keep the condo lead form flow on page, not redirect from ${previousUrl}`
+      ).not.toMatch(/\/contact\/?($|[?#])/i);
+
+      if (await this.hasVisibleFields(this.leadFormDialogOrSidebar.first())) {
+        return;
+      }
+
+      await this.page.evaluate(() => window.scrollTo(0, 0)).catch(() => undefined);
+    }
   }
 
   /** Helper: find the Get Information lead form after opening its CTA. */
@@ -523,13 +533,13 @@ export class CondoCommunityPage extends SearchablePage {
 
     await expect
       .poll(
-        () => this.leadFormDialogOrSidebar.count(),
+        async () => await this.hasVisibleFields(this.leadFormDialogOrSidebar.first()) ? 1 : 0,
         {
           message: `${formName} sidebar/modal should open after Get Information CTA`,
           timeout: TIMEOUT.medium
         }
       )
-      .toBeGreaterThan(0);
+      .toBe(1);
 
     const form = this.leadFormDialogOrSidebar.first();
 
@@ -632,6 +642,31 @@ export class CondoCommunityPage extends SearchablePage {
 
     await this.selectCountryIfPresent(form);
     await this.checkTermsIfPresent(form);
+  }
+
+  /** Helper: return true when a container has at least one visible form field. */
+  private async hasVisibleFields(container: Locator): Promise<boolean> {
+    if (!(await container.isVisible().catch(() => false))) {
+      return false;
+    }
+
+    const fields = container.locator('input, select, textarea');
+    const fieldCount = await fields.count();
+
+    for (let i = 0; i < fieldCount; i++) {
+      if (await fields.nth(i).isVisible().catch(() => false)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /** Helper: identify CTA buttons rendered inside an existing lead form. */
+  private async isInsideFormContainer(locator: Locator): Promise<boolean> {
+    return locator
+      .evaluate((element, selector) => Boolean(element.closest(selector)), FORM_CONTAINER_SELECTOR)
+      .catch(() => false);
   }
 
   /** Helper: fill lead form with valid data for successful submission. */

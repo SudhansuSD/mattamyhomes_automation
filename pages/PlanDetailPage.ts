@@ -623,15 +623,12 @@ export class PlanDetailPage extends SearchablePage {
             await zipCode.fill('34293');
         }
 
-        await form.getByRole('button', { name: /submit/i }).first().click();
-
-        if (await this.successDialogModal.count()) {
-            await expect(this.successDialogModal.last()).toBeVisible({
-                timeout: 10000
-            });
-        }
-
-        await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
+        await this.submitLeadFormAndCaptureApi({
+            formName,
+            submitButton: form.getByRole('button', { name: /submit/i }).first(),
+            successModal: this.successDialogModal,
+            successMessage: this.formSuccessMessage
+        });
     }
 
     /** Verify: plan detail bottom form fields are visible. */

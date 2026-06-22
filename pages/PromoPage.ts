@@ -144,17 +144,13 @@ export class PromoPage extends BasePage {
   async verifySuccessfulSubmission(): Promise<void> {
     await this.scrollToForm();
     await this.fillPromoForm(this.buildValidLeadData());
-    await this.submitButton.click();
-
-    if (await this.successDialogModal.isVisible({ timeout: 10000 }).catch(() => false)) {
-      await this.assertVisible(this.successDialogModal, 'Promo success dialog should be visible');
-    }
-
-    await this.assertVisible(
-      this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last(),
-      'Promo success thank-you message should be visible',
-      PromoPage.PAGE_LOAD_TIMEOUT
-    );
+    await this.submitLeadFormAndCaptureApi({
+      formName: 'Promo lead form',
+      submitButton: this.submitButton,
+      successModal: this.successDialogModal,
+      successMessage: this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last(),
+      timeout: PromoPage.PAGE_LOAD_TIMEOUT
+    });
   }
 
   private get communityField(): Locator {

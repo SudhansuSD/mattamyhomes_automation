@@ -45,7 +45,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
   });
 
   test('HOME-002 | @smoke @regression | Validate hero video autoplay on Home Page', async ({ }, testInfo) => {
-    test.skip(testInfo.project.name !== 'Chromium', 'Hero autoplay video is validated on the desktop home page.');
+    test.skip(testInfo.project.name !== 'Chrome', 'Hero autoplay video is validated on the desktop home page.');
 
     await test.step('Verify hero video autoplays', async () => {
       await homePage.validateHeroVideoAutoplay();

@@ -1,6 +1,7 @@
-import { expect, Locator, Page, test } from '@playwright/test';
+import { expect, Locator, Page, Response, test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
+import { appendLeadApiCapture } from '../utils/leadApiCapture';
 import { escapeRegex } from '../utils/pageObjectUtils';
 
 /* ==========================================================
@@ -240,6 +241,69 @@ export class BasePage {
     }
   }
 
+  async dismissPromoPopupIfPresent(): Promise<void> {
+    await this.acceptCookiesIfPresent();
+
+    const promotionCloseButton = this.page
+      .getByRole('button', { name: /close national promotion popup/i })
+      .first();
+
+    if (await promotionCloseButton.isVisible({ timeout: 10000 }).catch(() => false)) {
+      await promotionCloseButton.click({ force: true }).catch(async () => {
+        await promotionCloseButton.dispatchEvent('click').catch(() => undefined);
+      });
+      await this.page
+        .locator('.ReactModal__Content[aria-label="National promotion"]')
+        .waitFor({ state: 'hidden', timeout: 10000 })
+        .catch(() => undefined);
+      await this.page.waitForTimeout(500);
+      return;
+    }
+
+    const dialogs = this.page
+      .locator('.ReactModal__Content, [role="dialog"], [aria-modal="true"]')
+      .filter({
+        hasNot: this.page.locator('form, input, select, textarea'),
+        has: this.page.locator('button, a')
+      });
+    const dialogCount = await dialogs.count();
+
+    for (let index = 0; index < dialogCount; index++) {
+      const dialog = dialogs.nth(index);
+
+      if (!(await dialog.isVisible({ timeout: 500 }).catch(() => false))) {
+        continue;
+      }
+
+      const dialogText = await dialog.innerText().catch(() => '');
+
+      if (!/promo|banner|going on now|special|offer|incentive/i.test(dialogText)) {
+        continue;
+      }
+
+      const closeButton = dialog
+        .locator(
+          [
+            'button[aria-label*="close" i]',
+            'button:has-text("Close")',
+            'button:has-text("Close Icon")',
+            'svg[aria-label*="close" i]'
+          ].join(', ')
+        )
+        .first();
+
+      if (await closeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await closeButton.click({ force: true }).catch(async () => {
+          await closeButton.dispatchEvent('click').catch(() => undefined);
+        });
+      } else {
+        await this.page.keyboard.press('Escape').catch(() => undefined);
+      }
+
+      await dialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => undefined);
+    }
+  }
+
   /* ==========================================================
   Scroll Handler 
   ========================================================== */
@@ -309,6 +373,104 @@ export class BasePage {
     }
     return `${price}`;
 
+  }
+
+  protected async submitLeadFormAndCaptureApi(options: {
+    formName: string;
+    submitButton: Locator;
+    successMessage: Locator;
+    successModal?: Locator;
+    timeout?: number;
+    notes?: string;
+  }): Promise<void> {
+    const timeout = options.timeout ?? 30_000;
+    const apiResponsePromise = this.waitForLeadApiResponse(timeout);
+
+    await options.submitButton.scrollIntoViewIfNeeded();
+    await expect(options.submitButton, `${options.formName} submit button should be visible before submit`)
+      .toBeVisible({ timeout: 10_000 });
+
+    await options.submitButton.click({
+      force: true,
+      noWaitAfter: true,
+      timeout: 5_000
+    });
+
+    await this.page.waitForLoadState('domcontentloaded', { timeout }).catch(() => undefined);
+
+    if (options.successModal && await options.successModal.count()) {
+      await expect(options.successModal.last(), `${options.formName} success modal should be displayed`)
+        .toBeVisible({ timeout });
+    }
+
+    await expect(options.successMessage, `${options.formName} success message should be displayed`)
+      .toBeVisible({ timeout });
+
+    await this.page.waitForLoadState('domcontentloaded', { timeout }).catch(() => undefined);
+
+    const apiResponse = await apiResponsePromise;
+    const responseData = apiResponse
+      ? await this.readResponseData(apiResponse)
+      : '';
+    const outputFile = await appendLeadApiCapture({
+      capturedAt: new Date().toISOString(),
+      pageUrl: this.page.url(),
+      formName: options.formName,
+      requestMethod: apiResponse?.request().method() ?? '',
+      requestUrl: apiResponse?.url() ?? '',
+      responseStatus: apiResponse?.status() ?? '',
+      responseData,
+      notes: apiResponse ? options.notes : 'No matching lead API response captured'
+    });
+
+    if (!apiResponse && process.env.REQUIRE_LEAD_API_CAPTURE === 'true') {
+      throw new Error(`${options.formName} succeeded, but no matching lead API response was captured.`);
+    }
+
+    console.log(`[LEAD API CAPTURE] ${options.formName} data saved to ${outputFile}`);
+  }
+
+  private async waitForLeadApiResponse(timeout: number): Promise<Response | null> {
+    return this.page.waitForResponse(
+      (response) => this.isLeadApiResponse(response),
+      { timeout }
+    ).catch(() => null);
+  }
+
+  private isLeadApiResponse(response: Response): boolean {
+    const request = response.request();
+    const method = request.method().toUpperCase();
+
+    if (!['POST', 'PUT', 'PATCH'].includes(method)) {
+      return false;
+    }
+
+    const url = response.url();
+    const configuredPattern = process.env.LEAD_API_URL_PATTERN;
+
+    if (configuredPattern) {
+      return new RegExp(configuredPattern, 'i').test(url);
+    }
+
+    if (/google|analytics|doubleclick|facebook|bing|hotjar|onetrust|browserstack/i.test(url)) {
+      return false;
+    }
+
+    return /api|lead|form|contact|schedule|sitecore|submit|visitor|salesforce|eloqua|marketo/i.test(url);
+  }
+
+  private async readResponseData(response: Response): Promise<string> {
+    const contentType = response.headers()['content-type'] ?? '';
+
+    try {
+      if (/json/i.test(contentType)) {
+        return JSON.stringify(await response.json());
+      }
+
+      return await response.text();
+    } catch (error) {
+      return `Unable to read response body: ${error instanceof Error ? error.message : String(error)}`;
+    }
   }
 
 }

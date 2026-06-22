@@ -404,15 +404,12 @@ export class MarketPage extends BasePage {
         await fields.zip.fill('34293');
         await fields.phone.fill('4488559933');
 
-        await fields.submit.click();
-
-        if (await this.successDialogModal.count()) {
-            await expect(this.successDialogModal.last()).toBeVisible({
-                timeout: 10000
-            });
-        }
-
-        await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
+        await this.submitLeadFormAndCaptureApi({
+            formName: `${marketName} market lead form`,
+            submitButton: fields.submit,
+            successModal: this.successDialogModal,
+            successMessage: this.formSuccessMessage
+        });
         console.log(`Lead form successful submission validated: ${marketName}`);
     }
 

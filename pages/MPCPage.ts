@@ -567,15 +567,12 @@ export class MPCPage extends BasePage {
     const form = await this.getAvailableGetInformationForm();
 
     await this.fillGetInformationFormWithValidData(form);
-    await this.clickSubmit(form);
-
-    if (await this.successDialogModal.count()) {
-      await expect(this.successDialogModal.last()).toBeVisible({
-        timeout: 10000
-      });
-    }
-
-    await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
+    await this.submitLeadFormAndCaptureApi({
+      formName: 'Get Information MPC form',
+      submitButton: this.getSubmitButton(form),
+      successModal: this.successDialogModal,
+      successMessage: this.formSuccessMessage
+    });
   }
 
   /** Verify: community update form fields and submit button are visible. */
@@ -649,17 +646,12 @@ export class MPCPage extends BasePage {
     await fields.phone.fill('8135551212');
     await fields.terms.check({ force: true });
 
-    await fields.submit.click();
-
-    if (await this.successDialogModal.count()) {
-      await expect(this.successDialogModal.last()).toBeVisible({
-        timeout: 10000
-      });
-    }
-
-    await expect(
-      this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last()
-    ).toBeVisible({ timeout: 10000 });
+    await this.submitLeadFormAndCaptureApi({
+      formName: 'MPC community update form',
+      submitButton: fields.submit,
+      successModal: this.successDialogModal,
+      successMessage: this.formSuccessMessage
+    });
   }
 
   /** Helper: find and return the community update form section. */

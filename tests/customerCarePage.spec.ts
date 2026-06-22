@@ -1,5 +1,5 @@
 /**
- * ENV=PROD npx playwright test tests/customerCarePage.spec.ts --project=Chromium
+ * ENV=PROD npx playwright test tests/customerCarePage.spec.ts --project=Chrome
  * Customer Care validation for USA and Canada country experiences.
  */
 

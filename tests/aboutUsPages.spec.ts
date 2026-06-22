@@ -1,5 +1,5 @@
 /**
- * ENV=STAGE LOCATION=USA npx playwright test tests/aboutUsPages.spec.ts --project=Chromium
+ * ENV=STAGE LOCATION=USA npx playwright test tests/aboutUsPages.spec.ts --project=Chrome
  * Header About Us navigation validation for the configured country experience.
  */
 
@@ -16,7 +16,7 @@ const { baseURL } = getEnvConfig();
 
 test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () => {
   test(`ABOUTUS-001 | @smoke @regression | ${location.country} About Us header menu links should be visible`, async ({ page }, testInfo) => {
-    test.skip(testInfo.project.name !== 'Chromium', 'Header flyout navigation is validated on desktop Chromium.');
+    test.skip(testInfo.project.name !== 'Chrome', 'Header flyout navigation is validated on desktop Chrome.');
 
     const homePage = new HomePage(page);
     const header = new Header(page);
@@ -33,7 +33,7 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
 
   for (const aboutLink of location.aboutUsLinks) {
     test(`ABOUTUS-002 | @regression | ${location.country} ${aboutLink.name} page should load with valid UI and functionality`, async ({ page }, testInfo) => {
-      test.skip(testInfo.project.name !== 'Chromium', 'Header flyout navigation is validated on desktop Chromium.');
+      test.skip(testInfo.project.name !== 'Chrome', 'Header flyout navigation is validated on desktop Chrome.');
 
       const homePage = new HomePage(page);
       const aboutUsPage = new AboutUsPage(page);

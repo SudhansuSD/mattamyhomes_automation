@@ -419,15 +419,11 @@ export class QMIPage extends SearchablePage {
         }
 
         await this.fillLeadFormWithValidData(form);
-        await this.getSubmitButton(form).click();
-
-        if (await this.successDialogModal.count()) {
-            await expect(this.successDialogModal.last()).toBeVisible({
-                timeout: QMIPage.PAGE_LOAD_TIMEOUT
-            });
-        }
-
-        await expect(this.formSuccessMessage).toBeVisible({
+        await this.submitLeadFormAndCaptureApi({
+            formName: 'QMI community updates form',
+            submitButton: this.getSubmitButton(form),
+            successModal: this.successDialogModal,
+            successMessage: this.formSuccessMessage,
             timeout: QMIPage.PAGE_LOAD_TIMEOUT
         });
         console.log('QMI form successful submission validated');

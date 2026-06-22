@@ -713,15 +713,12 @@ export class CommunityPage extends SearchablePage {
 
     await this.checkConsentIfPresent(form);
 
-    await this.clickSubmit(form);
-
-    if (await this.successDialogModal.count()) {
-      await expect(this.successDialogModal.last()).toBeVisible({
-        timeout: 10000
-      });
-    }
-
-    await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
+    await this.submitLeadFormAndCaptureApi({
+      formName,
+      submitButton: form.getByRole('button', { name: /submit/i }).first(),
+      successModal: this.successDialogModal,
+      successMessage: this.formSuccessMessage
+    });
   }
 
   private async submitSuccessfulGetInformationForm(
@@ -744,15 +741,12 @@ export class CommunityPage extends SearchablePage {
     await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), '34293');
     await this.checkConsentIfPresent(form);
 
-    await this.clickSubmit(form);
-
-    if (await this.successDialogModal.count()) {
-      await expect(this.successDialogModal.last()).toBeVisible({
-        timeout: 10000
-      });
-    }
-
-    await expect(this.formSuccessMessage).toBeVisible({ timeout: 10000 });
+    await this.submitLeadFormAndCaptureApi({
+      formName,
+      submitButton: form.getByRole('button', { name: /submit/i }).first(),
+      successModal: this.successDialogModal,
+      successMessage: this.formSuccessMessage
+    });
   }
 
   async viewForm(): Promise<void> {
