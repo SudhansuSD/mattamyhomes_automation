@@ -58,7 +58,7 @@ export class CommunityPage extends SearchablePage {
   }
   private get getInformationCta(): Locator {
     return this.page.locator('button:visible, a:visible').filter({
-      hasText: /^\s*Get Information\s*$/i
+      hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i
     }).first();
   }
 
@@ -81,22 +81,6 @@ export class CommunityPage extends SearchablePage {
       /Thank you for your interest in Mattamy Homes/i
     ).last();
   }
-  // private get leadFormDialogOrSidebar(): Locator {
-  //   return this.page.locator(
-  //     [
-  //       '#ModalForm',
-  //       '[id*="ModalForm"]',
-  //       '[role="dialog"]',
-  //       '.ReactModal__Content',
-  //       'aside',
-  //       '[class*="modal" i]',
-  //       '[class*="drawer" i]',
-  //       '[class*="sidebar" i]'
-  //     ].join(', ')
-  //   )
-  //     .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
-  //     .filter({ has: this.page.locator('input, select, textarea') });
-  // }
   private get leadFormDialogOrSidebar(): Locator {
     return this.page.locator('#ModalForm');
   }
@@ -115,11 +99,12 @@ export class CommunityPage extends SearchablePage {
         .toHaveURL(new RegExp(escapeRegex(communityPath), 'i'), { timeout: 60000 });
     }
 
-    await expect(this.page.getByRole('heading', {
-      level: 1,
-      name: new RegExp(escapeRegex(expectedCommunity), 'i')
-    }).first()).toBeVisible({ timeout: 60000 });
+    const communityHeading = this.page
+      .locator('h1')
+      .filter({ hasText: new RegExp(escapeRegex(expectedCommunity), 'i') })
+      .first();
 
+    await expect(communityHeading).toBeVisible({ timeout: 60000 });
   }
 
   /* ==========================================================
@@ -437,7 +422,7 @@ export class CommunityPage extends SearchablePage {
     await this.page.waitForTimeout(1000);
     expect(
       this.page.url(),
-      `Get Information CTA should keep the community lead form flow on page, not redirect from ${previousUrl}`
+      `Community lead-form CTA should keep the flow on page, not redirect from ${previousUrl}`
     ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
@@ -583,7 +568,7 @@ export class CommunityPage extends SearchablePage {
   }
 
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
-    await expect(this.getInformationCta, 'Get Information CTA should be visible')
+    await expect(this.getInformationCta, 'Get Information or Stay Updated CTA should be visible')
       .toBeVisible({ timeout: 15000 });
 
     const form = await this.getAvailableGetInformationForm();

@@ -158,6 +158,7 @@ export class MarketPage extends BasePage {
         const { baseURL } = getEnvConfig();
         await this.page.goto(`${baseURL}${relativeUrl}`);
         await this.waitForPageReady();
+        await this.dismissPromoPopupIfPresent();
     }
 
     /* ==========================================================

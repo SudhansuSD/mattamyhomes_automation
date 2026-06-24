@@ -58,7 +58,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
        FORM VALIDATION
     ========================================================== */
 
-    test.describe('Form Validation', () => {
+    test.describe('Lead Form', () => {
         
         /**********Modal form Validation**********/
 
@@ -74,10 +74,16 @@ test.describe(`Community Detail - ${location.community}`, () => {
             await communityPage.validateGetInformationFormInvalidEmail();
         });
 
-        // test('@regression @STAGE Validate Get Information form successful submission', async () => {
-        //     test.skip(envName === 'PROD', 'Skipping Get Information form lead submission on PROD environment.');
-        //     await communityPage.verifyGetInformationFormSuccessSubmission();
-        // });
+        test.describe('Get Information form submission', () => {
+            test.skip(
+                envName === 'PROD',
+                'Skipping Get Information form lead submission on PROD environment.'
+            );
+
+            test('@regression @STAGE Validate Get Information form successful submission', async () => {
+                await communityPage.verifyGetInformationFormSuccessSubmission();
+            });
+        });
 
         /**********Primary form Validation**********/
 
@@ -89,10 +95,16 @@ test.describe(`Community Detail - ${location.community}`, () => {
             await communityPage.validatePrimaryFormInvalidEmail();
         });
 
-        // test('@regression @STAGE Validate primary form successful submission', async () => {
-        //     test.skip(envName === 'PROD', 'Skipping primary form lead submission on PROD environment.');
-        //     await communityPage.verifyPrimaryFormSuccessSubmission();
-        // });
+        test.describe('Primary form submission', () => {
+            test.skip(
+                envName === 'PROD',
+                'Skipping primary form lead submission on PROD environment.'
+            );
+
+            test('@regression @STAGE Validate primary form successful submission', async () => {
+                await communityPage.verifyPrimaryFormSuccessSubmission();
+            });
+        });
 
         /**********Footer form Validation**********/
 
@@ -104,9 +116,19 @@ test.describe(`Community Detail - ${location.community}`, () => {
             await communityPage.validateFooterFormInvalidEmail();
         });
 
-        // test('@regression @STAGE Validate footer form successful submission', async () => {
-        //     test.skip(envName === 'PROD', 'Skipping footer form lead submission on PROD environment.');
-        //     await communityPage.verifyFooterFormSuccessSubmission();
-        // });
+        test.describe('Footer form submission', () => {
+            test.skip(
+                envName === 'PROD',
+                'Skipping footer form lead submission on PROD environment.'
+            );
+
+            test('@regression @STAGE Validate footer form successful submission', async () => {
+                await communityPage.verifyFooterFormSuccessSubmission();
+            });
+        });
+    });
+
+    test('COMMUNITY-017 | @regression | Validate community page image and video URLs return 200', async () => {
+        await communityPage.validateImageAndVideoUrlsReturn200('Community page');
     });
 });

@@ -322,4 +322,97 @@ export class HomePage extends SearchablePage {
 
     console.log('===================================================\n');
   }
+
+  async validateMarketCardMediaAndLinks(): Promise<void> {
+    await this.waitForPageReady();
+
+    const section = this.page.locator('text=Explore our locations near you');
+    await section.scrollIntoViewIfNeeded();
+    await this.page.waitForSelector('#cards .slick-slide:not(.slick-cloned)', { timeout: 15000 });
+
+    const cards = this.marketCards.filter({ has: this.page.locator('a[href]') });
+    const count = await cards.count();
+
+    expect(count, 'Home page should expose market cards with links').toBeGreaterThan(0);
+
+    for (let index = 0; index < count; index++) {
+      const card = cards.nth(index);
+      await card.scrollIntoViewIfNeeded();
+
+      const link = card.locator('a[href]').first();
+      const href = await link.getAttribute('href');
+
+      expect(href, `Market card ${index + 1} should have a valid href`).toBeTruthy();
+      expect(
+        href!,
+        `Market card ${index + 1} should link to a site path or absolute URL`
+      ).toMatch(/^(\/|https?:\/\/)/i);
+
+      const image = card.locator('img').first();
+      await expect(image, `Market card ${index + 1} should include an image`).toBeAttached({ timeout: 10000 });
+
+      const imageLoaded = await image.evaluate((img: HTMLImageElement) => {
+        if (img.loading === 'lazy') {
+          img.scrollIntoView({ block: 'center', inline: 'center' });
+        }
+
+        return Boolean(img.currentSrc || img.src) && img.naturalWidth > 0 && img.naturalHeight > 0;
+      });
+
+      expect(imageLoaded, `Market card ${index + 1} image should be loaded`).toBeTruthy();
+    }
+  }
+
+  async validateSearchAutocompleteNoMatchState(): Promise<void> {
+    await this.waitForPageReady();
+
+    const searchBox = this.page
+      .locator('input[placeholder*="Search"]:not(#vendor-search-handler):visible')
+      .first();
+
+    await expect(searchBox, 'Home search input should be visible').toBeVisible({ timeout: 15000 });
+    const noMatchQuery = 'zzzz automation no match';
+    await searchBox.fill('');
+    await searchBox.type(noMatchQuery, { delay: 75 });
+    await this.page.waitForTimeout(1500);
+
+    const suggestions = this.page.locator(
+      [
+        '[data-aos="fade-down"] a[href]:visible',
+        '[role="listbox"] a[href]:visible',
+        '[role="option"]:visible',
+        '[aria-live] a[href]:visible',
+        '[class*="search"] a[href]:visible'
+      ].join(', ')
+    );
+    const matchingSuggestions = suggestions.filter({
+      hasText: new RegExp(noMatchQuery.replace(/\s+/g, '.*'), 'i')
+    });
+
+    expect(
+      await matchingSuggestions.count(),
+      'No-match search should not expose a selectable suggestion for the impossible query'
+    ).toBe(0);
+  }
+
+  async validateCookieBannerPersistence(): Promise<void> {
+    await this.acceptCookiesIfPresent();
+
+    const banner = this.page.locator('#onetrust-banner-sdk, .ot-sdk-container').first();
+    await expect(banner, 'Cookie banner should be hidden after accepting or closing').toBeHidden({ timeout: 10000 });
+
+    const consentCookies = await this.page.context().cookies();
+    expect(
+      consentCookies.some(cookie => /OptanonConsent|OptanonAlertBoxClosed/i.test(cookie.name)),
+      'Accepting/closing cookie banner should store a OneTrust consent cookie'
+    ).toBeTruthy();
+
+    await this.page.reload({ waitUntil: 'domcontentloaded', timeout: 90_000 });
+    await this.waitForPageReady();
+
+    await expect(
+      banner,
+      'Cookie banner should remain hidden after page reload'
+    ).toBeHidden({ timeout: 10000 });
+  }
 }

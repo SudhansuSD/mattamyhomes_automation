@@ -4,7 +4,6 @@
  */
 
 import { test } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, getLocationKey } from '../config/locations/locationConfig';
 import { AboutUsPage } from '../pages/AboutUsPage';
 import { Header } from '../pages/Header';
@@ -12,7 +11,6 @@ import { HomePage } from '../pages/HomePage';
 
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);
-const { baseURL } = getEnvConfig();
 
 test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () => {
   test(`ABOUTUS-001 | @smoke @regression | ${location.country} About Us header menu links should be visible`, async ({ page }, testInfo) => {
@@ -37,13 +35,13 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
 
       const homePage = new HomePage(page);
       const aboutUsPage = new AboutUsPage(page);
+      const header = new Header(page);
 
-      await test.step(`Navigate directly to ${aboutLink.name} page`, async () => {
-        await page.goto(`${baseURL}${aboutLink.url}?${location.queryParam}`, {
-          waitUntil: 'domcontentloaded',
-          timeout: 90_000
-        });
-        await homePage.acceptCookiesIfPresent();
+      await test.step(`Navigate to ${aboutLink.name} from the home page header`, async () => {
+        await homePage.navigate(locationKey);
+        await homePage.verifyPageLoaded();
+        await header.openAboutUsMenu();
+        await header.clickAboutUsMenuLink(aboutLink);
       });
 
       await test.step(`Validate ${aboutLink.name} page UI and functionality`, async () => {

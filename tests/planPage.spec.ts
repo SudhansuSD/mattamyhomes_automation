@@ -111,4 +111,8 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
 
   });
 
+  test('PLAN-008 | @regression | Validate plan page image and video URLs return 200', async () => {
+    await planPage.validateImageAndVideoUrlsReturn200('Plan page');
+  });
+
 });

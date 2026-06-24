@@ -13,6 +13,8 @@ export class Header extends BasePage {
   readonly aboutUsLink: Locator;
   readonly contactUsLink: Locator;
   readonly aboutUsMenuLinks: Locator;
+  private promoPopupHandlerRegistered = false;
+  private nationalPromotionDismissed = false;
 
   constructor(page: Page) {
     super(page);
@@ -21,7 +23,7 @@ export class Header extends BasePage {
     this.findYourHomeLink = this.header.locator('[id="Find Your Dream Home"]');
     this.aboutUsLink = this.header.getByRole('button', { name: /^About$/i });
     this.contactUsLink = this.header.locator('[id="Contact Us"]');
-    this.aboutUsMenuLinks = this.header.locator('a[href^="/about"]');
+    this.aboutUsMenuLinks = this.header.locator('a[role="button"][href^="/about"]');
   }
 
   /* ==========================================================
@@ -62,21 +64,62 @@ export class Header extends BasePage {
     await this.header.waitFor({ state: 'attached', timeout: 20000 });
     await this.page.evaluate(() => window.scrollTo(0, 0));
 
-    if (await this.aboutUsLink.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await this.aboutUsLink.hover();
-      await this.aboutUsLink.click();
-      await this.assertAttached(this.aboutUsMenuLinks.first(), 'About Us menu should open');
-      return;
-    }
-
-    await this.assertAttached(this.aboutUsMenuLinks.first(), 'About Us menu should be attached');
+    await this.aboutUsLink.waitFor({ state: 'visible', timeout: 20000 });
+    await this.aboutUsLink.hover();
+    await this.aboutUsLink.click();
+    await this.assertAttached(
+      this.header.locator('a[href="/about/about-mattamy"]'),
+      'About Us menu should open'
+    );
   }
 
   /* ==========================================================
      Find Your Home Link Validation
   ========================================================== */
 
+  private get nationalPromotionDialog(): Locator {
+    return this.page
+      .locator('.ReactModal__Content[role="dialog"][aria-label="National promotion"]')
+      .first();
+  }
+
+  private async closeNationalPromotionDialog(dialog: Locator): Promise<void> {
+    const closeButton = dialog
+      .locator(
+        [
+          'button[aria-label*="close" i]',
+          'button[title*="close" i]',
+          'button:has(svg)',
+          '[role="button"][aria-label*="close" i]'
+        ].join(', ')
+      )
+      .first();
+
+    if (await closeButton.isVisible().catch(() => false)) {
+      await closeButton.click({ force: true });
+    } else {
+      await this.page.keyboard.press('Escape');
+    }
+
+    await dialog.waitFor({ state: 'hidden', timeout: 10000 });
+    this.nationalPromotionDismissed = true;
+    console.log('National promotion popup closed');
+  }
+
+  private async registerNationalPromotionHandler(): Promise<void> {
+    if (this.promoPopupHandlerRegistered) {
+      return;
+    }
+
+    await this.page.addLocatorHandler(
+      this.nationalPromotionDialog,
+      async (dialog) => this.closeNationalPromotionDialog(dialog)
+    );
+    this.promoPopupHandlerRegistered = true;
+  }
+
   async verifyFindYourHomeLinks(): Promise<void> {
+    await this.registerNationalPromotionHandler();
     await this.clickFindYourHome();
 
     const fyhLinkButtons = this.page.locator('button[href^="/search"]');
@@ -97,6 +140,18 @@ export class Header extends BasePage {
 
       await this.clickElement(button);
       await this.waitForPageReady();
+
+      // The campaign modal is injected shortly after the search page has loaded.
+      if (!this.nationalPromotionDismissed) {
+        await this.page.waitForTimeout(5000);
+      }
+
+      if (
+        !this.nationalPromotionDismissed &&
+        await this.nationalPromotionDialog.isVisible().catch(() => false)
+      ) {
+        await this.closeNationalPromotionDialog(this.nationalPromotionDialog);
+      }
 
       const url = new URL(this.page.url());
       const metro = url.searchParams.get('metro');
@@ -196,25 +251,11 @@ export class Header extends BasePage {
       menuLink,
       `${expectedLink.name} should be visible before clicking`
     );
-    const href = await menuLink.getAttribute('href');
-    const didClick = await menuLink.click({ timeout: 5000 })
-      .then(() => true)
-      .catch(() => false);
-    const didNavigate = didClick
-      ? await this.page.waitForURL(
+    await menuLink.click({ timeout: 10000 });
+    await this.page.waitForURL(
         (url) => url.pathname === expectedLink.url,
         { timeout: 30000 }
-      ).then(() => true).catch(() => false)
-      : false;
-
-    const currentPath = new URL(this.page.url()).pathname;
-
-    if (!didNavigate && currentPath !== expectedLink.url) {
-      await this.page.goto(new URL(href ?? expectedLink.url, this.page.url()).href, {
-        waitUntil: 'domcontentloaded',
-        timeout: 90_000
-      });
-    }
+      );
 
     await this.waitForPageReady();
   }

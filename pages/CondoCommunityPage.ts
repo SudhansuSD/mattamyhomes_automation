@@ -68,11 +68,13 @@ export class CondoCommunityPage extends SearchablePage {
     return this.page.locator('a, button').filter({ hasText: TEXT.cta });
   }
 
-  /** Locator: Get Information CTA that opens the lead form sidebar/modal. */
+  /** Locator: community CTA that opens the lead form sidebar/modal. */
   private get getInformationCta(): Locator {
-    return this.page.locator('button:visible, a:visible').filter({
-      hasText: /^\s*Get Information\s*$/i
-    }).first();
+    return this.page.getByRole('heading', { level: 1 }).first()
+      .locator('xpath=ancestor::*[(self::section or self::div) and .//button][1]')
+      .locator('button:visible')
+      .filter({ hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i })
+      .first();
   }
 
   /** Locator: possible condo lead forms on the page. */
@@ -324,7 +326,7 @@ export class CondoCommunityPage extends SearchablePage {
 
   /** Verify: Get Information CTA opens the condo lead form sidebar/modal. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
-    await expect(this.getInformationCta, 'Get Information CTA should be visible')
+    await expect(this.getInformationCta, 'Get Information or Stay Updated CTA should be visible')
       .toBeVisible({ timeout: TIMEOUT.medium });
 
     const form = await this.getAvailableGetInformationForm();
@@ -484,17 +486,17 @@ export class CondoCommunityPage extends SearchablePage {
     console.log(`${formName} successful submission validated`);
   }
 
-  /** Helper: click the Get Information CTA when the sidebar/modal form is not already open. */
+  /** Helper: click the available lead-form CTA when the sidebar/modal is not already open. */
   private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
     if (await this.hasVisibleFields(this.leadFormDialogOrSidebar.first())) {
       return;
     }
 
-    const getInformationCtas = this.page.getByRole('button', { name: /Get Information/i });
+    const getInformationCtas = this.getInformationCta;
     const previousUrl = this.page.url();
     const ctaCount = await getInformationCtas.count();
 
-    expect(ctaCount, 'Get Information CTA should be present').toBeGreaterThan(0);
+    expect(ctaCount, 'Get Information or Stay Updated CTA should be present').toBeGreaterThan(0);
 
     for (let i = 0; i < ctaCount; i++) {
       const cta = getInformationCtas.nth(i);
@@ -508,13 +510,27 @@ export class CondoCommunityPage extends SearchablePage {
       }
 
       await cta.scrollIntoViewIfNeeded();
-      await cta.click({ force: true });
+      let didClick = await cta.click({ force: true })
+        .then(() => true)
+        .catch(() => false);
+
+      if (!didClick) {
+        didClick = await cta.evaluate((element) => {
+          (element as HTMLElement).click();
+          return true;
+        }).catch(() => false);
+      }
+
+      if (!didClick) {
+        continue;
+      }
+
       await this.waitForPageReady();
       await this.page.waitForTimeout(1000);
 
       expect(
         this.page.url(),
-        `Get Information CTA should keep the condo lead form flow on page, not redirect from ${previousUrl}`
+        `Condo lead-form CTA should keep the flow on page, not redirect from ${previousUrl}`
       ).not.toMatch(/\/contact\/?($|[?#])/i);
 
       if (await this.hasVisibleFields(this.leadFormDialogOrSidebar.first())) {

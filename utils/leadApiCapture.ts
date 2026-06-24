@@ -17,6 +17,17 @@ const DEFAULT_OUTPUT_FILE = path.resolve(process.cwd(), 'results', 'lead-api-dat
 
 const WORKSHEET_NAME = 'Lead API Data';
 
+const WORKSHEET_COLUMNS = [
+  { header: 'Captured At', key: 'capturedAt', width: 24 },
+  { header: 'Page URL', key: 'pageUrl', width: 80 },
+  { header: 'Form Name', key: 'formName', width: 34 },
+  { header: 'Request Method', key: 'requestMethod', width: 16 },
+  { header: 'Request URL', key: 'requestUrl', width: 80 },
+  { header: 'Response Status', key: 'responseStatus', width: 16 },
+  { header: 'Response Data', key: 'responseData', width: 120 },
+  { header: 'Notes', key: 'notes', width: 40 }
+] as const;
+
 export async function appendLeadApiCapture(row: LeadApiCaptureRow): Promise<string> {
   const outputFile = process.env.LEAD_API_CAPTURE_XLSX
     ? path.resolve(process.cwd(), process.env.LEAD_API_CAPTURE_XLSX)
@@ -33,17 +44,16 @@ export async function appendLeadApiCapture(row: LeadApiCaptureRow): Promise<stri
   const worksheet = workbook.getWorksheet(WORKSHEET_NAME) ?? workbook.addWorksheet(WORKSHEET_NAME);
 
   if (worksheet.rowCount === 0) {
-    worksheet.columns = [
-      { header: 'Captured At', key: 'capturedAt', width: 24 },
-      { header: 'Page URL', key: 'pageUrl', width: 80 },
-      { header: 'Form Name', key: 'formName', width: 34 },
-      { header: 'Request Method', key: 'requestMethod', width: 16 },
-      { header: 'Request URL', key: 'requestUrl', width: 80 },
-      { header: 'Response Status', key: 'responseStatus', width: 16 },
-      { header: 'Response Data', key: 'responseData', width: 120 },
-      { header: 'Notes', key: 'notes', width: 40 }
-    ];
+    worksheet.columns = WORKSHEET_COLUMNS.map((column) => ({ ...column }));
     worksheet.getRow(1).font = { bold: true };
+  } else {
+    // Excel files do not persist ExcelJS column keys. Restore them after readFile()
+    // so object-based rows and key-based getColumn() calls keep working.
+    WORKSHEET_COLUMNS.forEach((definition, index) => {
+      const column = worksheet.getColumn(index + 1);
+      column.key = definition.key;
+      column.width = definition.width;
+    });
   }
 
   worksheet.addRow(row);

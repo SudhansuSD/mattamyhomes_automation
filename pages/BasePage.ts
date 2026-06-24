@@ -32,10 +32,36 @@ export class BasePage {
       `[NAVIGATE] ENV=${envName} | COUNTRY=${location.country} | URL=${targetUrl}`
     );
 
-    await this.page.goto(targetUrl, {
-      waitUntil: 'domcontentloaded',
-      timeout: 90_000
-    });
+    try {
+      await this.page.goto(targetUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: 90_000
+      });
+    } catch (error) {
+      const currentUrl = this.page.url();
+      const current = new URL(currentUrl);
+      const target = new URL(targetUrl);
+      const sameHost = current.hostname.replace(/^www\./i, '') === target.hostname.replace(/^www\./i, '');
+      const reachedTarget =
+        sameHost &&
+        current.pathname === target.pathname &&
+        current.searchParams.get('country') === target.searchParams.get('country');
+      const domIsUsable = await this.page
+        .evaluate(() => document.readyState !== 'loading')
+        .catch(() => false);
+
+      if (!reachedTarget || !domIsUsable) {
+        console.warn(`[NAVIGATE] Initial navigation did not become usable; retrying ${targetUrl}`);
+        await this.page.goto(targetUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: 90_000
+        });
+      } else {
+        console.warn(
+          `[NAVIGATE] Navigation reported a timeout after the target page rendered; continuing from ${currentUrl}`
+        );
+      }
+    }
 
     await this.acceptCookiesIfPresent();
 
@@ -51,6 +77,187 @@ export class BasePage {
   protected async waitForPageReady(): Promise<void> {
     await this.page.waitForLoadState('domcontentloaded');
     await this.page.waitForTimeout(3000); // same behavior as before
+  }
+
+  async validateImageAndVideoUrlsReturn200(pageName: string): Promise<void> {
+    await test.step(`Validate image and video URLs return 200 on ${pageName}`, async () => {
+      await this.waitForPageReady();
+      await this.dismissPromoPopupIfPresent();
+      await this.loadLazyMedia();
+      await this.dismissPromoPopupIfPresent();
+
+      const mediaUrls = await this.collectImageAndVideoUrls();
+
+      expect(mediaUrls.length, `${pageName} should expose image or video URLs`).toBeGreaterThan(0);
+
+      const failures: string[] = [];
+
+      for (const media of mediaUrls) {
+        const status = await this.getMediaUrlStatus(media.url);
+
+        console.log(`[MEDIA CHECK] ${pageName} | ${media.type} | ${status} | ${media.label} | ${media.url}`);
+
+        if (status !== 200) {
+          failures.push(`${media.type} returned ${status} for ${media.label}: ${media.url}`);
+        }
+      }
+
+      expect(
+        failures,
+        `${pageName} image/video URL status failures:\n${failures.join('\n')}`
+      ).toHaveLength(0);
+    });
+  }
+
+  private async loadLazyMedia(): Promise<void> {
+    await this.page.evaluate(async () => {
+      const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+      const viewportStep = Math.max(window.innerHeight || 800, 600);
+      const pageHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight
+      );
+
+      for (let y = 0; y <= pageHeight; y += viewportStep) {
+        window.scrollTo(0, y);
+        await delay(250);
+      }
+
+      window.scrollTo(0, 0);
+    });
+
+    await this.waitForPageReady();
+  }
+
+  private async collectImageAndVideoUrls(): Promise<Array<{ type: string; label: string; url: string }>> {
+    const rawUrls = await this.page.evaluate(() => {
+      const media: Array<{ type: string; label: string; url: string }> = [];
+      const cleanText = (value: string | null | undefined) =>
+        (value || '').replace(/\s+/g, ' ').trim();
+      const getSectionLabel = (element: Element): string => {
+        const directLabel =
+          cleanText(element.getAttribute('alt')) ||
+          cleanText(element.getAttribute('aria-label')) ||
+          cleanText(element.getAttribute('title'));
+
+        if (directLabel) return directLabel;
+
+        const figure = element.closest('figure');
+        const caption = figure?.querySelector('figcaption');
+        const captionText = cleanText(caption?.textContent);
+
+        if (captionText) return captionText;
+
+        const section = element.closest('section, article, main, header, footer, [role="region"], [aria-label]');
+        const sectionAria = cleanText(section?.getAttribute('aria-label'));
+
+        if (sectionAria) return sectionAria;
+
+        const heading = section?.querySelector('h1, h2, h3, h4, h5, h6');
+        const headingText = cleanText(heading?.textContent);
+
+        if (headingText) return headingText;
+
+        const link = element.closest('a');
+        const linkLabel = cleanText(link?.getAttribute('aria-label')) || cleanText(link?.textContent);
+
+        return linkLabel || 'No alt/section label';
+      };
+      const addUrl = (type: string, rawUrl: string | null | undefined, element: Element) => {
+        if (!rawUrl) return;
+
+        const trimmed = rawUrl.trim();
+
+        if (
+          !trimmed ||
+          /^(data|blob|javascript|about):/i.test(trimmed) ||
+          /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(trimmed)
+        ) {
+          return;
+        }
+
+        try {
+          media.push({
+            type,
+            label: getSectionLabel(element),
+            url: new URL(trimmed, window.location.href).href
+          });
+        } catch {
+          // Ignore malformed media attributes.
+        }
+      };
+
+      const addSrcset = (type: string, srcset: string | null | undefined, element: Element) => {
+        if (!srcset) return;
+
+        for (const candidate of srcset.split(',')) {
+          addUrl(type, candidate.trim().split(/\s+/)[0], element);
+        }
+      };
+
+      document.querySelectorAll('img').forEach((image) => {
+        const img = image as HTMLImageElement;
+        addUrl('image', img.currentSrc || img.src || img.getAttribute('src'), img);
+        addSrcset('image', img.getAttribute('srcset'), img);
+      });
+
+      document.querySelectorAll('picture source').forEach((source) => {
+        addUrl('image-source', source.getAttribute('src'), source);
+        addSrcset('image-source', source.getAttribute('srcset'), source);
+      });
+
+      document.querySelectorAll('video').forEach((video) => {
+        const mediaElement = video as HTMLVideoElement;
+        addUrl('video', mediaElement.currentSrc || mediaElement.src || mediaElement.getAttribute('src'), mediaElement);
+        addUrl('video-poster', mediaElement.poster || mediaElement.getAttribute('poster'), mediaElement);
+      });
+
+      document.querySelectorAll('video source').forEach((source) => {
+        addUrl('video-source', source.getAttribute('src'), source);
+        addSrcset('video-source', source.getAttribute('srcset'), source);
+      });
+
+      return media;
+    });
+
+    const unique = new Map<string, { type: string; label: string; url: string }>();
+
+    for (const item of rawUrls) {
+      if (this.isIgnorableMediaUrl(item.url)) {
+        continue;
+      }
+
+      if (!unique.has(item.url)) {
+        unique.set(item.url, item);
+      }
+    }
+
+    return [...unique.values()];
+  }
+
+  private isIgnorableMediaUrl(url: string): boolean {
+    return /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(url);
+  }
+
+  private async getMediaUrlStatus(url: string): Promise<number | string> {
+    const headResponse = await this.page.request.head(url, {
+      failOnStatusCode: false,
+      timeout: 30_000
+    }).catch(() => null);
+
+    if (headResponse && ![403, 405, 501].includes(headResponse.status())) {
+      return headResponse.status();
+    }
+
+    const getResponse = await this.page.request.get(url, {
+      failOnStatusCode: false,
+      timeout: 30_000
+    }).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      return { status: () => `request failed: ${message}` };
+    });
+
+    return getResponse.status();
   }
 
   /* ==========================================================
@@ -244,6 +451,9 @@ export class BasePage {
   async dismissPromoPopupIfPresent(): Promise<void> {
     await this.acceptCookiesIfPresent();
 
+    const nationalPromotionDialog = this.page
+      .locator('[role="dialog"][aria-label="National promotion"]:visible')
+      .first();
     const promotionCloseButton = this.page
       .getByRole('button', { name: /close national promotion popup/i })
       .first();
@@ -252,19 +462,24 @@ export class BasePage {
       await promotionCloseButton.click({ force: true }).catch(async () => {
         await promotionCloseButton.dispatchEvent('click').catch(() => undefined);
       });
-      await this.page
-        .locator('.ReactModal__Content[aria-label="National promotion"]')
-        .waitFor({ state: 'hidden', timeout: 10000 })
-        .catch(() => undefined);
+      await nationalPromotionDialog.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => undefined);
       await this.page.waitForTimeout(500);
       return;
     }
 
     const dialogs = this.page
-      .locator('.ReactModal__Content, [role="dialog"], [aria-modal="true"]')
+      .locator(
+        [
+          '.ReactModal__Content:visible',
+          '[role="dialog"]:visible',
+          '[aria-modal="true"]:visible',
+          '.ReactModalPortal [class*="modal" i]:visible',
+          '.ReactModalPortal [class*="content" i]:visible'
+        ].join(', ')
+      )
       .filter({
         hasNot: this.page.locator('form, input, select, textarea'),
-        has: this.page.locator('button, a')
+        has: this.page.locator('button, a, img')
       });
     const dialogCount = await dialogs.count();
 
@@ -277,7 +492,13 @@ export class BasePage {
 
       const dialogText = await dialog.innerText().catch(() => '');
 
-      if (!/promo|banner|going on now|special|offer|incentive/i.test(dialogText)) {
+      const hasPromoMedia = await dialog.locator('img, picture, video').count() > 0;
+      const hasPromoCta = await dialog
+        .locator('button, a')
+        .filter({ hasText: /going on now|learn more|view offer|promo|promotion/i })
+        .count() > 0;
+
+      if (!/promo|promotion|banner|going on now|special|offer|incentive/i.test(dialogText) && !hasPromoMedia && !hasPromoCta) {
         continue;
       }
 
@@ -285,9 +506,13 @@ export class BasePage {
         .locator(
           [
             'button[aria-label*="close" i]',
+            'button[class*="close" i]',
             'button:has-text("Close")',
             'button:has-text("Close Icon")',
-            'svg[aria-label*="close" i]'
+            'button:has(svg)',
+            'svg[aria-label*="close" i]',
+            '[aria-label*="close" i]',
+            '[class*="close" i]'
           ].join(', ')
         )
         .first();

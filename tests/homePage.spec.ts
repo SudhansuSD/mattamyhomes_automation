@@ -165,4 +165,26 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
 
   });
 
+  test('HOME-013 | @regression | Validate home search no-match autocomplete behavior', async () => {
+    await test.step('Verify no-match search state', async () => {
+      await homePage.validateSearchAutocompleteNoMatchState();
+    });
+  });
+
+  test('HOME-014 | @regression | Validate cookie banner persistence after reload', async () => {
+    await test.step('Verify cookie consent persists', async () => {
+      await homePage.validateCookieBannerPersistence();
+    });
+  });
+
+  test('HOME-015 | @regression | Validate market card images and links', async () => {
+    await test.step('Verify market card media and link integrity', async () => {
+      await homePage.validateMarketCardMediaAndLinks();
+    });
+  });
+
+  test('HOME-016 | @regression | Validate home page image and video URLs return 200', async () => {
+    await homePage.validateImageAndVideoUrlsReturn200('Home page');
+  });
+
 });

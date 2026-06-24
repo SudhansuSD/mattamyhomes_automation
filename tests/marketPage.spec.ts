@@ -98,5 +98,9 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
     //   });
     // });
 
+    test('MARKET-008 | @regression | Validate market page image and video URLs return 200', async () => {
+      await marketPage.validateImageAndVideoUrlsReturn200('Market page');
+    });
+
   });
 });

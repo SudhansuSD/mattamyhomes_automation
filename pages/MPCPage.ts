@@ -156,6 +156,7 @@ export class MPCPage extends BasePage {
     await this.dismissBlockingOverlays();
     await this.ensureConfiguredCountrySelected();
     await this.waitForPageReady();
+    await this.dismissPromoPopupIfPresent();
   }
 
   /* ==========================================================
@@ -165,6 +166,21 @@ export class MPCPage extends BasePage {
   /** Verify: MPC page URL, title, and heading match expected configuration. */
   async verifyMPCPage(mpc: MPCConfig): Promise<void> {
     await this.waitForPageReady();
+
+    await expect.poll(
+      async () => {
+        if (await this.heading.first().isVisible({ timeout: 1000 }).catch(() => false)) {
+          return true;
+        }
+
+        await this.dismissPromoPopupIfPresent();
+        return this.heading.first().isVisible({ timeout: 1000 }).catch(() => false);
+      },
+      {
+        message: 'MPC heading should become accessible after promotional overlays are dismissed',
+        timeout: 30_000
+      }
+    ).toBeTruthy();
 
     await this.assertPageUrlContains(mpc.url, `MPC page URL should contain configured path: ${mpc.url}`);
     await this.assertPageTitle(/Mattamy Homes/i, 'MPC page title should include Mattamy Homes');

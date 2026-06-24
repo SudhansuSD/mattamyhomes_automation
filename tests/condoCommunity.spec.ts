@@ -66,7 +66,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
          FORM VALIDATION
       ========================================================== */
 
-  test.describe('Lead Form Validation', () => {
+  test.describe('Lead Form', () => {
 
     /**********Modal form Validation**********/
 
@@ -82,10 +82,16 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       await condoCommunityPage.validateGetInformationFormInvalidEmail();
     });
 
-    // test('@regression @STAGE Validate Get Information form successful submission', async () => {
-    //   test.skip(envName === 'PROD', 'Skipping Get Information form lead submission on PROD environment.');
-    //   await condoCommunityPage.verifyGetInformationFormSuccessSubmission();
-    // });
+    test.describe('Get Information form submission', () => {
+      test.skip(
+        envName === 'PROD',
+        'Skipping Get Information form lead submission on PROD environment.'
+      );
+
+      test('@regression @STAGE Validate Get Information form successful submission', async () => {
+        await condoCommunityPage.verifyGetInformationFormSuccessSubmission();
+      });
+    });
 
     /**********Primary form Validation**********/
 
@@ -101,10 +107,16 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       await condoCommunityPage.validatePrimaryFormRequiredErrors();
     });
 
-    // test('@regression @STAGE Validate primary condo form successful submission', async () => {
-    //   test.skip(envName === 'PROD', 'Skipping primary condo form lead submission on PROD environment.');
-    //   await condoCommunityPage.verifyPrimaryFormSuccessSubmission();
-    // });
+    test.describe('Primary condo form submission', () => {
+      test.skip(
+        envName === 'PROD',
+        'Skipping primary condo form lead submission on PROD environment.'
+      );
+
+      test('@regression @STAGE Validate primary condo form successful submission', async () => {
+        await condoCommunityPage.verifyPrimaryFormSuccessSubmission();
+      });
+    });
 
     /*******Footer form Validation**********/
 
@@ -120,9 +132,19 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       await condoCommunityPage.validateFooterFormInvalidEmailError();
     });
 
-    // test('@regression @STAGE Validate footer condo form successful submission', async () => {
-    //   test.skip(envName === 'PROD', 'Skipping footer condo form lead submission on PROD environment.');
-    //   await condoCommunityPage.verifyFooterFormSuccessSubmission();
-    // });
+    test.describe('Footer condo form submission', () => {
+      test.skip(
+        envName === 'PROD',
+        'Skipping footer condo form lead submission on PROD environment.'
+      );
+
+      test('@regression @STAGE Validate footer condo form successful submission', async () => {
+        await condoCommunityPage.verifyFooterFormSuccessSubmission();
+      });
+    });
+  });
+
+  test('CONDOCOMMUNITY-020 | @regression | Validate condo community page image and video URLs return 200', async () => {
+    await condoCommunityPage.validateImageAndVideoUrlsReturn200('Condo community page');
   });
 });

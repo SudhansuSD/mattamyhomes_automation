@@ -398,6 +398,7 @@ export class SearchablePage extends BasePage {
   ): Promise<void> {
     await this.ensureSearchStartsFromHomePage();
     await searchAction();
+    await this.dismissPromoPopupIfPresent();
     await validationAction();
     await this.waitForPageReady();
   }
@@ -523,6 +524,7 @@ export class SearchablePage extends BasePage {
 
   async verifySearchByMarket(expectedMarket: string): Promise<void> {
     await this.waitForPageReady();
+    await this.dismissPromoPopupIfPresent();
 
     await this.page.waitForURL(
       (url) =>
@@ -633,10 +635,28 @@ export class SearchablePage extends BasePage {
   async clickMpcLearnMore(mpcName: string): Promise<void> {
     await this.waitForPageReady();
 
+    // The promo popup renders after the results page settles, so the earlier
+    // dismissal in the search flow can run before it appears. Re-dismiss it here,
+    // at the point of use, so it cannot be picked up as the matching "card".
+    await this.dismissPromoPopupIfPresent();
+
+    const learnMoreCta = this.page
+      .getByRole('link', { name: /learn more/i })
+      .or(this.page.getByRole('button', { name: /learn more/i }));
+
+    // Scope to the actual product card: the element that contains both the MPC
+    // name and a Learn More CTA, excluding promo/modal overlays. Use `.last()`
+    // to prefer the innermost (tightest) matching card over a broad wrapper.
     const mpcCard = this.page
       .locator('article, section, li, [class*="card"], [class*="Card"]')
       .filter({ hasText: new RegExp(escapeRegex(mpcName), 'i') })
-      .first();
+      .filter({ has: learnMoreCta })
+      .filter({
+        hasNot: this.page.locator(
+          '.ReactModal__Content, [role="dialog"], [aria-modal="true"]'
+        )
+      })
+      .last();
 
     await this.assertVisible(
       mpcCard,
@@ -645,19 +665,20 @@ export class SearchablePage extends BasePage {
     );
 
     await mpcCard.scrollIntoViewIfNeeded();
+    await this.dismissPromoPopupIfPresent();
 
-    const learnMoreCta = mpcCard
+    const cardLearnMoreCta = mpcCard
       .getByRole('link', { name: /learn more/i })
       .first()
       .or(mpcCard.getByRole('button', { name: /learn more/i }).first());
 
     await this.assertVisible(
-      learnMoreCta,
+      cardLearnMoreCta,
       `Learn More CTA should be visible for MPC card: ${mpcName}`,
       30_000
     );
 
-    await learnMoreCta.click();
+    await cardLearnMoreCta.click();
 
     await this.waitForPageReady();
   }

@@ -76,8 +76,8 @@ export class AboutUsPage extends BasePage {
 
     await this.assertPageTitle(expectation.title, `${link.name} title should match expected value`);
     await this.assertPageUrl(
-      new RegExp(`${this.escapeRegExp(link.url)}(?:\\?.*)?$`),
-      `${link.name} should keep the expected route`
+      new RegExp(`${this.escapeRegExp(link.url)}/?$`),
+      `${link.name} should keep the expected route without a country query parameter`
     );
     await this.assertAttached(this.header, `${link.name} should keep the global header mounted`, 15_000);
     await this.assertAttached(this.main, `${link.name} should render a main content area`, 15_000);

@@ -128,4 +128,8 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
     });
   });
 
+  test('QMI-012 | @regression | Validate QMI page image and video URLs return 200', async () => {
+    await qmiPage.validateImageAndVideoUrlsReturn200('QMI page');
+  });
+
 });

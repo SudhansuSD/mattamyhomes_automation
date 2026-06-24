@@ -8,10 +8,12 @@
  */
 
 import { test } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoPlanPage } from '../pages/CondoPlanPage';
 
 const location = getLocationConfig();
+const { envName } = getEnvConfig();
 const condoPlan = location.country === 'CAN' && 'condoPlan' in location
   ? location.condoPlan
   : undefined;
@@ -86,16 +88,27 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
       await condoPlanPage.verifyCommunityUpdateFormFields();
     });
 
-    test.skip('CONDOPLAN-012 | @sanity | Validate required field errors - skipped to avoid submitting form', async () => {
+    test('CONDOPLAN-012 | @sanity | Validate required field errors', async () => {
       await condoPlanPage.validateCommunityUpdateRequiredErrors();
     });
 
-    test.skip('CONDOPLAN-013 | @sanity | Validate invalid email error - skipped to avoid submitting form', async () => {
+    test('CONDOPLAN-013 | @sanity | Validate invalid email error', async () => {
       await condoPlanPage.validateCommunityUpdateInvalidEmail();
     });
 
-    // test('@regression @STAGE Validate successful form submission', async () => {
-    //   await condoPlanPage.verifyCommunityUpdateSuccessfulSubmission();
-    // });
+    test.describe('Community updates form submission', () => {
+      test.skip(
+        envName === 'PROD',
+        'Skipping condo plan form lead submission on PROD environment.'
+      );
+
+      test('@regression @STAGE Validate successful form submission', async () => {
+        await condoPlanPage.verifyCommunityUpdateSuccessfulSubmission();
+      });
+    });
+  });
+
+  test('CONDOPLAN-014 | @regression | Validate condo plan page image and video URLs return 200', async () => {
+    await condoPlanPage.validateImageAndVideoUrlsReturn200('Condo plan page');
   });
 });

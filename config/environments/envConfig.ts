@@ -14,7 +14,7 @@ const ENVIRONMENT_CONFIGS = {
 type EnvName = keyof typeof ENVIRONMENT_CONFIGS;
 
 export function getEnvConfig() {
-  const env = (process?.env?.ENV ?? 'STAGE').toUpperCase() as EnvName;
+  const env = (process?.env?.ENV ?? 'PROD').toUpperCase() as EnvName;
 
   const config = ENVIRONMENT_CONFIGS[env] ?? ENVIRONMENT_CONFIGS.STAGE;
   const envName = ENVIRONMENT_CONFIGS[env] ? env : 'STAGE';

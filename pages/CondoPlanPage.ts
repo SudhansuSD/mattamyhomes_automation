@@ -67,7 +67,7 @@ const EXPECTED_CONDO_PLAN = {
    - Available floorplans cards and View All link validation
    - Contact Us, phone, map, and Hours validation
    - Get Information CTA scroll/anchor behavior without form submission
-   - Community updates form field presence validation only
+   - Community updates form field and validation-message checks
    - Footer/navigation href sanity validation
 
    Form submit scenarios are intentionally left skipped/commented in spec
@@ -318,17 +318,37 @@ export class CondoPlanPage extends SearchablePage {
     }
   }
 
-  /** Skipped by spec: this would click SUBMIT on an empty live lead form. */
+  /** Verify: an empty community update form shows required-field validation. */
   async validateCommunityUpdateRequiredErrors(): Promise<void> {
     const form = await this.getAvailableCommunityUpdateForm();
 
     if (!form) {
-      return;
+      throw new Error('Community updates form not found; required-field validation cannot be verified');
     }
 
-    await form.getByRole('button', { name: TEXT.submit }).first().click();
-    await expect(form.locator(`text=${TEXT.requiredError}`).first())
+    const submitButton = form.getByRole('button', { name: TEXT.submit }).first();
+    await expect(submitButton, 'Community updates form submit button should be visible')
       .toBeVisible({ timeout: TIMEOUT.short });
+    await submitButton.click();
+
+    const renderedErrors = form
+      .locator('[role="alert"]:visible, [aria-live]:visible, .field-validation-error:visible, .error:visible, div:visible, span:visible, p:visible, label:visible')
+      .filter({ hasText: TEXT.requiredError });
+
+    await expect.poll(async () => {
+      const renderedErrorCount = await renderedErrors.count();
+      const invalidFields = await form.locator('input, select, textarea').evaluateAll((fields) =>
+        fields.filter((field) => {
+          const control = field as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+          return !control.disabled && !control.validity.valid;
+        }).length
+      );
+
+      return renderedErrorCount + invalidFields;
+    }, {
+      message: 'Submitting the empty community updates form should expose required-field validation',
+      timeout: TIMEOUT.short
+    }).toBeGreaterThan(0);
   }
 
   /** Skipped by spec: this would click SUBMIT after entering invalid email data. */

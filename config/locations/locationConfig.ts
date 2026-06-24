@@ -173,8 +173,8 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       }],
       community: 'Landmarke',
       communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
-      qmiAddress: '629 W RIPARIAN DR',
-      qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/aqua/629-w-riparian-dr',
+      qmiAddress: '449 W FLAX DR',
+      qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/garnet/449-w-flax-dr',
       planName: 'Aqua',
       expectedPlanPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/aqua',
       aboutUsLinks: [
@@ -263,7 +263,7 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       queryParam: 'country=CAN',
       market: 'Greater Toronto Area',
       community: 'Yorkville',
-      communityPath: '/ontario/gta/caledon/yorkville',
+      communityPath: '/alberta/calgary/calgary/yorkville',
       condoCommunity: 'Martha James Condominiums',
       condoPlan: {
         name: 'M2ad',

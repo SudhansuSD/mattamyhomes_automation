@@ -153,6 +153,7 @@ export class QMIPage extends SearchablePage {
     /** Verify: home page QMI search redirects to the expected QMI detail page. */
     async verifySearchByQMI(expectedAddress: string): Promise<void> {
         await this.waitForPageReady();
+        await this.dismissPromoPopupIfPresent();
         await expect(this.page).toHaveURL(QMIPage.QMI_URL_PATTERN);
         await expect(this.heading).toBeVisible({
             timeout: QMIPage.PAGE_LOAD_TIMEOUT

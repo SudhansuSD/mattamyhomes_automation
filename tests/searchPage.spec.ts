@@ -68,21 +68,33 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
     await searchPage.validateClearResetFiltersBehavior();
   });
 
+  test('SEARCH-009 | @regression | Verify no-results state for unavailable search criteria', async () => {
+    await searchPage.validateNoResultsState();
+  });
+
+  test('SEARCH-010 | @regression | Verify combined filters persist in URL state after reload', async () => {
+    await searchPage.validateCombinedFiltersPersistInUrlState(400000, 500000, 3, 2);
+  });
+
+  test('SEARCH-011 | @regression | Verify browser back and forward restore filter state', async () => {
+    await searchPage.validateFilterBrowserHistoryNavigation(400000, 500000);
+  });
+
   /* -------------------------------------------------------
      Sorting Validation Tests
   -------------------------------------------------------- */
 
-  test('SEARCH-009 | @regression | Validate community sorting options', async () => {
+  test('SEARCH-012 | @regression | Validate community sorting options', async () => {
     await searchPage.validateCommunitySortOptions();
     await searchPage.validateSortingBehavior('Communities');
 
   });
-  test('SEARCH-010 | @regression | Validate Plan sorting options', async () => {
+  test('SEARCH-013 | @regression | Validate Plan sorting options', async () => {
     await searchPage.validatePlanSortOptions();
     await searchPage.validateSortingBehavior('Plans');
   });
 
-  test('SEARCH-011 | @regression | Validate QMI sorting options', async () => {
+  test('SEARCH-014 | @regression | Validate QMI sorting options', async () => {
     await searchPage.validateQMISortOptions();
     await searchPage.validateSortingBehavior('Quick Move-Ins');
   });

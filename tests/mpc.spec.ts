@@ -112,4 +112,8 @@ test.describe(`MPC page tests - ${location.country}`, () => {
     //   await mpcPage.submitCommunityUpdateFormSuccessfully();
     // });
   });
+
+  test('MPC-018 | @regression | Validate MPC page image and video URLs return 200', async () => {
+    await mpcPage.validateImageAndVideoUrlsReturn200('MPC page');
+  });
 });

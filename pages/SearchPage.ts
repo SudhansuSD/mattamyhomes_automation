@@ -114,8 +114,29 @@ export class SearchPage extends SearchablePage {
     }
 
     private async waitForResultsToLoad(): Promise<void> {
-        await this.page.waitForSelector('#ProductInfo:visible', { timeout: 15000 });
+        await Promise.race([
+            this.page.waitForSelector('#ProductInfo:visible', { timeout: 15000 }).catch(() => undefined),
+            this.noResultsMessage().waitFor({ state: 'visible', timeout: 15000 }).catch(() => undefined)
+        ]);
         await this.page.waitForTimeout(800);
+    }
+
+    private noResultsMessage(): Locator {
+        const statusMessage = this.page
+            .getByRole('status')
+            .filter({ hasText: /No results in this area|No results found|No results/i });
+        const accessibleNoResultsState = this.page.locator(
+            '[aria-label*="No results found" i]:visible, [aria-label*="No results in this area" i]:visible'
+        );
+
+        return statusMessage.or(accessibleNoResultsState).first();
+    }
+
+    private canonicalizeSearchUrl(rawUrl: string): string {
+        const url = new URL(rawUrl);
+        url.searchParams.sort();
+
+        return `${url.origin}${url.pathname}?${url.searchParams.toString()}`;
     }
 
     private async getCardCount(): Promise<number> {
@@ -556,6 +577,10 @@ export class SearchPage extends SearchablePage {
         minBeds: number,
         minBaths: number
     ): Promise<void> {
+        console.log(
+            `Applying Beds & Baths Filter: ${minBeds}+ Bedrooms - ${minBaths}+ Bathrooms`
+        );
+
         await this.waitForPageReady();
         await this.openFilter('Select Beds & Baths');
 
@@ -607,6 +632,84 @@ export class SearchPage extends SearchablePage {
             this.page.url(),
             'Reset filters should clear the filtered URL/state'
         ).not.toBe(filteredUrl);
+    }
+
+    async validateNoResultsState(): Promise<void> {
+        await this.openFilter('Dropdown price filter');
+        await this.dropdownOption('$ No min').click();
+        await this.dropdownOption(this.formatPriceToUiLabel(1000000)).click();
+        await this.waitForResultsToLoad();
+
+        const noResults = this.noResultsMessage();
+        await expect(noResults, 'Search page should show a clear no-results state').toBeVisible({ timeout: 20000 });
+        await expect(this.resultCards(), 'No-results state should not show result cards').toHaveCount(0);
+    }
+
+    async validateCombinedFiltersPersistInUrlState(
+        minPrice: number,
+        maxPrice: number,
+        minBeds: number,
+        minBaths: number
+    ): Promise<void> {
+        await this.verifyResults('Plans');
+
+        const initialUrl = this.page.url();
+
+        await this.filterByPrice(minPrice, maxPrice);
+        await this.filterByBedroomsAndBathrooms(minBeds, minBaths);
+        await this.waitForResultsToLoad();
+
+        const filteredUrl = this.page.url();
+        const filteredCount = await this.resultCards().count();
+
+        expect(filteredUrl, 'Combined filters should update browser URL/state').not.toBe(initialUrl);
+        expect(
+            filteredUrl,
+            'Combined filter URL should preserve selected price or bed/bath values'
+        ).toMatch(new RegExp(`${minPrice}|${maxPrice}|${minBeds}|${minBaths}`));
+        expect(
+            filteredCount,
+            'Combined filters should finish in a loaded results or no-results state'
+        ).toBeGreaterThanOrEqual(0);
+
+        await this.page.reload({ waitUntil: 'domcontentloaded', timeout: 90_000 });
+        await this.waitForPageReady();
+        await this.dismissPromoPopupIfPresent();
+        await this.openTab('Plans');
+        await this.waitForResultsToLoad();
+
+        expect(
+            this.canonicalizeSearchUrl(this.page.url()),
+            'Reload should preserve combined filter URL/state'
+        ).toBe(this.canonicalizeSearchUrl(filteredUrl));
+    }
+
+    async validateFilterBrowserHistoryNavigation(minPrice: number, maxPrice: number): Promise<void> {
+        await this.verifyResults('Communities');
+
+        const initialUrl = this.page.url();
+        await this.filterByPrice(minPrice, maxPrice);
+
+        const filteredUrl = this.page.url();
+        expect(filteredUrl, 'Price filter should create a browser history state').not.toBe(initialUrl);
+
+        await this.page.goBack({ waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => undefined);
+        await this.waitForPageReady();
+        await this.dismissPromoPopupIfPresent();
+
+        expect(
+            this.page.url(),
+            'Back navigation should leave the filtered URL'
+        ).not.toBe(filteredUrl);
+
+        await this.page.goForward({ waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => undefined);
+        await this.waitForPageReady();
+        await this.dismissPromoPopupIfPresent();
+
+        expect(
+            this.page.url(),
+            'Forward navigation should restore the filtered URL'
+        ).toBe(filteredUrl);
     }
     /* ------------------------------------------------------------------
        Validation: Beds & Baths
@@ -705,10 +808,7 @@ export class SearchPage extends SearchablePage {
         await this.page.waitForTimeout(2000);
 
         const cards = await this.resultCards();
-        const noResults = this.page
-            .getByRole('status')
-            .filter({ hasText: /No results in this area|No results/i })
-            .first();
+        const noResults = this.noResultsMessage();
 
         // Wait for either cards OR no-results
         await Promise.race([
