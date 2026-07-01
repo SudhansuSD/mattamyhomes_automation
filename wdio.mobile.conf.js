@@ -1,24 +1,70 @@
 require("dotenv").config();
 require("ts-node/register/transpile-only");
 
+const { execFileSync } = require("node:child_process");
+const fs = require("node:fs");
+const path = require("node:path");
+const { Status } = require("allure-js-commons");
 const allureReporter = require("@wdio/allure-reporter").default;
 const { getEnvConfig } = require("./config/environments/envConfig");
+const { MOBILE_ALLURE_RESULTS_DIR } = require("./scripts/allurePaths");
 
-if (process.env.ANDROID_HOME) {
-  process.env.ANDROID_HOME = process.env.ANDROID_HOME.trim();
+// .env may define these with a trailing newline/whitespace; Appium rejects the
+// path as "does not exist" unless we trim it.
+for (const name of ["ANDROID_HOME", "ANDROID_SDK_ROOT"]) {
+  if (process.env[name]) {
+    process.env[name] = process.env[name].trim();
+  }
 }
 
-if (process.env.ANDROID_SDK_ROOT) {
-  process.env.ANDROID_SDK_ROOT = process.env.ANDROID_SDK_ROOT.trim();
+const androidUdid = process.env.APPIUM_UDID || "emulator-5554";
+
+// Best-effort adb call; failures are logged but never abort the run.
+function adb(args) {
+  const sdkRoot = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
+  const bin = process.platform === "win32" ? "adb.exe" : "adb";
+  const adbPath = sdkRoot ? path.join(sdkRoot, "platform-tools", bin) : bin;
+
+  try {
+    execFileSync(adbPath, args, { stdio: "ignore", timeout: 30000 });
+  } catch (error) {
+    console.log(`adb ${args.join(" ")} failed:`, error.message);
+  }
 }
 
+// Android Chrome occasionally crashes its renderer/session mid-test on the
+// emulator. Detect that and recover by relaunching a fresh session instead of
+// failing the whole suite.
+function isSessionLostError(error) {
+  return /invalid session id|browser has closed the connection|disconnected|chrome not reachable|unable to receive message from renderer/i.test(
+    String(error?.message || error),
+  );
+}
+
+async function reloadMobileSession() {
+  adb(["-s", androidUdid, "shell", "am", "force-stop", "com.android.chrome"]);
+  await browser.reloadSession();
+  await browser.setTimeout({ implicit: 0, pageLoad: 60000, script: 60000 });
+}
+
+async function ensureMobileSession() {
+  try {
+    if (browser.sessionId) {
+      await browser.getUrl();
+    }
+  } catch (error) {
+    if (!isSessionLostError(error)) {
+      throw error;
+    }
+
+    await reloadMobileSession();
+  }
+}
+
+// Resolve the mobile base URL from env or the shared environment config.
+// Mattamy redirects the apex domain to www, so use www directly to skip a hop.
 function getMobileBaseUrl() {
-  const configuredUrl =
-    process.env.MOBILE_BASE_URL ||
-    process.env.APPIUM_BASE_URL ||
-    getEnvConfig().baseURL;
-
-  const url = new URL(configuredUrl);
+  const url = new URL(process.env.MOBILE_BASE_URL || getEnvConfig().baseURL);
 
   if (url.hostname.toLowerCase() === "mattamyhomes.com") {
     url.hostname = "www.mattamyhomes.com";
@@ -27,209 +73,241 @@ function getMobileBaseUrl() {
   return url.toString().replace(/\/$/, "");
 }
 
-function getConfiguredAppiumPort() {
-  const port = Number(process.env.APPIUM_PORT || 4725);
+const appiumPort = Number(process.env.APPIUM_PORT || 4723);
+const specLogDir = path.join(__dirname, "log", "wdio", "spec-tests");
+let specTestLogPath;
 
-  if (!Number.isInteger(port) || port <= 0) {
-    throw new Error(
-      `APPIUM_PORT must be a positive integer. Received: ${process.env.APPIUM_PORT}`,
-    );
-  }
+function getCurrentSpecPath() {
+  const specArgIndex = process.argv.indexOf("--spec");
+  const specFromArg = specArgIndex >= 0 ? process.argv[specArgIndex + 1] : "";
+  const wdioBrowser = typeof browser === "undefined" ? undefined : browser;
+  const specFromBrowser = wdioBrowser?.options?.specs?.[0] || "";
 
-  return port;
+  return specFromArg || specFromBrowser || "mobile-web";
 }
 
-const configuredAppiumPort = getConfiguredAppiumPort();
+function getSpecTestLogPath() {
+  if (specTestLogPath) {
+    return specTestLogPath;
+  }
 
-const appiumConnection = {
-  hostname: process.env.APPIUM_HOST || "127.0.0.1",
-  port: configuredAppiumPort,
-  path: "/",
-};
+  const specPath = getCurrentSpecPath();
+  const specName = path.basename(specPath, path.extname(specPath)) || "mobile-web";
 
-const appiumArgs = {
-  port: configuredAppiumPort,
-  allowInsecure: "uiautomator2:chromedriver_autodownload",
-  relaxedSecurity: true,
-};
+  specTestLogPath = path.join(specLogDir, `${specName}.tests.log`);
+  return specTestLogPath;
+}
 
-const androidCapability = {
-  maxInstances: 1,
+function cleanLogMessage(message) {
+  return String(message || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  platformName: "Android",
-  browserName: "Chrome",
+function addAllureMobileStep(message, status = Status.PASSED) {
+  try {
+    allureReporter.addStep(cleanLogMessage(message), undefined, status);
+  } catch {
+    // Allure context is not always available during early config hooks.
+  }
+}
 
-  "appium:automationName": "UiAutomator2",
+function writeSpecTestLog(message, options = {}) {
+  const cleanMessage = cleanLogMessage(message);
 
-  "appium:deviceName":
-    process.env.APPIUM_DEVICE_NAME ||
-    process.env.MOBILE_DEVICE_NAME ||
-    "Android Emulator",
+  // Echo every step to the console so the run is readable live, not just in the
+  // per-spec log file. Opt out with MOBILE_LOG_CONSOLE=false.
+  if (process.env.MOBILE_LOG_CONSOLE !== "false") {
+    console.log(cleanMessage);
+  }
 
-  "appium:udid": process.env.APPIUM_UDID || "emulator-5554",
+  try {
+    fs.mkdirSync(specLogDir, { recursive: true });
+    fs.appendFileSync(getSpecTestLogPath(), `${new Date().toISOString()} ${cleanMessage}\n`);
+  } catch (error) {
+    console.log("Unable to write spec test log:", error.message);
+  }
 
-  /**
-   * Use clean Chrome session.
-   * This is important because your device Chrome is crashing/blanking.
-   */
-  "appium:noReset": false,
+  if (options.allure) {
+    addAllureMobileStep(cleanMessage, options.status);
+  }
+}
 
-  "appium:autoGrantPermissions": true,
-  "appium:disableWindowAnimation": true,
-  "appium:newCommandTimeout": Number(
-    process.env.APPIUM_NEW_COMMAND_TIMEOUT || 180,
-  ),
+function getTestTitle(test) {
+  if (typeof test?.fullTitle === "function") {
+    return test.fullTitle();
+  }
 
-  /**
-   * Required to avoid ChromeDriver mismatch with device Chrome version.
-   */
-  "appium:chromedriverAutodownload": true,
+  return test?.fullTitle || test?.title || test?.parent || "Unnamed mobile test";
+}
 
-  /**
-   * Keep Android Chrome options minimal.
-   * Too many desktop Chrome flags can make Android Chrome unstable.
-   */
-  "goog:chromeOptions": {
-    androidUseRunningApp: false,
-    args: [
-      "--disable-fre",
-      "--disable-popup-blocking",
-      "--disable-notifications",
-    ],
-  },
-};
-
-if (process.env.APPIUM_PLATFORM_VERSION) {
-  androidCapability["appium:platformVersion"] =
-    process.env.APPIUM_PLATFORM_VERSION;
+function getHookTitle(hook, hookName) {
+  const title = getTestTitle(hook);
+  return hookName ? `${hookName} ${title}` : title;
 }
 
 exports.config = {
   runner: "local",
 
-  specs: ["./tests/mobile/**/*.spec.js"],
+  specs: [
+    "./tests/mobile/mobileWeb.home.spec.js",
+    "./tests/mobile/mobileWeb.searchPage.spec.js",
+    "./tests/mobile/mobileWeb.community.spec.js",
+    "./tests/mobile/mobileWeb.mpc.spec.js",
+    "./tests/mobile/mobileWeb.plan.spec.js",
+    "./tests/mobile/mobileWeb.qmi.spec.js",
+  ],
 
   maxInstances: 1,
 
-  ...appiumConnection,
+  hostname: process.env.APPIUM_HOST || "127.0.0.1",
+  port: appiumPort,
+  path: "/",
 
   baseUrl: getMobileBaseUrl(),
 
   logLevel: process.env.WDIO_LOG_LEVEL || "info",
   outputDir: "./log/wdio",
 
-  waitforTimeout: Number(process.env.WDIO_WAIT_TIMEOUT || 30000),
-  connectionRetryTimeout: Number(
-    process.env.WDIO_CONNECTION_RETRY_TIMEOUT || 120000,
-  ),
-  connectionRetryCount: Number(process.env.WDIO_CONNECTION_RETRY_COUNT || 3),
-
-  specFileRetries: Number(process.env.WDIO_SPEC_FILE_RETRIES || 0),
-  specFileRetriesDelay: Number(process.env.WDIO_SPEC_FILE_RETRIES_DELAY || 5),
+  waitforTimeout: 30000,
+  connectionRetryTimeout: 120000,
+  connectionRetryCount: 3,
 
   framework: "mocha",
+
+  mochaOpts: {
+    ui: "bdd",
+    timeout: 180000,
+    // Retry once: an intermittent Chrome session crash on the emulator gets a
+    // fresh session (via beforeTest) on the second attempt.
+    retries: 1,
+  },
 
   reporters: [
     [
       "allure",
       {
-        outputDir: "allure-results",
+        outputDir: MOBILE_ALLURE_RESULTS_DIR,
         disableWebdriverStepsReporting: false,
         disableWebdriverScreenshotsReporting: false,
       },
     ],
   ],
 
-  mochaOpts: {
-    ui: "bdd",
-    timeout: Number(process.env.WDIO_MOCHA_TIMEOUT || 180000),
-
-    /**
-     * Retry once for mobile instability.
-     */
-    retries: Number(process.env.WDIO_MOCHA_RETRIES || 1),
-  },
-
   services: [
     [
       "appium",
       {
         command: "appium",
-        args: appiumArgs,
+        args: { port: appiumPort, relaxedSecurity: true },
         logPath: "./log/appium",
       },
     ],
   ],
 
-  capabilities: [androidCapability],
+  capabilities: [
+    {
+      platformName: "Android",
+      browserName: "Chrome",
+      // "eager" returns control once the DOM is interactive instead of waiting
+      // on every subresource, which keeps mobile navigation responsive.
+      pageLoadStrategy: "eager",
+
+      "appium:automationName": "UiAutomator2",
+      "appium:deviceName": process.env.APPIUM_DEVICE_NAME || "Android Emulator",
+      "appium:udid": androidUdid,
+
+      // Start each session from a clean Chrome profile. Caching the profile was
+      // slower in practice: Chrome restored the previous run's heavy tab and
+      // stalled the renderer while loading the next page.
+      "appium:noReset": false,
+
+      "appium:autoGrantPermissions": true,
+      // Match ChromeDriver to the device's Chrome version automatically.
+      "appium:chromedriverAutodownload": true,
+
+      "goog:chromeOptions": {
+        androidPackage: "com.android.chrome",
+        // Start a fresh Chrome instance and skip the first-run/welcome screens
+        // and popups that would otherwise block page navigation.
+        androidUseRunningApp: false,
+        args: [
+          "--no-first-run",
+          "--disable-fre",
+          "--disable-popup-blocking",
+          "--disable-notifications",
+        ],
+      },
+    },
+  ],
 
   beforeSession: function () {
-    console.log("========================================");
-    console.log("Starting Android Chrome Mobile Session");
-    console.log("Mobile Base URL:", getMobileBaseUrl());
-    console.log("Appium Host:", appiumConnection.hostname);
-    console.log("Appium Port:", configuredAppiumPort);
-    console.log("Android Device:", androidCapability["appium:deviceName"]);
-    console.log("Android UDID:", androidCapability["appium:udid"]);
-    console.log("noReset:", androidCapability["appium:noReset"]);
-    console.log("========================================");
+    // Stop Chrome and wipe its data so every run starts from a clean, fast slate
+    // (no restored tabs, no stale cookies/cache).
+    adb(["-s", androidUdid, "shell", "am", "force-stop", "com.android.chrome"]);
+    adb(["-s", androidUdid, "shell", "pm", "clear", "com.android.chrome"]);
   },
 
   before: async function () {
-    try {
-      await browser.setTimeout({
-        implicit: 0,
-        pageLoad: 60000,
-        script: 60000,
-      });
-    } catch (error) {
-      console.log("Unable to set browser timeouts:", error.message);
-    }
+    fs.mkdirSync(specLogDir, { recursive: true });
+    fs.writeFileSync(
+      getSpecTestLogPath(),
+      `${new Date().toISOString()} SPEC START ${getCurrentSpecPath()}\n`,
+    );
+    globalThis.__mobileSpecStep = (kind, message, status = Status.PASSED) => {
+      writeSpecTestLog(`${kind} ${message}`, { allure: true, status });
+    };
+    await browser.setTimeout({ implicit: 0, pageLoad: 60000, script: 60000 });
   },
 
-  beforeTest: async function () {
-    try {
-      if (browser.sessionId) {
-        await browser.getUrl();
-      }
-    } catch (error) {
-      console.log("Browser session not active before test:", error.message);
-    }
+  beforeTest: async function (test) {
+    writeSpecTestLog(`TEST START ${getTestTitle(test)}`, { allure: true });
+    await ensureMobileSession();
+  },
+
+  beforeHook: function (hook, context, hookName) {
+    writeSpecTestLog(`ACTION HOOK START ${getHookTitle(hook, hookName)}`, { allure: true });
+  },
+
+  afterHook: function (hook, context, result, hookName) {
+    const error = result?.error;
+    writeSpecTestLog(
+      error
+        ? `FAIL HOOK ${getHookTitle(hook, hookName)} | ${cleanLogMessage(error?.message || error).slice(0, 1000)}`
+        : `PASS HOOK ${getHookTitle(hook, hookName)}`,
+      { allure: true, status: error ? Status.FAILED : Status.PASSED },
+    );
   },
 
   afterTest: async function (test, context, { error }) {
-    if (error) {
+    writeSpecTestLog(
+      error
+        ? `FAIL TEST ${getTestTitle(test)} | ${cleanLogMessage(error?.message || error).slice(0, 1000)}`
+        : `PASS TEST ${getTestTitle(test)}`,
+      { allure: true, status: error ? Status.FAILED : Status.PASSED },
+    );
+
+    if (!error) {
+      return;
+    }
+
+    // Recover a lost session so the retry / next test starts clean.
+    if (isSessionLostError(error)) {
+      await reloadMobileSession();
+      return;
+    }
+
+    if (browser.sessionId) {
       try {
-        if (browser.sessionId) {
-          const screenshot = await browser.takeScreenshot();
-          allureReporter.addAttachment(
-            "Failure screenshot",
-            Buffer.from(screenshot, "base64"),
-            "image/png",
-          );
-        }
-      } catch (screenshotError) {
-        console.log(
-          "Unable to capture failure screenshot:",
-          screenshotError.message,
+        const screenshot = await browser.takeScreenshot();
+        allureReporter.addAttachment(
+          "Failure screenshot",
+          Buffer.from(screenshot, "base64"),
+          "image/png",
         );
+      } catch (screenshotError) {
+        console.log("Unable to capture failure screenshot:", screenshotError.message);
       }
     }
-
-    /**
-     * Clear cookies only if session is alive.
-     * Do not reload session here because it can make Android Chrome more unstable.
-     */
-    try {
-      if (browser.sessionId) {
-        await browser.deleteCookies();
-      }
-    } catch (cookieError) {
-      console.log("Unable to clear cookies after test:", cookieError.message);
-    }
-  },
-
-  afterSession: function () {
-    console.log("Android mobile Chrome session completed.");
   },
 };

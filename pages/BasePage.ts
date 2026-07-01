@@ -2,7 +2,14 @@ import { expect, Locator, Page, Response, test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 import { appendLeadApiCapture } from '../utils/leadApiCapture';
-import { escapeRegex } from '../utils/pageObjectUtils';
+import { reportValue, step as reportStep } from '../utils/allureReporter';
+import {
+  buildFullUrl as buildAbsoluteUrl,
+  escapeRegex,
+  formatPrice as formatCurrencyPrice,
+  formatPriceToUiLabel as formatPriceLabel,
+  normalizeComparableText
+} from '../utils/pageObjectUtils';
 
 /* ==========================================================
    Base Page – Shared Navigation & Common Utilities
@@ -12,6 +19,7 @@ export class BasePage {
 
   protected readonly page: Page;
 
+  /** Initializes this page object and its locators. */
   constructor(page: Page) {
     this.page = page;
   }
@@ -20,6 +28,7 @@ export class BasePage {
      Navigation
   ========================================================== */
 
+  /** Navigates to the configured page URL. */
   async navigate(overrideLocation?: LocationKey): Promise<void> {
 
     const { baseURL, envName } = getEnvConfig();
@@ -28,10 +37,6 @@ export class BasePage {
     const targetUrl = `${baseURL}/?${location.queryParam}`;
 
     await test.step(`Open Mattamy Homes home page for ${location.country} in ${envName}`, async () => {
-    console.log(
-      `[NAVIGATE] ENV=${envName} | COUNTRY=${location.country} | URL=${targetUrl}`
-    );
-
     try {
       await this.page.goto(targetUrl, {
         waitUntil: 'domcontentloaded',
@@ -51,15 +56,13 @@ export class BasePage {
         .catch(() => false);
 
       if (!reachedTarget || !domIsUsable) {
-        console.warn(`[NAVIGATE] Initial navigation did not become usable; retrying ${targetUrl}`);
+        await this.reportValue('Page not usable after navigation; retrying', targetUrl);
         await this.page.goto(targetUrl, {
           waitUntil: 'domcontentloaded',
           timeout: 90_000
         });
       } else {
-        console.warn(
-          `[NAVIGATE] Navigation reported a timeout after the target page rendered; continuing from ${currentUrl}`
-        );
+        await this.reportValue('Navigation timed out after render; continuing from', currentUrl);
       }
     }
 
@@ -74,11 +77,55 @@ export class BasePage {
      Common Load Stabilization
   ========================================================== */
 
+  /** Waits for page ready. */
   protected async waitForPageReady(): Promise<void> {
     await this.page.waitForLoadState('domcontentloaded');
     await this.page.waitForTimeout(3000); // same behavior as before
   }
 
+  /**
+   * Adaptive settle pause used after discrete actions (clicks, typing, tab
+   * switches) where the old code had a blind `waitForTimeout(ms)`.
+   *
+   * Instead of always sleeping the full duration, it waits until the DOM stops
+   * mutating for a short quiet window (SPA-friendly — does not rely on network
+   * idle, which this SPA may never reach). It returns as soon as rendering
+   * settles, never waits longer than the old fixed pause, and never throws —
+   * so call sites behave exactly as before when the page keeps mutating (the
+   * pause simply caps out at `ms`). Intentionally NOT used by waitForPageReady,
+   * which keeps its original guaranteed pause.
+   */
+  protected async settle(ms: number, target: Page = this.page): Promise<void> {
+    await target
+      .evaluate(
+        (maxMs) =>
+          new Promise<void>((resolve) => {
+            const quietWindow = Math.min(300, maxMs);
+            let quietTimer = window.setTimeout(finish, quietWindow);
+            const capTimer = window.setTimeout(finish, maxMs);
+            const observer = new MutationObserver(() => {
+              window.clearTimeout(quietTimer);
+              quietTimer = window.setTimeout(finish, quietWindow);
+            });
+            observer.observe(document.documentElement, {
+              childList: true,
+              subtree: true,
+              attributes: true,
+              characterData: true,
+            });
+            function finish() {
+              window.clearTimeout(quietTimer);
+              window.clearTimeout(capTimer);
+              observer.disconnect();
+              resolve();
+            }
+          }),
+        ms,
+      )
+      .catch(() => undefined);
+  }
+
+  /** Validates image and video urls return200. */
   async validateImageAndVideoUrlsReturn200(pageName: string): Promise<void> {
     await test.step(`Validate image and video URLs return 200 on ${pageName}`, async () => {
       await this.waitForPageReady();
@@ -90,12 +137,14 @@ export class BasePage {
 
       expect(mediaUrls.length, `${pageName} should expose image or video URLs`).toBeGreaterThan(0);
 
+      await this.reportValue(`${pageName}: checking ${mediaUrls.length} media URL(s)`);
+
       const failures: string[] = [];
 
       for (const media of mediaUrls) {
         const status = await this.getMediaUrlStatus(media.url);
 
-        console.log(`[MEDIA CHECK] ${pageName} | ${media.type} | ${status} | ${media.label} | ${media.url}`);
+        await this.reportValue(`[${status}] ${media.type} | ${media.label}`, media.url);
 
         if (status !== 200) {
           failures.push(`${media.type} returned ${status} for ${media.label}: ${media.url}`);
@@ -109,6 +158,7 @@ export class BasePage {
     });
   }
 
+  /** Loads lazy media. */
   private async loadLazyMedia(): Promise<void> {
     await this.page.evaluate(async () => {
       const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -129,6 +179,7 @@ export class BasePage {
     await this.waitForPageReady();
   }
 
+  /** Collects image and video urls. */
   private async collectImageAndVideoUrls(): Promise<Array<{ type: string; label: string; url: string }>> {
     const rawUrls = await this.page.evaluate(() => {
       const media: Array<{ type: string; label: string; url: string }> = [];
@@ -235,10 +286,12 @@ export class BasePage {
     return [...unique.values()];
   }
 
+  /** Checks whether ignorable media URL. */
   private isIgnorableMediaUrl(url: string): boolean {
     return /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(url);
   }
 
+  /** Returns media URL status. */
   private async getMediaUrlStatus(url: string): Promise<number | string> {
     const headResponse = await this.page.request.head(url, {
       failOnStatusCode: false,
@@ -261,9 +314,37 @@ export class BasePage {
   }
 
   /* ==========================================================
+     Allure Step Reporting
+
+     Thin instance wrappers over the shared helpers in
+     utils/allureReporter so page objects can call
+     this.step(...) / this.reportValue(...). Specs import the
+     standalone functions directly.
+  ========================================================== */
+
+  /**
+   * Runs an action inside a named Allure step so it shows as a labeled node in
+   * the report tree (instead of an unnamed body with a large stdout dump).
+   * Returns whatever the wrapped action returns.
+   */
+  protected async step<T>(name: string, body: () => Promise<T> | T): Promise<T> {
+    return reportStep(name, body);
+  }
+
+  /**
+   * Records an informational message (optionally with a value) as a standalone
+   * named Allure step. Use this in place of console.log for diagnostics worth
+   * surfacing in the report; drop purely decorative logs entirely.
+   */
+  protected async reportValue(message: string, value?: unknown): Promise<void> {
+    await reportValue(message, value);
+  }
+
+  /* ==========================================================
      Shared Assertions
   ========================================================== */
 
+  /** Asserts page loaded. */
   protected async assertPageLoaded(label = 'Page should be loaded'): Promise<void> {
     await test.step(label, async () => {
     await this.waitForPageReady();
@@ -271,6 +352,7 @@ export class BasePage {
     });
   }
 
+  /** Asserts page title. */
   protected async assertPageTitle(
     expectedTitle: string | RegExp,
     label = 'Page title should match expected value'
@@ -280,6 +362,7 @@ export class BasePage {
     });
   }
 
+  /** Asserts page URL. */
   protected async assertPageUrl(
     expectedUrl: string | RegExp,
     label = 'Page URL should match expected value',
@@ -290,6 +373,7 @@ export class BasePage {
     });
   }
 
+  /** Asserts page URL contains. */
   protected async assertPageUrlContains(
     expectedUrlPart: string,
     label = `Page URL should contain: ${expectedUrlPart}`,
@@ -298,6 +382,7 @@ export class BasePage {
     await this.assertPageUrl(new RegExp(escapeRegex(expectedUrlPart), 'i'), label, timeout);
   }
 
+  /** Asserts page URL does not match. */
   protected async assertPageUrlDoesNotMatch(
     unexpectedUrl: string | RegExp,
     label = 'Page URL should not match unexpected value'
@@ -307,6 +392,7 @@ export class BasePage {
     });
   }
 
+  /** Asserts visible. */
   protected async assertVisible(
     locator: Locator,
     label = 'Element should be visible',
@@ -317,6 +403,7 @@ export class BasePage {
     });
   }
 
+  /** Asserts attached. */
   protected async assertAttached(
     locator: Locator,
     label = 'Element should be attached',
@@ -327,6 +414,7 @@ export class BasePage {
     });
   }
 
+  /** Asserts text contains. */
   protected async assertTextContains(
     locator: Locator,
     expectedText: string | RegExp,
@@ -338,6 +426,7 @@ export class BasePage {
     });
   }
 
+  /** Asserts text. */
   protected async assertText(
     locator: Locator,
     expectedText: string | RegExp,
@@ -349,6 +438,7 @@ export class BasePage {
     });
   }
 
+  /** Asserts body contains. */
   protected async assertBodyContains(
     expectedText: string | RegExp,
     label = 'Page body should contain expected text',
@@ -357,6 +447,7 @@ export class BasePage {
     await this.assertTextContains(this.page.locator('body'), expectedText, label, timeout);
   }
 
+  /** Asserts heading visible. */
   protected async assertHeadingVisible(
     expectedName?: string | RegExp,
     label = 'Page heading should be visible',
@@ -369,6 +460,7 @@ export class BasePage {
     await this.assertVisible(heading, label, timeout);
   }
 
+  /** Asserts heading contains. */
   protected async assertHeadingContains(
     expectedText: string | RegExp,
     label = 'Page heading should contain expected text',
@@ -377,6 +469,7 @@ export class BasePage {
     await this.assertTextContains(this.page.locator('h1').first(), expectedText, label, timeout);
   }
 
+  /** Asserts attribute. */
   protected async assertAttribute(
     locator: Locator,
     attributeName: string,
@@ -389,6 +482,7 @@ export class BasePage {
     });
   }
 
+  /** Asserts count. */
   protected async assertCount(
     locator: Locator,
     expectedCount: number,
@@ -407,6 +501,7 @@ export class BasePage {
     expect(value, label).toBeTruthy();
   }
 
+  /** Asserts greater than. */
   protected assertGreaterThan(
     actual: number,
     minimum: number,
@@ -419,6 +514,7 @@ export class BasePage {
      Cookie Handling
   ========================================================== */
 
+  /** Accepts the cookie banner when it is visible. */
   async acceptCookiesIfPresent(): Promise<void> {
 
     const acceptBtn = this.page.locator('#onetrust-accept-btn-handler');
@@ -429,7 +525,6 @@ export class BasePage {
 
     if (isVisible) {
       await acceptBtn.click({ force: true, timeout: 5000 }).catch(() => undefined);
-      console.log('Cookie banner accepted');
     }
 
     const closeBtn = this.page
@@ -444,10 +539,10 @@ export class BasePage {
         .first()
         .waitFor({ state: 'hidden', timeout: 5000 })
         .catch(() => undefined);
-      console.log('Cookie banner closed');
     }
   }
 
+  /** Dismisses promo popup if present. */
   async dismissPromoPopupIfPresent(): Promise<void> {
     await this.acceptCookiesIfPresent();
 
@@ -463,7 +558,7 @@ export class BasePage {
         await promotionCloseButton.dispatchEvent('click').catch(() => undefined);
       });
       await nationalPromotionDialog.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => undefined);
-      await this.page.waitForTimeout(500);
+      await this.settle(500);
       return;
     }
 
@@ -529,10 +624,59 @@ export class BasePage {
     }
   }
 
+  /** Ensures the configured header country is selected when the selector is visible. */
+  protected async ensureConfiguredCountrySelected(): Promise<void> {
+    const expectedCountry = getLocationConfig().country === 'USA' ? 'USA' : 'CANADA';
+    const countrySelector = this.page
+      .locator('button[aria-label^="Select your country."]')
+      .first();
+
+    if (!(await countrySelector.isVisible({ timeout: 5000 }).catch(() => false))) {
+      return;
+    }
+
+    const currentLabel = await countrySelector.getAttribute('aria-label').catch(() => '');
+    const currentText = await countrySelector.innerText().catch(() => '');
+
+    if (
+      new RegExp(`${expectedCountry} country is selected`, 'i').test(currentLabel ?? '') ||
+      new RegExp(`^\\s*${expectedCountry}\\s*$`, 'i').test(currentText)
+    ) {
+      return;
+    }
+
+    await countrySelector.click({ force: true });
+    await this.settle(500);
+
+    const expectedCountryButton = this.page
+      .getByRole('button', { name: new RegExp(`^${expectedCountry}$`, 'i') })
+      .last();
+
+    if (await expectedCountryButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await expectedCountryButton.click({ force: true });
+      await this.waitForPageReady();
+    }
+
+    await expect
+      .poll(
+        async () => {
+          const label = await countrySelector.getAttribute('aria-label').catch(() => '');
+          const text = await countrySelector.innerText().catch(() => '');
+          return `${label} ${text}`;
+        },
+        {
+          message: `Header country selector should show ${expectedCountry}`,
+          timeout: 10000
+        }
+      )
+      .toMatch(new RegExp(`${expectedCountry}(?: country is selected)?`, 'i'));
+  }
+
   /* ==========================================================
   Scroll Handler 
   ========================================================== */
 
+  /** Scrolls to the requested page position. */
   protected async scrollTo(locator: Locator): Promise<void> {
 
     await locator.waitFor({ state: 'attached', timeout: 10000 });
@@ -551,19 +695,21 @@ export class BasePage {
   Helper
   ========================================================== */
 
+  /** Builds full URL. */
   protected buildFullUrl(relativeUrl: string | null): string {
-    if (!relativeUrl) throw new Error('URL is null');
-    return new URL(relativeUrl, this.page.url()).href;
-
+    return buildAbsoluteUrl(relativeUrl, this.page.url());
   }
+
+  /** Formats price. */
   protected formatPrice(price: number): string {
-    return `$${price.toLocaleString('en-US')}`;
+    return formatCurrencyPrice(price);
   }
 
   /* ==========================================================
      Utils (NEW - stable reusable helpers)
   ========================================================== */
 
+  /** Clicks element. */
   protected async clickElement(locator: Locator): Promise<void> {
     await locator.scrollIntoViewIfNeeded();
 
@@ -573,6 +719,7 @@ export class BasePage {
     ]);
   }
 
+  /** Checks whether section visible. */
   protected async isSectionVisible(locator: Locator, timeout = 7000): Promise<boolean> {
     try {
       await expect(locator).toBeVisible({ timeout });
@@ -582,29 +729,23 @@ export class BasePage {
     }
   }
 
+  /** Normalizes text. */
   protected normalizeText(text: string): string {
-    return text
-      .toLowerCase()
-      .replace(/[\u2013\u2014]/g, '-') // normalize dash
-      .replace(/\s+/g, ' ')
-      .replace(/\s*-\s*/g, '-')
-      .trim();
+    return normalizeComparableText(text);
   }
+
+  /** Formats price to ui label. */
   protected formatPriceToUiLabel(price: number): string {
-    if (price >= 1000000) {
-      return `${price / 1000000}M`;
-    } else if (price >= 1000) {
-      return `${price / 1000}K`;
-    }
-    return `${price}`;
-
+    return formatPriceLabel(price);
   }
 
+  /** Submits lead form and capture api. */
   protected async submitLeadFormAndCaptureApi(options: {
     formName: string;
     submitButton: Locator;
     successMessage: Locator;
     successModal?: Locator;
+    validateApiResponse?: boolean;
     timeout?: number;
     notes?: string;
   }): Promise<void> {
@@ -652,9 +793,18 @@ export class BasePage {
       throw new Error(`${options.formName} succeeded, but no matching lead API response was captured.`);
     }
 
-    console.log(`[LEAD API CAPTURE] ${options.formName} data saved to ${outputFile}`);
+    if (options.validateApiResponse) {
+      expect(apiResponse, `${options.formName} should capture a matching lead API response`).toBeTruthy();
+      expect(apiResponse!.status(), `${options.formName} lead API response should be successful`)
+        .toBeGreaterThanOrEqual(200);
+      expect(apiResponse!.status(), `${options.formName} lead API response should be successful`)
+        .toBeLessThan(400);
+    }
+
+    await this.reportValue(`${options.formName} lead API data saved to`, outputFile);
   }
 
+  /** Waits for lead api response. */
   private async waitForLeadApiResponse(timeout: number): Promise<Response | null> {
     return this.page.waitForResponse(
       (response) => this.isLeadApiResponse(response),
@@ -662,6 +812,7 @@ export class BasePage {
     ).catch(() => null);
   }
 
+  /** Checks whether lead api response. */
   private isLeadApiResponse(response: Response): boolean {
     const request = response.request();
     const method = request.method().toUpperCase();
@@ -684,6 +835,7 @@ export class BasePage {
     return /api|lead|form|contact|schedule|sitecore|submit|visitor|salesforce|eloqua|marketo/i.test(url);
   }
 
+  /** Reads response data for API validation. */
   private async readResponseData(response: Response): Promise<string> {
     const contentType = response.headers()['content-type'] ?? '';
 

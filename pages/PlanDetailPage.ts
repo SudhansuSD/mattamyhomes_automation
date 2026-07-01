@@ -1,6 +1,13 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { SearchablePage } from './SearchablePage';
 import { escapeRegex, isLocatorVisible } from '../utils/pageObjectUtils';
+import {
+    fillIfPresent,
+    getInvalidLeadData,
+    getValidLeadData,
+    LeadFieldData,
+    selectCountryIfPresent
+} from '../utils/leadFormHelper';
 
 /* ==========================================================
     Plan Detail Page – Page Object Model
@@ -146,8 +153,10 @@ export class PlanDetailPage extends SearchablePage {
 
     /** Verify: plan detail page heading and breadcrumb are visible. */
     async verifyPageLoaded() {
-        await expect(this.heading).toBeVisible({ timeout: 20000 });
-        await expect(this.breadcrumb).toBeVisible();
+        await this.step('Verify plan detail page loaded', async () => {
+            await expect(this.heading).toBeVisible({ timeout: 20000 });
+            await expect(this.breadcrumb).toBeVisible();
+        });
     }
 
     // ----------------------------------
@@ -156,316 +165,363 @@ export class PlanDetailPage extends SearchablePage {
 
     /** Verify: search by plan lands on the expected plan URL and shows a heading. */
     async verifySearchByPlan(expectedSlug: string) {
+        await this.step('Verify search by plan lands on expected URL', async () => {
+            await this.waitForPageReady();
 
-        await this.waitForPageReady();
+            await expect(this.page).toHaveURL(
+                new RegExp(escapeRegex(expectedSlug), 'i')
+            );
 
-        await expect(this.page).toHaveURL(
-            new RegExp(escapeRegex(expectedSlug), 'i')
-        );
-
-        await expect(this.heading).toBeVisible({ timeout: 20000 });
+            await expect(this.heading).toBeVisible({ timeout: 20000 });
+        });
     }
 
     /** Verify: plan URL and optional browser title match expected details. */
     async verifyPlanUrlAndTitle(plan: PlanDetails): Promise<void> {
-        await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(plan.path)}$`, 'i'));
+        await this.step('Verify plan URL and title', async () => {
+            await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(plan.path)}$`, 'i'));
 
-        if (plan.title) {
-            await expect(this.page).toHaveTitle(plan.title);
-        }
+            if (plan.title) {
+                await expect(this.page).toHaveTitle(plan.title);
+            }
+        });
     }
 
     /** Verify: current URL contains an expected plan URL fragment. */
     async verifyPlanUrlContains(expectedUrlPart: string): Promise<void> {
-        await expect(this.page).toHaveURL(new RegExp(escapeRegex(expectedUrlPart), 'i'));
+        await this.step(`Verify URL contains '${expectedUrlPart}'`, async () => {
+            await expect(this.page).toHaveURL(new RegExp(escapeRegex(expectedUrlPart), 'i'));
+        });
     }
 
     /** Verify: hero heading is visible. */
     async verifyHeroSection() {
-        const headingLoaded = await this.heading
-            .waitFor({ state: 'visible', timeout: 20000 })
-            .then(() => true)
-            .catch(() => false);
+        await this.step('Verify hero section heading visible', async () => {
+            const headingLoaded = await this.heading
+                .waitFor({ state: 'visible', timeout: 20000 })
+                .then(() => true)
+                .catch(() => false);
 
-        if (!headingLoaded) {
-            console.log('Plan heading not visible after search navigation; reloading current plan URL');
-            await this.page.reload({
-                waitUntil: 'domcontentloaded',
-                timeout: 90_000
-            });
-            await this.waitForPageReady();
-        }
+            if (!headingLoaded) {
+                await this.reportValue('Plan heading not visible after search navigation; reloading current plan URL');
+                await this.page.reload({
+                    waitUntil: 'domcontentloaded',
+                    timeout: 90_000
+                });
+                await this.waitForPageReady();
+            }
 
-        await expect(this.heading).toBeVisible({ timeout: 20000 });
+            await expect(this.heading).toBeVisible({ timeout: 20000 });
+        });
     }
 
     /** Verify: hero heading contains a specific plan name. */
     async verifyHeroSummaryForPlan(planName: string): Promise<void> {
-        await expect(this.heading).toBeVisible({ timeout: 20000 });
-        await expect(this.heading).toContainText(new RegExp(escapeRegex(planName), 'i'));
+        await this.step(`Verify hero heading contains '${planName}'`, async () => {
+            await expect(this.heading).toBeVisible({ timeout: 20000 });
+            await expect(this.heading).toContainText(new RegExp(escapeRegex(planName), 'i'));
+        });
     }
 
     /** Verify: page body includes standard home specs. */
     async verifyHomeSpecsPresent(): Promise<void> {
-        const pageText = this.page.locator('body');
+        await this.step('Verify home specs present', async () => {
+            const pageText = this.page.locator('body');
 
-        await expect(pageText).toContainText(/Bed/i);
-        await expect(pageText).toContainText(/Bath/i);
-        await expect(pageText).toContainText(/Sq\.?\s*Ft\.?/i);
+            await expect(pageText).toContainText(/Bed/i);
+            await expect(pageText).toContainText(/Bath/i);
+            await expect(pageText).toContainText(/Sq\.?\s*Ft\.?/i);
+        });
     }
 
     /** Verify: hero summary contains configured plan name, price, specs, and product line. */
     async verifyHeroSummary(plan: PlanDetails): Promise<void> {
-        await expect(this.heading).toBeVisible({ timeout: 20000 });
-        await expect(this.heading).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
+        await this.step('Verify hero summary details', async () => {
+            await expect(this.heading).toBeVisible({ timeout: 20000 });
+            await expect(this.heading).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
 
-        if (plan.price) {
-            await expect(this.page.getByText('Starting from', { exact: true })).toBeVisible();
-            await expect(this.page.locator('body')).toContainText(plan.price);
-        }
+            if (plan.price) {
+                await expect(this.page.getByText('Starting from', { exact: true })).toBeVisible();
+                await expect(this.page.locator('body')).toContainText(plan.price);
+            }
 
-        for (const spec of plan.specs ?? []) {
-            await expect(this.page.locator('body')).toContainText(spec);
-        }
+            for (const spec of plan.specs ?? []) {
+                await expect(this.page.locator('body')).toContainText(spec);
+            }
 
-        if (plan.productLine) {
-            await expect(this.page.locator('body')).toContainText(plan.productLine);
-        }
+            if (plan.productLine) {
+                await expect(this.page.locator('body')).toContainText(plan.productLine);
+            }
+        });
     }
 
     /** Verify: breadcrumb is visible when present. */
     async verifyBreadcrumb() {
-        if (await this.breadcrumb.count() > 0) {
-            await expect(this.breadcrumb.first()).toBeVisible();
-        }
+        await this.step('Verify breadcrumb visible', async () => {
+            if (await this.breadcrumb.count() > 0) {
+                await expect(this.breadcrumb.first()).toBeVisible();
+            }
+        });
     }
 
     /** Verify: breadcrumb includes expected items from the configured plan path. */
     async verifyBreadcrumbMatchesPlanPath(plan: PlanDetails): Promise<void> {
-        await expect(this.breadcrumb).toBeVisible();
+        await this.step('Verify breadcrumb matches plan path', async () => {
+            await expect(this.breadcrumb).toBeVisible();
 
-        for (const item of plan.breadcrumbItems ?? []) {
-            await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(item), 'i'));
-        }
+            for (const item of plan.breadcrumbItems ?? []) {
+                await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(item), 'i'));
+            }
+        });
     }
 
     /** Verify: breadcrumb contains the expected plan name. */
     async verifyBreadcrumbContainsPlan(planName: string): Promise<void> {
-        await expect(this.breadcrumb).toBeVisible();
-        await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(planName), 'i'));
+        await this.step(`Verify breadcrumb contains '${planName}'`, async () => {
+            await expect(this.breadcrumb).toBeVisible();
+            await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(planName), 'i'));
+        });
     }
 
     /** Verify: starting price label is visible when present. */
     async verifyPriceOrCTA() {
-        if (await this.priceSection.count() > 0) {
-            await expect(this.priceSection.first()).toBeVisible();
-        }
+        await this.step('Verify starting price label', async () => {
+            if (await this.priceSection.count() > 0) {
+                await expect(this.priceSection.first()).toBeVisible();
+            }
+        });
     }
 
     /** Verify: gallery image is visible and gallery controls work when present. */
     async verifyGallery() {
-        await expect(this.galleryImages.first()).toBeVisible();
+        await this.step('Verify gallery image and controls', async () => {
+            await expect(this.galleryImages.first()).toBeVisible();
 
-        if (await this.nextGalleryBtn.isVisible()) {
-            await this.nextGalleryBtn.click();
-        }
+            if (await this.nextGalleryBtn.isVisible()) {
+                await this.nextGalleryBtn.click();
+            }
 
-        if (await this.prevGalleryBtn.isVisible()) {
-            await this.prevGalleryBtn.click();
-        }
+            if (await this.prevGalleryBtn.isVisible()) {
+                await this.prevGalleryBtn.click();
+            }
+        });
     }
 
     /** Verify: floorplan section is visible when present. */
     async verifyFloorPlan() {
-        if (await isLocatorVisible(this.floorPlanSection)) {
-            await this.floorPlanSection.scrollIntoViewIfNeeded();
-            await expect(this.floorPlanSection).toBeVisible();
-        }
+        await this.step('Verify floorplan section', async () => {
+            if (await isLocatorVisible(this.floorPlanSection)) {
+                await this.floorPlanSection.scrollIntoViewIfNeeded();
+                await expect(this.floorPlanSection).toBeVisible();
+            }
+        });
     }
 
     /** Verify: interactive floorplan section and optional iframe source match expected plan details. */
     async verifyInteractiveFloorPlan(plan: PlanDetails): Promise<void> {
-        await this.floorPlanSection.scrollIntoViewIfNeeded();
-        await expect(
-            this.page.getByRole('heading', { name: /Interactive Floorplan/i })
-        ).toBeVisible();
+        await this.step('Verify interactive floorplan', async () => {
+            await this.floorPlanSection.scrollIntoViewIfNeeded();
+            await expect(
+                this.page.getByRole('heading', { name: /Interactive Floorplan/i })
+            ).toBeVisible();
 
-        if (plan.floorPlanFrameUrlPart) {
-            const iframe = this.page.locator('iframe[title*="Floorplan" i]').first();
-            await expect(iframe).toBeVisible();
-            await expect(iframe).toHaveAttribute(
-                'src',
-                new RegExp(escapeRegex(plan.floorPlanFrameUrlPart), 'i')
-            );
-        }
+            if (plan.floorPlanFrameUrlPart) {
+                const iframe = this.page.locator('iframe[title*="Floorplan" i]').first();
+                await expect(iframe).toBeVisible();
+                await expect(iframe).toHaveAttribute(
+                    'src',
+                    new RegExp(escapeRegex(plan.floorPlanFrameUrlPart), 'i')
+                );
+            }
+        });
     }
 
     /** Verify: interactive floorplan section is available when present. */
     async verifyInteractiveFloorPlanSection(): Promise<void> {
-        const floorPlanHeading = this.page.getByRole('heading', {
-            name: /Interactive Floorplan/i
-        }).first();
+        await this.step('Verify interactive floorplan section', async () => {
+            const floorPlanHeading = this.page.getByRole('heading', {
+                name: /Interactive Floorplan/i
+            }).first();
 
-        if (await isLocatorVisible(floorPlanHeading)) {
-            await floorPlanHeading.scrollIntoViewIfNeeded();
-            await expect(floorPlanHeading).toBeVisible();
-            await expect(this.page.locator('iframe[title*="Floorplan" i]').first())
-                .toBeVisible();
-        } else {
-            console.log('Interactive floorplan section not present - skipping validation');
-        }
+            if (await isLocatorVisible(floorPlanHeading)) {
+                await floorPlanHeading.scrollIntoViewIfNeeded();
+                await expect(floorPlanHeading).toBeVisible();
+                await expect(this.page.locator('iframe[title*="Floorplan" i]').first())
+                    .toBeVisible();
+            } else {
+                await this.reportValue('Interactive floorplan section not present - skipping validation');
+            }
+        });
     }
 
     /** Verify: configured exterior styles are visible. */
     async verifyExteriorStyles(styles: string[]): Promise<void> {
-        await this.exteriorStylesSection.scrollIntoViewIfNeeded();
-        await expect(
-            this.page.getByRole('heading', { name: /Exterior Styles/i })
-        ).toBeVisible();
+        await this.step('Verify exterior styles', async () => {
+            await this.exteriorStylesSection.scrollIntoViewIfNeeded();
+            await expect(
+                this.page.getByRole('heading', { name: /Exterior Styles/i })
+            ).toBeVisible();
 
-        for (const style of styles) {
-            await expect(this.page.getByText(style, { exact: false }).first())
-                .toBeVisible();
-        }
+            for (const style of styles) {
+                await expect(this.page.getByText(style, { exact: false }).first())
+                    .toBeVisible();
+            }
+        });
     }
 
     /** Verify: exterior styles section is visible when present. */
     async verifyExteriorStylesSection(): Promise<void> {
-        const exteriorHeading = this.page.getByRole('heading', {
-            name: /Exterior Styles/i
-        }).first();
+        await this.step('Verify exterior styles section', async () => {
+            const exteriorHeading = this.page.getByRole('heading', {
+                name: /Exterior Styles/i
+            }).first();
 
-        if (await isLocatorVisible(exteriorHeading)) {
-            await exteriorHeading.scrollIntoViewIfNeeded();
-            await expect(exteriorHeading).toBeVisible();
-        } else {
-            console.log('Exterior Styles section not present - skipping validation');
-        }
+            if (await isLocatorVisible(exteriorHeading)) {
+                await exteriorHeading.scrollIntoViewIfNeeded();
+                await expect(exteriorHeading).toBeVisible();
+            } else {
+                await this.reportValue('Exterior Styles section not present - skipping validation');
+            }
+        });
     }
 
     /** Verify: mortgage form CTA opens and can be closed when present. */
     async verifyMortgageForm() {
-        if (await isLocatorVisible(this.mortgageBtn)) {
-            await this.mortgageBtn.scrollIntoViewIfNeeded();
-            await this.mortgageBtn.click();
+        await this.step('Verify mortgage form CTA', async () => {
+            if (await isLocatorVisible(this.mortgageBtn)) {
+                await this.mortgageBtn.scrollIntoViewIfNeeded();
+                await this.mortgageBtn.click();
 
 
-            if (await isLocatorVisible(this.closeModalBtn)) {
-                await this.closeModalBtn.click();
+                if (await isLocatorVisible(this.closeModalBtn)) {
+                    await this.closeModalBtn.click();
+                }
             }
-        }
+        });
     }
 
     /** Verify: mortgage calculator CTA is visible when the section exists. */
     async verifyMortgageCalculatorCta(): Promise<void> {
-        const mortgageTitle = this.page.getByText(/Mortgage Calculator/i).first();
+        await this.step('Verify mortgage calculator CTA', async () => {
+            const mortgageTitle = this.page.getByText(/Mortgage Calculator/i).first();
 
-        if (await isLocatorVisible(mortgageTitle)) {
-            await mortgageTitle.scrollIntoViewIfNeeded();
-            await expect(mortgageTitle).toBeVisible();
-            await expect(this.mortgageBtn.first()).toBeVisible();
-        } else {
-            console.log('Mortgage Calculator section not present - skipping validation');
-        }
+            if (await isLocatorVisible(mortgageTitle)) {
+                await mortgageTitle.scrollIntoViewIfNeeded();
+                await expect(mortgageTitle).toBeVisible();
+                await expect(this.mortgageBtn.first()).toBeVisible();
+            } else {
+                await this.reportValue('Mortgage Calculator section not present - skipping validation');
+            }
+        });
     }
 
     /** Verify: QMI section logs available homes and View All URL when present. */
     async verifyQMISection() {
-        if (await isLocatorVisible(this.qmiSection)) {
+        await this.step('Verify QMI section', async () => {
+            if (await isLocatorVisible(this.qmiSection)) {
 
-            await this.qmiSection.scrollIntoViewIfNeeded();
-            await this.waitForPageReady();
+                await this.qmiSection.scrollIntoViewIfNeeded();
+                await this.waitForPageReady();
 
-            const qmiCount = await this.qmiHomeslist.count();
-            console.log("Number of QMI Homes listed:", qmiCount);
-            if (qmiCount === 0) {
-                console.log('QMI section has no home cards - skipping card validation');
-                return;
+                const qmiCount = await this.qmiHomeslist.count();
+                await this.reportValue('Number of QMI Homes listed', qmiCount);
+                if (qmiCount === 0) {
+                    await this.reportValue('QMI section has no home cards - skipping card validation');
+                    return;
+                }
+
+                for (let i = 0; i < qmiCount; i++) {
+                    const homeLink = this.qmiHomeslist.nth(i);
+                    const homeHref = await homeLink.getAttribute('href');
+                    expect(homeHref).toBeTruthy();
+                    await this.reportValue(`QMI Home ${i + 1}`, this.buildFullUrl(homeHref));
+                }
+
+                if (await this.viewAllQMIButton.count() > 0) {
+                    await expect(this.viewAllQMIButton).toBeVisible();
+
+                    const href = await this.viewAllQMIButton.getAttribute('href');
+                    await this.reportValue('View All QMI URL', href);
+                } else {
+                    await this.reportValue('View All link not visible');
+                }
+
             }
-
-            for (let i = 0; i < qmiCount; i++) {
-                const homeLink = this.qmiHomeslist.nth(i);
-                const homeHref = await homeLink.getAttribute('href');
-                expect(homeHref).toBeTruthy();
-                console.log(`QMI Home ${i + 1} URL:`, homeHref);
+            else {
+                await this.reportValue('QMI Section not found');
             }
-
-            if (await this.viewAllQMIButton.count() > 0) {
-                await expect(this.viewAllQMIButton).toBeVisible();
-
-                const href = await this.viewAllQMIButton.getAttribute('href');
-                console.log('View All QMI URL:', href);
-            } else {
-                console.log('View All link not visible');
-            }
-
-        }
-        else {
-            console.log('QMI Section not found !!');
-        }
+        });
     }
 
     /** Verify: configured quick move-in homes section content and links. */
     async verifyQuickMoveInHomes(plan: PlanDetails): Promise<void> {
-        await expect(this.qmiSection).toBeVisible();
+        await this.step('Verify quick move-in homes section', async () => {
+            await expect(this.qmiSection).toBeVisible();
 
-        if (plan.qmiHeadline) {
-            await expect(
-                this.qmiSection.getByText(plan.qmiHeadline, { exact: false })
-            ).toBeVisible();
-        }
+            if (plan.qmiHeadline) {
+                await expect(
+                    this.qmiSection.getByText(plan.qmiHeadline, { exact: false })
+                ).toBeVisible();
+            }
 
-        await expect(this.viewAllQMIButton).toBeVisible();
-        await expect(this.viewAllQMIButton).toHaveAttribute(
-            'href',
-            /productType=qmi/i
-        );
-        expect(await this.qmiHomeslist.count()).toBeGreaterThan(0);
+            await expect(this.viewAllQMIButton).toBeVisible();
+            await expect(this.viewAllQMIButton).toHaveAttribute(
+                'href',
+                /productType=qmi/i
+            );
+            expect(await this.qmiHomeslist.count()).toBeGreaterThan(0);
+        });
     }
 
     /** Verify: quick move-in homes section is visible when present. */
     async verifyQuickMoveInHomesSection(): Promise<void> {
-        if (await isLocatorVisible(this.qmiSection)) {
-            await this.qmiSection.scrollIntoViewIfNeeded();
-            await expect(this.qmiSection).toBeVisible();
-            await expect(this.viewAllQMIButton).toBeVisible();
+        await this.step('Verify quick move-in homes section present', async () => {
+            if (await isLocatorVisible(this.qmiSection)) {
+                await this.qmiSection.scrollIntoViewIfNeeded();
+                await expect(this.qmiSection).toBeVisible();
+                await expect(this.viewAllQMIButton).toBeVisible();
 
-            const qmiCount = await this.qmiHomeslist.count();
-            if (qmiCount === 0) {
-                console.log('QMI section has no home cards - skipping card validation');
-                return;
+                const qmiCount = await this.qmiHomeslist.count();
+                if (qmiCount === 0) {
+                    await this.reportValue('QMI section has no home cards - skipping card validation');
+                    return;
+                }
+
+                expect(qmiCount).toBeGreaterThan(0);
+            } else {
+                await this.reportValue('QMI section not present - skipping validation');
             }
-
-            expect(qmiCount).toBeGreaterThan(0);
-        } else {
-            console.log('QMI section not present - skipping validation');
-        }
+        });
     }
 
     /** Verify: sales office content matches configured plan details. */
     async verifySalesOffice(plan: PlanDetails): Promise<void> {
-        await expect(this.page.getByText(/^Sales Office$/i)).toBeVisible();
+        await this.step('Verify sales office details', async () => {
+            await expect(this.page.getByText(/^Sales Office$/i)).toBeVisible();
 
-        if (plan.salesOffice) {
-            await expect(this.page.getByText(plan.salesOffice.address)).toBeVisible();
-            await expect(this.page.getByText(plan.salesOffice.cityStateZip, {
-                exact: false
-            })).toBeVisible();
-            await expect(this.page.getByText(plan.salesOffice.phone)).toBeVisible();
-        }
+            if (plan.salesOffice) {
+                await expect(this.page.getByText(plan.salesOffice.address)).toBeVisible();
+                await expect(this.page.getByText(plan.salesOffice.cityStateZip, {
+                    exact: false
+                })).toBeVisible();
+                await expect(this.page.getByText(plan.salesOffice.phone)).toBeVisible();
+            }
+        });
     }
 
     /** Verify: sales office section is visible when present. */
     async verifySalesOfficeSection(): Promise<void> {
-        const salesOfficeTitle = this.page.getByText(/^Sales Office$/i).first();
+        await this.step('Verify sales office section', async () => {
+            const salesOfficeTitle = this.page.getByText(/^Sales Office$/i).first();
 
-        if (await isLocatorVisible(salesOfficeTitle)) {
-            await salesOfficeTitle.scrollIntoViewIfNeeded();
-            await expect(salesOfficeTitle).toBeVisible();
-            await expect(this.page.locator('body')).toContainText(/Hours|Open|Closed|Office/i);
-        } else {
-            console.log('Sales Office section not present - skipping validation');
-        }
+            if (await isLocatorVisible(salesOfficeTitle)) {
+                await salesOfficeTitle.scrollIntoViewIfNeeded();
+                await expect(salesOfficeTitle).toBeVisible();
+                await expect(this.page.locator('body')).toContainText(/Hours|Open|Closed|Office/i);
+            } else {
+                await this.reportValue('Sales Office section not present - skipping validation');
+            }
+        });
     }
 
     /** Verify: community updates form fields are visible. */
@@ -504,14 +560,14 @@ export class PlanDetailPage extends SearchablePage {
         const form = await this.getFormByIndex(formIndex);
 
         if (!form) {
-            console.warn(`${formName} not present - skipping form validation`);
+            await this.reportValue(`${formName} not present - skipping form validation`);
             return null;
         }
 
         const submitButton = form.getByRole('button', { name: /submit/i }).first();
 
         if (!await submitButton.count()) {
-            console.warn(`${formName} submit button not present - skipping form validation`);
+            await this.reportValue(`${formName} submit button not present - skipping form validation`);
             return null;
         }
 
@@ -525,7 +581,7 @@ export class PlanDetailPage extends SearchablePage {
             return form;
         }
 
-        console.warn(`${formName} not visible - skipping form validation`);
+        await this.reportValue(`${formName} not visible - skipping form validation`);
         return null;
     }
 
@@ -580,10 +636,11 @@ export class PlanDetailPage extends SearchablePage {
             return;
         }
 
-        await form.getByRole('textbox', { name: /first name/i }).first().fill('Test');
-        await form.getByRole('textbox', { name: /last name/i }).first().fill('User');
-        await form.getByRole('textbox', { name: /^email/i }).first().fill('user@domain.c');
-        await form.getByRole('textbox', { name: /phone/i }).first().fill('123456');
+        const invalid = getInvalidLeadData('planDetail');
+
+        await this.fillPlanLeadFormFields(form, invalid, {
+            includeCountryAndZip: false
+        });
 
         await form.getByRole('button', { name: /submit/i }).first().click();
 
@@ -602,26 +659,11 @@ export class PlanDetailPage extends SearchablePage {
             return;
         }
 
-        await form.getByRole('textbox', { name: /first name/i }).first().fill('Sudhansu');
-        await form.getByRole('textbox', { name: /last name/i }).first().fill('Das');
-        await form.getByRole('textbox', { name: /^email/i }).first().fill(
-            `ssdas-${Date.now()}@ex2india.com`
-        );
-        await form.getByRole('textbox', { name: /phone/i }).first().fill('4488559933');
+        const valid = getValidLeadData('planDetail');
 
-        const countryOfResidence = form.getByRole('combobox', {
-            name: /country of residence/i
-        }).first();
-
-        if (await countryOfResidence.count()) {
-            await countryOfResidence.selectOption({ label: 'Canada' });
-        }
-
-        const zipCode = form.getByRole('textbox', { name: /zip|postal/i }).first();
-
-        if (await zipCode.count()) {
-            await zipCode.fill('34293');
-        }
+        await this.fillPlanLeadFormFields(form, valid, {
+            includeCountryAndZip: true
+        });
 
         await this.submitLeadFormAndCaptureApi({
             formName,
@@ -631,24 +673,51 @@ export class PlanDetailPage extends SearchablePage {
         });
     }
 
+    /** Helper: fill plan lead fields while preserving each validation flow's original field set. */
+    private async fillPlanLeadFormFields(
+        form: Locator,
+        leadData: LeadFieldData,
+        options: { includeCountryAndZip: boolean }
+    ): Promise<void> {
+        await fillIfPresent(form.getByRole('textbox', { name: /first name/i }), leadData.firstName);
+        await fillIfPresent(form.getByRole('textbox', { name: /last name/i }), leadData.lastName);
+        await fillIfPresent(form.getByRole('textbox', { name: /^email/i }), leadData.email);
+        await fillIfPresent(form.getByRole('textbox', { name: /phone/i }), leadData.phone);
+
+        if (!options.includeCountryAndZip) {
+            return;
+        }
+
+        await selectCountryIfPresent(form, leadData.country);
+        await fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), leadData.zip);
+    }
+
     /** Verify: plan detail bottom form fields are visible. */
     async verifyPlanDetailForm(): Promise<void> {
-        await this.verifyCommunityUpdatesFormByIndex(0, 'Plan detail bottom form');
+        await this.step('Verify plan detail form fields', async () => {
+            await this.verifyCommunityUpdatesFormByIndex(0, 'Plan detail bottom form');
+        });
     }
 
     /** Verify: plan detail bottom form shows empty required-field errors. */
     async validatePlanDetailFormEmptyErrors(): Promise<void> {
-        await this.validateEmptyFormErrorsByIndex(0, 'Plan detail bottom form');
+        await this.step('Validate plan detail form empty errors', async () => {
+            await this.validateEmptyFormErrorsByIndex(0, 'Plan detail bottom form');
+        });
     }
 
     /** Verify: plan detail bottom form rejects invalid email addresses. */
     async validatePlanDetailFormInvalidEmail(): Promise<void> {
-        await this.validateInvalidEmailByIndex(0, 'Plan detail bottom form');
+        await this.step('Validate plan detail form invalid email', async () => {
+            await this.validateInvalidEmailByIndex(0, 'Plan detail bottom form');
+        });
     }
 
     /** Verify: plan detail bottom form can be submitted successfully. */
     async verifyPlanDetailFormSuccessSubmission(): Promise<void> {
-        await this.submitSuccessfulFormByIndex(0, 'Plan detail bottom form');
+        await this.step('Submit plan detail form successfully', async () => {
+            await this.submitSuccessfulFormByIndex(0, 'Plan detail bottom form');
+        });
     }
 
 }

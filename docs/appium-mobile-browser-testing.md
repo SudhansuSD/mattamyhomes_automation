@@ -45,17 +45,11 @@ Run the full Android Chrome mobile web suite:
 npm run test:mobile:android
 ```
 
-Run the original alias:
-
-```powershell
-npm run test:mobile:appium
-```
-
 Run focused mobile flows:
 
 ```powershell
 npm run test:mobile:android:home
-npm run test:mobile:android:fyh
+npm run test:mobile:android:search
 npm run test:mobile:android:community
 npm run test:mobile:android:forms
 ```
@@ -67,7 +61,6 @@ $env:ENV = "STAGE"
 $env:LOCATION = "USA"
 $env:APPIUM_DEVICE_NAME = "Android Emulator"
 $env:APPIUM_UDID = "emulator-5554"
-$env:APPIUM_PLATFORM_VERSION = "15"
 $env:APPIUM_HOST = "127.0.0.1"
 $env:APPIUM_PORT = "4723"
 npm run test:mobile:android
@@ -80,14 +73,41 @@ set ENV=STAGE
 set LOCATION=USA
 set APPIUM_DEVICE_NAME=Android Emulator
 set APPIUM_UDID=emulator-5554
-set APPIUM_PLATFORM_VERSION=15
 set APPIUM_HOST=127.0.0.1
 set APPIUM_PORT=4723
 npm run test:mobile:android
 ```
 
+## Chrome Profile
+
+Each session starts from a clean Chrome profile: `beforeSession` force-stops and clears
+`com.android.chrome` (`appium:noReset: false`). Caching the profile was tried and turned
+out slower and flakier — Chrome restored the previous run's heavy tab and stalled the
+renderer while loading the next page, so clean-per-session is the default.
+
+## Troubleshooting ADB Startup
+
+Make sure the emulator or device is connected and ready before running the suite. Appium
+creates the Chrome session against the configured `APPIUM_UDID`, so it must be listed as
+`device`:
+
+```powershell
+adb devices
+```
+
+If the device is listed as `offline`, refresh the ADB connection and wait for it:
+
+```powershell
+adb reconnect offline
+adb -s emulator-5554 wait-for-device
+adb devices
+```
+
+If it stays offline, cold boot the emulator from Android Studio Device Manager, unlock the
+Android screen after startup, and run `adb devices` again until the state is `device`.
+
 ## Notes
 
 - This setup tests website behavior in real Android Chrome through Appium and UiAutomator2.
 - BrowserStack is intentionally not configured.
-- The mobile page objects mirror the desktop business methods where practical while keeping Appium-only selectors and session handling under `pages/appium`.
+- The mobile page objects mirror the desktop business methods where practical while keeping Appium-only selectors and session handling under `pages/mobile`.

@@ -25,45 +25,45 @@ test.describe(`MPC page tests - ${location.country}`, () => {
   });
 
   test.describe('Page Load and Hero', () => {
-    test('MPC-001 | @smoke | Validate MPC page loads with hero content', async () => {
+    test('TC-01 | @smoke | Validate MPC page loads with hero content', async () => {
       await mpcPage.validateHeroContent(mpc!.name);
     });
   });
 
   test.describe('Tab Validation', () => {
-    test('MPC-002 | @regression | Validate summary tab content', async () => {
+    test('TC-01 | @regression | Validate summary tab content', async () => {
       await mpcPage.validateSummaryTab();
     });
 
-    test('MPC-003 | @regression | Validate home details tab content', async () => {
+    test('TC-02 | @regression | Validate home details tab content', async () => {
       await mpcPage.validateHomeDetailsTab();
     });
 
-    test('MPC-004 | @regression | Validate contact and hours tab content', async () => {
+    test('TC-03 | @regression | Validate contact and hours tab content', async () => {
       await mpcPage.validateContactHoursTab();
     });
   });
 
   test.describe('Content Sections', () => {
-    test('MPC-005 | @regression | Validate amenities and location convenience sections', async () => {
+    test('TC-01 | @regression | Validate amenities and location convenience sections', async () => {
       await mpcPage.validateAmenityAndLocationSections();
     });
 
-    test('MPC-006 | @regression | Validate community promotion CTA', async () => {
+    test('TC-02 | @regression | Validate community promotion CTA', async () => {
       await mpcPage.validatePromotionCTA(mpc!.url);
     });
 
-    test('MPC-007 | @regression | Validate image gallery if available', async () => {
+    test('TC-03 | @regression | Validate image gallery if available', async () => {
       await mpcPage.validateImageGalleryIfAvailable();
     });
   });
 
   test.describe('Neighborhood Cards', () => {
-    test('MPC-008 | @regression | Validate neighborhood card details', async () => {
+    test('TC-01 | @regression | Validate neighborhood card details', async () => {
       await mpcPage.validateNeighborhoodCards(mpc!.name, mpc!.url);
     });
 
-    test('MPC-009 | @regression | Validate first neighborhood navigation', async () => {
+    test('TC-02 | @regression | Validate first neighborhood navigation', async () => {
       await mpcPage.validateFirstNeighborhoodNavigation(mpc!.url);
     });
   });
@@ -73,47 +73,60 @@ test.describe(`MPC page tests - ${location.country}`, () => {
   ========================================================== */
 
   test.describe('Form Validation', () => {
-    
-    /**********Modal form Validation**********/
+    test.describe('Get Information Form Validation', () => {
+      test('TC-01 | @sanity | Validate Get Information CTA opens MPC lead form', async () => {
+        await mpcPage.verifyGetInformationCtaOpensLeadForm();
+      });
 
-    test('MPC-010 | @sanity | Validate Get Information CTA opens MPC lead form', async () => {
-      await mpcPage.verifyGetInformationCtaOpensLeadForm();
+      test('TC-02 | @sanity | Validate Get Information form required field errors', async () => {
+        await mpcPage.validateGetInformationFormEmptyErrors();
+      });
+
+      test('TC-03 | @sanity | Validate Get Information form invalid email format', async () => {
+        await mpcPage.validateGetInformationFormInvalidEmail();
+      });
+
+      test.describe('Get Information form submission', () => {
+        test.skip(
+          envName === 'PROD',
+          'Skipping Get Information form lead submission on PROD environment.'
+        );
+
+        test('TC-01 | @regression @STAGE | Validate Get Information form successful submission', async () => {
+          await mpcPage.verifyGetInformationFormSuccessSubmission();
+        });
+      });
     });
 
-    test('MPC-011 | @sanity | Validate Get Information form required field errors', async () => {
-      await mpcPage.validateGetInformationFormEmptyErrors();
+    test.describe('Community Update Form Validation', () => {
+      test('TC-01 | @sanity | Validate MPC community update form fields', async () => {
+        await mpcPage.validateCommunityUpdateFormFields();
+      });
+
+      test('TC-02 | @sanity | Validate MPC community update form required field errors', async () => {
+        await mpcPage.validateCommunityUpdateRequiredErrors();
+      });
+
+      test('TC-03 | @sanity | Validate MPC community update form invalid email error', async () => {
+        await mpcPage.validateCommunityUpdateInvalidEmail();
+      });
+
+      test.describe('Community update form submission', () => {
+        test.skip(
+          envName === 'PROD',
+          'Skipping community update form lead submission on PROD environment.'
+        );
+
+        test('TC-01 | @regression @STAGE | Validate successful community update submission', async () => {
+          await mpcPage.submitCommunityUpdateFormSuccessfully();
+        });
+      });
     });
-
-    test('MPC-012 | @sanity | Validate Get Information form invalid email format', async () => {
-      await mpcPage.validateGetInformationFormInvalidEmail();
-    });
-
-    // test('@regression @STAGE Validate Get Information form successful submission', async () => {
-    //   test.skip(envName === 'PROD', 'Skipping Get Information form lead submission on PROD environment.');
-    //   await mpcPage.verifyGetInformationFormSuccessSubmission();
-    // });
-
-    /**********Community Update form Validation**********/
-
-    test('MPC-014 | @sanity | Validate MPC community update form fields', async () => {
-      await mpcPage.validateCommunityUpdateFormFields();
-    });
-
-    test('MPC-015 | @sanity | Validate MPC community update form required field errors', async () => {
-      await mpcPage.validateCommunityUpdateRequiredErrors();
-    });
-
-    test('MPC-016 | @sanity | Validate MPC community update form invalid email error', async () => {
-      await mpcPage.validateCommunityUpdateInvalidEmail();
-    });
-
-    // test('@regression @STAGE Validate successful community update submission', async () => {
-    //   test.skip(envName === 'PROD', 'Skipping community update form lead submission on PROD environment.');
-    //   await mpcPage.submitCommunityUpdateFormSuccessfully();
-    // });
   });
 
-  test('MPC-018 | @regression | Validate MPC page image and video URLs return 200', async () => {
-    await mpcPage.validateImageAndVideoUrlsReturn200('MPC page');
+  test.describe('Media Validation', () => {
+    test('TC-01 | @regression | Validate MPC page image and video URLs return 200', async () => {
+      await mpcPage.validateImageAndVideoUrlsReturn200('MPC page');
+    });
   });
 });

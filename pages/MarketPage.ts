@@ -1,6 +1,16 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationConfig } from '../config/locations/locationConfig';
 import { escapeRegex, getNormalizedText } from '../utils/pageObjectUtils';
+import {
+    clickSubmit,
+    expectInvalidEmailErrorInForm,
+    expectRequiredErrorsInForm,
+    fillLeadFormFields,
+    getSubmitButton,
+    getInvalidLeadData,
+    getValidLeadData
+} from '../utils/leadFormHelper';
 import { BasePage } from './BasePage';
 
 export interface MarketConfig {
@@ -56,11 +66,6 @@ export class MarketPage extends BasePage {
     /* ==========================================================
        UTIL HELPERS
     ========================================================== */
-
-    /** Helper: write a titled log block to test output. */
-    private logBlock(title: string): void {
-        console.log(`\n===== ${title} =====`);
-    }
 
     /** Helper: return community card list items that contain links. */
     private getCommunityCards(section = this.communitySection): Locator {
@@ -155,10 +160,34 @@ export class MarketPage extends BasePage {
 
     /** Action: navigate directly to a market page using its relative URL. */
     async navigateToMarket(relativeUrl: string): Promise<void> {
-        const { baseURL } = getEnvConfig();
-        await this.page.goto(`${baseURL}${relativeUrl}`);
-        await this.waitForPageReady();
-        await this.dismissPromoPopupIfPresent();
+        await this.step(`Navigate to market page: ${relativeUrl}`, async () => {
+            const { baseURL } = getEnvConfig();
+            const location = getLocationConfig();
+            const homeUrl = `${baseURL}/?${location.queryParam}`;
+            const targetUrl = `${baseURL}${relativeUrl}`;
+
+            await this.page.goto(homeUrl, {
+                waitUntil: 'domcontentloaded',
+                timeout: 90_000
+            });
+            await this.waitForPageReady();
+            await this.ensureConfiguredCountrySelected();
+            await this.dismissPromoPopupIfPresent();
+
+            await this.page.goto(targetUrl, {
+                waitUntil: 'domcontentloaded',
+                timeout: 90_000
+            }).catch(async () => {
+                await this.page.goto(targetUrl, {
+                    waitUntil: 'domcontentloaded',
+                    timeout: 90_000
+                });
+            });
+            await this.waitForPageReady();
+            await this.ensureConfiguredCountrySelected();
+            await this.waitForPageReady();
+            await this.dismissPromoPopupIfPresent();
+        });
     }
 
     /* ==========================================================
@@ -167,42 +196,45 @@ export class MarketPage extends BasePage {
 
     /** Verify: market page URL and heading match expected market configuration. */
     async verifyMarketPage(market: MarketConfig): Promise<void> {
-        await this.waitForPageReady();
+        await this.step(`Verify market page: ${market.name}`, async () => {
+            await this.waitForPageReady();
 
-        await this.assertPageUrl(
-            new RegExp(market.url, 'i'),
-            `${market.name} market page URL should match configured path`
-        );
-        await this.assertTextContains(
-            this.heading,
-            this.getMarketNamePattern(market.name),
-            `${market.name} market heading should match configured name`,
-            15_000
-        );
+            await this.assertPageUrl(
+                new RegExp(market.url, 'i'),
+                `${market.name} market page URL should match configured path`
+            );
+            await this.assertTextContains(
+                this.heading,
+                this.getMarketNamePattern(market.name),
+                `${market.name} market heading should match configured name`,
+                15_000
+            );
 
-        console.log(`✅ Market verified: ${market.name}`);
-        console.log(`🌐 URL: ${this.page.url()}`);
+            await this.reportValue('Market verified', `${market.name} at ${this.page.url()}`);
+        });
     }
 
     /** Verify: market hero content, hero image, and search CTAs are present. */
     async validateHeroContent(market: MarketConfig): Promise<void> {
-        await this.assertVisible(this.heroSection, `${market.name} market hero section should be visible`, 15_000);
-        await this.assertTextContains(
-            this.heading,
-            this.getMarketNamePattern(market.name),
-            `${market.name} market heading should be visible in hero`
-        );
+        await this.step(`Validate market hero content: ${market.name}`, async () => {
+            await this.assertVisible(this.heroSection, `${market.name} market hero section should be visible`, 15_000);
+            await this.assertTextContains(
+                this.heading,
+                this.getMarketNamePattern(market.name),
+                `${market.name} market heading should be visible in hero`
+            );
 
-        const heroImage = this.heroSection.locator('img').first();
-        if (await heroImage.count()) {
-            await this.assertVisible(heroImage, `${market.name} market hero image should be visible`);
-        }
+            const heroImage = this.heroSection.locator('img').first();
+            if (await heroImage.count()) {
+                await this.assertVisible(heroImage, `${market.name} market hero image should be visible`);
+            }
 
-        const heroText = await getNormalizedText(this.heroSection);
-        this.assertTruthy(heroText, 'Hero should include visible market copy');
+            const heroText = await getNormalizedText(this.heroSection);
+            this.assertTruthy(heroText, 'Hero should include visible market copy');
 
-        const pageSearchLinkCount = await this.marketSearchLinks.count();
-        this.assertGreaterThan(pageSearchLinkCount, 0, 'Market page should include search CTAs');
+            const pageSearchLinkCount = await this.marketSearchLinks.count();
+            this.assertGreaterThan(pageSearchLinkCount, 0, 'Market page should include search CTAs');
+        });
     }
 
     /* ==========================================================
@@ -211,97 +243,96 @@ export class MarketPage extends BasePage {
 
     /** Verify: community cards exist and log their names and URLs. */
     async validateCommunityCards(): Promise<void> {
-        const communitySection = await this.getVisibleCommunitySection();
+        await this.step('Validate community cards are listed', async () => {
+            const communitySection = await this.getVisibleCommunitySection();
 
-        if (!communitySection) {
-            console.warn('⚠️ Community Cards section not present');
-            return;
-        }
-        const cards = this.getCommunityCards(communitySection);
+            if (!communitySection) {
+                await this.reportValue('Community Cards section not present');
+                return;
+            }
+            const cards = this.getCommunityCards(communitySection);
 
-        const count = await cards.count();
-        this.assertGreaterThan(count, 0, 'Market page should list community cards');
+            const count = await cards.count();
+            this.assertGreaterThan(count, 0, 'Market page should list community cards');
 
-        this.logBlock('COMMUNITY CARDS');
-
-        for (let i = 0; i < count; i++) {
-            const card = cards.nth(i);
-
-            const name = await this.getCommunityCardTitle(card);
-            const href = await card.locator('a').getAttribute('href');
-
-            const fullUrl = this.buildFullUrl(href);
-
-            console.log(`Name: ${name.trim()}`);
-            console.log(`URL: ${fullUrl}`);
-            console.log('--------------------------');
-        }
+            await this.reportValue(`Found ${count} community card(s)`);
+        });
     }
 
     /** Verify: each community card has a title, href, and image source when present. */
     async validateCommunityCardDetails(): Promise<void> {
-        const communitySection = await this.getVisibleCommunitySection();
+        await this.step('Validate community card details', async () => {
+            const communitySection = await this.getVisibleCommunitySection();
 
-        if (!communitySection) {
-            console.warn('Community Cards section not present');
-            return;
-        }
-
-        const cards = this.getCommunityCards(communitySection);
-        const count = await cards.count();
-        this.assertGreaterThan(count, 0, 'Market page should list at least one community card');
-
-        for (let i = 0; i < count; i++) {
-            const card = cards.nth(i);
-            const title = await this.getCommunityCardTitle(card);
-            const href = await card.locator('a[href]').first().getAttribute('href');
-
-            expect(title, `Community card ${i + 1} title missing`).toBeTruthy();
-            expect(href, `Community card ${i + 1} href missing`).toBeTruthy();
-            expect(href, `Community card ${i + 1} should not link to current page`)
-                .not.toBe(new URL(this.page.url()).pathname);
-
-            const image = card.locator('img').first();
-            if (await image.count()) {
-                await this.assertAttribute(
-                    image,
-                    'src',
-                    /.+/,
-                    `Community card ${i + 1} image should expose a src`
-                );
+            if (!communitySection) {
+                await this.reportValue('Community Cards section not present');
+                return;
             }
-        }
+
+            const cards = this.getCommunityCards(communitySection);
+            const count = await cards.count();
+            this.assertGreaterThan(count, 0, 'Market page should list at least one community card');
+
+            for (let i = 0; i < count; i++) {
+                const card = cards.nth(i);
+                const title = await this.getCommunityCardTitle(card);
+                const href = await card.locator('a[href]').first().getAttribute('href');
+
+                expect(title, `Community card ${i + 1} title missing`).toBeTruthy();
+                expect(href, `Community card ${i + 1} href missing`).toBeTruthy();
+                expect(href, `Community card ${i + 1} should not link to current page`)
+                    .not.toBe(new URL(this.page.url()).pathname);
+
+                await this.reportValue(`${i + 1}. ${title}`, this.buildFullUrl(href));
+
+                const image = card.locator('img').first();
+                if (await image.count()) {
+                    await this.assertAttribute(
+                        image,
+                        'src',
+                        /.+/,
+                        `Community card ${i + 1} image should expose a src`
+                    );
+                }
+            }
+
+            await this.reportValue(`Validated details on ${count} community card(s)`);
+        });
     }
 
     /** Verify: first community card navigates to its community page. */
     async validateFirstCommunityCardNavigation(): Promise<void> {
-        const communitySection = await this.getVisibleCommunitySection();
+        await this.step('Validate first community card navigation', async () => {
+            const communitySection = await this.getVisibleCommunitySection();
 
-        if (!communitySection) {
-            console.warn('Community Cards section not present');
-            return;
-        }
+            if (!communitySection) {
+                await this.reportValue('Community Cards section not present');
+                return;
+            }
 
-        const firstCardLink = this.getCommunityCards(communitySection)
-            .first()
-            .locator('a[href]')
-            .first();
+            const firstCardLink = this.getCommunityCards(communitySection)
+                .first()
+                .locator('a[href]')
+                .first();
 
-        await this.assertVisible(firstCardLink, 'No community card link available');
+            await this.assertVisible(firstCardLink, 'No community card link available');
 
-        const href = await firstCardLink.getAttribute('href');
-        this.assertTruthy(href, 'First community card href missing');
+            const href = await firstCardLink.getAttribute('href');
+            this.assertTruthy(href, 'First community card href missing');
 
-        await firstCardLink.scrollIntoViewIfNeeded();
-        await Promise.all([
-            this.page.waitForLoadState('domcontentloaded'),
-            firstCardLink.click()
-        ]);
-        await this.waitForPageReady();
-        await this.assertPageUrlContains(
-            href,
-            `First community card should navigate to ${href}`
-        );
+            await this.reportValue('First community card', this.buildFullUrl(href));
+
+            await firstCardLink.scrollIntoViewIfNeeded();
+            await Promise.all([
+                this.page.waitForLoadState('domcontentloaded'),
+                firstCardLink.click()
+            ]);
+            await this.waitForPageReady();
+            await this.assertPageUrlContains(
+                href,
+                `First community card should navigate to ${href}`
+            );
+        });
     }
 
     /* ==========================================================
@@ -320,7 +351,7 @@ export class MarketPage extends BasePage {
         const form = this.leadForm.first();
 
         if (!await form.count()) {
-            console.warn(`No lead form available on ${marketName} - skipping form validation`);
+            await this.reportValue(`No lead form available on ${marketName} - skipping form validation`);
             return null;
         }
 
@@ -355,63 +386,71 @@ export class MarketPage extends BasePage {
         }
     }
 
-    /** Helper: select the standard required dropdown values on the market lead form. */
-    private async selectDefaultLeadFormOptions(fields: ReturnType<MarketPage['getLeadFormFields']>): Promise<void> {
-        await fields.community.selectOption({ index: 1 });
-        await fields.country.selectOption({ index: 1 });
+    /** Verify: market lead form shows required errors when submitted empty. */
+    async validateLeadFormRequiredErrors(marketName: string): Promise<void> {
+        await this.step(`Validate lead form required errors: ${marketName}`, async () => {
+            const form = await this.getAvailableLeadForm(marketName);
+
+            if (!form) {
+                return;
+            }
+
+            const fields = this.getLeadFormFields(form);
+
+            await this.expectLeadFormFieldsVisible(fields);
+            await clickSubmit(this.page, form);
+            await expectRequiredErrorsInForm(form);
+            await expect(form.locator('text=/Community of Interest.*Required|Community.*Required/i').first())
+                .toBeVisible({ timeout: 10000 });
+        });
     }
 
     /** Verify: market lead form rejects invalid email data. */
     async validateLeadFormInvalidData(marketName: string): Promise<void> {
-        const form = await this.getAvailableLeadForm(marketName);
+        await this.step(`Validate lead form invalid data: ${marketName}`, async () => {
+            const form = await this.getAvailableLeadForm(marketName);
 
-        if (!form) {
-            return;
-        }
+            if (!form) {
+                return;
+            }
 
-        const fields = this.getLeadFormFields(form);
+            const fields = this.getLeadFormFields(form);
 
-        await this.expectLeadFormFieldsVisible(fields);
-        await this.selectDefaultLeadFormOptions(fields);
-        await fields.firstName.fill('Test');
-        await fields.lastName.fill('User');
-        await fields.email.fill('user@domain.c');
-        await fields.zip.fill('12345');
-        await fields.phone.fill('123456');
+            await this.expectLeadFormFieldsVisible(fields);
+            const invalid = getInvalidLeadData('market');
 
-        await fields.submit.click();
+            await fillLeadFormFields(form, invalid, { selectCommunity: true });
 
-        await expect(form.locator('text=/valid domain name|Invalid|Error/i').first())
-            .toBeVisible({ timeout: 10000 });
+            await getSubmitButton(form).click();
 
-        console.log(`Lead form invalid-data validation successful: ${marketName}`);
+            await expectInvalidEmailErrorInForm(form);
+        });
     }
 
     /** Verify: market lead form can be submitted successfully. */
     async submitLeadFormSuccessfully(marketName: string): Promise<void> {
-        const form = await this.getAvailableLeadForm(marketName);
+        await this.step(`Submit lead form successfully: ${marketName}`, async () => {
+            const form = await this.getAvailableLeadForm(marketName);
 
-        if (!form) {
-            return;
-        }
+            if (!form) {
+                return;
+            }
 
-        const fields = this.getLeadFormFields(form);
+            const fields = this.getLeadFormFields(form);
 
-        await this.expectLeadFormFieldsVisible(fields);
-        await this.selectDefaultLeadFormOptions(fields);
-        await fields.firstName.fill('Sudhansu');
-        await fields.lastName.fill('Das');
-        await fields.email.fill(`ssdas+market${Date.now()}@ex2india.com`);
-        await fields.zip.fill('34293');
-        await fields.phone.fill('4488559933');
+            await this.expectLeadFormFieldsVisible(fields);
+            const valid = getValidLeadData('market');
 
-        await this.submitLeadFormAndCaptureApi({
-            formName: `${marketName} market lead form`,
-            submitButton: fields.submit,
-            successModal: this.successDialogModal,
-            successMessage: this.formSuccessMessage
+            await fillLeadFormFields(form, valid, { selectCommunity: true });
+
+            await this.submitLeadFormAndCaptureApi({
+                formName: `${marketName} market lead form`,
+                submitButton: getSubmitButton(form),
+                successModal: this.successDialogModal,
+                successMessage: this.formSuccessMessage,
+                validateApiResponse: true
+            });
         });
-        console.log(`Lead form successful submission validated: ${marketName}`);
     }
 
     /* ==========================================================
@@ -420,68 +459,69 @@ export class MarketPage extends BasePage {
 
     /** Verify: Discover Our Homes section links point to expected search result types. */
     async validateDiscoverOurHomesSection(): Promise<void> {
-
-        await this.waitForPageReady();
-        await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        const section = await this.getDiscoverOurHomesSectionIfAvailable();
-
-        const isVisible = !!section && await this.isSectionVisible(section);
-
-        if (!isVisible) {
-            console.warn(`⚠️ Discover Our Homes section not present on ${this.page.url()}`);
-            return;
-        }
-
-        await section.scrollIntoViewIfNeeded();
-        await this.waitForPageReady();
-        const links = section.locator('a');
-        const count = await links.count();
-        this.logBlock('DISCOVER OUR HOMES');
-        console.log(`Links found: ${count}`);
-        for (let i = 0; i < count; i++) {
-            const link = links.nth(i);
+        await this.step('Validate Discover Our Homes section links', async () => {
             await this.waitForPageReady();
-            const text = await getNormalizedText(link);
-            const href = await link.getAttribute('href');
-            expect(href).toBeTruthy();
-            const normalizedText = text.toLowerCase();
-            if (normalizedText.includes('floorplan')) {
-                expect(href).toContain('productType=plan');
+            await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+            const section = await this.getDiscoverOurHomesSectionIfAvailable();
+
+            const isVisible = !!section && await this.isSectionVisible(section);
+
+            if (!isVisible) {
+                await this.reportValue(`Discover Our Homes section not present on ${this.page.url()}`);
+                return;
             }
-            if (normalizedText.includes('quick move-in')) {
-                expect(href).toContain('productType=qmi');
+
+            await section.scrollIntoViewIfNeeded();
+            await this.waitForPageReady();
+            const links = section.locator('a');
+            const count = await links.count();
+            await this.reportValue(`Discover Our Homes links found: ${count}`);
+            for (let i = 0; i < count; i++) {
+                const link = links.nth(i);
+                await this.waitForPageReady();
+                const text = await getNormalizedText(link);
+                const href = await link.getAttribute('href');
+                expect(href).toBeTruthy();
+                await this.reportValue(`Discover link ${i + 1}: ${text}`, this.buildFullUrl(href));
+                const normalizedText = text.toLowerCase();
+                if (normalizedText.includes('floorplan')) {
+                    expect(href).toContain('productType=plan');
+                }
+                if (normalizedText.includes('quick move-in')) {
+                    expect(href).toContain('productType=qmi');
+                }
             }
-            console.log(`Text: ${text}`);
-            console.log(`URL: ${href}`);
-            console.log('--------------------------');
-        }
+        });
     }
 
     /** Verify: market search links include both plan and QMI search result links. */
     async validateMarketSearchLinks(): Promise<void> {
-        const count = await this.marketSearchLinks.count();
-        expect(count, `Market search links not present on ${this.page.url()}`)
-            .toBeGreaterThan(0);
+        await this.step('Validate market search links', async () => {
+            const count = await this.marketSearchLinks.count();
+            expect(count, `Market search links not present on ${this.page.url()}`)
+                .toBeGreaterThan(0);
 
-        if (!count) {
-            console.warn(`Market search links not present on ${this.page.url()}`);
-            return;
-        }
+            if (!count) {
+                return;
+            }
 
-        let hasPlanLink = false;
-        let hasQmiLink = false;
+            let hasPlanLink = false;
+            let hasQmiLink = false;
 
-        for (let i = 0; i < count; i++) {
-            const href = await this.marketSearchLinks.nth(i).getAttribute('href');
-            expect(href).toBeTruthy();
+            for (let i = 0; i < count; i++) {
+                const href = await this.marketSearchLinks.nth(i).getAttribute('href');
+                expect(href).toBeTruthy();
 
-            const normalizedHref = href!.toLowerCase();
-            hasPlanLink = hasPlanLink || normalizedHref.includes('producttype=plan');
-            hasQmiLink = hasQmiLink || normalizedHref.includes('producttype=qmi');
-            expect(normalizedHref).toContain('/search');
-        }
+                await this.reportValue(`Market search link ${i + 1}`, this.buildFullUrl(href));
 
-        expect(hasPlanLink, 'Market page should link to plan search results').toBeTruthy();
-        expect(hasQmiLink, 'Market page should link to QMI search results').toBeTruthy();
+                const normalizedHref = href!.toLowerCase();
+                hasPlanLink = hasPlanLink || normalizedHref.includes('producttype=plan');
+                hasQmiLink = hasQmiLink || normalizedHref.includes('producttype=qmi');
+                expect(normalizedHref).toContain('/search');
+            }
+
+            expect(hasPlanLink, 'Market page should link to plan search results').toBeTruthy();
+            expect(hasQmiLink, 'Market page should link to QMI search results').toBeTruthy();
+        });
     }
 }

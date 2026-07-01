@@ -2,12 +2,12 @@ import { defineConfig } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { DESKTOP_ALLURE_RESULTS_DIR } from './scripts/allurePaths';
 
 const repoRoot = __dirname;
-const allureResultsDir = path.resolve(repoRoot, 'allure-results');
 
 delete process.env.PW_TEST_REPORTER;
-fs.rmSync(allureResultsDir, { recursive: true, force: true });
+fs.rmSync(DESKTOP_ALLURE_RESULTS_DIR, { recursive: true, force: true });
 
 export default defineConfig({
   testDir: './tests',
@@ -43,11 +43,11 @@ export default defineConfig({
     // },
   ],
   reporter: [
-    ['line'],
+    ['list'],
     [
       'allure-playwright',
       {
-        outputFolder: allureResultsDir,
+        resultsDir: DESKTOP_ALLURE_RESULTS_DIR,
         detail: false,
         suiteTitle: true,
       },

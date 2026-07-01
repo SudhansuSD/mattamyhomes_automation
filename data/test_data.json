@@ -1,0 +1,104 @@
+{
+  "leadForm": {
+    "emailDomain": "ex2india.com",
+    "validName": {
+      "firstName": "Sudhansu",
+      "lastName": "Das"
+    },
+    "invalidName": {
+      "firstName": "Test",
+      "lastName": "User"
+    },
+    "invalidEmail": "user@domain.c",
+    "regions": {
+      "usa": {
+        "country": "United States"
+      },
+      "canada": {
+        "country": "Canada"
+      }
+    },
+    "mobile": {
+      "region": "usa",
+      "phone": "8135551212",
+      "zip": "33545",
+      "validName": {
+        "firstName": "Mobile",
+        "lastName": "Automation"
+      },
+      "communityPattern": "community|landmarke|wellen|park",
+      "countryPattern": "united states|usa"
+    },
+    "web": {
+      "profiles": {
+        "community": {
+          "region": "usa",
+          "phone": "4488559933",
+          "zip": "34293",
+          "emailPrefix": "ssdas_",
+          "invalidPhone": "123456"
+        },
+        "communityGetInfo": {
+          "region": "usa",
+          "phone": "4488559933",
+          "zip": "34293",
+          "emailPrefix": "ssdas_getinfo_"
+        },
+        "market": {
+          "region": "usa",
+          "phone": "4488559933",
+          "zip": "34293",
+          "emailPrefix": "ssdas+market",
+          "invalidPhone": "123456",
+          "invalidZip": "12345"
+        },
+        "mpc": {
+          "region": "usa",
+          "phone": "8135551212",
+          "zip": "33545",
+          "emailPrefix": "ssdas+mpc"
+        },
+        "mpcGetInfo": {
+          "region": "usa",
+          "phone": "8135551212",
+          "zip": "33545",
+          "emailPrefix": "ssdas_mpc_getinfo_"
+        },
+        "qmi": {
+          "region": "canada",
+          "phone": "4165551212",
+          "zip": "L7R 0A1",
+          "emailPrefix": "ssdas_qmi",
+          "invalidEmail": "not-an-email"
+        },
+        "condoCommunity": {
+          "region": "canada",
+          "phone": "4165551212",
+          "zip": "L7R 0A1",
+          "emailPrefix": "ssdas+condo"
+        },
+        "condoPlan": {
+          "region": "canada",
+          "phone": "4165551212",
+          "zip": "L7R 0A1",
+          "emailPrefix": "ssdas_condoplan_"
+        },
+        "planDetail": {
+          "region": "canada",
+          "phone": "4488559933",
+          "zip": "34293",
+          "emailPrefix": "ssdas-",
+          "invalidPhone": "123456"
+        },
+        "promo": {
+          "region": "usa",
+          "phone": "4075551212",
+          "zip": "32801",
+          "emailPrefix": "ssdas_promo_",
+          "community": "Celebration - Island Village",
+          "questions": "Automation validation for Hometown Heroes promo page."
+        }
+      }
+    }
+  }
+}

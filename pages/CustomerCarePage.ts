@@ -1,6 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
+import { escapeRegex } from '../utils/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 export type CustomerCareArea = {
@@ -32,6 +33,7 @@ export const CUSTOMER_CARE_COUNTRIES: readonly CustomerCareCountryConfig[] = [
     heroCopy: /Mattamy Homes strives to provide the best homeowner experience/i,
     areas: [
       { name: 'CHARLOTTE, NC', expectedDetails: ['Customer Care for the Charlotte, NC Area', 'Charlotte Customer Care'] },
+      { name: 'CLOVER, SC', expectedDetails: ['Customer Care for the Clover, SC Area'] },
       { name: 'DALLAS-FORT WORTH, TX', expectedDetails: ['Customer Care for the Dallas-Fort Worth, TX Area'] },
       { name: 'FORT LAUDERDALE, FL', expectedDetails: ['Customer Care for the Fort Lauderdale, FL Area'] },
       { name: 'JACKSONVILLE-ST. AUGUSTINE, FL', expectedDetails: ['Customer Care for the Jacksonville-St. Augustine, FL Area'] },
@@ -42,6 +44,7 @@ export const CUSTOMER_CARE_COUNTRIES: readonly CustomerCareCountryConfig[] = [
       { name: 'PHOENIX, AZ', expectedDetails: ['Customer Care for the Phoenix, AZ Area'] },
       { name: 'PORT ST. LUCIE, FL', expectedDetails: ['Customer Care for the Port St. Lucie, FL Area'] },
       { name: 'RALEIGH, NC', expectedDetails: ['Customer Care for the Raleigh, NC Area'] },
+      { name: 'ROCK HILL, SC', expectedDetails: ['Customer Care for the Rock Hill, SC Area'] },
       { name: 'SARASOTA-BRADENTON, FL', expectedDetails: ['Customer Care for the Sarasota-Bradenton, FL Area'] },
       { name: 'TAMPA, FL', expectedDetails: ['Customer Care for the Tampa, FL Area'] },
       { name: 'TUCSON, AZ', expectedDetails: ['Customer Care for the Tucson, AZ Area'] }
@@ -104,6 +107,7 @@ export class CustomerCarePage extends BasePage {
   readonly serviceRequestForm: Locator;
   readonly submitButton: Locator;
 
+  /** Initializes this page object and its locators. */
   constructor(page: Page) {
     super(page);
 
@@ -111,200 +115,231 @@ export class CustomerCarePage extends BasePage {
     this.heading = this.main.locator('h1').first();
     this.countrySelectorButton = page.locator('button[aria-label^="Select your country."]').first();
     this.areaHeading = this.main.getByRole('heading', { name: /Please Select Your Area/i }).first();
-    this.serviceRequestSection = this.main
-      .getByRole('heading', { name: /^Service Request$/i })
-      .locator('xpath=ancestor::*[self::section or self::div][1]');
     this.serviceRequestForm = this.main.locator('form').first();
+    this.serviceRequestSection = this.serviceRequestForm.locator('xpath=ancestor::*[self::section or self::div][1]');
     this.submitButton = this.main.getByRole('button', { name: /^SUBMIT$/i });
   }
 
+  /** Navigates to customer care. */
   async navigateToCustomerCare(locationKey: LocationKey): Promise<void> {
-    const { baseURL, envName } = getEnvConfig();
-    const location = getLocationConfig(locationKey);
-    const targetUrl = `${baseURL}/customer-care?${location.queryParam}`;
+    await this.step(`Navigate to Customer Care page (${locationKey})`, async () => {
+      const { baseURL, envName } = getEnvConfig();
+      const location = getLocationConfig(locationKey);
+      const targetUrl = `${baseURL}/customer-care?${location.queryParam}`;
 
-    if (envName === 'PROD') {
-      await this.preventProdFormSubmission();
-    }
+      if (envName === 'PROD') {
+        await this.preventProdFormSubmission();
+      }
 
-    console.log(
-      `[NAVIGATE] ENV=${envName} | COUNTRY=${location.country} | URL=${targetUrl}`
-    );
+      await this.reportValue('Target URL', targetUrl);
 
-    await this.page.goto(targetUrl, {
-      waitUntil: 'domcontentloaded',
-      timeout: 90_000
+      await this.page.goto(targetUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: 90_000
+      });
+
+      await this.acceptCookiesIfPresent();
+      await this.waitForPageReady();
     });
-
-    await this.acceptCookiesIfPresent();
-    await this.waitForPageReady();
   }
 
+  /** Verifies page loaded. */
   async verifyPageLoaded(config: CustomerCareCountryConfig): Promise<void> {
-    await this.assertPageTitle(config.expectedTitle, `${config.locationKey} Customer Care page title should match`);
-    await this.assertPageUrl(/\/customer-care/i, `${config.locationKey} Customer Care page URL should match`);
-    await this.assertVisible(this.heading, 'Customer Care page heading should be visible', 15_000);
-    await this.assertText(this.heading, config.expectedHeading, 'Customer Care heading should match configured country');
-    await this.assertVisible(this.main.getByText(config.heroCopy), 'Customer Care hero copy should be visible');
-    await this.assertVisible(this.areaHeading, 'Customer Care area heading should be visible');
+    await this.step(`Verify Customer Care page loaded (${config.locationKey})`, async () => {
+      await this.assertPageTitle(config.expectedTitle, `${config.locationKey} Customer Care page title should match`);
+      await this.assertPageUrl(/\/customer-care/i, `${config.locationKey} Customer Care page URL should match`);
+      await this.assertVisible(this.heading, 'Customer Care page heading should be visible', 15_000);
+      await this.assertText(this.heading, config.expectedHeading, 'Customer Care heading should match configured country');
+      await this.assertVisible(this.main.getByText(config.heroCopy), 'Customer Care hero copy should be visible');
+      await this.assertVisible(this.areaHeading, 'Customer Care area heading should be visible');
 
-    const selectedCountry = config.locationKey === 'USA' ? 'USA' : 'Canada';
-    await this.assertAttribute(
-      this.countrySelectorButton,
-      'aria-label',
-      new RegExp(`${this.escapeRegExp(selectedCountry)} country is selected`, 'i'),
-      `${selectedCountry} should be selected in Customer Care country selector`
-    );
+      const selectedCountry = config.locationKey === 'USA' ? 'USA' : 'Canada';
+      await this.assertAttribute(
+        this.countrySelectorButton,
+        'aria-label',
+        new RegExp(`${escapeRegex(selectedCountry)} country is selected`, 'i'),
+        `${selectedCountry} should be selected in Customer Care country selector`
+      );
+    });
   }
 
+  /** Validates area list. */
   async validateAreaList(config: CustomerCareCountryConfig): Promise<void> {
-    const areaButtons = this.getAreaButtons();
+    await this.step(`Validate Customer Care area list (${config.locationKey})`, async () => {
+      const areaButtons = this.getAreaButtons();
 
-    await this.assertVisible(areaButtons.first(), `${config.locationKey} customer care areas should render`, 15_000);
-    await this.assertCount(
-      areaButtons,
-      config.areas.length,
-      `${config.locationKey} customer care area count should match configured markets`
-    );
+      await this.assertVisible(areaButtons.first(), `${config.locationKey} customer care areas should render`, 15_000);
+      await this.assertCount(
+        areaButtons,
+        config.areas.length,
+        `${config.locationKey} customer care area count should match configured markets`
+      );
 
-    for (const area of config.areas) {
+      for (const [index, area] of config.areas.entries()) {
+        const button = this.getAreaButton(area.name);
+
+        await this.assertVisible(button, `${area.name} customer care area should be visible`);
+        await this.assertAttribute(
+          button,
+          'aria-label',
+          /View contact details of .+ State/i,
+          `${area.name} should expose an accessible contact-details label`
+        );
+        await this.assertAttribute(
+          button,
+          'aria-expanded',
+          /false|true/,
+          `${area.name} should expose expanded/collapsed state`
+        );
+
+        await this.reportValue(`Area ${index + 1}`, area.name);
+      }
+    });
+  }
+
+  /** Validates area details. */
+  async validateAreaDetails(area: CustomerCareArea): Promise<void> {
+    await this.step(`Validate Customer Care area details: ${area.name}`, async () => {
       const button = this.getAreaButton(area.name);
 
-      await this.assertVisible(button, `${area.name} customer care area should be visible`);
-      await this.assertAttribute(
-        button,
-        'aria-label',
-        /View contact details of .+ State/i,
-        `${area.name} should expose an accessible contact-details label`
-      );
-      await this.assertAttribute(
-        button,
-        'aria-expanded',
-        /false|true/,
-        `${area.name} should expose expanded/collapsed state`
-      );
-    }
+      await this.assertVisible(button, `${area.name} customer care area should be visible`, 15_000);
+      await button.click({ force: true });
+
+      for (const expectedDetail of area.expectedDetails) {
+        await this.assertVisible(
+          this.main.getByText(new RegExp(escapeRegex(expectedDetail), 'i')).first(),
+          `${area.name} should show customer care detail: ${expectedDetail}`
+        );
+      }
+    });
   }
 
-  async validateAreaDetails(area: CustomerCareArea): Promise<void> {
-    const button = this.getAreaButton(area.name);
-
-    await this.assertVisible(button, `${area.name} customer care area should be visible`, 15_000);
-    await button.click({ force: true });
-
-    for (const expectedDetail of area.expectedDetails) {
-      await this.assertVisible(
-        this.main.getByText(new RegExp(this.escapeRegExp(expectedDetail), 'i')).first(),
-        `${area.name} should show customer care detail: ${expectedDetail}`
-      );
-    }
-  }
-
+  /** Validates resource links. */
   async validateResourceLinks(config: CustomerCareCountryConfig): Promise<void> {
-    for (const resourceLink of config.resourceLinks) {
-      const resourceLinkLocator = this.main
-        .locator(`a[href*="${resourceLink.hrefContains}"]`)
-        .first();
+    await this.step(`Validate Customer Care resource links (${config.locationKey})`, async () => {
+      for (const resourceLink of config.resourceLinks) {
+        const resourceLinkLocator = this.main
+          .locator(`a[href*="${resourceLink.hrefContains}"], a[href*="warranty"], a`)
+          .filter({ hasText: new RegExp(escapeRegex(resourceLink.name.replace(/\s+PDF$/i, '')), 'i') })
+          .first();
 
-      await this.assertVisible(
-        resourceLinkLocator,
-        `${resourceLink.name} should point to the expected resource`
-      );
-    }
+        await this.assertVisible(
+          resourceLinkLocator,
+          `${resourceLink.name} should point to the expected resource`
+        );
+
+        await this.reportValue(`Resource link: ${resourceLink.name}`, this.buildFullUrl(resourceLink.hrefContains));
+      }
+    });
   }
 
+  /** Validates us emergency support content. */
   async validateUsEmergencySupportContent(): Promise<void> {
-    const emergencyHeadings = [
-      'Emergency support',
-      'In the event of a gas leak',
-      'In the event of a roof leak',
-      'In the event of electricity power loss',
-      'In the event of total heat or A/C loss',
-      'In the event of a plumbing issue'
-    ];
+    await this.step('Validate US emergency support content', async () => {
+      const emergencyHeadings = [
+        'Emergency support',
+        'In the event of a gas leak',
+        'In the event of a roof leak',
+        'In the event of electricity power loss',
+        'In the event of total heat or A/C loss',
+        'In the event of a plumbing issue'
+      ];
 
-    for (const heading of emergencyHeadings) {
-      await this.assertVisible(
-        this.main.getByRole('heading', { name: new RegExp(`^${this.escapeRegExp(heading)}$`, 'i') }).first(),
-        `${heading} should be present on the page`,
-        15_000
-      );
-    }
+      for (const heading of emergencyHeadings) {
+        await this.assertVisible(
+          this.main.getByRole('heading', { name: new RegExp(`^${escapeRegex(heading)}$`, 'i') }).first(),
+          `${heading} should be present on the page`,
+          15_000
+        );
+      }
+    });
   }
 
+  /** Validates us service request form. */
   async validateUsServiceRequestForm(): Promise<void> {
-    await this.assertVisible(this.serviceRequestSection, 'Service request section should be visible', 15_000);
-    await this.assertVisible(this.serviceRequestForm, 'Service request form should be visible');
-    await this.assertVisible(this.submitButton, 'Service request submit button should be visible');
+    await this.step('Validate US service request form fields', async () => {
+      await this.assertVisible(this.serviceRequestSection, 'Service request section should be visible', 15_000);
+      await this.assertVisible(this.serviceRequestForm, 'Service request form should be visible');
+      await this.assertVisible(this.submitButton, 'Service request submit button should be visible');
 
-    const requiredFieldStates = await this.getServiceRequestFieldStates(REQUIRED_SERVICE_REQUEST_FIELDS);
+      const requiredFieldStates = await this.getServiceRequestFieldStates(REQUIRED_SERVICE_REQUEST_FIELDS);
 
-    for (const fieldState of requiredFieldStates) {
-      expect(fieldState.exists, `${fieldState.label} should exist`).toBe(true);
-      expect(fieldState.visible, `${fieldState.label} should be visible`).toBe(true);
-      expect(fieldState.required, `${fieldState.label} should be required`).toBe(true);
-    }
+      for (const fieldState of requiredFieldStates) {
+        expect(fieldState.exists, `${fieldState.label} should exist`).toBe(true);
+        expect(fieldState.visible, `${fieldState.label} should be visible`).toBe(true);
+        expect(fieldState.required, `${fieldState.label} should be required`).toBe(true);
+      }
 
-    const optionalFieldStates = await this.getServiceRequestFieldStates([
-      { label: 'Email', selector: 'input[aria-label="Email"]' },
-      { label: 'Closing date', selector: 'input[aria-label="Closing date"]' }
-    ]);
+      const optionalFieldStates = await this.getServiceRequestFieldStates([
+        { label: 'Email', selector: 'input[aria-label="Email"]' },
+        { label: 'Closing date', selector: 'input[aria-label="Closing date"]' }
+      ]);
 
-    for (const fieldState of optionalFieldStates) {
-      expect(fieldState.exists, `${fieldState.label} should exist`).toBe(true);
-      expect(fieldState.visible, `${fieldState.label} should be visible`).toBe(true);
-    }
+      for (const fieldState of optionalFieldStates) {
+        expect(fieldState.exists, `${fieldState.label} should exist`).toBe(true);
+        expect(fieldState.visible, `${fieldState.label} should be visible`).toBe(true);
+      }
+    });
   }
 
+  /** Validates us required field validation. */
   async validateUsRequiredFieldValidation(): Promise<void> {
-    const validationState = await this.serviceRequestForm.evaluate((form, fields) =>
-      ({
-        formIsValid: (form as HTMLFormElement).checkValidity(),
-        fields: fields.map((field) => {
-          const element = form.querySelector(field.selector) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+    await this.step('Validate US service request required-field validation', async () => {
+      const validationState = await this.serviceRequestForm.evaluate((form, fields) =>
+        ({
+          formIsValid: (form as HTMLFormElement).checkValidity(),
+          fields: fields.map((field) => {
+            const element = form.querySelector(field.selector) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
 
-          return {
-            label: field.label,
-            isValid: element?.checkValidity() ?? false
-          };
-        })
-      }),
-      REQUIRED_SERVICE_REQUEST_FIELDS
-    );
+            return {
+              label: field.label,
+              isValid: element?.checkValidity() ?? false
+            };
+          })
+        }),
+        REQUIRED_SERVICE_REQUEST_FIELDS
+      );
 
-    expect(validationState.formIsValid, 'Blank service request form should fail browser validation').toBe(false);
+      expect(validationState.formIsValid, 'Blank service request form should fail browser validation').toBe(false);
 
-    for (const field of validationState.fields) {
-      expect(field.isValid, `${field.label} should fail required validation when blank`).toBe(false);
-    }
+      for (const field of validationState.fields) {
+        expect(field.isValid, `${field.label} should fail required validation when blank`).toBe(false);
+      }
+    });
   }
 
+  /** Validates canada support sections. */
   async validateCanadaSupportSections(): Promise<void> {
-    const expectedHeadings = [
-      'Your Warranty Coverage Details',
-      'After Hours Emergency Support',
-      "We've Got You Covered:",
-      'Caring For Your Home'
-    ];
+    await this.step('Validate Canada support sections', async () => {
+      const expectedHeadings = [
+        'Your Warranty Coverage Details',
+        'After Hours Emergency Support',
+        "We've Got You Covered:",
+        'Caring For Your Home'
+      ];
 
-    for (const heading of expectedHeadings) {
-      await expect(
-        this.main.getByRole('heading', { name: new RegExp(this.escapeRegExp(heading), 'i') }).first(),
-        `${heading} should be present on the page`
-      ).toBeVisible({ timeout: 15000 });
-    }
+      for (const heading of expectedHeadings) {
+        await expect(
+          this.main.getByRole('heading', { name: new RegExp(escapeRegex(heading), 'i') }).first(),
+          `${heading} should be present on the page`
+        ).toBeVisible({ timeout: 15000 });
+      }
+    });
   }
 
+  /** Returns area buttons. */
   private getAreaButtons(): Locator {
     return this.main.locator('button[aria-label^="View contact details of"]:visible');
   }
 
+  /** Returns area button. */
   private getAreaButton(areaName: string): Locator {
     return this.getAreaButtons().filter({
-      hasText: new RegExp(`^\\s*${this.escapeRegExp(areaName)}\\s*$`, 'i')
+      hasText: new RegExp(`^\\s*${escapeRegex(areaName)}\\s*$`, 'i')
     }).first();
   }
 
+  /** Prevents production form submission during validation. */
   private async preventProdFormSubmission(): Promise<void> {
     await this.page.addInitScript(() => {
       const win = window as typeof window & {
@@ -350,6 +385,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
+  /** Returns service request field states. */
   private async getServiceRequestFieldStates(fields: readonly ServiceRequestField[]): Promise<Array<{
     label: string;
     exists: boolean;
@@ -370,9 +406,5 @@ export class CustomerCarePage extends BasePage {
       }),
       fields
     );
-  }
-
-  private escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }

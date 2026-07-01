@@ -14,6 +14,7 @@ export class Footer extends BasePage {
      Constructor – Initialize Locators
   ========================================================== */
 
+  /** Initializes this page object and its locators. */
   constructor(page: Page) {
     super(page);
 
@@ -27,18 +28,20 @@ export class Footer extends BasePage {
      Footer Validation
   ========================================================== */
 
+  /** Verifies footer loaded. */
   async verifyFooterLoaded(): Promise<void> {
+    await this.step('Verify footer loaded', async () => {
+      // Scroll footer into view
+      await this.footerSection.scrollIntoViewIfNeeded();
 
-    // Scroll footer into view
-    await this.footerSection.scrollIntoViewIfNeeded();
+      // Wait until visible
+      await this.footerSection.waitFor({ state: 'visible' });
 
-    // Wait until visible
-    await this.footerSection.waitFor({ state: 'visible' });
+      // Validate Privacy Policy link
+      await this.assertVisible(this.privacyPolicyLink, 'Privacy Policy footer link should be visible');
 
-    // Validate Privacy Policy link
-    await this.assertVisible(this.privacyPolicyLink, 'Privacy Policy footer link should be visible');
-
-    // Hover for stability check
-    await this.privacyPolicyLink.hover();
+      // Hover for stability check
+      await this.privacyPolicyLink.hover();
+    });
   }
 }

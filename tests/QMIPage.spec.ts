@@ -5,10 +5,12 @@
  */
 
 import { test } from '@playwright/test';
+import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { QMIPage } from '../pages/QMIPage';
 
 const location = getLocationConfig();
+const { envName } = getEnvConfig();
 
 test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   let qmiPage: QMIPage;
@@ -21,115 +23,126 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
     });
   });
 
-  test('QMI-001 | @smoke | Validate QMI hero content and URL', async () => {
-    await test.step('Verify exact QMI URL', async () => {
-      await qmiPage.verifyExactQmiUrl();
-    });
+  test.describe('Hero & Overview', () => {
+    test('TC-01 | @smoke | Validate QMI hero content and URL', async () => {
+      await test.step('Verify exact QMI URL', async () => {
+        await qmiPage.verifyExactQmiUrl();
+      });
 
-    await test.step('Verify hero section content', async () => {
-      await qmiPage.verifyHeroSection();
-    });
+      await test.step('Verify hero section content', async () => {
+        await qmiPage.verifyHeroSection();
+      });
 
-    await test.step('Verify QMI home facts and price', async () => {
-      await qmiPage.verifyHeroHomeFacts();
-    });
+      await test.step('Verify QMI home facts and price', async () => {
+        await qmiPage.verifyHeroHomeFacts();
+      });
 
-    await test.step('Verify price and Get Information CTA', async () => {
-      await qmiPage.verifyPriceOrCTA();
-    });
+      await test.step('Verify price and Get Information CTA', async () => {
+        await qmiPage.verifyPriceOrCTA();
+      });
 
-    await test.step('Verify Get Information CTA scrolls to the form section', async () => {
-      await qmiPage.verifyGetInformationScrollsToForm();
-    });
-  });
-
-  test('QMI-002 | @regression | Validate QMI page media and content sections', async () => {
-    await test.step('Verify image gallery functionality', async () => {
-      await qmiPage.verifyGallery();
-    });
-
-    await test.step('Verify floor plan section', async () => {
-      await qmiPage.verifyFloorPlan();
-    });
-
-    await test.step('Verify interactive floor plan section', async () => {
-      await qmiPage.verifyInteractiveFloorPlan();
-    });
-
-    await test.step('Verify community sitemap section', async () => {
-      await qmiPage.verifyCommunitySitemap();
+      await test.step('Verify Get Information CTA scrolls to the form section', async () => {
+        await qmiPage.verifyGetInformationScrollsToForm();
+      });
     });
   });
 
-  test('QMI-003 | @regression | Validate QMI home details and features', async () => {
-    await test.step('Verify home design details content', async () => {
-      await qmiPage.verifyHomeDesignDetails();
+  test.describe('Media & Content', () => {
+    test('TC-01 | @regression | Validate QMI page media and content sections', async () => {
+      await test.step('Verify image gallery functionality', async () => {
+        await qmiPage.verifyGallery();
+      });
+
+      await test.step('Verify floor plan section', async () => {
+        await qmiPage.verifyFloorPlan();
+      });
+
+      await test.step('Verify interactive floor plan section', async () => {
+        await qmiPage.verifyInteractiveFloorPlan();
+      });
+
+      await test.step('Verify community sitemap section', async () => {
+        await qmiPage.verifyCommunitySitemap();
+      });
     });
 
-    await test.step('Verify home features content', async () => {
-      await qmiPage.verifyHomeFeatures();
-    });
-  });
+    test('TC-02 | @regression | Validate QMI home details and features', async () => {
+      await test.step('Verify home design details content', async () => {
+        await qmiPage.verifyHomeDesignDetails();
+      });
 
-  test('QMI-004 | @regression | Validate QMI sales office and related homes', async () => {
-    await test.step('Verify sales office contact and community update form', async () => {
-      await qmiPage.verifySalesOfficeAndContactForm();
-    });
-  });
-
-  test('QMI-005 | @regression @qmi-related-log | Validate QMI related homes names and URLs', async () => {
-    await test.step('Verify related quick move-in homes section and log name with URL', async () => {
-      await qmiPage.verifyRelatedQuickMoveInHomes();
-    });
-  });
-
-  test('QMI-006 | @regression @qmi-form-fields | Validate QMI form fields', async () => {
-    await test.step('Verify QMI form fields are visible', async () => {
-      await qmiPage.validateQmiFormFields();
-    });
-  });
-
-  test('QMI-007 | @regression @qmi-form-required | Validate QMI form required field errors', async () => {
-    await test.step('Verify QMI form required field validation', async () => {
-      await qmiPage.validateQmiFormRequiredErrors();
+      await test.step('Verify home features content', async () => {
+        await qmiPage.verifyHomeFeatures();
+      });
     });
   });
 
-  test('QMI-008 | @regression @qmi-form-email | Validate QMI form invalid email validation', async () => {
-    await test.step('Verify QMI form invalid email validation', async () => {
-      await qmiPage.validateQmiFormInvalidEmail();
+  test.describe('Sales Office & Related Homes', () => {
+    test('TC-01 | @regression | Validate QMI sales office and related homes', async () => {
+      await test.step('Verify sales office contact and community update form', async () => {
+        await qmiPage.verifySalesOfficeAndContactForm();
+      });
+    });
+
+    test('TC-02 | @regression @qmi-related-log | Validate QMI related homes names and URLs', async () => {
+      await test.step('Verify related quick move-in homes section and log name with URL', async () => {
+        await qmiPage.verifyRelatedQuickMoveInHomes();
+      });
     });
   });
 
-  // test('@regression @STAGE @qmi-form-submit Validate QMI form successful submission', async () => {
-  //   test.skip(
-  //     envName === 'PROD',
-  //     'Skipping QMI form lead submission on PROD environment.'
-  //   );
+  test.describe('Lead Form', () => {
+    test('TC-01 | @regression @qmi-form-fields | Validate QMI form fields', async () => {
+      await test.step('Verify QMI form fields are visible', async () => {
+        await qmiPage.validateQmiFormFields();
+      });
+    });
 
-  //   await test.step('Submit QMI form with valid data and verify success message', async () => {
-  //     await qmiPage.verifyQmiFormSuccessSubmission();
-  //   });
-  // });
+    test('TC-02 | @regression @qmi-form-required | Validate QMI form required field errors', async () => {
+      await test.step('Verify QMI form required field validation', async () => {
+        await qmiPage.validateQmiFormRequiredErrors();
+      });
+    });
 
-  test('QMI-010 | @regression | Validate QMI mortgage popup functionality', async () => {
-    await test.step('Verify mortgage modal opens and closes', async () => {
-      await qmiPage.verifyMortgagePopup();
+    test('TC-03 | @regression @qmi-form-email | Validate QMI form invalid email validation', async () => {
+      await test.step('Verify QMI form invalid email validation', async () => {
+        await qmiPage.validateQmiFormInvalidEmail();
+      });
+    });
+
+    test.describe('QMI form submission', () => {
+      test.skip(
+        envName === 'PROD',
+        'Skipping QMI form lead submission on PROD environment.'
+      );
+
+      test('TC-01 | @regression @STAGE @qmi-form-submit | Validate QMI form successful submission', async () => {
+        await test.step('Submit QMI form with valid data and verify success message', async () => {
+          await qmiPage.verifyQmiFormSuccessSubmission();
+        });
+      });
     });
   });
 
-  test('QMI-011 | @regression @qmi-breadcrumb-log | Validate QMI breadcrumb names and URLs', async () => {
-    await test.step('Verify breadcrumb state and community match QMI path', async () => {
-      await qmiPage.verifyBreadcrumbNavigation();
+  test.describe('Mortgage & Navigation', () => {
+    test('TC-01 | @regression | Validate QMI mortgage popup functionality', async () => {
+      await test.step('Verify mortgage modal opens and closes', async () => {
+        await qmiPage.verifyMortgagePopup();
+      });
     });
 
-    await test.step('Verify breadcrumb links point to parent paths and current QMI label', async () => {
-      await qmiPage.verifyBreadcrumbLinks();
+    test('TC-02 | @regression @qmi-breadcrumb-log | Validate QMI breadcrumb names and URLs', async () => {
+      await test.step('Verify breadcrumb state and community match QMI path', async () => {
+        await qmiPage.verifyBreadcrumbNavigation();
+      });
+
+      await test.step('Verify breadcrumb links point to parent paths and current QMI label', async () => {
+        await qmiPage.verifyBreadcrumbLinks();
+      });
+    });
+
+    test('TC-03 | @regression | Validate QMI page image and video URLs return 200', async () => {
+      await qmiPage.validateImageAndVideoUrlsReturn200('QMI page');
     });
   });
-
-  test('QMI-012 | @regression | Validate QMI page image and video URLs return 200', async () => {
-    await qmiPage.validateImageAndVideoUrlsReturn200('QMI page');
-  });
-
 });

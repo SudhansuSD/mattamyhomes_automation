@@ -24,15 +24,15 @@ test.describe(`Community Detail - ${location.community}`, () => {
        UI VALIDATION
     ========================================================== */
     test.describe('UI Validation', () => {
-        test('COMMUNITY-001 | @regression | Validate community core sections', async () => {
+        test('TC-01 | @regression | Validate community core sections', async () => {
             await communityPage.verifyCoreSections();
         });
 
-        test('COMMUNITY-002 | @regression | Validate overview copy, address, market details, and key attributes', async () => {
+        test('TC-02 | @regression | Validate overview copy, address, market details, and key attributes', async () => {
             await communityPage.verifyOverviewAddressMarketAndAttributes(location.community);
         });
 
-        test('COMMUNITY-003 | @regression | Validate QMI card community name matches current community', async () => {
+        test('TC-03 | @regression | Validate QMI card community name matches current community', async () => {
             await communityPage.verifyQmiCardCommunityNameMatchesCurrentCommunity(location.community);
         });
     });
@@ -41,15 +41,15 @@ test.describe(`Community Detail - ${location.community}`, () => {
        NAVIGATION VALIDATION
     ========================================================== */
     test.describe('Navigation Validation', () => {
-        test('COMMUNITY-004 | @regression | Validate all navigation links', async () => {
+        test('TC-01 | @regression | Validate all navigation links', async () => {
             await communityPage.verifyAllNavigationLinks();
         });
 
-        test('COMMUNITY-005 | @regression | Validate available homes navigation', async () => {
+        test('TC-02 | @regression | Validate available homes navigation', async () => {
             await communityPage.verifyAvailableHomesNavigation();
         });
 
-        test('COMMUNITY-006 | @regression | Validate plans navigation', async () => {
+        test('TC-03 | @regression | Validate plans navigation', async () => {
             await communityPage.verifyPlansNavigation();
         });
     });
@@ -59,76 +59,77 @@ test.describe(`Community Detail - ${location.community}`, () => {
     ========================================================== */
 
     test.describe('Lead Form', () => {
-        
-        /**********Modal form Validation**********/
+        test.describe('Get Information Form Validation', () => {
+            test('TC-01 | @sanity | Validate Get Information CTA opens community lead form', async () => {
+                await communityPage.verifyGetInformationCtaOpensLeadForm();
+            });
 
-        test('COMMUNITY-007 | @sanity | Validate Get Information CTA opens community lead form', async () => {
-            await communityPage.verifyGetInformationCtaOpensLeadForm();
-        });
+            test('TC-02 | @sanity | Validate Get Information form required field errors', async () => {
+                await communityPage.validateGetInformationFormEmptyErrors();
+            });
 
-        test('COMMUNITY-008 | @sanity | Validate Get Information form required field errors', async () => {
-            await communityPage.validateGetInformationFormEmptyErrors();
-        });
+            test('TC-03 | @sanity | Validate Get Information form invalid email format', async () => {
+                await communityPage.validateGetInformationFormInvalidEmail();
+            });
 
-        test('COMMUNITY-009 | @sanity | Validate Get Information form invalid email format', async () => {
-            await communityPage.validateGetInformationFormInvalidEmail();
-        });
+            test.describe('Get Information form submission', () => {
+                test.skip(
+                    envName === 'PROD',
+                    'Skipping Get Information form lead submission on PROD environment.'
+                );
 
-        test.describe('Get Information form submission', () => {
-            test.skip(
-                envName === 'PROD',
-                'Skipping Get Information form lead submission on PROD environment.'
-            );
-
-            test('@regression @STAGE Validate Get Information form successful submission', async () => {
-                await communityPage.verifyGetInformationFormSuccessSubmission();
+                test('TC-01 | @regression @STAGE | Validate Get Information form successful submission', async () => {
+                    await communityPage.verifyGetInformationFormSuccessSubmission();
+                });
             });
         });
 
-        /**********Primary form Validation**********/
+        test.describe('Primary Form Validation', () => {
+            test('TC-01 | @sanity | Validate primary form required field errors', async () => {
+                await communityPage.validatePrimaryFormEmptyErrors();
+            });
 
-        test('COMMUNITY-011 | @sanity | Validate primary form required field errors', async () => {
-            await communityPage.validatePrimaryFormEmptyErrors();
-        });
+            test('TC-02 | @sanity | Validate primary form invalid email format', async () => {
+                await communityPage.validatePrimaryFormInvalidEmail();
+            });
 
-        test('COMMUNITY-012 | @sanity | Validate primary form invalid email format', async () => {
-            await communityPage.validatePrimaryFormInvalidEmail();
-        });
+            test.describe('Primary form submission', () => {
+                test.skip(
+                    envName === 'PROD',
+                    'Skipping primary form lead submission on PROD environment.'
+                );
 
-        test.describe('Primary form submission', () => {
-            test.skip(
-                envName === 'PROD',
-                'Skipping primary form lead submission on PROD environment.'
-            );
-
-            test('@regression @STAGE Validate primary form successful submission', async () => {
-                await communityPage.verifyPrimaryFormSuccessSubmission();
+                test('TC-01 | @regression @STAGE | Validate primary form successful submission', async () => {
+                    await communityPage.verifyPrimaryFormSuccessSubmission();
+                });
             });
         });
 
-        /**********Footer form Validation**********/
+        test.describe('Footer Form Validation', () => {
+            test('TC-01 | @sanity | Validate footer form required field errors', async () => {
+                await communityPage.validateFooterFormEmptyErrors();
+            });
 
-        test('COMMUNITY-014 | @sanity | Validate footer form required field errors', async () => {
-            await communityPage.validateFooterFormEmptyErrors();
-        });
+            test('TC-02 | @sanity | Validate footer form invalid email format', async () => {
+                await communityPage.validateFooterFormInvalidEmail();
+            });
 
-        test('COMMUNITY-015 | @sanity | Validate footer form invalid email format', async () => {
-            await communityPage.validateFooterFormInvalidEmail();
-        });
+            test.describe('Footer form submission', () => {
+                test.skip(
+                    envName === 'PROD',
+                    'Skipping footer form lead submission on PROD environment.'
+                );
 
-        test.describe('Footer form submission', () => {
-            test.skip(
-                envName === 'PROD',
-                'Skipping footer form lead submission on PROD environment.'
-            );
-
-            test('@regression @STAGE Validate footer form successful submission', async () => {
-                await communityPage.verifyFooterFormSuccessSubmission();
+                test('TC-01 | @regression @STAGE | Validate footer form successful submission', async () => {
+                    await communityPage.verifyFooterFormSuccessSubmission();
+                });
             });
         });
     });
 
-    test('COMMUNITY-017 | @regression | Validate community page image and video URLs return 200', async () => {
-        await communityPage.validateImageAndVideoUrlsReturn200('Community page');
+    test.describe('Media Validation', () => {
+        test('TC-01 | @regression | Validate community page image and video URLs return 200', async () => {
+            await communityPage.validateImageAndVideoUrlsReturn200('Community page');
+        });
     });
 });

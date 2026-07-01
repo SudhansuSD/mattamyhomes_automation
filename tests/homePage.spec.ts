@@ -11,180 +11,161 @@ import { HomePage } from '../pages/HomePage';
 
 const location = getLocationConfig();
 const condoCommunity =
-  'condoCommunity' in location ? location.condoCommunity : undefined;
+    'condoCommunity' in location ? location.condoCommunity : undefined;
 const condoPlan =
-  'condoPlan' in location ? location.condoPlan : undefined;
+    'condoPlan' in location ? location.condoPlan : undefined;
 const mpc =
-  'mpc' in location ? location.mpc?.[0] : undefined;
+    'mpc' in location ? location.mpc?.[0] : undefined;
 
 test.describe(`Mattamy Homes - ${location.country}`, () => {
 
-  let homePage: HomePage;
+    let homePage: HomePage;
 
-  /* ==========================================================
-     Common Navigation
-  ========================================================== */
-
-  test.beforeEach(async ({ page }) => {
-    homePage = new HomePage(page);
-
-    await test.step('Navigate to Home Page', async () => {
-      await homePage.navigate();
-    });
-  });
-
-  /* ==========================================================
-     Page Load
-  ========================================================== */
-
-  test('HOME-001 | @ci @smoke @regression @sanity | Home page should load correctly', async () => {
-
-    await test.step('Verify page loaded successfully', async () => {
-      await homePage.verifyPageLoaded();
-    });
-  });
-
-  test('HOME-002 | @smoke @regression | Validate hero video autoplay on Home Page', async ({ }, testInfo) => {
-    test.skip(testInfo.project.name !== 'Chrome', 'Hero autoplay video is validated on the desktop home page.');
-
-    await test.step('Verify hero video autoplays', async () => {
-      await homePage.validateHeroVideoAutoplay();
-    });
-  });
-
-  /* ==========================================================
-     Header Validation
-  ========================================================== */
-
-  test('HOME-003 | @smoke | Header navigation should be visible', async ({ page }) => {
-
-    const header = new Header(page);
-
-    await test.step('Verify header links are visible', async () => {
-      await header.verifyHeaderLinksVisible();
-    });
-    await test.step('Verify Find Your Home link and navigation', async () => {
-      await header.verifyFindYourHomeLinks();
-    });
-  });
-
-  /* ==========================================================
-     Footer Validation
-  ========================================================== */
-
-  test('HOME-004 | @smoke | Footer should be visible with Privacy Policy link', async ({ page }) => {
-
-    const footer = new Footer(page);
-
-    await test.step('Verify footer is loaded correctly', async () => {
-      await footer.verifyFooterLoaded();
-    });
-  });
-
-  /* ==========================================================
-     Search – Market
-  ========================================================== */
-
-  test('HOME-005 | @regression | Search market functionality should work', async () => {
-
-    await test.step('Search and validate by market', async () => {
-      await homePage.searchAndValidateByValue('market', location.market);
-    });
-  });
-
-  /* ==========================================================
-     Search – Community
-  ========================================================== */
-
-  test('HOME-006 | @regression | Search by community functionality should work', async () => {
-
-    await test.step('Search and validate by community', async () => {
-      await homePage.searchAndValidateByValue('community', location.community);
-    });
-  });
-  /* ==========================================================
-       Search – Condo Community
+    /* ==========================================================
+       Setup
     ========================================================== */
+    test.beforeEach(async ({ page }) => {
+        homePage = new HomePage(page);
 
-  test('HOME-007 | @regression | Search by condo community functionality should work', async () => {
-    test.skip(!condoCommunity, 'Condo community is not configured for this location');
-
-    await test.step('Search and validate by condo community', async () => {
-      await homePage.searchAndValidateByValue('condoCommunity', condoCommunity!);
+        await test.step('Navigate to Home Page', async () => {
+            await homePage.navigate();
+        });
     });
-  });
 
-  /* ==========================================================
-     Search – QMI
-  ========================================================== */
-
-  test('HOME-008 | @regression | Search by QMI home functionality should work', async () => {
-
-    await test.step('Search and validate by QMI address', async () => {
-      await homePage.searchAndValidateByValue('qmi', location.qmiAddress);
-    });
-  });
-
-  /* ==========================================================
-     Search – Plan
-  ========================================================== */
-
-  test('HOME-009 | @regression | Search by plan functionality should work', async () => {
-
-    await test.step('Search and validate by plan name', async () => {
-      await homePage.searchAndValidateByValue('plan', location.planName);
-    });
-  });
-  /* ==========================================================
-     Search – Condo Plan
-  ========================================================== */
-
-  test('HOME-010 | @regression | Search by condo plan functionality should work', async () => {
-    test.skip(!condoPlan?.name, 'Condo plan is not configured for this location');
-
-    await test.step('Search and validate by condo plan name', async () => {
-      await homePage.searchAndValidateByValue('condoPlan', condoPlan!.name!);
-    });
-  });
-  /* ==========================================================
-       Search – Master Planned Community (MPC)
+    /* ==========================================================
+       PAGE LOAD
     ========================================================== */
-  test('HOME-011 | @regression | Search by MPC functionality should work', async () => {
-    test.skip(!mpc?.name, 'MPC is not configured for this location');
+    test.describe('Page Load', () => {
+        test('TC-01 | @ci @smoke @regression @sanity | Home page should load correctly', async () => {
+            await test.step('Verify page loaded successfully', async () => {
+                await homePage.verifyPageLoaded();
+            });
+        });
 
-    await test.step('Search and validate by MPC', async () => {
-      await homePage.searchAndValidateByValue('mpc', mpc!.name);
+        test('TC-02 | @smoke @regression | Validate hero video autoplay on Home Page', async ({ }, testInfo) => {
+            test.skip(testInfo.project.name !== 'Chrome', 'Hero autoplay video is validated on the desktop home page.');
+
+            await test.step('Verify hero video autoplays', async () => {
+                await homePage.validateHeroVideoAutoplay();
+            });
+        });
     });
-  });
-  /* ==========================================================
-       Validate Market Cards on Home Page
+
+    /* ==========================================================
+       HEADER VALIDATION
     ========================================================== */
-  test('HOME-012 | @regression | Validate market Cards on Home Page', async ({ page }) => {
-    // Validate market cards are visible and correctly linked
-    await homePage.validateMarketCards();
+    test.describe('Header Validation', () => {
+        test('TC-01 | @smoke | Header navigation should be visible', async ({ page }) => {
+            const header = new Header(page);
 
-  });
-
-  test('HOME-013 | @regression | Validate home search no-match autocomplete behavior', async () => {
-    await test.step('Verify no-match search state', async () => {
-      await homePage.validateSearchAutocompleteNoMatchState();
+            await test.step('Verify header links are visible', async () => {
+                await header.verifyHeaderLinksVisible();
+            });
+            await test.step('Verify Find Your Home link and navigation', async () => {
+                await header.verifyFindYourHomeLinks();
+            });
+        });
     });
-  });
 
-  test('HOME-014 | @regression | Validate cookie banner persistence after reload', async () => {
-    await test.step('Verify cookie consent persists', async () => {
-      await homePage.validateCookieBannerPersistence();
+    /* ==========================================================
+       FOOTER VALIDATION
+    ========================================================== */
+    test.describe('Footer Validation', () => {
+        test('TC-01 | @smoke | Footer should be visible with Privacy Policy link', async ({ page }) => {
+            const footer = new Footer(page);
+
+            await test.step('Verify footer is loaded correctly', async () => {
+                await footer.verifyFooterLoaded();
+            });
+        });
     });
-  });
 
-  test('HOME-015 | @regression | Validate market card images and links', async () => {
-    await test.step('Verify market card media and link integrity', async () => {
-      await homePage.validateMarketCardMediaAndLinks();
+    /* ==========================================================
+       SEARCH VALIDATION
+    ========================================================== */
+    test.describe('Search', () => {
+        test('TC-01 | @regression | Search market functionality should work', async () => {
+            await test.step('Search and validate by market', async () => {
+                await homePage.searchAndValidateByValue('market', location.market);
+            });
+        });
+
+        test('TC-02 | @regression | Search by community functionality should work', async () => {
+            await test.step('Search and validate by community', async () => {
+                await homePage.searchAndValidateByValue('community', location.community);
+            });
+        });
+
+        test('TC-03 | @regression | Search by condo community functionality should work', async () => {
+            test.skip(!condoCommunity, 'Condo community is not configured for this location');
+
+            await test.step('Search and validate by condo community', async () => {
+                await homePage.searchAndValidateByValue('condoCommunity', condoCommunity!);
+            });
+        });
+
+        test('TC-04 | @regression | Search by QMI home functionality should work', async () => {
+            await test.step('Search and validate by QMI address', async () => {
+                await homePage.searchAndValidateByValue('qmi', location.qmiAddress);
+            });
+        });
+
+        test('TC-05 | @regression | Search by plan functionality should work', async () => {
+            await test.step('Search and validate by plan name', async () => {
+                await homePage.searchAndValidateByValue('plan', location.planName);
+            });
+        });
+
+        test('TC-06 | @regression | Search by condo plan functionality should work', async () => {
+            test.skip(!condoPlan?.name, 'Condo plan is not configured for this location');
+
+            await test.step('Search and validate by condo plan name', async () => {
+                await homePage.searchAndValidateByValue('condoPlan', condoPlan!.name!);
+            });
+        });
+
+        test('TC-07 | @regression | Search by MPC functionality should work', async () => {
+            test.skip(!mpc?.name, 'MPC is not configured for this location');
+
+            await test.step('Search and validate by MPC', async () => {
+                await homePage.searchAndValidateByValue('mpc', mpc!.name);
+            });
+        });
     });
-  });
 
-  test('HOME-016 | @regression | Validate home page image and video URLs return 200', async () => {
-    await homePage.validateImageAndVideoUrlsReturn200('Home page');
-  });
+    /* ==========================================================
+       HOME PAGE CONTENT VALIDATION
+    ========================================================== */
+    test.describe('Home Page Content Validation', () => {
+        test('TC-01 | @regression | Validate market cards on Home Page', async () => {
+            await test.step('Verify market cards are visible and correctly linked', async () => {
+                await homePage.validateMarketCards();
+            });
+        });
+
+        test('TC-02 | @regression | Validate market card images and links', async () => {
+            await test.step('Verify market card media and link integrity', async () => {
+                await homePage.validateMarketCardMediaAndLinks();
+            });
+        });
+
+        test('TC-03 | @regression | Validate home search no-match autocomplete behavior', async () => {
+            await test.step('Verify no-match search state', async () => {
+                await homePage.validateSearchAutocompleteNoMatchState();
+            });
+        });
+
+        test('TC-04 | @regression | Validate cookie banner persistence after reload', async () => {
+            await test.step('Verify cookie consent persists', async () => {
+                await homePage.validateCookieBannerPersistence();
+            });
+        });
+
+        test('TC-05 | @regression | Validate home page image and video URLs return 200', async () => {
+            await test.step('Verify home page media URLs return 200', async () => {
+                await homePage.validateImageAndVideoUrlsReturn200('Home page');
+            });
+        });
+    });
 
 });

@@ -1,12 +1,20 @@
 const assert = require('node:assert/strict');
 const { MobileWebHomePage } = require('./MobileWebHomePage');
-const { getLocationConfig } = require('../../config/locations');
+const { getEnvConfig } = require('../../config/environments/envConfig');
+const { getLocationConfig } = require('../../config/locations/locationConfig');
+const {
+  assertLeadFormSubmissionSuccess,
+  fillInvalidEmailLeadFormByIndex,
+  fillValidLeadFormByIndex,
+  getLeadFormErrorSnapshot,
+  installVisibleLeadFormFinder,
+  submitVisibleLeadFormByIndex,
+} = require('../../utils/mobileLeadFormHelper');
+
+const COMMUNITY_FORM_GLOBAL = '__getVisibleCommunityForms';
 
 class MobileWebCommunityPage extends MobileWebHomePage {
-  async openCommunity(location = getLocationConfig()) {
-    await this.open(this.getCommunityPath(location));
-  }
-
+  /** Verifies search by community. */
   async verifySearchByCommunity(expectedCommunity = getLocationConfig().community) {
     await this.waitForPageReady();
     await this.waitForBodyText(
@@ -20,63 +28,8 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     this.assertNoErrorPage(snapshot);
   }
 
-  async verifyBreadcrumbAndContactBar(expectedCommunity = getLocationConfig().community) {
-    await this.waitForBodyText(
-      new RegExp(this.escapeRegExp(expectedCommunity), 'i'),
-      `Expected community page to include ${expectedCommunity}`
-    );
-    await this.closeCookiePreferencesIfVisible();
 
-    const snapshot = await this.driver.execute(() => {
-      const isVisible = (element) => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
-
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
-      };
-      const breadcrumb = document.querySelector(
-        '[aria-label*="breadcrumb" i], nav[aria-label*="Breadcrumb" i], .breadcrumb, [class*="breadcrumb" i]'
-      );
-      const contactBar = Array.from(document.querySelectorAll('a, button, section, div')).find((element) => {
-        const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
-        const href = element.getAttribute('href') || '';
-
-        return (
-          isVisible(element) &&
-          !/cookie preferences|strictly necessary cookies|performance cookies/i.test(text) &&
-          /contact|call|schedule|visit|directions|sales|\d{3}[-.\s]\d{3}[-.\s]\d{4}/i.test(`${text} ${href}`)
-        );
-      });
-      const breadcrumbText = breadcrumb?.textContent?.replace(/\s+/g, ' ').trim() || '';
-      const pathSegments = window.location.pathname.split('/').filter(Boolean);
-
-      return {
-        breadcrumbText,
-        hasBreadcrumbContext:
-          Boolean(breadcrumbText) ||
-          (pathSegments.length >= 4 && /mattamy|new homes|homes/i.test(document.title || '')),
-        hasContactBar: Boolean(contactBar),
-        contactText: contactBar?.textContent?.replace(/\s+/g, ' ').trim() || '',
-      };
-    });
-
-    assert.equal(snapshot.hasBreadcrumbContext, true, 'Expected community page breadcrumb or URL hierarchy context on mobile');
-    if (snapshot.breadcrumbText) {
-      assert.match(
-        snapshot.breadcrumbText,
-        /home|communities|community|mattamy/i,
-        `Expected breadcrumb context, received: ${snapshot.breadcrumbText}`
-      );
-    }
-    assert.match(
-      await this.getBodyText(),
-      new RegExp(this.escapeRegExp(expectedCommunity), 'i'),
-      'Expected current community name on community page'
-    );
-    assert.equal(snapshot.hasContactBar, true, 'Expected community page mobile contact/action bar');
-    assert.match(snapshot.contactText, /contact|call|schedule|visit|directions|sales/i);
-  }
-
+  /** Verifies core sections. */
   async verifyCoreSections() {
     await this.waitForBodyText(
       /available homes|quick move-in|map|contact|sales|directions|amenities|overview/i,
@@ -102,6 +55,7 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
+  /** Verifies overview address market and attributes. */
   async verifyOverviewAddressMarketAndAttributes(expectedCommunity = getLocationConfig().community) {
     await this.waitForBodyText(
       new RegExp(this.escapeRegExp(expectedCommunity), 'i'),
@@ -146,6 +100,7 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     assert.equal(snapshot.hasAttributes, true, 'Expected community key attributes on mobile');
   }
 
+  /** Verifies QMI card community name matches current community. */
   async verifyQmiCardCommunityNameMatchesCurrentCommunity(expectedCommunity = getLocationConfig().community) {
     await this.waitForBodyText(
       new RegExp(this.escapeRegExp(expectedCommunity), 'i'),
@@ -184,7 +139,7 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     });
 
     if (result.skipped) {
-      console.log(`${result.reason} - skipping QMI community-name validation`);
+      this.logSkip(`${result.reason} - skipping QMI community-name validation`);
       return;
     }
 
@@ -195,6 +150,7 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
+  /** Verifies all navigation links. */
   async verifyAllNavigationLinks() {
     await this.waitForPageReady();
 
@@ -208,11 +164,12 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     assert.deepEqual(invalidLinks, [], 'Expected all community navigation links to have href values');
   }
 
+  /** Verifies available homes navigation. */
   async verifyAvailableHomesNavigation() {
     const result = await this.clickFirstCommunityLink(/quick-move-in|available-home|\d{1,}-/i, 'available home');
 
     if (result.skipped) {
-      console.log(`${result.reason} - skipping available homes navigation`);
+      this.logSkip(`${result.reason} - skipping available homes navigation`);
       return;
     }
 
@@ -221,13 +178,14 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     await this.waitForPageReady();
   }
 
+  /** Verifies plans navigation. */
   async verifyPlansNavigation() {
     const location = getLocationConfig();
     const planPattern = new RegExp(this.escapeRegExp(location.expectedPlanUrlPart || location.planName), 'i');
     const result = await this.clickFirstCommunityLink(planPattern, 'plan');
 
     if (result.skipped) {
-      console.log(`${result.reason} - skipping plans navigation`);
+      this.logSkip(`${result.reason} - skipping plans navigation`);
       return;
     }
 
@@ -236,6 +194,7 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     await this.waitForPageReady();
   }
 
+  /** Clicks first community link. */
   async clickFirstCommunityLink(pattern, label) {
     const clicked = await this.driver.execute(
       ({ source, flags, label }) => {
@@ -271,163 +230,115 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     );
 
     if (!clicked.skipped) {
+      this.logScriptClick(`${label} card`);
       await this.waitForPageReady();
+      this.logOpen(`${label} detail`, await this.driver.getUrl());
     }
 
     return clicked;
   }
 
-  async validateEmptyFormErrors() {
-    await this.validatePrimaryFormEmptyErrors();
-  }
-
+  /** Validates primary form empty errors. */
   async validatePrimaryFormEmptyErrors() {
     await this.waitForCommunityForm();
     await this.submitVisibleFormByIndex(0);
-    const errorSnapshot = await this.driver.execute(() => {
-      const text = document.body?.innerText || '';
-      const invalidFields = document.querySelectorAll(':invalid, [aria-invalid="true"], .field-validation-error');
-
-      return {
-        errorText: text,
-        invalidFieldCount: invalidFields.length,
-      };
-    });
+    const errorSnapshot = await getLeadFormErrorSnapshot(this.driver);
 
     assert.ok(
-      /required|invalid|error|please enter|field is required/i.test(errorSnapshot.errorText) ||
+      /required|invalid|error|please enter|field is required/i.test(errorSnapshot.text) ||
         errorSnapshot.invalidFieldCount > 0,
       'Expected required field validation after submitting an empty community form'
     );
   }
 
+  /** Validates footer form empty errors. */
   async validateFooterFormEmptyErrors() {
     await this.waitForCommunityForm();
     await this.submitVisibleFormByIndex(1);
-    const errorSnapshot = await this.driver.execute(() => {
-      const text = document.body?.innerText || '';
-      const invalidFields = document.querySelectorAll(':invalid, [aria-invalid="true"], .field-validation-error');
-
-      return {
-        errorText: text,
-        invalidFieldCount: invalidFields.length,
-      };
-    });
+    const errorSnapshot = await getLeadFormErrorSnapshot(this.driver);
 
     assert.ok(
-      /required|invalid|error|please enter|field is required/i.test(errorSnapshot.errorText) ||
+      /required|invalid|error|please enter|field is required/i.test(errorSnapshot.text) ||
         errorSnapshot.invalidFieldCount > 0,
       'Expected required field validation after submitting footer community form'
     );
   }
 
-  async validateInvalidEmail() {
-    await this.validatePrimaryFormInvalidEmail();
-  }
-
+  /** Validates primary form invalid email. */
   async validatePrimaryFormInvalidEmail() {
     await this.waitForCommunityForm();
     await this.fillInvalidEmailFormByIndex(0);
-    const errorSnapshot = await this.driver.execute(() => {
-      const text = document.body?.innerText || '';
-      const email = document.querySelector('input[type="email"], input[name*="email" i], input[id*="email" i]');
-
-      return {
-        errorText: text,
-        emailValidationMessage: email?.validationMessage || '',
-        emailAriaInvalid: email?.getAttribute('aria-invalid') || '',
-      };
-    });
+    const errorSnapshot = await getLeadFormErrorSnapshot(this.driver);
 
     assert.ok(
       /email|valid domain|invalid|please enter/i.test(
-        `${errorSnapshot.errorText} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`
+        `${errorSnapshot.text} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`
       ),
       'Expected invalid email validation on the community form'
     );
   }
 
+  /** Validates footer form invalid email. */
   async validateFooterFormInvalidEmail() {
     await this.waitForCommunityForm();
     await this.fillInvalidEmailFormByIndex(1);
-    const errorSnapshot = await this.driver.execute(() => {
-      const text = document.body?.innerText || '';
-      const email = document.querySelector('input[type="email"], input[name*="email" i], input[id*="email" i]');
-
-      return {
-        errorText: text,
-        emailValidationMessage: email?.validationMessage || '',
-        emailAriaInvalid: email?.getAttribute('aria-invalid') || '',
-      };
-    });
+    const errorSnapshot = await getLeadFormErrorSnapshot(this.driver);
 
     assert.ok(
       /email|valid domain|invalid|please enter/i.test(
-        `${errorSnapshot.errorText} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`
+        `${errorSnapshot.text} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`
       ),
       'Expected invalid email validation on the footer community form'
     );
   }
 
+  /** Verifies primary form success submission. */
+  async verifyPrimaryFormSuccessSubmission() {
+    await this.submitCommunityFormSuccessfully(0, 'primary community form');
+  }
+
+  /** Verifies footer form success submission. */
+  async verifyFooterFormSuccessSubmission() {
+    await this.submitCommunityFormSuccessfully(1, 'footer community form');
+  }
+
+  /** Submits community form successfully. */
+  async submitCommunityFormSuccessfully(formIndex, formName) {
+    const { envName } = getEnvConfig();
+
+    assert.notEqual(envName, 'PROD', `${formName} success submission must not run on PROD`);
+
+    await this.waitForCommunityForm();
+    await this.fillValidFormByIndex(formIndex);
+    await this.assertSubmissionSuccess(`Expected successful submission confirmation for ${formName}`);
+  }
+
+  /** Submits visible form by index. */
   async submitVisibleFormByIndex(formIndex = 0) {
-    const submitted = await this.driver.execute((formIndex) => {
-      const form = window.__getVisibleCommunityForms?.()[formIndex];
-
-      if (!form) {
-        return false;
-      }
-
-      form.scrollIntoView({ block: 'center', inline: 'center' });
-      const submit = form.querySelector('button[type="submit"], input[type="submit"], button');
-      submit?.click();
-      return true;
-    }, formIndex);
-
+    const submitted = await submitVisibleLeadFormByIndex(this.driver, COMMUNITY_FORM_GLOBAL, formIndex);
     assert.equal(submitted, true, `Expected visible community form at index ${formIndex}`);
-    await this.driver.pause(1500);
   }
 
-  async submitEmptyVisibleForm() {
-    await this.submitVisibleFormByIndex(0);
-  }
-
+  /** Fills invalid email form by index. */
   async fillInvalidEmailFormByIndex(formIndex = 0) {
-    const filled = await this.driver.execute((formIndex) => {
-      const form = window.__getVisibleCommunityForms?.()[formIndex] || window.__getVisibleCommunityForms?.()[0];
-
-      if (!form) {
-        return false;
-      }
-
-      const fill = (selector, value) => {
-        const input = form.querySelector(selector);
-        if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
-          input.focus();
-          input.value = value;
-          input.dispatchEvent(new Event('input', { bubbles: true }));
-          input.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      };
-
-      form.scrollIntoView({ block: 'center', inline: 'center' });
-      fill('input[name*="first" i], input[id*="first" i], input[placeholder*="First" i]', 'Test');
-      fill('input[name*="last" i], input[id*="last" i], input[placeholder*="Last" i]', 'User');
-      fill('input[type="email"], input[name*="email" i], input[id*="email" i]', 'user@domain.c');
-      fill('input[type="tel"], input[name*="phone" i], input[id*="phone" i]', '123456');
-
-      const submit = form.querySelector('button[type="submit"], input[type="submit"], button');
-      submit?.click();
-      return true;
-    }, formIndex);
-
+    const filled = await fillInvalidEmailLeadFormByIndex(this.driver, COMMUNITY_FORM_GLOBAL, formIndex);
     assert.equal(filled, true, `Expected community form at index ${formIndex} to validate invalid email`);
-    await this.driver.pause(1500);
   }
 
-  async fillInvalidEmailForm() {
-    await this.fillInvalidEmailFormByIndex(0);
+  /** Fills valid form by index. */
+  async fillValidFormByIndex(formIndex = 0) {
+    const submitted = await fillValidLeadFormByIndex(this.driver, COMMUNITY_FORM_GLOBAL, formIndex, {
+      emailPrefix: 'ssdas_community_mobile',
+    });
+    assert.equal(submitted, true, `Expected community form at index ${formIndex} to submit valid data`);
   }
 
+  /** Asserts submission success. */
+  async assertSubmissionSuccess(message) {
+    await assertLeadFormSubmissionSuccess(this.driver, message);
+  }
+
+  /** Waits for community form. */
   async waitForCommunityForm() {
     await this.waitForBodyText(
       /sign up for community updates|first name|last name|email|zip\/postal code|submit/i,
@@ -435,41 +346,8 @@ class MobileWebCommunityPage extends MobileWebHomePage {
       45000
     );
     await this.closeCookiePreferencesIfVisible();
-    await this.driver.execute(() => {
-      window.__getVisibleCommunityForms = () => {
-        const isVisible = (element) => {
-          const style = window.getComputedStyle(element);
-          const rect = element.getBoundingClientRect();
-
-          return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
-        };
-        const isLeadForm = (form) =>
-          isVisible(form) &&
-          form.querySelector('input, select, textarea') &&
-          form.querySelector('button, input[type="submit"]') &&
-          /submit|first name|last name|email|zip|postal|community updates/i.test(form.textContent || '');
-        const uniqueBySubmitButton = (forms) => {
-          const seenButtons = new Set();
-
-          return forms.filter((form) => {
-            const submit = form.querySelector('button[type="submit"], input[type="submit"], button');
-
-            if (!submit || seenButtons.has(submit)) {
-              return false;
-            }
-
-            seenButtons.add(submit);
-            return true;
-          });
-        };
-        const actualForms = Array.from(document.querySelectorAll('form')).filter(isLeadForm);
-
-        if (actualForms.length) {
-          return uniqueBySubmitButton(actualForms);
-        }
-
-        return uniqueBySubmitButton(Array.from(document.querySelectorAll('section, div')).filter(isLeadForm));
-      };
+    await installVisibleLeadFormFinder(this.driver, {
+      globalName: COMMUNITY_FORM_GLOBAL,
     });
   }
 }

@@ -9,6 +9,13 @@ import {
     toTitleCase
 } from '../utils/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
+import {
+    expectFieldVisibleIfPresent,
+    fillLeadFormFields,
+    getInvalidLeadData,
+    getSubmitButton,
+    getValidLeadData
+} from '../utils/leadFormHelper';
 
 /* ==========================================================
     QMI Page Object Model
@@ -49,6 +56,7 @@ export class QMIPage extends SearchablePage {
     readonly relatedQmiCards: Locator;
     readonly successDialogModal: Locator;
 
+    /** Initializes this page object and its locators. */
     constructor(page: Page) {
         super(page);
         const mortgageSectionTitle = page.getByText('Mortgage Calculator', {
@@ -140,10 +148,12 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: QMI detail page has loaded with heading and breadcrumb. */
     async verifyPageLoaded(): Promise<void> {
-        await expect(this.heading).toBeVisible({
-            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        await this.step('Verify QMI detail page loaded', async () => {
+            await expect(this.heading).toBeVisible({
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
+            await expect(this.breadcrumb).toBeVisible();
         });
-        await expect(this.breadcrumb).toBeVisible();
     }
 
     /* ==========================================================
@@ -152,21 +162,25 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: home page QMI search redirects to the expected QMI detail page. */
     async verifySearchByQMI(expectedAddress: string): Promise<void> {
-        await this.waitForPageReady();
-        await this.dismissPromoPopupIfPresent();
-        await expect(this.page).toHaveURL(QMIPage.QMI_URL_PATTERN);
-        await expect(this.heading).toBeVisible({
-            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        await this.step(`Verify QMI search redirects to '${expectedAddress}'`, async () => {
+            await this.waitForPageReady();
+            await this.dismissPromoPopupIfPresent();
+            await expect(this.page).toHaveURL(QMIPage.QMI_URL_PATTERN);
+            await expect(this.heading).toBeVisible({
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
+            await expect(this.heading).toContainText(
+                new RegExp(escapeRegex(expectedAddress), 'i')
+            );
         });
-        await expect(this.heading).toContainText(
-            new RegExp(escapeRegex(expectedAddress), 'i')
-        );
     }
 
     /** Verify: current QMI URL path exactly matches the configured QMI path. */
     async verifyExactQmiUrl(): Promise<void> {
-        const currentPath = new URL(this.page.url()).pathname;
-        expect(currentPath).toBe(location.qmiPath);
+        await this.step('Verify QMI URL path matches configured path', async () => {
+            const currentPath = new URL(this.page.url()).pathname;
+            expect(currentPath).toBe(location.qmiPath);
+        });
     }
 
     /* ==========================================================
@@ -175,35 +189,40 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: hero section, heading, configured address, and summary stats are visible. */
     async verifyHeroSection(): Promise<void> {
-        await expect(this.heroSection).toBeVisible({
-            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        await this.step('Verify QMI hero section, heading & stats', async () => {
+            await expect(this.heroSection).toBeVisible({
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
+            await expect(this.heading).toBeVisible({
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
+            await expect(this.heading).toContainText(
+                new RegExp(escapeRegex(location.qmiAddress), 'i'),
+                { timeout: QMIPage.PAGE_LOAD_TIMEOUT }
+            );
+            await expect(this.propertyStats).toBeVisible();
         });
-        await expect(this.heading).toBeVisible({
-            timeout: QMIPage.PAGE_LOAD_TIMEOUT
-        });
-        await expect(this.heading).toContainText(
-            new RegExp(escapeRegex(location.qmiAddress), 'i'),
-            { timeout: QMIPage.PAGE_LOAD_TIMEOUT }
-        );
-        await expect(this.propertyStats).toBeVisible();
-       
     }
 
     /** Verify: breadcrumb container is visible. */
     async verifyBreadcrumb(): Promise<void> {
-        await expect(this.breadcrumb).toBeVisible();
+        await this.step('Verify breadcrumb is visible', async () => {
+            await expect(this.breadcrumb).toBeVisible();
+        });
     }
 
     /** Verify: hero displays beds, baths, garage or half bath, square footage, and price. */
     async verifyHeroHomeFacts(): Promise<void> {
-        await expect(this.heroDetails).toBeVisible({
-            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        await this.step('Verify hero home facts (beds, baths, sq.ft., price)', async () => {
+            await expect(this.heroDetails).toBeVisible({
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
+            await expect(this.heroDetails).toContainText(/\d+\s+Beds?/i);
+            await expect(this.heroDetails).toContainText(/\d+\s+Baths?/i);
+            await expect(this.heroDetails).toContainText(/Half Bath|Garage/i);
+            await expect(this.heroDetails).toContainText(/[\d,]+\s+Sq\.?\s*Ft\.?/i);
+            await expect(this.heroDetails).toContainText(/\$[\d,]+/);
         });
-        await expect(this.heroDetails).toContainText(/\d+\s+Beds?/i);
-        await expect(this.heroDetails).toContainText(/\d+\s+Baths?/i);
-        await expect(this.heroDetails).toContainText(/Half Bath|Garage/i);
-        await expect(this.heroDetails).toContainText(/[\d,]+\s+Sq\.?\s*Ft\.?/i);
-        await expect(this.heroDetails).toContainText(/\$[\d,]+/);
     }
 
     /* ==========================================================
@@ -212,17 +231,21 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: price section and Get Information CTA are visible. */
     async verifyPriceOrCTA(): Promise<void> {
-        await expect(this.priceSection.first()).toBeVisible();
-        await expect(this.getInformationCta).toBeVisible();
+        await this.step('Verify price section & Get Information CTA', async () => {
+            await expect(this.priceSection.first()).toBeVisible();
+            await expect(this.getInformationCta).toBeVisible();
+        });
     }
 
     /** Verify: Get Information CTA scrolls the user to the QMI form section. */
     async verifyGetInformationScrollsToForm(): Promise<void> {
-        await expect(this.getInformationCta).toBeVisible();
-        await expect(this.formSection).toBeAttached();
-        await this.getInformationCta.scrollIntoViewIfNeeded();
-        await this.getInformationCta.click();
-        await expect(this.formSection).toBeInViewport();
+        await this.step('Verify Get Information CTA scrolls to form', async () => {
+            await expect(this.getInformationCta).toBeVisible();
+            await expect(this.formSection).toBeAttached();
+            await this.getInformationCta.scrollIntoViewIfNeeded();
+            await this.getInformationCta.click();
+            await expect(this.formSection).toBeInViewport();
+        });
     }
 
     /* ==========================================================
@@ -231,9 +254,11 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: gallery is visible and gallery navigation buttons work when present. */
     async verifyGallery(): Promise<void> {
-        await expect(this.gallerySection.first()).toBeVisible();
-        await clickIfVisible(this.nextGalleryBtn);
-        await clickIfVisible(this.prevGalleryBtn);
+        await this.step('Verify gallery & navigation buttons', async () => {
+            await expect(this.gallerySection.first()).toBeVisible();
+            await clickIfVisible(this.nextGalleryBtn);
+            await clickIfVisible(this.prevGalleryBtn);
+        });
     }
 
     /* ==========================================================
@@ -242,42 +267,48 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: floor plan section is visible when available. */
     async verifyFloorPlan(): Promise<void> {
-        const floorPlanSection = await isLocatorVisible(this.interactiveFloorPlanSection)
-            ? this.interactiveFloorPlanSection
-            : this.floorPlanSection;
+        await this.step('Verify floor plan section when available', async () => {
+            const floorPlanSection = await isLocatorVisible(this.interactiveFloorPlanSection)
+                ? this.interactiveFloorPlanSection
+                : this.floorPlanSection;
 
-        if (await isLocatorVisible(floorPlanSection)) {
-            await floorPlanSection.scrollIntoViewIfNeeded();
-            await expect(floorPlanSection).toBeVisible();
-        }
+            if (await isLocatorVisible(floorPlanSection)) {
+                await floorPlanSection.scrollIntoViewIfNeeded();
+                await expect(floorPlanSection).toBeVisible();
+            }
+        });
     }
 
     /** Verify: interactive floor plan section content when available. */
     async verifyInteractiveFloorPlan(): Promise<void> {
-        if (!(await isLocatorVisible(this.interactiveFloorPlanSection))) {
-            console.log('Interactive floorplan section not found - skipping validation');
-            return;
-        }
+        await this.step('Verify interactive floor plan when available', async () => {
+            if (!(await isLocatorVisible(this.interactiveFloorPlanSection))) {
+                await this.reportValue('Interactive floorplan section not found - skipping validation');
+                return;
+            }
 
-        await this.interactiveFloorPlanSection.scrollIntoViewIfNeeded();
-        await expect(this.interactiveFloorPlanSection).toBeVisible();
-        await expect(this.interactiveFloorPlanSection).toContainText(
-            /Interactive Floorplan|floorplan/i
-        );
+            await this.interactiveFloorPlanSection.scrollIntoViewIfNeeded();
+            await expect(this.interactiveFloorPlanSection).toBeVisible();
+            await expect(this.interactiveFloorPlanSection).toContainText(
+                /Interactive Floorplan|floorplan/i
+            );
+        });
     }
 
     /** Verify: community sitemap section content when available. */
     async verifyCommunitySitemap(): Promise<void> {
-        if (!(await isLocatorVisible(this.communitySitemapSection))) {
-            console.log('Community sitemap section not found - skipping validation');
-            return;
-        }
+        await this.step('Verify community sitemap when available', async () => {
+            if (!(await isLocatorVisible(this.communitySitemapSection))) {
+                await this.reportValue('Community sitemap section not found - skipping validation');
+                return;
+            }
 
-        await this.communitySitemapSection.scrollIntoViewIfNeeded();
-        await expect(this.communitySitemapSection).toBeVisible();
-        await expect(this.communitySitemapSection).toContainText(/Explore the community/i);
-        await expect(this.communitySitemapSection.locator('button, svg, canvas').first())
-            .toBeVisible();
+            await this.communitySitemapSection.scrollIntoViewIfNeeded();
+            await expect(this.communitySitemapSection).toBeVisible();
+            await expect(this.communitySitemapSection).toContainText(/Explore the community/i);
+            await expect(this.communitySitemapSection.locator('button, svg, canvas').first())
+                .toBeVisible();
+        });
     }
 
     /* ==========================================================
@@ -286,49 +317,55 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: home design details section has meaningful content. */
     async verifyHomeDesignDetails(): Promise<void> {
-        await this.homeDesignDetailsSection.scrollIntoViewIfNeeded();
-        await expect(this.homeDesignDetailsSection).toBeVisible({
-            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        await this.step('Verify home design details content', async () => {
+            await this.homeDesignDetailsSection.scrollIntoViewIfNeeded();
+            await expect(this.homeDesignDetailsSection).toBeVisible({
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
+            await expect(this.homeDesignDetailsSection).toContainText(/Home Design Details/i);
+            const detailsText = await this.homeDesignDetailsSection.innerText();
+            expect(
+                detailsText.replace(/Home Design Details/i, '').trim().length,
+                'Home Design Details should include rendered content'
+            ).toBeGreaterThan(0);
         });
-        await expect(this.homeDesignDetailsSection).toContainText(/Home Design Details/i);
-        const detailsText = await this.homeDesignDetailsSection.innerText();
-        expect(
-            detailsText.replace(/Home Design Details/i, '').trim().length,
-            'Home Design Details should include rendered content'
-        ).toBeGreaterThan(0);
     }
 
     /** Verify: home features section has meaningful content. */
     async verifyHomeFeatures(): Promise<void> {
-        await this.homeFeaturesSection.scrollIntoViewIfNeeded();
-        await expect(this.homeFeaturesSection).toBeVisible({
-            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+        await this.step('Verify home features content', async () => {
+            await this.homeFeaturesSection.scrollIntoViewIfNeeded();
+            await expect(this.homeFeaturesSection).toBeVisible({
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
+            await expect(this.homeFeaturesSection).toContainText(/Home Features/i);
+            const featuresText = await this.homeFeaturesSection.innerText();
+            expect(
+                featuresText.replace(/Home Features/i, '').trim().length,
+                'Home Features should list at least one feature'
+            ).toBeGreaterThan(3);
         });
-        await expect(this.homeFeaturesSection).toContainText(/Home Features/i);
-        const featuresText = await this.homeFeaturesSection.innerText();
-        expect(
-            featuresText.replace(/Home Features/i, '').trim().length,
-            'Home Features should list at least one feature'
-        ).toBeGreaterThan(3);
     }
 
     /** Verify: sales office section includes contact links, map link, and form submit button. */
     async verifySalesOfficeAndContactForm(): Promise<void> {
-        const salesOfficeSection = await this.getSalesOfficeSectionIfAvailable();
+        await this.step('Verify sales office & contact form', async () => {
+            const salesOfficeSection = await this.getSalesOfficeSectionIfAvailable();
 
-        if (!salesOfficeSection) {
-            console.log('Sales Office section not present - skipping sales office validation');
-        } else {
-            await salesOfficeSection.scrollIntoViewIfNeeded();
-            await expect(salesOfficeSection).toBeVisible({
-                timeout: QMIPage.PAGE_LOAD_TIMEOUT
-            });
-            await expect(salesOfficeSection).toContainText(/Hours|Open|Closed|Sales Office|Showhome Parade/i);
-            await this.verifySalesOfficePhone(salesOfficeSection);
-            await this.verifySalesOfficeMapLinkIfPresent(salesOfficeSection);
-        }
+            if (!salesOfficeSection) {
+                await this.reportValue('Sales Office section not present - skipping sales office validation');
+            } else {
+                await salesOfficeSection.scrollIntoViewIfNeeded();
+                await expect(salesOfficeSection).toBeVisible({
+                    timeout: QMIPage.PAGE_LOAD_TIMEOUT
+                });
+                await expect(salesOfficeSection).toContainText(/Hours|Open|Closed|Sales Office|Showhome Parade/i);
+                await this.verifySalesOfficePhone(salesOfficeSection);
+                await this.verifySalesOfficeMapLinkIfPresent(salesOfficeSection);
+            }
 
-        await this.getAvailableForm(0, 'QMI community updates form');
+            await this.getAvailableForm(0, 'QMI community updates form');
+        });
     }
 
     /* ==========================================================
@@ -337,97 +374,105 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: expected QMI form fields and submit button are visible. */
     async validateQmiFormFields(): Promise<void> {
-        const form = await this.getAvailableForm(0, 'QMI community updates form');
+        await this.step('Verify QMI form fields & submit button', async () => {
+            const form = await this.getAvailableForm(0, 'QMI community updates form');
 
-        if (!form) {
-            return;
-        }
+            if (!form) {
+                return;
+            }
 
-        await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
-        await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
-        await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
-        await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone');
-        await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip or postal');
+            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
+            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
+            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
+            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone');
+            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip or postal');
 
-        const countryOfResidence = form.getByRole('combobox', {
-            name: /country of residence/i
-        }).first();
+            const countryOfResidence = form.getByRole('combobox', {
+                name: /country of residence/i
+            }).first();
 
-        if (await countryOfResidence.count()) {
-            await expect(countryOfResidence, 'Country of residence field should be visible')
-                .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
-        }
+            if (await countryOfResidence.count()) {
+                await expect(countryOfResidence, 'Country of residence field should be visible')
+                    .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
+            }
 
-        await expect(this.getSubmitButton(form)).toBeVisible({
-            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            await expect(this.getSubmitButton(form)).toBeVisible({
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
         });
     }
 
     /** Verify: QMI form shows required-field validation errors. */
     async validateQmiFormRequiredErrors(): Promise<void> {
-        const form = await this.getAvailableForm(0, 'QMI community updates form');
+        await this.step('Verify QMI form required-field errors', async () => {
+            const form = await this.getAvailableForm(0, 'QMI community updates form');
 
-        if (!form) {
-            return;
-        }
+            if (!form) {
+                return;
+            }
 
-        await this.getSubmitButton(form).click();
-        await expect(form.locator('text=/Required|Please complete|Invalid|Error/i').first())
-            .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
+            await this.getSubmitButton(form).click();
+            await expect(form.locator('text=/Required|Please complete|Invalid|Error/i').first())
+                .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
+        });
     }
 
     /** Verify: QMI form rejects an invalid email address. */
     async validateQmiFormInvalidEmail(): Promise<void> {
-        const form = await this.getAvailableForm(0, 'QMI community updates form');
+        await this.step('Verify QMI form rejects invalid email', async () => {
+            const form = await this.getAvailableForm(0, 'QMI community updates form');
 
-        if (!form) {
-            return;
-        }
+            if (!form) {
+                return;
+            }
 
-        await this.fillLeadFormWithInvalidEmail(form);
-        await this.getSubmitButton(form).click();
+            await this.fillLeadFormWithInvalidEmail(form);
+            await this.getSubmitButton(form).click();
 
-        const visibleEmailError = form
-            .locator('div:visible, span:visible, p:visible, label:visible')
-            .filter({
-                hasText: /valid email|invalid email|valid domain name|Required|Invalid|Error/i
-            })
-            .first();
+            const visibleEmailError = form
+                .locator('div:visible, span:visible, p:visible, label:visible')
+                .filter({
+                    hasText: /valid email|invalid email|valid domain name|Required|Invalid|Error/i
+                })
+                .first();
 
-        if (await isLocatorVisible(visibleEmailError)) {
-            await expect(visibleEmailError).toBeVisible();
-            return;
-        }
+            if (await isLocatorVisible(visibleEmailError)) {
+                await expect(visibleEmailError).toBeVisible();
+                return;
+            }
 
-        const emailField = form.getByRole('textbox', { name: /^email/i }).first();
-        const nativeValidationMessage = await emailField.evaluate((element) => {
-            const input = element as HTMLInputElement;
-            return input.validationMessage;
+            const emailField = form.getByRole('textbox', { name: /^email/i }).first();
+            const nativeValidationMessage = await emailField.evaluate((element) => {
+                const input = element as HTMLInputElement;
+                return input.validationMessage;
+            });
+
+            expect(
+                nativeValidationMessage,
+                'QMI email field should reject invalid email format'
+            ).toBeTruthy();
         });
-
-        expect(
-            nativeValidationMessage,
-            'QMI email field should reject invalid email format'
-        ).toBeTruthy();
     }
 
     /** Verify: QMI form can be submitted successfully with valid lead data. */
     async verifyQmiFormSuccessSubmission(): Promise<void> {
-        const form = await this.getAvailableForm(0, 'QMI community updates form');
+        await this.step('Submit QMI form with valid data', async () => {
+            const form = await this.getAvailableForm(0, 'QMI community updates form');
 
-        if (!form) {
-            return;
-        }
+            if (!form) {
+                return;
+            }
 
-        await this.fillLeadFormWithValidData(form);
-        await this.submitLeadFormAndCaptureApi({
-            formName: 'QMI community updates form',
-            submitButton: this.getSubmitButton(form),
-            successModal: this.successDialogModal,
-            successMessage: this.formSuccessMessage,
-            timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            await this.fillLeadFormWithValidData(form);
+            await this.submitLeadFormAndCaptureApi({
+                formName: 'QMI community updates form',
+                submitButton: this.getSubmitButton(form),
+                successModal: this.successDialogModal,
+                successMessage: this.formSuccessMessage,
+                timeout: QMIPage.PAGE_LOAD_TIMEOUT
+            });
+            await this.reportValue('QMI form successful submission validated');
         });
-        console.log('QMI form successful submission validated');
     }
 
     /* ==========================================================
@@ -436,32 +481,35 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: related quick move-in homes section and related card content. */
     async verifyRelatedQuickMoveInHomes(): Promise<void> {
-        await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-        await this.waitForPageReady();
+        await this.step('Verify related Quick Move-In homes', async () => {
+            await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+            await this.waitForPageReady();
 
-        await this.relatedQmiSection.scrollIntoViewIfNeeded();
-        await expect(this.relatedQmiSection, 'Related QMI section should be visible')
-            .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
-        await expect(this.relatedQmiSection.locator('a').filter({ hasText: /View all/i }).first())
-            .toHaveAttribute('href', /productType=qmi/i);
+            await this.relatedQmiSection.scrollIntoViewIfNeeded();
+            await expect(this.relatedQmiSection, 'Related QMI section should be visible')
+                .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
+            await expect(this.relatedQmiSection.locator('a').filter({ hasText: /View all/i }).first())
+                .toHaveAttribute('href', /productType=qmi/i);
 
-        const cardCount = await this.relatedQmiCards.count();
-        expect(cardCount, 'Expected at least one related QMI card').toBeGreaterThan(0);
+            const cardCount = await this.relatedQmiCards.count();
+            expect(cardCount, 'Expected at least one related QMI card').toBeGreaterThan(0);
 
-        for (let i = 0; i < cardCount; i++) {
-            const card = this.relatedQmiCards.nth(i);
-            const href = await card.getAttribute('href');
-            const name = await this.getRelatedQmiCardName(card, href);
-            const url = href ? this.buildFullUrl(href) : 'URL missing';
+            await this.reportValue(`Related QMI cards found: ${cardCount}`);
 
-            console.log(`Related QMI ${i + 1}: ${name} | URL: ${url}`);
-        }
+            for (let i = 0; i < cardCount; i++) {
+                const card = this.relatedQmiCards.nth(i);
+                const href = await card.getAttribute('href');
+                const name = await this.getRelatedQmiCardName(card, href);
 
-        const firstCard = this.relatedQmiCards.first();
-        await expect(firstCard).toBeVisible();
-        await expect(firstCard).toContainText(/Beds/i);
-        await expect(firstCard).toContainText(/Baths/i);
-        await expect(firstCard).toContainText(/Garage|Sq\.?\s*Ft\./i);
+                await this.reportValue(`${i + 1}. ${name}`, this.buildFullUrl(href));
+            }
+
+            const firstCard = this.relatedQmiCards.first();
+            await expect(firstCard).toBeVisible();
+            await expect(firstCard).toContainText(/Beds/i);
+            await expect(firstCard).toContainText(/Baths/i);
+            await expect(firstCard).toContainText(/Garage|Sq\.?\s*Ft\./i);
+        });
     }
 
     /* ==========================================================
@@ -470,16 +518,16 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: mortgage modal opens and closes when the mortgage component exists. */
     async verifyMortgagePopup(): Promise<void> {
-        if (await isLocatorVisible(this.mortgageComponent)) {
-            await expect(this.mortgageComponent).toBeVisible();
-            await this.mortgageBtn.scrollIntoViewIfNeeded();
-            await this.mortgageBtn.click();
-            await this.closeModalIfPresent();
-        } else {
-            console.log(
-                'Mortgage component not found - skipping validation'
-            );
-        }
+        await this.step('Verify mortgage popup opens & closes', async () => {
+            if (await isLocatorVisible(this.mortgageComponent)) {
+                await expect(this.mortgageComponent).toBeVisible();
+                await this.mortgageBtn.scrollIntoViewIfNeeded();
+                await this.mortgageBtn.click();
+                await this.closeModalIfPresent();
+            } else {
+                await this.reportValue('Mortgage component not found - skipping validation');
+            }
+        });
     }
 
     /* ==========================================================
@@ -488,20 +536,24 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: self-guided tour section and CTA are visible. */
     async verifyUTourSectionVisible(): Promise<void> {
-        await this.page.waitForLoadState('domcontentloaded');
-        await this.uTourSection.scrollIntoViewIfNeeded();
-        await expect(this.uTourTitle).toBeVisible({
-            timeout: QMIPage.UTOUR_TIMEOUT
-        });
-        await expect(this.uTourCta).toBeVisible({
-            timeout: QMIPage.UTOUR_TIMEOUT
+        await this.step('Verify self-guided tour section visible', async () => {
+            await this.page.waitForLoadState('domcontentloaded');
+            await this.uTourSection.scrollIntoViewIfNeeded();
+            await expect(this.uTourTitle).toBeVisible({
+                timeout: QMIPage.UTOUR_TIMEOUT
+            });
+            await expect(this.uTourCta).toBeVisible({
+                timeout: QMIPage.UTOUR_TIMEOUT
+            });
         });
     }
 
     /** Verify: self-guided tour section and CTA are hidden. */
     async verifyUTourSectionHidden(): Promise<void> {
-        await expect(this.uTourTitle).toHaveCount(0);
-        await expect(this.uTourCta).toHaveCount(0);
+        await this.step('Verify self-guided tour section hidden', async () => {
+            await expect(this.uTourTitle).toHaveCount(0);
+            await expect(this.uTourCta).toHaveCount(0);
+        });
     }
 
     /* ==========================================================
@@ -535,7 +587,7 @@ export class QMIPage extends SearchablePage {
             .catch(() => 0);
 
         if (formCount <= formIndex) {
-            console.warn(`${formName} not present on current QMI page - skipping form validation`);
+            await this.reportValue(`${formName} not present on current QMI page - skipping form validation`);
             return null;
         }
 
@@ -553,73 +605,22 @@ export class QMIPage extends SearchablePage {
 
     /** Helper: locate the submit button inside a specific form. */
     private getSubmitButton(form: Locator): Locator {
-        return form.getByRole('button', { name: /submit/i }).first();
+        return getSubmitButton(form);
     }
 
     /** Helper: assert a form field only if that field exists. */
     private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
-        if (await field.count()) {
-            await expect(field.first(), `${label} field should be visible`)
-                .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
-        }
+        await expectFieldVisibleIfPresent(field, label, QMIPage.PAGE_LOAD_TIMEOUT);
     }
 
     /** Helper: fill lead form with data that should fail email validation. */
     private async fillLeadFormWithInvalidEmail(form: Locator): Promise<void> {
-        await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Test');
-        await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'User');
-        await this.fillIfPresent(form.getByRole('textbox', { name: /^email/i }), 'not-an-email');
-        await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '4165551212');
-        await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'L7R 0A1');
-
-        await this.selectCountryIfPresent(form);
-        await this.checkTermsIfPresent(form);
+        await fillLeadFormFields(form, getInvalidLeadData('qmi'));
     }
 
     /** Helper: fill lead form with valid data for successful submission tests. */
     private async fillLeadFormWithValidData(form: Locator): Promise<void> {
-        await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Sudhansu');
-        await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Das');
-        await this.fillIfPresent(
-            form.getByRole('textbox', { name: /^email/i }),
-            `ssdas_qmi${Date.now()}@ex2india.com`
-        );
-        await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '4165551212');
-        await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'L7R 0A1');
-
-        await this.selectCountryIfPresent(form);
-        await this.checkTermsIfPresent(form);
-    }
-
-    /** Helper: fill a field only when that field exists. */
-    private async fillIfPresent(field: Locator, value: string): Promise<void> {
-        if (await field.count()) {
-            await field.first().fill(value);
-        }
-    }
-
-    /** Helper: select country of residence when the form includes that field. */
-    private async selectCountryIfPresent(form: Locator): Promise<void> {
-        const countryOfResidence = form.getByRole('combobox', {
-            name: /country of residence/i
-        }).first();
-
-        if (!(await countryOfResidence.count())) {
-            return;
-        }
-
-        await countryOfResidence.selectOption({ label: 'Canada' }).catch(async () => {
-            await countryOfResidence.selectOption({ index: 1 });
-        });
-    }
-
-    /** Helper: check terms checkbox when the form includes one. */
-    private async checkTermsIfPresent(form: Locator): Promise<void> {
-        const checkbox = form.getByRole('checkbox').first();
-
-        if (await checkbox.count()) {
-            await checkbox.check({ force: true });
-        }
+        await fillLeadFormFields(form, getValidLeadData('qmi'));
     }
 
     /** Helper: return compact visible text for logging and comparisons. */
@@ -772,40 +773,44 @@ export class QMIPage extends SearchablePage {
 
     /** Verify: breadcrumb state, community, current address, and path match configured QMI path. */
     async verifyBreadcrumbNavigation(): Promise<void> {
-        const [stateSlug, , , communitySlug, , ...addressSlugs] = this.getQmiPathSegments();
-        const currentPath = new URL(this.page.url()).pathname;
+        await this.step('Verify breadcrumb navigation', async () => {
+            const [stateSlug, , , communitySlug, , ...addressSlugs] = this.getQmiPathSegments();
+            const currentPath = new URL(this.page.url()).pathname;
 
-        expect(currentPath).toBe(location.qmiPath);
-        expect(stateSlug, `State/province segment missing from qmiPath: ${location.qmiPath}`)
-            .toBeTruthy();
-        expect(communitySlug, `Community segment missing from qmiPath: ${location.qmiPath}`)
-            .toBeTruthy();
-        expect(addressSlugs.length, `Address segment missing from qmiPath: ${location.qmiPath}`)
-            .toBeGreaterThan(0);
+            expect(currentPath).toBe(location.qmiPath);
+            expect(stateSlug, `State/province segment missing from qmiPath: ${location.qmiPath}`)
+                .toBeTruthy();
+            expect(communitySlug, `Community segment missing from qmiPath: ${location.qmiPath}`)
+                .toBeTruthy();
+            expect(addressSlugs.length, `Address segment missing from qmiPath: ${location.qmiPath}`)
+                .toBeGreaterThan(0);
 
-        await expect(this.breadcrumb).toBeVisible();
-        await expect(this.breadcrumb).toContainText(
-            getSlugTextPattern(addressSlugs.join('-'))
-        );
-        await expect(this.breadcrumb.locator(`a[href*="/${stateSlug}/"]`).first())
-            .toBeVisible();
-        await expect(this.breadcrumb.locator(`a[href*="/${communitySlug}"]`).first())
-            .toBeVisible();
+            await expect(this.breadcrumb).toBeVisible();
+            await expect(this.breadcrumb).toContainText(
+                getSlugTextPattern(addressSlugs.join('-'))
+            );
+            await expect(this.breadcrumb.locator(`a[href*="/${stateSlug}/"]`).first())
+                .toBeVisible();
+            await expect(this.breadcrumb.locator(`a[href*="/${communitySlug}"]`).first())
+                .toBeVisible();
+        });
     }
 
     /** Verify: breadcrumb links point to the configured community and plan parent paths. */
     async verifyBreadcrumbLinks(): Promise<void> {
-        const segments = this.getQmiPathSegments();
-        const communityPath = `/${segments.slice(0, 4).join('/')}`;
-        const planPath = `/${segments.slice(0, 5).join('/')}`;
-        const addressSlug = segments.slice(5).join('-');
+        await this.step('Verify breadcrumb links', async () => {
+            const segments = this.getQmiPathSegments();
+            const communityPath = `/${segments.slice(0, 4).join('/')}`;
+            const planPath = `/${segments.slice(0, 5).join('/')}`;
+            const addressSlug = segments.slice(5).join('-');
 
-        await expect(this.breadcrumb.locator(`a[href="${communityPath}"]`).first())
-            .toBeVisible();
-        await expect(this.breadcrumb.locator(`a[href="${planPath}"]`).first())
-            .toBeVisible();
-        await expect(this.breadcrumb).toContainText(getSlugTextPattern(addressSlug));
-        await this.logBreadcrumbNamesAndUrls();
+            await expect(this.breadcrumb.locator(`a[href="${communityPath}"]`).first())
+                .toBeVisible();
+            await expect(this.breadcrumb.locator(`a[href="${planPath}"]`).first())
+                .toBeVisible();
+            await expect(this.breadcrumb).toContainText(getSlugTextPattern(addressSlug));
+            await this.logBreadcrumbNamesAndUrls();
+        });
     }
 
     /** Helper: log breadcrumb link labels and URLs for report troubleshooting. */
@@ -813,21 +818,19 @@ export class QMIPage extends SearchablePage {
         const breadcrumbLinks = this.breadcrumb.locator('a[href]');
         const linkCount = await breadcrumbLinks.count();
 
-        console.log('QMI breadcrumb links:');
-
         for (let i = 0; i < linkCount; i++) {
             const link = breadcrumbLinks.nth(i);
             const href = await link.getAttribute('href');
             const name = this.getNameFromHref(href, await this.getCompactText(link));
             const url = href ? this.buildFullUrl(href) : 'URL missing';
 
-            console.log(`Breadcrumb ${i + 1}: ${name || 'Unnamed'} | URL: ${url}`);
+            await this.reportValue(`Breadcrumb ${i + 1}: ${name || 'Unnamed'}`, url);
         }
 
         const currentLabel = await this.getCompactText(this.heading);
 
         if (currentLabel) {
-            console.log(`Breadcrumb current: ${currentLabel} | URL: ${this.page.url()}`);
+            await this.reportValue(`Breadcrumb current: ${currentLabel}`, this.page.url());
         }
     }
 

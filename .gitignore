@@ -26,3 +26,5 @@ manual-tests.md
 *.log
 */generated.spec.ts
 */formProfaneSubmissionEvidence.spec.ts
+*.doc
+*.docx

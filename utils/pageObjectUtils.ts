@@ -52,6 +52,14 @@ export function getPathnameFromHref(href: string, baseUrl = 'http://local.test')
   return new URL(href, baseUrl).pathname.replace(/\/$/, '');
 }
 
+export function buildFullUrl(relativeUrl: string | null, baseUrl: string): string {
+  if (!relativeUrl) {
+    throw new Error('URL is null');
+  }
+
+  return new URL(relativeUrl, baseUrl).href;
+}
+
 export function getLastPathSegment(url: string): string | undefined {
   return new URL(url, 'http://local.test')
     .pathname
@@ -85,6 +93,31 @@ export function toTitleCase(value: string): string {
 
 export function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function normalizeComparableText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*-\s*/g, '-')
+    .trim();
+}
+
+export function formatPrice(price: number): string {
+  return `$${price.toLocaleString('en-US')}`;
+}
+
+export function formatPriceToUiLabel(price: number): string {
+  if (price >= 1000000) {
+    return `${price / 1000000}M`;
+  }
+
+  if (price >= 1000) {
+    return `${price / 1000}K`;
+  }
+
+  return `${price}`;
 }
 
 export function getSlugTextPattern(slug: string): RegExp {

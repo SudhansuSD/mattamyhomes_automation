@@ -19,13 +19,13 @@ test.describe('Mattamy Homes - Customer Care Page', () => {
         });
       });
 
-      test(`CUSTOMERCARE-001 | @smoke @regression | ${countryConfig.locationKey} customer care page should load country-specific content`, async () => {
+      test(`TC-01 | @smoke @regression | ${countryConfig.locationKey} customer care page should load country-specific content`, async () => {
         await test.step('Verify title, URL, hero content, and selected country', async () => {
           await customerCarePage.verifyPageLoaded(countryConfig);
         });
       });
 
-      test(`CUSTOMERCARE-002 | @regression | ${countryConfig.locationKey} customer care page should expose area contacts`, async () => {
+      test(`TC-02 | @regression | ${countryConfig.locationKey} customer care page should expose area contacts`, async () => {
         await test.step('Verify all configured area buttons are present and accessible', async () => {
           await customerCarePage.validateAreaList(countryConfig);
         });
@@ -35,7 +35,7 @@ test.describe('Mattamy Homes - Customer Care Page', () => {
         });
       });
 
-      test(`CUSTOMERCARE-003 | @regression | ${countryConfig.locationKey} customer care resources should be linked correctly`, async () => {
+      test(`TC-03 | @regression | ${countryConfig.locationKey} customer care resources should be linked correctly`, async () => {
         await test.step('Verify warranty, support, PDF, and video resource links', async () => {
           await customerCarePage.validateResourceLinks(countryConfig);
         });
@@ -54,13 +54,13 @@ test.describe('Mattamy Homes - Customer Care Page', () => {
       });
     });
 
-    test('CUSTOMERCARE-004 | @regression | USA customer care should show emergency support coverage', async () => {
+    test('TC-01 | @regression | USA customer care should show emergency support coverage', async () => {
       await test.step('Verify emergency support sections', async () => {
         await customerCarePage.validateUsEmergencySupportContent();
       });
     });
 
-    test('CUSTOMERCARE-005 | @regression | USA service request form should enforce required client-side validation', async () => {
+    test('TC-02 | @regression | USA service request form should enforce required client-side validation', async () => {
       await test.step('Verify form fields and required indicators', async () => {
         await customerCarePage.validateUsServiceRequestForm();
       });
@@ -82,7 +82,7 @@ test.describe('Mattamy Homes - Customer Care Page', () => {
       });
     });
 
-    test('CUSTOMERCARE-006 | @regression | Canada customer care should show support and warranty sections', async () => {
+    test('TC-01 | @regression | Canada customer care should show support and warranty sections', async () => {
       await test.step('Verify warranty, after-hours, checklist, and video sections', async () => {
         await customerCarePage.validateCanadaSupportSections();
       });

@@ -1,4 +1,5 @@
 const { MobileWebQMIPage } = require('../../pages/mobile/MobileWebQMIPage');
+const { getEnvConfig } = require('../../config/environments/envConfig');
 const { getLocationConfig } = require('../../config/locations/locationConfig');
 
 describe('Mattamy Homes mobile web - QMI detail page on Android Chrome', function () {
@@ -6,66 +7,83 @@ describe('Mattamy Homes mobile web - QMI detail page on Android Chrome', functio
 
   let qmiPage;
   let location;
+  const { envName } = getEnvConfig();
 
-  before(async function () {
-    this.timeout(300000);
-
+  beforeEach(async () => {
     qmiPage = new MobileWebQMIPage();
     location = getLocationConfig();
 
-    await qmiPage.open();
-    await qmiPage.searchByQMI(location.qmiAddress, {
-      allowDirectFallback: false,
+    await qmiPage.searchAndValidateByValue('qmi', location.qmiAddress);
+  });
+
+  describe('Hero & Overview', () => {
+    it('TC-01 | @smoke | Validate QMI hero content and URL', async () => {
+      await qmiPage.verifyExactQmiUrl();
+      await qmiPage.verifyHeroSection(location.qmiAddress);
+      await qmiPage.verifyHeroHomeFacts();
+      await qmiPage.verifyPriceOrCTA();
+      await qmiPage.verifyGetInformationScrollsToForm();
     });
-    await qmiPage.verifySearchByQMI(location.qmiAddress);
-    await qmiPage.verifyPageLoaded(location.qmiAddress);
   });
 
-  it('@smoke Validate QMI hero content and URL', async () => {
-    await qmiPage.verifyExactQmiUrl();
-    await qmiPage.verifyHeroSection(location.qmiAddress);
-    await qmiPage.verifyHeroHomeFacts();
-    await qmiPage.verifyPriceOrCTA();
-    await qmiPage.verifyGetInformationScrollsToForm();
+  describe('Media & Content', () => {
+    it('TC-01 | @regression | Validate QMI page media and content sections', async () => {
+      await qmiPage.verifyGallery();
+      await qmiPage.verifyFloorPlan();
+      await qmiPage.verifyInteractiveFloorPlan();
+      await qmiPage.verifyCommunitySitemap();
+    });
+
+    it('TC-02 | @regression | Validate QMI home details and features', async () => {
+      await qmiPage.verifyHomeDesignDetails();
+      await qmiPage.verifyHomeFeatures();
+    });
   });
 
-  it('@regression Validate QMI page media and content sections', async () => {
-    await qmiPage.verifyGallery();
-    await qmiPage.verifyFloorPlan();
-    await qmiPage.verifyInteractiveFloorPlan();
-    await qmiPage.verifyCommunitySitemap();
+  describe('Sales Office & Related Homes', () => {
+    it('TC-01 | @regression | Validate QMI sales office and related homes', async () => {
+      await qmiPage.verifySalesOfficeAndContactForm();
+    });
+
+    it('TC-02 | @regression @qmi-related-log | Validate QMI related homes names and URLs', async () => {
+      await qmiPage.verifyRelatedQuickMoveInHomes();
+    });
   });
 
-  it('@regression Validate QMI home details and features', async () => {
-    await qmiPage.verifyHomeDesignDetails();
-    await qmiPage.verifyHomeFeatures();
+  describe('Lead Form', () => {
+    it('TC-01 | @regression @qmi-form-fields | Validate QMI form fields', async () => {
+      await qmiPage.validateQmiFormFields();
+    });
+
+    it('TC-02 | @regression @qmi-form-required | Validate QMI form required field errors', async () => {
+      await qmiPage.validateQmiFormRequiredErrors();
+    });
+
+    it('TC-03 | @regression @qmi-form-email | Validate QMI form invalid email validation', async () => {
+      await qmiPage.validateQmiFormInvalidEmail();
+    });
+
+    it('TC-04 | @regression @STAGE @qmi-form-submit | Validate QMI form successful submission', async function () {
+      if (envName === 'PROD') {
+        this.skip();
+      }
+
+      await qmiPage.verifyQmiFormSuccessSubmission();
+    });
   });
 
-  it('@regression Validate QMI sales office and related homes', async () => {
-    await qmiPage.verifySalesOfficeAndContactForm();
-  });
+  describe('Mortgage & Navigation', () => {
+    it('TC-01 | @regression | Validate QMI mortgage popup functionality', async () => {
+      await qmiPage.verifyMortgagePopup();
+    });
 
-  it('@regression @qmi-related-log Validate QMI related homes names and URLs', async () => {
-    await qmiPage.verifyRelatedQuickMoveInHomes();
-  });
+    it('TC-02 | @regression @qmi-breadcrumb-log | Validate QMI breadcrumb names and URLs', async () => {
+      await qmiPage.verifyBreadcrumbNavigation();
+      await qmiPage.verifyBreadcrumbLinks();
+    });
 
-  it('@regression @qmi-form-fields Validate QMI form fields', async () => {
-    await qmiPage.validateQmiFormFields();
-  });
-
-  it('@regression @qmi-form-required Validate QMI form required field errors', async () => {
-    await qmiPage.validateQmiFormRequiredErrors();
-  });
-
-  it('@regression @qmi-form-email Validate QMI form invalid email validation', async () => {
-    await qmiPage.validateQmiFormInvalidEmail();
-  });
-
-  it('@regression Validate QMI mortgage popup functionality', async () => {
-    await qmiPage.verifyMortgagePopup();
-  });
-
-  it('@regression @qmi-plan-link Validate QMI plan name link and URL', async () => {
-    await qmiPage.verifyPlanNameLinkNavigation();
+    it('TC-03 | @regression @qmi-plan-link | Validate QMI plan name link and URL', async () => {
+      await qmiPage.verifyPlanNameLinkNavigation();
+    });
   });
 });

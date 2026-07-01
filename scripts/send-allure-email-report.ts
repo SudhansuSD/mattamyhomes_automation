@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import nodemailer from 'nodemailer';
+import { ALLURE_RESULTS_ROOT } from './allurePaths';
 
 dotenv.config();
 
@@ -41,7 +42,6 @@ type ExecutionSummary = {
 };
 
 const repoRoot = path.resolve(__dirname, '..');
-const allureResultsDir = path.resolve(repoRoot, 'allure-results');
 const chartPath = path.resolve(os.tmpdir(), 'test-summary-chart.png');
 const chartCid = 'test-summary-chart';
 
@@ -74,19 +74,40 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function readAllureResults(): AllureResult[] {
-  if (!fs.existsSync(allureResultsDir)) {
-    console.warn(`Allure results folder not found: ${allureResultsDir}`);
+function collectResultFiles(dir: string): string[] {
+  if (!fs.existsSync(dir)) {
     return [];
   }
 
-  const results: AllureResult[] = [];
-  for (const fileName of fs.readdirSync(allureResultsDir)) {
-    if (!fileName.endsWith('-result.json')) {
+  const collected: string[] = [];
+
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      collected.push(...collectResultFiles(fullPath));
       continue;
     }
 
-    const resultPath = path.resolve(allureResultsDir, fileName);
+    if (entry.isFile() && entry.name.endsWith('-result.json')) {
+      collected.push(fullPath);
+    }
+  }
+
+  return collected;
+}
+
+function readAllureResults(): AllureResult[] {
+  const results: AllureResult[] = [];
+
+  const resultFiles = collectResultFiles(ALLURE_RESULTS_ROOT);
+
+  if (resultFiles.length === 0) {
+    console.warn(`Allure results folder not found or empty: ${ALLURE_RESULTS_ROOT}`);
+    return results;
+  }
+
+  for (const resultPath of resultFiles) {
     try {
       results.push(JSON.parse(fs.readFileSync(resultPath, 'utf8')) as AllureResult);
     } catch (error) {

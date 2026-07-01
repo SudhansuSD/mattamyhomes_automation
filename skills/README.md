@@ -13,14 +13,19 @@ This repository keeps project-specific Codex skills in `skills/`.
 
 ## Current Jira Skills
 
-- `jira-to-playwright`
-- `jira-to-scenarios`
-- `jira-to-testcases`
-- `jira-to-automation`
+- `jira-to-playwright` — single end-to-end Jira skill. Fetches a ticket and creates a
+  runnable Playwright spec directly under `tests/`, reusing page objects in `pages/`
+  and adding a new page object only for genuinely new functionality. (The former
+  `jira-to-scenarios`, `jira-to-testcases`, and `jira-to-automation` skills were
+  duplicates and have been folded into this one.)
 
 ## Current URL Automation Skills
 
 - `url-feature-automation-generator`
+
+## Current Mobile Skills
+
+- `desktop-to-appium-mobile`
 
 ## Add Future Skills
 

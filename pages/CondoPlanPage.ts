@@ -1,5 +1,14 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { SearchablePage } from './SearchablePage';
+import { getLocationConfig } from '../config/locations/locationConfig';
+import { escapeRegex, isIgnorableHref } from '../utils/pageObjectUtils';
+import {
+  expectFieldVisibleIfPresent,
+  fillLeadFormFields,
+  getInvalidLeadData,
+  getValidLeadData,
+  selectOptionIfPresent
+} from '../utils/leadFormHelper';
 
 const TIMEOUT = {
   short: 10000,
@@ -88,6 +97,7 @@ export class CondoPlanPage extends SearchablePage {
   readonly communityUpdatesSection: Locator;
   readonly successDialogModal: Locator;
 
+  /** Initializes this page object and its locators. */
   constructor(page: Page) {
     super(page);
 
@@ -140,269 +150,320 @@ export class CondoPlanPage extends SearchablePage {
     return this.page.getByText(TEXT.successMessage).last();
   }
 
+  /** Verify: condo plan search lands on the configured condo plan URL with a visible H1. */
+  async verifySearchByCondoPlan(): Promise<void> {
+    await this.step('Verify search lands on condo plan URL', async () => {
+      const location = getLocationConfig() as ReturnType<typeof getLocationConfig> & {
+        condoPlan?: { url?: string };
+      };
+
+      if (!location.condoPlan?.url) {
+        throw new Error('Condo plan URL is not configured in location config');
+      }
+
+      await this.waitForPageReady();
+      await this.assertPageUrlContains(
+        location.condoPlan.url,
+        `Condo plan URL should contain configured path: ${location.condoPlan.url}`
+      );
+      await this.assertHeadingVisible(undefined, 'Condo plan detail page should expose a visible H1');
+    });
+  }
+
   /** Verify: condo plan page has loaded with the expected heading. */
   async verifyPageLoaded(expectedPlanName = 'M2ad'): Promise<void> {
-    await expect(this.heading).toBeVisible({ timeout: TIMEOUT.long });
-    await expect(this.heading).toContainText(new RegExp(this.escapeRegex(expectedPlanName), 'i'));
+    await this.step(`Verify condo plan page loaded ('${expectedPlanName}')`, async () => {
+      await expect(this.heading).toBeVisible({ timeout: TIMEOUT.long });
+      await expect(this.heading).toContainText(new RegExp(escapeRegex(expectedPlanName), 'i'));
+    });
   }
 
   /** Verify: current URL and browser title match the expected condo plan details. */
   async verifyUrlAndTitle(plan: CondoPlanDetails): Promise<void> {
-    await expect(this.page).toHaveURL(new RegExp(`${this.escapeRegex(plan.url)}\\/?$`, 'i'));
-    await expect(this.page).toHaveTitle(EXPECTED_CONDO_PLAN.title);
+    await this.step('Verify URL and title', async () => {
+      await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(plan.url)}\\/?$`, 'i'));
+      await expect(this.page).toHaveTitle(EXPECTED_CONDO_PLAN.title);
+    });
   }
 
   /** Verify: breadcrumb contains market, city, community, and plan context. */
   async verifyBreadcrumb(plan: CondoPlanDetails): Promise<void> {
-    if (await this.breadcrumb.count()) {
-      await expect(this.breadcrumb).toBeVisible({ timeout: TIMEOUT.short });
-      await expect(this.breadcrumb.getByRole('link', { name: /Greater To|Greater Toronto Area/i }).first())
-        .toHaveAttribute('href', /\/ontario\/gta$/i);
-      await expect(this.breadcrumb).toContainText(new RegExp(this.escapeRegex(EXPECTED_CONDO_PLAN.city), 'i'));
-      await expect(this.breadcrumb.getByRole('link', { name: /Martha Jam|Martha James Condominiums/i }).first())
-        .toHaveAttribute('href', /\/ontario\/gta\/burlington\/martha-james-condominiums$/i);
-      await expect(this.breadcrumb).toContainText(new RegExp(this.escapeRegex(plan.name), 'i'));
-      return;
-    }
+    await this.step('Verify breadcrumb context', async () => {
+      if (await this.breadcrumb.count()) {
+        await expect(this.breadcrumb).toBeVisible({ timeout: TIMEOUT.short });
+        await expect(this.breadcrumb.getByRole('link', { name: /Greater To|Greater Toronto Area/i }).first())
+          .toHaveAttribute('href', /\/ontario\/gta$/i);
+        await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(EXPECTED_CONDO_PLAN.city), 'i'));
+        await expect(this.breadcrumb.getByRole('link', { name: /Martha Jam|Martha James Condominiums/i }).first())
+          .toHaveAttribute('href', /\/ontario\/gta\/burlington\/martha-james-condominiums$/i);
+        await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
+        return;
+      }
 
-    await expect(this.body).toContainText(new RegExp(this.escapeRegex(plan.community), 'i'));
-    await expect(this.body).toContainText(new RegExp(this.escapeRegex(plan.name), 'i'));
+      await expect(this.body).toContainText(new RegExp(escapeRegex(plan.community), 'i'));
+      await expect(this.body).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
+    });
   }
 
   /** Verify: hero summary contains plan name, specs, and plan type. */
   async verifyHeroSummary(plan: CondoPlanDetails): Promise<void> {
-    await expect(this.heading).toContainText(new RegExp(this.escapeRegex(plan.name), 'i'));
+    await this.step('Verify hero summary', async () => {
+      await expect(this.heading).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
 
-    for (const spec of EXPECTED_CONDO_PLAN.specs) {
-      await expect(this.body).toContainText(new RegExp(this.escapeRegex(spec), 'i'));
-    }
+      for (const spec of EXPECTED_CONDO_PLAN.specs) {
+        await expect(this.body).toContainText(new RegExp(escapeRegex(spec), 'i'));
+      }
 
-    await expect(this.body).toContainText(new RegExp(this.escapeRegex(EXPECTED_CONDO_PLAN.planType), 'i'));
+      await expect(this.body).toContainText(new RegExp(escapeRegex(EXPECTED_CONDO_PLAN.planType), 'i'));
+    });
   }
 
   /** Verify: main Condo Plan Details copy is present and meaningful. */
   async verifyCondoPlanDetailsContent(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: TEXT.condoPlanDetails }))
-      .toBeVisible({ timeout: TIMEOUT.short });
+    await this.step('Verify condo plan details content', async () => {
+      await expect(this.page.getByRole('heading', { name: TEXT.condoPlanDetails }))
+        .toBeVisible({ timeout: TIMEOUT.short });
 
-    for (const keyword of EXPECTED_CONDO_PLAN.descriptionKeywords) {
-      await expect(this.body).toContainText(keyword);
-    }
+      for (const keyword of EXPECTED_CONDO_PLAN.descriptionKeywords) {
+        await expect(this.body).toContainText(keyword);
+      }
+    });
   }
 
   /** Verify: floorplan image exists and has a non-empty source. */
   async verifyFloorplanImage(): Promise<void> {
-    await expect(this.floorplanImage).toBeVisible({ timeout: TIMEOUT.medium });
-    await expect(this.floorplanImage).toHaveAttribute('src', /.+/);
+    await this.step('Verify floorplan image', async () => {
+      await expect(this.floorplanImage).toBeVisible({ timeout: TIMEOUT.medium });
+      await expect(this.floorplanImage).toHaveAttribute('src', /.+/);
+    });
   }
 
   /** Verify: mortgage calculator section and CTA are visible, without opening/submitting any form. */
   async verifyMortgageCalculatorCta(): Promise<void> {
-    await expect(this.mortgageCalculatorSection).toBeVisible({ timeout: TIMEOUT.short });
-    await expect(this.mortgageCalculatorCta).toBeVisible({ timeout: TIMEOUT.short });
+    await this.step('Verify mortgage calculator CTA', async () => {
+      await expect(this.mortgageCalculatorSection).toBeVisible({ timeout: TIMEOUT.short });
+      await expect(this.mortgageCalculatorCta).toBeVisible({ timeout: TIMEOUT.short });
+    });
   }
 
   /** Verify: support headline below mortgage calculator is visible. */
   async verifySupportHeadline(): Promise<void> {
-    await expect(this.body).toContainText(TEXT.supportHeadline, { timeout: TIMEOUT.short });
+    await this.step('Verify support headline', async () => {
+      await expect(this.body).toContainText(TEXT.supportHeadline, { timeout: TIMEOUT.short });
+    });
   }
 
   /** Verify: related floorplans and View All CTA are present and valid. */
   async verifyAvailableFloorplans(plan: CondoPlanDetails): Promise<void> {
-    await expect(this.availableFloorplansSection).toBeVisible({ timeout: TIMEOUT.medium });
-    await expect(this.availableFloorplansSection).toContainText(TEXT.availableFloorplans);
+    await this.step('Verify available floorplans', async () => {
+      await expect(this.availableFloorplansSection).toBeVisible({ timeout: TIMEOUT.medium });
+      await expect(this.availableFloorplansSection).toContainText(TEXT.availableFloorplans);
 
-    const viewAllLink = this.page
-      .locator('a[href*="productType=plan"][href*="Martha%20James%20Condominiums"], a[href*="productType=plan"][href*="Martha James Condominiums"]')
-      .first();
-
-    await expect(viewAllLink).toBeVisible({ timeout: TIMEOUT.short });
-    await expect(viewAllLink).toHaveAttribute(
-      'href',
-      /\/search\?productType=plan.*community=Martha(\+|%20| )James(\+|%20| )Condominiums/i
-    );
-
-    for (const planName of EXPECTED_CONDO_PLAN.relatedPlanNames) {
-      const relatedPlanLink = this.page
-        .locator(`a[href$="/martha-james-condominiums/${planName.toLowerCase()}"]`)
+      const viewAllLink = this.page
+        .locator('a[href*="productType=plan"][href*="Martha%20James%20Condominiums"], a[href*="productType=plan"][href*="Martha James Condominiums"]')
         .first();
 
-      await expect(relatedPlanLink, `${planName} related floorplan should be visible`)
-        .toBeVisible({ timeout: TIMEOUT.short });
-      await expect(relatedPlanLink).toHaveAttribute(
+      await expect(viewAllLink).toBeVisible({ timeout: TIMEOUT.short });
+      await expect(viewAllLink).toHaveAttribute(
         'href',
-        new RegExp(`/martha-james-condominiums/${this.escapeRegex(planName.toLowerCase())}`, 'i')
+        /\/search\?productType=plan.*community=Martha(\+|%20| )James(\+|%20| )Condominiums/i
       );
-    }
+
+      for (const planName of EXPECTED_CONDO_PLAN.relatedPlanNames) {
+        const relatedPlanLink = this.page
+          .locator(`a[href$="/martha-james-condominiums/${planName.toLowerCase()}"]`)
+          .first();
+
+        await expect(relatedPlanLink, `${planName} related floorplan should be visible`)
+          .toBeVisible({ timeout: TIMEOUT.short });
+        await expect(relatedPlanLink).toHaveAttribute(
+          'href',
+          new RegExp(`/martha-james-condominiums/${escapeRegex(planName.toLowerCase())}`, 'i')
+        );
+
+        const relatedPlanHref = await relatedPlanLink.getAttribute('href');
+        await this.reportValue(`Floorplan: ${planName}`, this.buildFullUrl(relatedPlanHref));
+      }
+    });
   }
 
   /** Verify: Show More button is safe to use when available and keeps user on the same page. */
   async verifyShowMoreFloorplansIfPresent(): Promise<void> {
-    const showMore = this.page.getByRole('button', {
-      name: /show more/i
-    }).first();
+    await this.step('Verify Show More floorplans', async () => {
+      const showMore = this.page.getByRole('button', {
+        name: /show more/i
+      }).first();
 
-    if (!(await showMore.isVisible().catch(() => false))) {
-      console.warn('Show More floorplans button not present - skipping validation');
-      return;
-    }
+      if (!(await showMore.isVisible().catch(() => false))) {
+        await this.reportValue('Show More floorplans button not present - skipping validation');
+        return;
+      }
 
-    const currentUrl = this.page.url();
-    await showMore.click();
-    await this.waitForPageReady();
-    await expect(this.page).toHaveURL(currentUrl);
+      const currentUrl = this.page.url();
+      await showMore.click();
+      await this.waitForPageReady();
+      await expect(this.page).toHaveURL(currentUrl);
+    });
   }
 
   /** Verify: sales/contact office content, map link, and phone link are valid. */
   async verifyContactUsSection(): Promise<void> {
-    await expect(this.contactSection).toBeVisible({ timeout: TIMEOUT.short });
-    await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.address);
-    await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.cityProvincePostal);
-    await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.phone);
+    await this.step('Verify Contact Us section', async () => {
+      await expect(this.contactSection).toBeVisible({ timeout: TIMEOUT.short });
+      await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.address);
+      await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.cityProvincePostal);
+      await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.phone);
 
-    await expect(this.contactSection.locator('a[href^="tel:"]').first())
-      .toHaveAttribute('href', new RegExp(EXPECTED_CONDO_PLAN.salesOffice.phone.replace(/-/g, '\\-')));
-    await expect(this.contactSection.locator('a[href*="maps.google.com"]').first())
-      .toHaveAttribute('href', /maps\.google\.com\/maps\?q=/i);
+      await expect(this.contactSection.locator('a[href^="tel:"]').first())
+        .toHaveAttribute('href', new RegExp(EXPECTED_CONDO_PLAN.salesOffice.phone.replace(/-/g, '\\-')));
+      await expect(this.contactSection.locator('a[href*="maps.google.com"]').first())
+        .toHaveAttribute('href', /maps\.google\.com\/maps\?q=/i);
+    });
   }
 
   /** Verify: Hours section is available and shows an open/closed state. */
   async verifyHoursSection(): Promise<void> {
-    await expect(this.hoursSection).toBeVisible({ timeout: TIMEOUT.short });
-    await expect(this.hoursSection).toContainText(/Open|Closed|Hours/i);
+    await this.step('Verify Hours section', async () => {
+      await expect(this.hoursSection).toBeVisible({ timeout: TIMEOUT.short });
+      await expect(this.hoursSection).toContainText(/Open|Closed|Hours/i);
+    });
   }
 
   /** Verify: Get Information CTA moves focus/viewport toward the form section without submitting it. */
   async verifyGetInformationCtaScrollsToForm(): Promise<void> {
-    await expect(this.getInformationCta).toBeVisible({ timeout: TIMEOUT.short });
-    await this.getInformationCta.click();
-    await this.waitForPageReady();
-    await expect(this.communityUpdatesSection).toBeVisible({ timeout: TIMEOUT.medium });
+    await this.step('Verify Get Information CTA scrolls to form', async () => {
+      await expect(this.getInformationCta).toBeVisible({ timeout: TIMEOUT.short });
+      await this.getInformationCta.click();
+      await this.waitForPageReady();
+      await expect(this.communityUpdatesSection).toBeVisible({ timeout: TIMEOUT.medium });
+    });
   }
 
   /** Verify: community update form fields are present without submitting the form. */
   async verifyCommunityUpdateFormFields(): Promise<void> {
-    const form = await this.getAvailableCommunityUpdateForm();
+    await this.step('Verify community update form fields', async () => {
+      const form = await this.getAvailableCommunityUpdateForm();
 
-    if (!form) {
-      return;
-    }
+      if (!form) {
+        return;
+      }
 
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
-    await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone number');
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
+      await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone number');
 
-    await expect(form.getByRole('button', { name: TEXT.submit }).first())
-      .toBeVisible({ timeout: TIMEOUT.short });
+      await expect(form.getByRole('button', { name: TEXT.submit }).first())
+        .toBeVisible({ timeout: TIMEOUT.short });
+    });
   }
 
   /** Verify: visible page links have usable href values. */
   async verifyNavigationLinks(): Promise<void> {
-    const linkCount = await this.navLinks.count();
+    await this.step('Verify navigation links have usable hrefs', async () => {
+      const linkCount = await this.navLinks.count();
 
-    expect(linkCount, 'Condo plan page should contain links').toBeGreaterThan(0);
+      expect(linkCount, 'Condo plan page should contain links').toBeGreaterThan(0);
 
-    for (let i = 0; i < linkCount; i++) {
-      const href = await this.navLinks.nth(i).getAttribute('href');
+      for (let i = 0; i < linkCount; i++) {
+        const href = await this.navLinks.nth(i).getAttribute('href');
 
-      if (this.isIgnorableHref(href)) {
-        continue;
+        if (isIgnorableHref(href)) {
+          continue;
+        }
+
+        expect(href, `Navigation link ${i + 1} href missing`).toBeTruthy();
+        expect(href, `Navigation link ${i + 1} should not be javascript`)
+          .not.toMatch(/^javascript:/i);
+
+        await this.reportValue(`Navigation link ${i + 1}`, this.buildFullUrl(href));
       }
-
-      expect(href, `Navigation link ${i + 1} href missing`).toBeTruthy();
-      expect(href, `Navigation link ${i + 1} should not be javascript`)
-        .not.toMatch(/^javascript:/i);
-    }
+    });
   }
 
   /** Verify: an empty community update form shows required-field validation. */
   async validateCommunityUpdateRequiredErrors(): Promise<void> {
-    const form = await this.getAvailableCommunityUpdateForm();
+    await this.step('Validate community update required errors', async () => {
+      const form = await this.getAvailableCommunityUpdateForm();
 
-    if (!form) {
-      throw new Error('Community updates form not found; required-field validation cannot be verified');
-    }
+      if (!form) {
+        throw new Error('Community updates form not found; required-field validation cannot be verified');
+      }
 
-    const submitButton = form.getByRole('button', { name: TEXT.submit }).first();
-    await expect(submitButton, 'Community updates form submit button should be visible')
-      .toBeVisible({ timeout: TIMEOUT.short });
-    await submitButton.click();
+      const submitButton = form.getByRole('button', { name: TEXT.submit }).first();
+      await expect(submitButton, 'Community updates form submit button should be visible')
+        .toBeVisible({ timeout: TIMEOUT.short });
+      await submitButton.click();
 
-    const renderedErrors = form
-      .locator('[role="alert"]:visible, [aria-live]:visible, .field-validation-error:visible, .error:visible, div:visible, span:visible, p:visible, label:visible')
-      .filter({ hasText: TEXT.requiredError });
+      const renderedErrors = form
+        .locator('[role="alert"]:visible, [aria-live]:visible, .field-validation-error:visible, .error:visible, div:visible, span:visible, p:visible, label:visible')
+        .filter({ hasText: TEXT.requiredError });
 
-    await expect.poll(async () => {
-      const renderedErrorCount = await renderedErrors.count();
-      const invalidFields = await form.locator('input, select, textarea').evaluateAll((fields) =>
-        fields.filter((field) => {
-          const control = field as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-          return !control.disabled && !control.validity.valid;
-        }).length
-      );
+      await expect.poll(async () => {
+        const renderedErrorCount = await renderedErrors.count();
+        const invalidFields = await form.locator('input, select, textarea').evaluateAll((fields) =>
+          fields.filter((field) => {
+            const control = field as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+            return !control.disabled && !control.validity.valid;
+          }).length
+        );
 
-      return renderedErrorCount + invalidFields;
-    }, {
-      message: 'Submitting the empty community updates form should expose required-field validation',
-      timeout: TIMEOUT.short
-    }).toBeGreaterThan(0);
+        return renderedErrorCount + invalidFields;
+      }, {
+        message: 'Submitting the empty community updates form should expose required-field validation',
+        timeout: TIMEOUT.short
+      }).toBeGreaterThan(0);
+    });
   }
 
   /** Skipped by spec: this would click SUBMIT after entering invalid email data. */
   async validateCommunityUpdateInvalidEmail(): Promise<void> {
-    const form = await this.getAvailableCommunityUpdateForm();
+    await this.step('Validate community update invalid email', async () => {
+      const form = await this.getAvailableCommunityUpdateForm();
 
-    if (!form) {
-      return;
-    }
+      if (!form) {
+        return;
+      }
 
-    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Test');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'User');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /^email/i }), 'user@domain.c');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '4165551212');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /postal|zip/i }), 'L7R 0A1');
+      await fillLeadFormFields(form, getInvalidLeadData('condoPlan'), {
+        selectCountry: false,
+        checkConsent: false
+      });
 
-    await form.getByRole('button', { name: TEXT.submit }).first().click();
-    await expect(form.locator(`text=${TEXT.emailError}`).first())
-      .toBeVisible({ timeout: TIMEOUT.short });
+      await form.getByRole('button', { name: TEXT.submit }).first().click();
+      await expect(form.locator(`text=${TEXT.emailError}`).first())
+        .toBeVisible({ timeout: TIMEOUT.short });
+    });
   }
 
   /** Skipped by spec: this would create a live lead submission. */
   async verifyCommunityUpdateSuccessfulSubmission(): Promise<void> {
-    const form = await this.getAvailableCommunityUpdateForm();
+    await this.step('Submit community update form successfully', async () => {
+      const form = await this.getAvailableCommunityUpdateForm();
 
-    if (!form) {
-      return;
-    }
+      if (!form) {
+        return;
+      }
 
-    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Sudhansu');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Das');
-    await this.fillIfPresent(
-      form.getByRole('textbox', { name: /^email/i }),
-      `ssdas_condoplan_${Date.now()}@ex2india.com`
-    );
-    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '4165551212');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /postal|zip/i }), 'L7R 0A1');
+      await fillLeadFormFields(form, getValidLeadData('condoPlan'), {
+        selectCommunity: true,
+        selectPlan: true
+      });
+      await selectOptionIfPresent(form.getByRole('combobox', { name: /^country$/i }), 'Canada');
 
-    await this.selectIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Canada');
-    await this.selectIfPresent(form.getByRole('combobox', { name: /^country$/i }), 'Canada');
-    await this.selectIfPresent(form.getByRole('combobox', { name: /community/i }));
-    await this.selectIfPresent(form.getByRole('combobox', { name: /suite|floorplan|plan/i }));
-    await this.checkIfPresent(form.getByRole('checkbox'));
+      const formUrl = this.page.url();
 
-    const formUrl = this.page.url();
-
-    await this.submitLeadFormAndCaptureApi({
-      formName: 'Condo plan community update form',
-      submitButton: form.getByRole('button', { name: TEXT.submit }).first(),
-      successModal: this.successDialogModal,
-      successMessage: this.formSuccessMessage,
-      timeout: TIMEOUT.long
+      await this.submitLeadFormAndCaptureApi({
+        formName: 'Condo plan community update form',
+        submitButton: form.getByRole('button', { name: TEXT.submit }).first(),
+        successModal: this.successDialogModal,
+        successMessage: this.formSuccessMessage,
+        timeout: TIMEOUT.long
+      });
+      await this.expectNoContactRedirect(formUrl);
     });
-    await this.expectNoContactRedirect(formUrl);
   }
 
   /** Helper: return the visible community update form when available. */
@@ -415,7 +476,7 @@ export class CondoPlanPage extends SearchablePage {
     }
 
     if (count === 0) {
-      console.warn('Community updates form not present - skipping form validation');
+      await this.reportValue('Community updates form not present - skipping form validation');
       return null;
     }
 
@@ -442,7 +503,7 @@ export class CondoPlanPage extends SearchablePage {
 
   /** Helper: fail fast when the flow navigates to Contact instead of showing in-page form success. */
   private async expectNoContactRedirect(previousUrl: string): Promise<void> {
-    await this.page.waitForTimeout(1000);
+    await this.settle(1000);
 
     const currentUrl = this.page.url();
 
@@ -454,60 +515,7 @@ export class CondoPlanPage extends SearchablePage {
 
   /** Helper: assert a field is visible only when present. */
   private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
-    if (await field.count()) {
-      await expect(field.first(), `${label} field should be visible`)
-        .toBeVisible({ timeout: TIMEOUT.short });
-    }
+    await expectFieldVisibleIfPresent(field, label, TIMEOUT.short);
   }
 
-  /** Helper: fill a field only when present. */
-  private async fillIfPresent(field: Locator, value: string): Promise<void> {
-    if (await field.count()) {
-      await field.first().fill(value);
-    }
-  }
-
-  /** Helper: select a dropdown value when the field exists. */
-  private async selectIfPresent(field: Locator, preferredLabel?: string): Promise<void> {
-    const target = field.first();
-
-    if (!(await target.count())) {
-      return;
-    }
-
-    if (preferredLabel) {
-      const selected = await target.selectOption({ label: preferredLabel })
-        .then(() => true)
-        .catch(() => false);
-
-      if (selected) {
-        return;
-      }
-    }
-
-    await target.selectOption({ index: 1 }).catch(() => undefined);
-  }
-
-  /** Helper: check a consent/preference checkbox when present. */
-  private async checkIfPresent(field: Locator): Promise<void> {
-    const target = field.first();
-
-    if (await target.count()) {
-      await target.check({ force: true }).catch(() => undefined);
-    }
-  }
-
-  /** Helper: identify empty, anchor, phone, mail, and JavaScript hrefs. */
-  private isIgnorableHref(href: string | null): boolean {
-    return !href ||
-      href.startsWith('#') ||
-      href.startsWith('mailto:') ||
-      href.startsWith('tel:') ||
-      href.startsWith('javascript:');
-  }
-
-  /** Helper: escape dynamic text before creating a regular expression. */
-  private escapeRegex(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
 }

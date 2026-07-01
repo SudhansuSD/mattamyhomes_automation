@@ -6,6 +6,15 @@ import {
     getLastPathSegment,
     getMediaSource
 } from '../utils/pageObjectUtils';
+import {
+    expectFieldVisibleIfPresent,
+    expectInvalidEmailErrorInForm,
+    expectRequiredErrorsInForm,
+    fillLeadFormFields,
+    getInvalidLeadData,
+    getValidLeadData,
+    LeadFieldData
+} from '../utils/leadFormHelper';
 import { BasePage } from './BasePage';
 
 export interface MPCConfig {
@@ -129,34 +138,34 @@ export class MPCPage extends BasePage {
 
   /** Action: navigate directly to an MPC page using its relative URL. */
   async navigateToMPC(relativeUrl: string): Promise<void> {
-    const { baseURL, envName } = getEnvConfig();
-    const location = getLocationConfig();
-    const homeUrl = `${baseURL}/?${location.queryParam}`;
-    const mpcUrl = `${baseURL}${relativeUrl}`;
+    await this.step(`Navigate to MPC page: ${relativeUrl}`, async () => {
+      const { baseURL, envName } = getEnvConfig();
+      const location = getLocationConfig();
+      const homeUrl = `${baseURL}/?${location.queryParam}`;
+      const mpcUrl = `${baseURL}${relativeUrl}`;
 
-    console.log(
-      `[NAVIGATE MPC] ENV=${envName} | COUNTRY=${location.country} | HOME=${homeUrl} | MPC=${mpcUrl}`
-    );
+      await this.reportValue('MPC navigation', `ENV=${envName} | COUNTRY=${location.country} | MPC=${mpcUrl}`);
 
-    await this.page.goto(homeUrl, {
-      waitUntil: 'domcontentloaded',
-      timeout: 90_000
+      await this.page.goto(homeUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: 90_000
+      });
+
+      await this.acceptCookiesIfPresent();
+      await this.dismissBlockingOverlays();
+      await this.waitForPageReady();
+
+      await this.page.goto(mpcUrl, {
+        waitUntil: 'domcontentloaded',
+        timeout: 90_000
+      });
+
+      await this.acceptCookiesIfPresent();
+      await this.dismissBlockingOverlays();
+      await this.ensureConfiguredCountrySelected();
+      await this.waitForPageReady();
+      await this.dismissPromoPopupIfPresent();
     });
-
-    await this.acceptCookiesIfPresent();
-    await this.dismissBlockingOverlays();
-    await this.waitForPageReady();
-
-    await this.page.goto(mpcUrl, {
-      waitUntil: 'domcontentloaded',
-      timeout: 90_000
-    });
-
-    await this.acceptCookiesIfPresent();
-    await this.dismissBlockingOverlays();
-    await this.ensureConfiguredCountrySelected();
-    await this.waitForPageReady();
-    await this.dismissPromoPopupIfPresent();
   }
 
   /* ==========================================================
@@ -165,6 +174,7 @@ export class MPCPage extends BasePage {
 
   /** Verify: MPC page URL, title, and heading match expected configuration. */
   async verifyMPCPage(mpc: MPCConfig): Promise<void> {
+    await this.step(`Verify MPC page: ${mpc.name}`, async () => {
     await this.waitForPageReady();
 
     await expect.poll(
@@ -190,31 +200,34 @@ export class MPCPage extends BasePage {
       `MPC page heading should contain configured name: ${mpc.name}`,
       20_000
     );
+    });
   }
 
   /** Verify: MPC hero contains the expected community name and visible content. */
   async validateHeroContent(mpcName: string): Promise<void> {
-    await this.assertTextContains(
-      this.heading,
-      new RegExp(mpcName, 'i'),
-      `MPC hero heading should contain ${mpcName}`
-    );
-    await this.assertVisible(this.heroSection, 'MPC hero section should be visible', 15_000);
+    await this.step(`Validate MPC hero content: ${mpcName}`, async () => {
+      await this.assertTextContains(
+        this.heading,
+        new RegExp(mpcName, 'i'),
+        `MPC hero heading should contain ${mpcName}`
+      );
+      await this.assertVisible(this.heroSection, 'MPC hero section should be visible', 15_000);
 
-    const heroText = await this.heroSection.innerText();
-    this.assertGreaterThan(
-      heroText.trim().length,
-      mpcName.length,
-      'MPC hero should include descriptive content'
-    );
+      const heroText = await this.heroSection.innerText();
+      this.assertGreaterThan(
+        heroText.trim().length,
+        mpcName.length,
+        'MPC hero should include descriptive content'
+      );
 
-    const favoriteButton = this.page.getByRole('button', {
-      name: /Mark as favorite/i
+      const favoriteButton = this.page.getByRole('button', {
+        name: /Mark as favorite/i
+      });
+
+      if (await favoriteButton.count()) {
+        await this.assertVisible(favoriteButton.first(), 'MPC favorite button should be visible when present');
+      }
     });
-
-    if (await favoriteButton.count()) {
-      await this.assertVisible(favoriteButton.first(), 'MPC favorite button should be visible when present');
-    }
   }
 
   /* ==========================================================
@@ -223,49 +236,55 @@ export class MPCPage extends BasePage {
 
   /** Verify: Summary tab opens and displays expected community summary content. */
   async validateSummaryTab(): Promise<void> {
-    const openedTab = await this.openTab('Summary');
-    if (openedTab) {
-      await this.assertAttribute(
-        this.summaryTab,
-        'aria-selected',
-        'true',
-        'MPC Summary tab should be selected after opening'
+    await this.step('Validate Summary tab', async () => {
+      const openedTab = await this.openTab('Summary');
+      if (openedTab) {
+        await this.assertAttribute(
+          this.summaryTab,
+          'aria-selected',
+          'true',
+          'MPC Summary tab should be selected after opening'
+        );
+      }
+      await this.assertBodyContains(
+        /community|homes|neighborhood|designed|location/i,
+        'MPC Summary tab should display community summary content'
       );
-    }
-    await this.assertBodyContains(
-      /community|homes|neighborhood|designed|location/i,
-      'MPC Summary tab should display community summary content'
-    );
+    });
   }
 
   /** Verify: Home Details tab opens and displays expected detail headings. */
   async validateHomeDetailsTab(): Promise<void> {
-    await this.openTab('Home Details');
+    await this.step('Validate Home Details tab', async () => {
+      await this.openTab('Home Details');
 
-    const expectedDetails = [
-      /Home Types/i,
-      /Bedrooms/i,
-      /Full Bathrooms/i,
-      /SQ\. FT\./i,
-      /Stories/i,
-      /Garages/i
-    ];
+      const expectedDetails = [
+        /Home Types/i,
+        /Bedrooms/i,
+        /Full Bathrooms/i,
+        /SQ\. FT\./i,
+        /Stories/i,
+        /Garages/i
+      ];
 
-    for (const detail of expectedDetails) {
-      await this.assertBodyContains(detail, `MPC Home Details tab should display ${detail}`);
-    }
+      for (const detail of expectedDetails) {
+        await this.assertBodyContains(detail, `MPC Home Details tab should display ${detail}`);
+      }
+    });
   }
 
   /** Verify: Contact & Hours tab opens and displays sales contact information. */
   async validateContactHoursTab(): Promise<void> {
-    await this.openTab('Contact & Hours');
+    await this.step('Validate Contact & Hours tab', async () => {
+      await this.openTab('Contact & Hours');
 
-    await this.assertBodyContains(
-      /Sales Office|New Home Gallery|Contact/i,
-      'MPC Contact & Hours tab should display sales contact content'
-    );
-    await this.assertBodyContains(/\d{3}-\d{3}-\d{4}/, 'MPC Contact & Hours tab should display phone number');
-    await this.assertBodyContains(/Hours|Open|Closed/i, 'MPC Contact & Hours tab should display hours');
+      await this.assertBodyContains(
+        /Sales Office|New Home Gallery|Contact/i,
+        'MPC Contact & Hours tab should display sales contact content'
+      );
+      await this.assertBodyContains(/\d{3}-\d{3}-\d{4}/, 'MPC Contact & Hours tab should display phone number');
+      await this.assertBodyContains(/Hours|Open|Closed/i, 'MPC Contact & Hours tab should display hours');
+    });
   }
 
   /** Helper: open a named MPC tab when it is not already selected. */
@@ -276,7 +295,7 @@ export class MPCPage extends BasePage {
     const hasTab = await tab.isVisible({ timeout: 5000 }).catch(() => false);
 
     if (!hasTab) {
-      console.log(`${tabName} tab is not present in the current MPC layout - validating page content instead`);
+      await this.reportValue(`${tabName} tab is not present in the current MPC layout - validating page content instead`);
       return false;
     }
 
@@ -295,85 +314,91 @@ export class MPCPage extends BasePage {
 
   /** Verify: MPC page includes at least one amenity or location section. */
   async validateAmenityAndLocationSections(): Promise<void> {
-    const amenityOrLocationHeading = this.page.getByRole('heading', {
-      name: /amenit|location|convenient|destination|lifestyle|nearby|explore/i
+    await this.step('Validate amenity and location sections', async () => {
+      const amenityOrLocationHeading = this.page.getByRole('heading', {
+        name: /amenit|location|convenient|destination|lifestyle|nearby|explore/i
+      });
+
+      await expect(amenityOrLocationHeading.first()).toBeVisible({ timeout: 15000 });
+
+      const matchingSectionCount = await this.page
+        .locator('section')
+        .filter({ has: amenityOrLocationHeading.first() })
+        .count();
+
+      expect(
+        matchingSectionCount,
+        'MPC page should include at least one amenity or location section'
+      ).toBeGreaterThan(0);
     });
-
-    await expect(amenityOrLocationHeading.first()).toBeVisible({ timeout: 15000 });
-
-    const matchingSectionCount = await this.page
-      .locator('section')
-      .filter({ has: amenityOrLocationHeading.first() })
-      .count();
-
-    expect(
-      matchingSectionCount,
-      'MPC page should include at least one amenity or location section'
-    ).toBeGreaterThan(0);
   }
 
   /** Verify: promotional CTA points into the expected MPC URL path. */
   async validatePromotionCTA(mpcUrl: string): Promise<void> {
-    const promotionButton = this.page
-      .getByRole('button', { name: /View promotions/i })
-      .first();
+    await this.step('Validate promotion CTA', async () => {
+      const promotionButton = this.page
+        .getByRole('button', { name: /View promotions/i })
+        .first();
 
-    if (await promotionButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await promotionButton.scrollIntoViewIfNeeded();
-      await expect(promotionButton, 'Promotion CTA should be visible')
-        .toBeVisible({ timeout: 10000 });
-      return;
-    }
+      if (await promotionButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await promotionButton.scrollIntoViewIfNeeded();
+        await expect(promotionButton, 'Promotion CTA should be visible')
+          .toBeVisible({ timeout: 10000 });
+        return;
+      }
 
-    const exploreLink = this.page
-      .locator(
-        `a[href="${mpcUrl}"]:visible, a[href^="${mpcUrl}/"]:visible, a[href*="${mpcUrl}/"]:visible`
-      )
-      .first();
+      const exploreLink = this.page
+        .locator(
+          `a[href="${mpcUrl}"]:visible, a[href^="${mpcUrl}/"]:visible, a[href*="${mpcUrl}/"]:visible`
+        )
+        .first();
 
-    await expect(
-      exploreLink,
-      `Expected a visible promotion CTA or community link under ${mpcUrl}`
-    ).toBeVisible({ timeout: 10000 });
+      await expect(
+        exploreLink,
+        `Expected a visible promotion CTA or community link under ${mpcUrl}`
+      ).toBeVisible({ timeout: 10000 });
 
-    const href = await exploreLink.getAttribute('href');
-    expect(href, 'Community CTA href missing').toBeTruthy();
-    expect(href).toContain(mpcUrl);
+      const href = await exploreLink.getAttribute('href');
+      expect(href, 'Community CTA href missing').toBeTruthy();
+      expect(href).toContain(mpcUrl);
+    });
   }
 
   /** Verify: image gallery content and navigation when the optional gallery is available. */
   async validateImageGalleryIfAvailable(): Promise<void> {
-    if (!(await this.isVisible(this.imageGallerySection, 5000))) {
-      console.log('MPC image gallery not present - skipping validation');
-      return;
-    }
+    await this.step('Validate image gallery (if available)', async () => {
+      if (!(await this.isVisible(this.imageGallerySection, 5000))) {
+        await this.reportValue('MPC image gallery not present - skipping validation');
+        return;
+      }
 
-    await this.scrollTo(this.imageGallerySection);
-    await expect(this.imageGallerySection, 'MPC image gallery should be visible')
-      .toBeVisible({ timeout: 10000 });
+      await this.scrollTo(this.imageGallerySection);
+      await expect(this.imageGallerySection, 'MPC image gallery should be visible')
+        .toBeVisible({ timeout: 10000 });
 
-    await this.showGalleryPhotosIfAvailable();
+      await this.showGalleryPhotosIfAvailable();
 
-    const mediaCount = await this.imageGalleryMedia.count();
-    expect(mediaCount, 'MPC image gallery should include at least one media item')
-      .toBeGreaterThan(0);
+      const mediaCount = await this.imageGalleryMedia.count();
+      expect(mediaCount, 'MPC image gallery should include at least one media item')
+        .toBeGreaterThan(0);
 
-    const firstMedia = this.getActiveGalleryMedia();
-    await expect(firstMedia, 'First MPC gallery media should be visible')
-      .toBeVisible({ timeout: 10000 });
+      const firstMedia = this.getActiveGalleryMedia();
+      await expect(firstMedia, 'First MPC gallery media should be visible')
+        .toBeVisible({ timeout: 10000 });
 
-    const src = await getMediaSource(firstMedia);
-    expect(src, 'First MPC gallery media src missing').toBeTruthy();
+      const src = await getMediaSource(firstMedia);
+      expect(src, 'First MPC gallery media src missing').toBeTruthy();
 
-    await firstMedia.click({ force: true });
+      await firstMedia.click({ force: true });
 
-    await expect(this.galleryModal, 'MPC gallery modal should open')
-      .toBeVisible({ timeout: 10000 });
-    await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'MPC gallery modal should show media')
-      .toBeVisible({ timeout: 10000 });
+      await expect(this.galleryModal, 'MPC gallery modal should open')
+        .toBeVisible({ timeout: 10000 });
+      await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'MPC gallery modal should show media')
+        .toBeVisible({ timeout: 10000 });
 
-    await this.navigateGalleryModalMediaIfAvailable();
-    await this.closeGalleryModal();
+      await this.navigateGalleryModalMediaIfAvailable();
+      await this.closeGalleryModal();
+    });
   }
 
   /** Locator: visible MPC gallery modal/dialog after opening media. */
@@ -411,7 +436,7 @@ export class MPCPage extends BasePage {
     });
 
     if (clickedPhotosFilter) {
-      await this.page.waitForTimeout(1000);
+      await this.settle(1000);
     }
   }
 
@@ -477,55 +502,64 @@ export class MPCPage extends BasePage {
 
   /** Verify: neighborhood cards are visible and link under the expected MPC path. */
   async validateNeighborhoodCards(mpcName: string, mpcUrl: string): Promise<void> {
-    await this.scrollTo(this.neighborhoodSection);
-    await this.waitForPageReady();
-    await expect(this.neighborhoodSection).toBeVisible({ timeout: 15000 });
+    await this.step(`Validate neighborhood cards: ${mpcName}`, async () => {
+      await this.scrollTo(this.neighborhoodSection);
+      await this.waitForPageReady();
+      await expect(this.neighborhoodSection).toBeVisible({ timeout: 15000 });
 
-    const currentMpcSegment = this.getCurrentMpcUrlSegment();
-    const cardLinks = this.getNeighborhoodCardLinks();
-    const count = await cardLinks.count();
+      const currentMpcSegment = this.getCurrentMpcUrlSegment();
+      const cardLinks = this.getNeighborhoodCardLinks();
+      const count = await cardLinks.count();
 
-    expect(
-      currentMpcSegment,
-      `Current MPC URL segment should be available for ${mpcName}`
-    ).toBeTruthy();
-    expect(count, 'MPC page should show neighborhood cards').toBeGreaterThan(0);
-
-    for (let i = 0; i < count; i++) {
-      const link = cardLinks.nth(i);
-      const href = await link.getAttribute('href');
-      const hrefSegments = href
-        ? new URL(href, this.page.url()).pathname.toLowerCase().split('/').filter(Boolean)
-        : [];
-      const cardText = await link.innerText();
-
-      expect(href, `Neighborhood card ${i + 1} href missing`).toBeTruthy();
-      console.log(`Neighborhood card ${i + 1}: href='${href}' | current MPC segment='${currentMpcSegment}'`);
       expect(
-        hrefSegments,
-        `Neighborhood card ${i + 1} href should include the exact current MPC URL segment`
-      ).toContain(currentMpcSegment);
-      expect(
-        cardText.trim().length,
-        `Neighborhood card ${i + 1} should include visible content for ${mpcName}`
-      ).toBeGreaterThan(0);
-    }
+        currentMpcSegment,
+        `Current MPC URL segment should be available for ${mpcName}`
+      ).toBeTruthy();
+      expect(count, 'MPC page should show neighborhood cards').toBeGreaterThan(0);
+
+      for (let i = 0; i < count; i++) {
+        const link = cardLinks.nth(i);
+        const href = await link.getAttribute('href');
+        const hrefSegments = href
+          ? new URL(href, this.page.url()).pathname.toLowerCase().split('/').filter(Boolean)
+          : [];
+        const cardText = await link.innerText();
+
+        expect(href, `Neighborhood card ${i + 1} href missing`).toBeTruthy();
+        expect(
+          hrefSegments,
+          `Neighborhood card ${i + 1} href should include the exact current MPC URL segment`
+        ).toContain(currentMpcSegment);
+        expect(
+          cardText.trim().length,
+          `Neighborhood card ${i + 1} should include visible content for ${mpcName}`
+        ).toBeGreaterThan(0);
+
+        await this.reportValue(`${i + 1}. ${cardText.trim()}`, this.buildFullUrl(href));
+      }
+
+      await this.reportValue(`Validated ${count} neighborhood card(s)`);
+    });
   }
 
   /** Verify: first neighborhood card navigates to its detail page. */
   async validateFirstNeighborhoodNavigation(mpcUrl: string): Promise<void> {
-    await this.scrollTo(this.neighborhoodSection);
-    await this.waitForPageReady();
-    await this.dismissBlockingOverlays();
+    await this.step('Validate first neighborhood card navigation', async () => {
+      await this.scrollTo(this.neighborhoodSection);
+      await this.waitForPageReady();
+      await this.dismissBlockingOverlays();
 
-    const firstNeighborhoodLink = this.getNeighborhoodCardLinks().first();
-    const href = await firstNeighborhoodLink.getAttribute('href');
+      const firstNeighborhoodLink = this.getNeighborhoodCardLinks().first();
+      const href = await firstNeighborhoodLink.getAttribute('href');
 
-    expect(href, 'First neighborhood href missing').toBeTruthy();
+      expect(href, 'First neighborhood href missing').toBeTruthy();
 
-    await firstNeighborhoodLink.click({ force: true });
-    await this.waitForPageReady();
-    await expect(this.page).toHaveURL(new RegExp(escapeRegex(href!), 'i'));
+      await this.reportValue('First neighborhood card', this.buildFullUrl(href));
+
+      await firstNeighborhoodLink.click({ force: true });
+      await this.waitForPageReady();
+      await expect(this.page).toHaveURL(new RegExp(escapeRegex(href!), 'i'));
+    });
   }
 
   /** Helper: return visible neighborhood card links under the expected MPC path. */
@@ -545,128 +579,134 @@ export class MPCPage extends BasePage {
 
   /** Verify: Get Information CTA opens the MPC lead form sidebar/modal. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
-    await expect(this.getInformationCta, 'Get Information CTA should be visible')
-      .toBeVisible({ timeout: 15000 });
+    await this.step('Verify Get Information CTA opens lead form', async () => {
+      await expect(this.getInformationCta, 'Get Information CTA should be visible')
+        .toBeVisible({ timeout: 15000 });
 
-    const form = await this.getAvailableGetInformationForm();
+      const form = await this.getAvailableGetInformationForm();
 
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
-    await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
-    await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone');
-    await expect(this.getSubmitButton(form), 'Get Information MPC form submit button should be visible')
-      .toBeVisible({ timeout: 10000 });
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
+      await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
+      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone');
+      await expect(this.getSubmitButton(form), 'Get Information MPC form submit button should be visible')
+        .toBeVisible({ timeout: 10000 });
+    });
   }
 
   /** Verify: Get Information MPC form shows required-field validation errors. */
   async validateGetInformationFormEmptyErrors(): Promise<void> {
-    const form = await this.getAvailableGetInformationForm();
+    await this.step('Validate Get Information form required errors', async () => {
+      const form = await this.getAvailableGetInformationForm();
 
-    await this.clickSubmit(form);
-    await this.expectRequiredErrorsInForm(form);
+      await this.clickSubmit(form);
+      await this.expectRequiredErrorsInForm(form);
+    });
   }
 
   /** Verify: Get Information MPC form rejects invalid email addresses. */
   async validateGetInformationFormInvalidEmail(): Promise<void> {
-    const form = await this.getAvailableGetInformationForm();
+    await this.step('Validate Get Information form invalid email', async () => {
+      const form = await this.getAvailableGetInformationForm();
 
-    await this.fillGetInformationFormWithInvalidEmail(form);
-    await this.clickSubmit(form);
+      await this.fillGetInformationFormWithInvalidEmail(form);
+      await this.clickSubmit(form);
 
-    await this.expectInvalidEmailErrorInForm(form);
+      await this.expectInvalidEmailErrorInForm(form);
+    });
   }
 
   /** Verify: Get Information MPC form can be submitted successfully. */
   async verifyGetInformationFormSuccessSubmission(): Promise<void> {
-    const form = await this.getAvailableGetInformationForm();
+    await this.step('Submit Get Information form successfully', async () => {
+      const form = await this.getAvailableGetInformationForm();
 
-    await this.fillGetInformationFormWithValidData(form);
-    await this.submitLeadFormAndCaptureApi({
-      formName: 'Get Information MPC form',
-      submitButton: this.getSubmitButton(form),
-      successModal: this.successDialogModal,
-      successMessage: this.formSuccessMessage
+      await this.fillGetInformationFormWithValidData(form);
+      await this.submitLeadFormAndCaptureApi({
+        formName: 'Get Information MPC form',
+        submitButton: this.getSubmitButton(form),
+        successModal: this.successDialogModal,
+        successMessage: this.formSuccessMessage
+      });
     });
   }
 
   /** Verify: community update form fields and submit button are visible. */
   async validateCommunityUpdateFormFields(): Promise<void> {
-    const form = await this.getCommunityUpdateForm();
-    const fields = this.getCommunityUpdateFormFields(form);
+    await this.step('Validate community update form fields', async () => {
+      const form = await this.getCommunityUpdateForm();
+      const fields = this.getCommunityUpdateFormFields(form);
 
-    for (const field of [
-      fields.community,
-      fields.firstName,
-      fields.lastName,
-      fields.email,
-      fields.country,
-      fields.zip,
-      fields.phone,
-      fields.terms,
-      fields.submit
-    ]) {
-      await expect(field.first()).toBeVisible({ timeout: 10000 });
-    }
+      for (const field of [
+        fields.community,
+        fields.firstName,
+        fields.lastName,
+        fields.email,
+        fields.country,
+        fields.zip,
+        fields.phone,
+        fields.terms,
+        fields.submit
+      ]) {
+        await expect(field.first()).toBeVisible({ timeout: 10000 });
+      }
 
-    const options = await fields.community.locator('option').allTextContents();
-    expect(
-      options.filter((option) => option.trim().length > 0).length,
-      'Community of Interest should include selectable communities'
-    ).toBeGreaterThan(0);
+      const options = await fields.community.locator('option').allTextContents();
+      expect(
+        options.filter((option) => option.trim().length > 0).length,
+        'Community of Interest should include selectable communities'
+      ).toBeGreaterThan(0);
+    });
   }
 
   /** Verify: community update form shows required-field validation errors. */
   async validateCommunityUpdateRequiredErrors(): Promise<void> {
-    const form = await this.getCommunityUpdateForm();
-    const fields = this.getCommunityUpdateFormFields(form);
+    await this.step('Validate community update required errors', async () => {
+      const form = await this.getCommunityUpdateForm();
+      const fields = this.getCommunityUpdateFormFields(form);
 
-    await fields.submit.click();
+      await fields.submit.click();
 
-    await expect(form.locator('text=/Required|Please complete/i').first())
-      .toBeVisible({ timeout: 10000 });
+      await expect(form.locator('text=/Required|Please complete/i').first())
+        .toBeVisible({ timeout: 10000 });
+    });
   }
 
   /** Verify: community update form rejects an invalid email address. */
   async validateCommunityUpdateInvalidEmail(): Promise<void> {
-    const form = await this.getCommunityUpdateForm();
-    const fields = this.getCommunityUpdateFormFields(form);
+    await this.step('Validate community update invalid email', async () => {
+      const form = await this.getCommunityUpdateForm();
+      const fields = this.getCommunityUpdateFormFields(form);
 
-    await fields.community.selectOption({ index: 1 });
-    await fields.firstName.fill('Test');
-    await fields.lastName.fill('User');
-    await fields.email.fill('user@domain.c');
-    await fields.country.selectOption({ label: 'United States' });
-    await fields.zip.fill('33545');
-    await fields.phone.fill('8135551212');
-    await fields.terms.check({ force: true });
+      const invalid = getInvalidLeadData('mpc');
 
-    await fields.submit.click();
+      await this.fillCommunityUpdateFormFields(fields, invalid);
 
-    await expect(form.getByText(/Email addresses must contain.*valid domain name/i))
-      .toBeVisible({ timeout: 10000 });
+      await fields.submit.click();
+
+      await expect(form.getByText(/Email addresses must contain.*valid domain name/i))
+        .toBeVisible({ timeout: 10000 });
+    });
   }
 
   /** Verify: community update form can be submitted successfully. */
   async submitCommunityUpdateFormSuccessfully(): Promise<void> {
-    const form = await this.getCommunityUpdateForm();
-    const fields = this.getCommunityUpdateFormFields(form);
+    await this.step('Submit community update form successfully', async () => {
+      const form = await this.getCommunityUpdateForm();
+      const fields = this.getCommunityUpdateFormFields(form);
 
-    await fields.community.selectOption({ index: 1 });
-    await fields.firstName.fill('Sudhansu');
-    await fields.lastName.fill('Das');
-    await fields.email.fill(`ssdas+mpc${Date.now()}@ex2india.com`);
-    await fields.country.selectOption({ label: 'United States' });
-    await fields.zip.fill('33545');
-    await fields.phone.fill('8135551212');
-    await fields.terms.check({ force: true });
+      const valid = getValidLeadData('mpc');
 
-    await this.submitLeadFormAndCaptureApi({
-      formName: 'MPC community update form',
-      submitButton: fields.submit,
-      successModal: this.successDialogModal,
-      successMessage: this.formSuccessMessage
+      await this.fillCommunityUpdateFormFields(fields, valid);
+
+      await this.submitLeadFormAndCaptureApi({
+        formName: 'MPC community update form',
+        submitButton: fields.submit,
+        successModal: this.successDialogModal,
+        successMessage: this.formSuccessMessage
+      });
     });
   }
 
@@ -709,6 +749,21 @@ export class MPCPage extends BasePage {
     };
   }
 
+  /** Helper: fill MPC community update form fields while preserving original dropdown and consent behavior. */
+  private async fillCommunityUpdateFormFields(
+    fields: ReturnType<MPCPage['getCommunityUpdateFormFields']>,
+    leadData: LeadFieldData
+  ): Promise<void> {
+    await fields.community.selectOption({ index: 1 });
+    await fields.firstName.fill(leadData.firstName);
+    await fields.lastName.fill(leadData.lastName);
+    await fields.email.fill(leadData.email);
+    await fields.country.selectOption({ label: leadData.country });
+    await fields.zip.fill(leadData.zip);
+    await fields.phone.fill(leadData.phone);
+    await fields.terms.check({ force: true }).catch(() => undefined);
+  }
+
   /** Helper: click the Get Information CTA when the sidebar/modal form is not already open. */
   private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
     if (await this.leadFormDialogOrSidebar.count()) {
@@ -723,7 +778,7 @@ export class MPCPage extends BasePage {
     await this.getInformationCta.scrollIntoViewIfNeeded();
     await this.getInformationCta.click({ force: true });
     await this.waitForPageReady();
-    await this.page.waitForTimeout(1000);
+    await this.settle(1000);
 
     expect(
       this.page.url(),
@@ -760,31 +815,12 @@ export class MPCPage extends BasePage {
 
   /** Helper: fill Get Information lead form with data that should fail email validation. */
   private async fillGetInformationFormWithInvalidEmail(form: Locator): Promise<void> {
-    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Test');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'User');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /^email/i }), 'user@domain.c');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '8135551212');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), '33545');
-
-    await this.selectFirstOptionIfPresent(form.getByRole('combobox', { name: /community of interest/i }).first());
-    await this.selectCountryOfResidenceIfPresent(form);
-    await this.checkConsentIfPresent(form);
+    await fillLeadFormFields(form, getInvalidLeadData('mpc'), { selectCommunity: true });
   }
 
   /** Helper: fill Get Information lead form with valid data for successful submission. */
   private async fillGetInformationFormWithValidData(form: Locator): Promise<void> {
-    await this.fillIfPresent(form.getByRole('textbox', { name: /first name/i }), 'Sudhansu');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Das');
-    await this.fillIfPresent(
-      form.getByRole('textbox', { name: /^email/i }),
-      `ssdas_mpc_getinfo_${Date.now()}@ex2india.com`
-    );
-    await this.fillIfPresent(form.getByRole('textbox', { name: /phone/i }), '8135551212');
-    await this.fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), '33545');
-
-    await this.selectFirstOptionIfPresent(form.getByRole('combobox', { name: /community of interest/i }).first());
-    await this.selectCountryOfResidenceIfPresent(form);
-    await this.checkConsentIfPresent(form);
+    await fillLeadFormFields(form, getValidLeadData('mpcGetInfo'), { selectCommunity: true });
   }
 
   /** Helper: locate submit button inside a specific lead form. */
@@ -804,99 +840,22 @@ export class MPCPage extends BasePage {
       noWaitAfter: true,
       timeout: 5000
     });
-    await this.page.waitForTimeout(800);
+    await this.settle(800);
   }
 
   /** Helper: assert expected required-field messages within a lead form. */
   private async expectRequiredErrorsInForm(form: Locator): Promise<void> {
-    await expect(form.locator('text=/Error:\\s*First name is Required|First name.*Required/i').first())
-      .toBeVisible({ timeout: 10000 });
-    await expect(form.locator('text=/Error:\\s*Last name is Required|Last name.*Required/i').first())
-      .toBeVisible({ timeout: 10000 });
-    await expect(form.locator('text=/Error:\\s*Email is Required|Email.*Required/i').first())
-      .toBeVisible({ timeout: 10000 });
-    await expect(form.locator('text=/Error:\\s*Country of Residence is Required|Country of Residence.*Required/i').first())
-      .toBeVisible({ timeout: 10000 });
-    await expect(form.locator('text=/Error:\\s*Zip\\/Postal Code is Required|Zip\\/Postal Code.*Required|Postal.*Required/i').first())
-      .toBeVisible({ timeout: 10000 });
+    await expectRequiredErrorsInForm(form);
   }
 
   /** Helper: assert invalid-email validation within a lead form. */
   private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
-    await expect(form.locator(
-      'text=/valid domain name|valid email|invalid email|Error:.*Email|Email.*Invalid/i'
-    ).first()).toBeVisible({ timeout: 10000 });
+    await expectInvalidEmailErrorInForm(form);
   }
 
   /** Helper: assert a field is visible only when present in the form. */
   private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
-    if (await field.count()) {
-      await expect(field.first(), `${label} field should be visible`)
-        .toBeVisible({ timeout: 10000 });
-    }
-  }
-
-  /** Helper: fill a field only when it exists. */
-  private async fillIfPresent(field: Locator, value: string): Promise<void> {
-    if (await field.count()) {
-      await field.first().fill(value);
-    }
-  }
-
-  /** Helper: select the first non-placeholder option when a dropdown exists. */
-  private async selectFirstOptionIfPresent(field: Locator): Promise<void> {
-    if (!(await field.count())) {
-      return;
-    }
-
-    await field.selectOption({ index: 1 }).catch(() => undefined);
-  }
-
-  /** Helper: select country of residence when the field exists. */
-  private async selectCountryOfResidenceIfPresent(form: Locator): Promise<void> {
-    const countryOfResidence = form.getByRole('combobox', {
-      name: /country of residence/i
-    }).first();
-
-    if (!(await countryOfResidence.count())) {
-      return;
-    }
-
-    const selectedPreferred = await countryOfResidence
-      .selectOption({ label: 'United States' })
-      .then(() => true)
-      .catch(() => false);
-
-    if (!selectedPreferred) {
-      await countryOfResidence.selectOption({ index: 1 }).catch(() => undefined);
-    }
-  }
-
-  /** Helper: check the first consent checkbox when present. */
-  private async checkConsentIfPresent(form: Locator): Promise<void> {
-    const checkbox = form.getByRole('checkbox', {
-      name: /express consent|providing consent|privacy policy/i
-    }).first();
-
-    if (await checkbox.count()) {
-      await checkbox.check({ force: true }).catch(() => undefined);
-      return;
-    }
-
-    const fallbackCheckboxes = form.getByRole('checkbox');
-    const count = await fallbackCheckboxes.count();
-
-    for (let i = 0; i < count; i++) {
-      const candidate = fallbackCheckboxes.nth(i);
-      const label = await candidate.getAttribute('aria-label').catch(() => null);
-
-      if (label && /real estate agent/i.test(label)) {
-        continue;
-      }
-
-      await candidate.check({ force: true }).catch(() => undefined);
-      return;
-    }
+    await expectFieldVisibleIfPresent(field, label);
   }
 
   /** Helper: return true when a locator becomes visible within the timeout. */
@@ -913,7 +872,7 @@ export class MPCPage extends BasePage {
 
     if (await usaCountryButton.isVisible({ timeout: 2000 }).catch(() => false)) {
       await usaCountryButton.click({ force: true });
-      await this.page.waitForTimeout(1000);
+      await this.settle(1000);
     }
 
     const cookieAccept = this.page.locator('#onetrust-accept-btn-handler');
@@ -941,33 +900,4 @@ export class MPCPage extends BasePage {
     }
   }
 
-  /** Helper: select the configured country from the header country selector when needed. */
-  private async ensureConfiguredCountrySelected(): Promise<void> {
-    const expectedCountry = getLocationConfig().country === 'USA' ? 'USA' : 'CANADA';
-    const countrySelector = this.page
-      .locator('button[aria-label^="Select your country."]')
-      .first();
-
-    if (!(await countrySelector.isVisible({ timeout: 5000 }).catch(() => false))) {
-      return;
-    }
-
-    const currentLabel = await countrySelector.getAttribute('aria-label').catch(() => '');
-
-    if (currentLabel && new RegExp(`${expectedCountry} country is selected`, 'i').test(currentLabel)) {
-      return;
-    }
-
-    await countrySelector.click({ force: true });
-    await this.page.waitForTimeout(500);
-
-    const expectedCountryButton = this.page
-      .getByRole('button', { name: new RegExp(`^${expectedCountry}$`, 'i') })
-      .last();
-
-    if (await expectedCountryButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expectedCountryButton.click({ force: true });
-      await this.waitForPageReady();
-    }
-  }
 }
