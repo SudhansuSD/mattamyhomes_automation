@@ -2,35 +2,18 @@
   "tests": [
     {
       "id": "TC001",
-      "name": "Validate source URL redirects correctly",
+      "name": "Bradenton Redirect URLs",
       "actions": [
         {
           "type": "navigate",
-          "url": "/sunstone"
+          "url": "/florida/sarasota-bradenton/promos/jun-aug-2026"
         },
         {
           "type": "waitForNavigation"
         },
         {
           "type": "assertUrlContains",
-          "value": "florida.*sarasota.*bradenton.*venice.*wellen-park.*sunstone"
-        }
-      ]
-    },
-    {
-      "id": "TC002",
-      "name": "Validate redirected destination URL is correct",
-      "actions": [
-        {
-          "type": "navigate",
-          "url": "/sunstone"
-        },
-        {
-          "type": "waitForNavigation"
-        },
-        {
-          "type": "assertUrlContains",
-          "value": "florida.*sarasota.*bradenton.*venice.*wellen-park.*sunstone"
+          "value": "florida.*sarasota-bradenton.*promos.*self-tour"
         }
       ]
     }

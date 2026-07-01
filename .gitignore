@@ -29,3 +29,7 @@ manual-tests.md
 *.doc
 *.docx
 log/
+*.json
+*.xlsx
+*.csv
+*.xls
