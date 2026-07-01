@@ -28,3 +28,4 @@ manual-tests.md
 */formProfaneSubmissionEvidence.spec.ts
 *.doc
 *.docx
+log/
