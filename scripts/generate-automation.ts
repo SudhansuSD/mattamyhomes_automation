@@ -1,13 +1,16 @@
 import fs from 'fs';
 import path from 'path';
+import { getLocationConfig } from '../config/locations/locationConfig';
 
 type AutomationAction =
     | { type: 'navigate'; url: string }
+    | { type: 'skip'; reason: string }
     | { type: 'waitForNavigation' }
     | { type: 'waitForLoad' }
     | { type: 'assertUrlContains'; value: string }
     | { type: 'fill'; selector: string; value: string }
-    | { type: 'assertVisible'; selector: string };
+    | { type: 'assertVisible'; selector: string }
+    | { type: 'assertHidden'; selector: string };
 
 type AutomationTest = {
     id: string;
@@ -15,7 +18,7 @@ type AutomationTest = {
     actions: AutomationAction[];
 };
 
-type JiraTestCase = {
+type RequirementTestCase = {
     id?: string;
     title?: string;
     name?: string;
@@ -25,30 +28,31 @@ type JiraTestCase = {
     tags?: unknown;
 };
 
-type JiraTestCaseFile = {
+type RequirementTestCaseFile = {
     testCases?: unknown;
 };
 
-type JiraInput = {
+type RequirementInput = {
     summary?: string;
     description?: string;
     labels?: unknown;
 };
 
-const inputPath = path.resolve(__dirname, '../data/jira-testcases.json');
-const jiraInputPath = path.resolve(__dirname, '../data/jira-ai-input.json');
+const inputPath = path.resolve(__dirname, '../data/generated-testcases.json');
+const requirementInputPath = path.resolve(__dirname, '../data/requirement-input.json');
 const outputPath = path.resolve(__dirname, '../data/automation-tests.json');
+const location = getLocationConfig();
 
-const testCaseData = readJson<JiraTestCaseFile>(inputPath);
-const jiraInput = fs.existsSync(jiraInputPath) ? readJson<JiraInput>(jiraInputPath) : {};
+const testCaseData = readJson<RequirementTestCaseFile>(inputPath);
+const requirementInput = fs.existsSync(requirementInputPath) ? readJson<RequirementInput>(requirementInputPath) : {};
 const testCases = parseTestCases(testCaseData);
-const jiraContext = buildJiraContext(jiraInput);
+const requirementContext = buildRequirementContext(requirementInput);
 
 function readJson<T>(filePath: string): T {
     return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
 }
 
-function parseTestCases(data: JiraTestCaseFile): JiraTestCase[] {
+function parseTestCases(data: RequirementTestCaseFile): RequirementTestCase[] {
     if (!Array.isArray(data.testCases)) {
         throw new Error(`Expected "testCases" array in ${inputPath}`);
     }
@@ -58,7 +62,7 @@ function parseTestCases(data: JiraTestCaseFile): JiraTestCase[] {
             throw new Error(`Invalid test case at index ${index}`);
         }
 
-        return testCase as JiraTestCase;
+        return testCase as RequirementTestCase;
     });
 }
 
@@ -74,15 +78,15 @@ function toStringArray(value: unknown): string[] {
     return value.filter((item): item is string => typeof item === 'string');
 }
 
-function buildJiraContext(jira: JiraInput): string {
+function buildRequirementContext(requirement: RequirementInput): string {
     return [
-        jira.summary,
-        jira.description,
-        ...toStringArray(jira.labels)
+        requirement.summary,
+        requirement.description,
+        ...toStringArray(requirement.labels)
     ].filter(Boolean).join(' ');
 }
 
-function buildTestCaseContext(testCase: JiraTestCase): string {
+function buildTestCaseContext(testCase: RequirementTestCase): string {
     return [
         testCase.title,
         testCase.name,
@@ -90,40 +94,91 @@ function buildTestCaseContext(testCase: JiraTestCase): string {
         ...toStringArray(testCase.steps),
         testCase.expectedResult,
         ...toStringArray(testCase.tags),
-        jiraContext
+        requirementContext
     ].filter(Boolean).join(' ').toLowerCase();
 }
 
-function mapTestCaseToActions(testCase: JiraTestCase, index: number): AutomationTest {
+function buildLocalTestCaseContext(testCase: RequirementTestCase): string {
+    return [
+        testCase.title,
+        testCase.name,
+        testCase.type,
+        ...toStringArray(testCase.steps),
+        testCase.expectedResult,
+        ...toStringArray(testCase.tags)
+    ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function mapTestCaseToActions(testCase: RequirementTestCase, index: number): AutomationTest {
     const actions: AutomationAction[] = [];
     const text = buildTestCaseContext(testCase);
+    const localText = buildLocalTestCaseContext(testCase);
 
-    if (isRedirectScenario(text)) {
-        const redirectPaths = extractRedirectPaths(text);
+    if (/needs-fixture-url|manual fixture needed/.test(localText)) {
+        actions.push({
+            type: 'skip',
+            reason: 'No configured URL is available for a page without plans and QMIs. Add that URL to the Jira requirement (data/requirement-input.json) before automating this case.'
+        });
+    } else if (isContactBarScenario(text)) {
+        const isMpcScenario = isMpcContactBarScenario(localText);
 
         actions.push({
             type: 'navigate',
-            url: redirectPaths.source
+            url: isMpcScenario ? getMpcPath() : getCommunityPath()
         });
 
         actions.push({
-            type: 'waitForNavigation'
+            type: 'waitForLoad'
         });
 
-        actions.push({
-            type: 'assertUrlContains',
-            value: toRegexFriendlyUrlToken(redirectPaths.destination)
-        });
+        if (isMpcScenario) {
+            actions.push({
+                type: 'assertVisible',
+                selector: 'text=/Contact|Sales|Hours|Directions|New Home Gallery/i'
+            });
+        } else {
+            actions.push({
+                type: 'assertVisible',
+                selector: 'text=/Schedule (an )?Appointment/i'
+            });
+
+            actions.push({
+                type: 'assertVisible',
+                selector: 'text=/Directions/i'
+            });
+
+            actions.push({
+                type: 'assertVisible',
+                selector: 'a[href^="tel:"]'
+            });
+        }
+    } else if (isRedirectScenario(text)) {
+        const redirectPaths = extractRedirectPaths(text);
+
+        if (!redirectPaths) {
+            actions.push({
+                type: 'skip',
+                reason: 'Redirect scenario has no mattamyhomes.com source/destination URL to automate. Add the source and destination URLs to the requirement before automating this case.'
+            });
+        } else {
+            actions.push({
+                type: 'navigate',
+                url: redirectPaths.source
+            });
+
+            actions.push({
+                type: 'waitForNavigation'
+            });
+
+            actions.push({
+                type: 'assertUrlContains',
+                value: toRegexFriendlyUrlToken(redirectPaths.destination)
+            });
+        }
     } else if (isValidationScenario(text)) {
         actions.push({
-            type: 'fill',
-            selector: 'input-field',
-            value: 'invalid-data'
-        });
-
-        actions.push({
-            type: 'assertVisible',
-            selector: 'validation-message'
+            type: 'skip',
+            reason: 'Validation scenario has no reliable selector to automate generically. Add the target input and validation-message selectors before automating this case.'
         });
     } else {
         actions.push({
@@ -147,11 +202,29 @@ function isRedirectScenario(text: string): boolean {
     return /redirect|navigate|url|link/.test(text);
 }
 
+function isContactBarScenario(text: string): boolean {
+    return /contact bar|schedule appointment|cta|divider|home details/.test(text);
+}
+
+function isMpcContactBarScenario(text: string): boolean {
+    return /mpc|master-planned/.test(text) && /schedule appointment|contact bar|cta/.test(text);
+}
+
+function getCommunityPath(): string {
+    return location.communityPath ?? getMpcPath();
+}
+
+function getMpcPath(): string {
+    const locationRecord = location as Record<string, any>;
+
+    return locationRecord.mpc?.url ?? location.communityPath ?? '/';
+}
+
 function isValidationScenario(text: string): boolean {
     return /validation|error|required|invalid/.test(text);
 }
 
-function extractRedirectPaths(text: string): { source: string; destination: string } {
+function extractRedirectPaths(text: string): { source: string; destination: string } | null {
     const paths = extractMattamyPaths(text);
 
     if (paths.length >= 2) {
@@ -168,17 +241,7 @@ function extractRedirectPaths(text: string): { source: string; destination: stri
         };
     }
 
-    if (text.includes('sunstone')) {
-        return {
-            source: '/sunstone',
-            destination: '/florida/sarasota/bradenton/venice/wellen-park/sunstone'
-        };
-    }
-
-    return {
-        source: '/',
-        destination: '/'
-    };
+    return null;
 }
 
 function extractMattamyPaths(text: string): string[] {

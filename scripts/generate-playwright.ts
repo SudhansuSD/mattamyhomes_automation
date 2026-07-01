@@ -1,47 +1,89 @@
 import fs from 'fs';
 import path from 'path';
 
-const inputPath = path.resolve(__dirname, '../data/automation-tests.json');
-const outputPath = path.resolve(__dirname, '../tests/generated.spec.ts');
+type RedirectScenario = {
+    sourceUrl: string;
+    expectedPathContains: string;
+    group: string;
+    title: string;
+};
 
-const { tests } = JSON.parse(fs.readFileSync(inputPath, 'utf-8'));
+type Analysis = {
+    ticket: string;
+    summary: string;
+    positiveScenarios: RedirectScenario[];
+};
 
-function generatePlaywrightTest(test: any): string {
-    const steps = test.actions.map((action: any) => {
-        switch (action.type) {
-            case 'navigate':
-                return `await page.goto('${action.url}');`;
+// Usage: npx ts-node scripts/generate-playwright.ts <ticketid> [--force]
+const ticketId = process.argv[2];
+const force = process.argv.includes('--force');
 
-            case 'waitForNavigation':
-                return `await page.waitForLoadState('networkidle');`;
+if (!ticketId) {
+    console.error('Usage: npx ts-node scripts/generate-playwright.ts <ticketid> [--force]');
+    process.exit(1);
+}
 
-            case 'assertUrlContains':
-                return `await expect(page).toHaveURL(/${action.value}/);`;
+const ticketUpper = ticketId.toUpperCase();
+const analysisPath = path.resolve(__dirname, '../data/jira', `${ticketUpper}.analysis.json`);
+const outputPath = path.resolve(__dirname, '../tests', `${ticketUpper}.spec.ts`);
 
-            case 'fill':
-                return `await page.fill('${action.selector}', '${action.value}');`;
+if (!fs.existsSync(analysisPath)) {
+    console.error(`Analysis not found: ${path.relative(process.cwd(), analysisPath)}. Run: npm run jira:analyze -- ${ticketUpper}`);
+    process.exit(1);
+}
 
-            case 'assertVisible':
-                return `await expect(page.locator('${action.selector}')).toBeVisible();`;
+if (fs.existsSync(outputPath) && !force) {
+    console.error(`Spec already exists: ${path.relative(process.cwd(), outputPath)}. Re-run with --force to overwrite.`);
+    process.exit(1);
+}
 
-            default:
-                return `// Unknown action`;
-        }
-    });
+const analysis = JSON.parse(fs.readFileSync(analysisPath, 'utf-8')) as Analysis;
 
-    return `
-test('${test.name}', async ({ page }) => {
-    ${steps.join('\n    ')}
+fs.writeFileSync(outputPath, buildSpec(analysis), 'utf-8');
+console.log(`Playwright spec generated into ${path.relative(process.cwd(), outputPath)}`);
+
+// Builds a redirect-validation spec grouped by the redirect rule that produced each scenario,
+// mirroring the hand-written tests/MTTMY-2091.spec.ts pattern.
+function buildSpec(analysis: Analysis): string {
+    const scenarios = analysis.positiveScenarios ?? [];
+    const groups = [...new Set(scenarios.map((scenario) => scenario.group))].filter(Boolean);
+    const describeTitle = `${analysis.ticket} - ${analysis.summary}`;
+
+    const body = groups.length
+        ? groups.map((group) => buildTestBlock(analysis.ticket, group)).join('\n\n')
+        : buildEmptyBlock(analysis.ticket);
+
+    return `import { test } from '@playwright/test';
+import analysis from '../data/jira/${analysis.ticket}.analysis.json';
+import { validateRedirectCases, RedirectCase } from '../utils/redirectValidation';
+
+const scenarios = analysis.positiveScenarios as (RedirectCase & { group: string })[];
+
+test.describe(${jsString(describeTitle)}, () => {
+${body}
 });
 `;
 }
 
-const content = `
-import { test, expect } from '@playwright/test';
+function buildTestBlock(ticket: string, group: string): string {
+    const testName = `${ticket} | @regression | Validate redirects: ${group}`;
 
-${tests.map(generatePlaywrightTest).join('\n')}
-`;
+    return `  test(${jsString(testName)}, async ({ request }) => {
+    await validateRedirectCases(
+      request,
+      scenarios.filter((scenario) => scenario.group === ${jsString(group)}),
+      { label: ${jsString(`${ticket} ${group}`)} }
+    );
+  });`;
+}
 
-fs.writeFileSync(outputPath, content);
+function buildEmptyBlock(ticket: string): string {
+    return `  test(${jsString(`${ticket} | @regression | Redirect scenarios`)}, async () => {
+    test.skip(true, 'No redirect scenarios were derived from the Jira analysis. Add redirect rules in data/jira/${ticket}.redirect-rules.json and re-run jira:analyze.');
+  });`;
+}
 
-console.log('✅ Playwright tests generated');
+// Serializes a string as a safe double-quoted JavaScript literal for embedding in generated code.
+function jsString(value: string): string {
+    return JSON.stringify(value);
+}

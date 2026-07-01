@@ -1,158 +1,138 @@
 import fs from 'fs';
 import path from 'path';
 
+type TestCaseType = 'navigation' | 'validation' | 'functional' | 'ui' | 'generic';
+
 type TestCase = {
     id: string;
     title: string;
-    type: 'navigation' | 'validation' | 'functional' | 'ui' | 'generic';
+    type: TestCaseType;
     steps: string[];
     expectedResult: string;
     tags: string[];
 };
 
-/*
-COPILOT INSTRUCTION:
+type RequirementInput = {
+    ticket?: string;
+    summary?: string;
+    description?: string;
+    acceptanceCriteria?: unknown;
+    comments?: unknown;
+    labels?: unknown;
+};
 
-You are a senior QA automation engineer.
+const inputPath = path.resolve(__dirname, '../data/requirement-input.json');
+const outputPath = path.resolve(__dirname, '../data/generated-testcases.json');
 
-Goal:
-Convert Jira input into meaningful test cases.
-
-Rules:
-- DO NOT create test cases from URL fragments or broken strings
-- Understand intent (redirect, validation, navigation)
-- Group related logic into 1–2 strong scenarios (NOT many weak ones)
-- Prefer realistic web application behavior
-- Avoid duplication
-
-Focus:
-- redirect
-- navigation
-- validation
-- UI behavior
-
-Now generate clean test cases below.
-*/
-
-const inputPath = path.resolve(__dirname, '../data/jira-ai-input.json');
-const outputPath = path.resolve(__dirname, '../data/jira-testcases.json');
-
-const jira = JSON.parse(fs.readFileSync(inputPath, 'utf-8'));
-
-function cleanText(text: string): string {
-    return text
-        .replace(/https?:\/\/\S+/g, '') // remove URLs
-        .replace(/[^\w\s]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .toLowerCase();
-}
-
-function detectIntent(text: string): string[] {
-    const intents: string[] = [];
-
-    if (/redirect|link|navigate|url/.test(text)) intents.push('redirect');
-    if (/validation|error|required|invalid/.test(text)) intents.push('validation');
-    if (/search|filter|select/.test(text)) intents.push('functional');
-    if (/button|dropdown|field|ui/.test(text)) intents.push('ui');
-
-    return intents.length > 0 ? intents : ['generic'];
-}
-
-function generateTestCases(jira: any): TestCase[] {
-    const text = cleanText(`${jira.summary} ${jira.description}`);
-
-    const intents = detectIntent(text);
-
-    const testCases: TestCase[] = [];
-
-    // 🔥 Redirect scenario (fix for your Sunstone issue)
-    if (intents.includes('redirect')) {
-        testCases.push({
-            id: 'TC001',
-            title: 'Validate source URL redirects correctly',
-            type: 'navigation',
-            steps: [
-                'Open the source URL in browser',
-                'Observe redirect behavior',
-                'Verify user is redirected to expected destination page'
-            ],
-            expectedResult: 'User should land on correct destination page',
-            tags: ['redirect', 'navigation', 'url']
-        });
-
-        testCases.push({
-            id: 'TC002',
-            title: 'Validate redirected destination URL is correct',
-            type: 'navigation',
-            steps: [
-                'Trigger redirect using source URL',
-                'Capture final landing URL',
-                'Verify it matches expected destination URL'
-            ],
-            expectedResult: 'Final URL should match expected destination',
-            tags: ['redirect', 'url']
-        });
-
-        return testCases;
-    }
-
-    // 🔹 Validation scenarios
-    if (intents.includes('validation')) {
-        testCases.push({
-            id: 'TC001',
-            title: 'Validate input validation behavior',
-            type: 'validation',
-            steps: [
-                'Navigate to relevant page',
-                'Enter invalid input',
-                'Observe validation behavior'
-            ],
-            expectedResult: 'Proper validation message should be displayed',
-            tags: ['validation']
-        });
-
-        return testCases;
-    }
-
-    // 🔹 Functional scenarios
-    if (intents.includes('functional')) {
-        testCases.push({
-            id: 'TC001',
-            title: 'Validate functional behavior',
-            type: 'functional',
-            steps: [
-                'Navigate to application page',
-                'Perform user action',
-                'Observe system behavior'
-            ],
-            expectedResult: 'System should behave as expected',
-            tags: ['functional']
-        });
-
-        return testCases;
-    }
-
-    // 🔹 Generic fallback
-    testCases.push({
-        id: 'TC001',
-        title: `Validate functionality for ${jira.summary}`,
-        type: 'generic',
-        steps: [
-            'Navigate to relevant page',
-            'Perform user action',
-            'Verify expected behavior'
-        ],
-        expectedResult: 'Feature should work correctly',
-        tags: ['generic']
-    });
-
-    return testCases;
-}
-
-// Run
-const testCases = generateTestCases(jira);
+const requirement = JSON.parse(fs.readFileSync(inputPath, 'utf-8')) as RequirementInput;
+const testCases = generateTestCases(requirement);
 
 fs.writeFileSync(outputPath, JSON.stringify({ testCases }, null, 2));
+console.log(`Generated ${testCases.length} test case(s) into ${path.relative(process.cwd(), outputPath)}`);
 
-console.log('✅ Test cases generated successfully');
+// Turns each acceptance criterion (or, if none, the requirement summary) into a typed test case.
+function generateTestCases(requirement: RequirementInput): TestCase[] {
+    const criteria = toStringArray(requirement.acceptanceCriteria);
+    const comments = toStringArray(requirement.comments);
+    const requirementContext = `${requirement.summary ?? ''} ${requirement.description ?? ''}`;
+
+    // Source statements are the real acceptance criteria; fall back to summary/comments when absent.
+    const statements = criteria.length
+        ? criteria
+        : [requirement.summary, ...comments].filter((value): value is string => Boolean(value));
+
+    if (!statements.length) {
+        return [buildGenericTestCase(1, requirement.summary ?? 'the requirement')];
+    }
+
+    return statements.map((statement, index) => buildTestCase(index + 1, statement, requirementContext));
+}
+
+function buildTestCase(index: number, statement: string, requirementContext: string): TestCase {
+    const type = detectType(`${statement} ${requirementContext}`);
+
+    return {
+        id: `TC${String(index).padStart(3, '0')}`,
+        title: truncateTitle(statement),
+        type,
+        steps: buildSteps(type, statement),
+        expectedResult: statement.trim(),
+        tags: buildTags(type)
+    };
+}
+
+function buildGenericTestCase(index: number, summary: string): TestCase {
+    return {
+        id: `TC${String(index).padStart(3, '0')}`,
+        title: `Validate functionality for ${truncateTitle(summary)}`,
+        type: 'generic',
+        steps: ['Navigate to the relevant page', 'Perform the user action', 'Verify the expected behavior'],
+        expectedResult: 'Feature should work as described in the requirement',
+        tags: ['generic']
+    };
+}
+
+// Classifies a statement into a test type from the intent keywords it contains.
+function detectType(text: string): TestCaseType {
+    const normalized = text.toLowerCase();
+
+    if (/redirect|navigate|url|link|route/.test(normalized)) return 'navigation';
+    if (/validation|error|required|invalid|must not/.test(normalized)) return 'validation';
+    if (/search|filter|select|submit|sort/.test(normalized)) return 'functional';
+    if (/button|dropdown|field|label|display|visible|hidden|banner|cta/.test(normalized)) return 'ui';
+
+    return 'generic';
+}
+
+function buildSteps(type: TestCaseType, statement: string): string[] {
+    switch (type) {
+        case 'navigation':
+            return [
+                'Open the source URL described in the requirement',
+                'Observe the navigation/redirect behavior',
+                `Verify: ${statement.trim()}`
+            ];
+        case 'validation':
+            return [
+                'Navigate to the relevant page',
+                'Provide the input described in the requirement',
+                `Verify: ${statement.trim()}`
+            ];
+        case 'functional':
+            return [
+                'Navigate to the relevant page',
+                'Perform the described user action',
+                `Verify: ${statement.trim()}`
+            ];
+        case 'ui':
+            return [
+                'Navigate to the relevant page',
+                'Inspect the described UI elements',
+                `Verify: ${statement.trim()}`
+            ];
+        default:
+            return ['Navigate to the relevant page', 'Perform the user action', `Verify: ${statement.trim()}`];
+    }
+}
+
+function buildTags(type: TestCaseType): string[] {
+    return ['regression', type];
+}
+
+function truncateTitle(value: string): string {
+    const clean = value.replace(/\s+/g, ' ').trim();
+
+    return clean.length > 120 ? `${clean.slice(0, 117)}...` : clean;
+}
+
+function toStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        // Drop empty entries and ADF fields that failed to flatten to plain text.
+        .filter((item) => Boolean(item) && !/\[object Object\]/.test(item));
+}
