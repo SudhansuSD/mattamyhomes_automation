@@ -33,3 +33,5 @@ log/
 *.xlsx
 *.csv
 *.xls
+*/scheduleAVisitCanadaFormEvidence.spec.ts
+*/sideModalFormEvidence.spec.ts

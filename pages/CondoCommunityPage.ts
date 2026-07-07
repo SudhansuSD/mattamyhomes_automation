@@ -8,8 +8,12 @@ import {
 } from '../utils/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
 import {
+    expectSideModalFormFields,
+    fillInvalidSideModalForm,
+    fillValidSideModalForm,
     expectInvalidEmailErrorInForm,
     expectRequiredErrorsInForm,
+    fillLeadFormByFormId,
     fillLeadFormFields,
     getInvalidLeadData,
     getValidLeadData
@@ -358,54 +362,60 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Verify: Get Information CTA opens the condo lead form sidebar/modal. */
+  /** Verify: Get Information CTA opens the condo sideModalForm sidebar/modal. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
       await expect(this.getInformationCta, 'Get Information or Stay Updated CTA should be visible')
         .toBeVisible({ timeout: TIMEOUT.medium });
 
       const form = await this.getAvailableGetInformationForm();
-
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
-      await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone');
-      await expect(this.getSubmitButton(form)).toBeVisible({ timeout: TIMEOUT.short });
+      await expect(form, 'Get Information condo sideModalForm should be visible')
+        .toBeVisible({ timeout: TIMEOUT.short });
     });
   }
 
-  /** Verify: Get Information condo form shows required-field validation errors. */
-  async validateGetInformationFormEmptyErrors(): Promise<void> {
-    await this.step('Validate Get Information form empty errors', async () => {
+  /** Verify: Get Information condo sideModalForm fields are visible. */
+  async verifySideModalFormFields(): Promise<void> {
+    await this.step('Validate Get Information sideModalForm fields', async () => {
       const form = await this.getAvailableGetInformationForm();
+      await expectSideModalFormFields(form, {
+        timeout: TIMEOUT.short,
+        expectCommunity: true,
+        expectPlan: true
+      });
+    });
+  }
 
+  /** Verify: Get Information condo sideModalForm shows required-field validation errors. */
+  async validateSideModalFormRequiredErrors(): Promise<void> {
+    await this.step('Validate Get Information sideModalForm empty errors', async () => {
+      const form = await this.getAvailableGetInformationForm();
       await this.clickSubmit(form);
       await this.expectRequiredErrorsInForm(form);
     });
   }
 
-  /** Verify: Get Information condo form rejects invalid email addresses. */
-  async validateGetInformationFormInvalidEmail(): Promise<void> {
-    await this.step('Validate Get Information form invalid email', async () => {
+  /** Verify: Get Information condo sideModalForm rejects invalid email addresses. */
+  async validateSideModalFormInvalidEmail(): Promise<void> {
+    await this.step('Validate Get Information sideModalForm invalid email', async () => {
       const form = await this.getAvailableGetInformationForm();
-
-      await this.fillLeadFormWithInvalidEmail(form);
+      await fillInvalidSideModalForm(form, 'condoCommunity', { emailName: /email/i });
       await this.clickSubmit(form);
-
       await this.expectInvalidEmailErrorInForm(form);
     });
   }
 
-  /** Verify: Get Information condo form can be submitted successfully. */
-  async verifyGetInformationFormSuccessSubmission(): Promise<void> {
-    await this.step('Submit Get Information condo form successfully', async () => {
+  /** Verify: Get Information condo sideModalForm can be submitted successfully. */
+  async verifySideModalFormSuccessSubmission(): Promise<void> {
+    await this.step('Submit Get Information condo sideModalForm successfully', async () => {
       const form = await this.getAvailableGetInformationForm();
-
-      await this.fillLeadFormWithValidData(form);
+      await fillValidSideModalForm(form, 'condoCommunity', {
+        emailName: /email/i,
+        selectCommunity: true,
+        selectPlan: true
+      });
       await this.submitLeadFormAndCaptureApi({
-        formName: 'Get Information condo form',
+        formName: 'Get Information condo sideModalForm',
         submitButton: this.getSubmitButton(form),
         successModal: this.successDialogModal,
         successMessage: this.formSuccessMessage,
@@ -734,7 +744,8 @@ export class CondoCommunityPage extends SearchablePage {
 
   /** Helper: fill lead form with valid data for successful submission. */
   private async fillLeadFormWithValidData(form: Locator): Promise<void> {
-    await fillLeadFormFields(form, getValidLeadData('condoCommunity'), {
+    // Check the form id first, then fill: Canada forms also get the four extra fields.
+    await fillLeadFormByFormId(form, getValidLeadData('condoCommunity'), {
       emailName: /email/i,
       selectCommunity: true,
       selectPlan: true

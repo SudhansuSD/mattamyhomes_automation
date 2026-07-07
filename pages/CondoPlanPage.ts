@@ -1,12 +1,15 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { SearchablePage } from './SearchablePage';
 import { getLocationConfig } from '../config/locations/locationConfig';
-import { escapeRegex, isIgnorableHref } from '../utils/pageObjectUtils';
+import { escapeRegex, isFloatingCta, isIgnorableHref } from '../utils/pageObjectUtils';
 import {
-  expectFieldVisibleIfPresent,
-  fillLeadFormFields,
-  getInvalidLeadData,
-  getValidLeadData,
+  clickSubmit,
+  expectInvalidEmailErrorInForm,
+  expectRequiredErrorsInForm,
+  expectSideModalFormFields,
+  fillInvalidSideModalForm,
+  fillValidSideModalForm,
+  getSubmitButton,
   selectOptionIfPresent
 } from '../utils/leadFormHelper';
 
@@ -75,8 +78,8 @@ const EXPECTED_CONDO_PLAN = {
    - Mortgage calculator CTA presence validation
    - Available floorplans cards and View All link validation
    - Contact Us, phone, map, and Hours validation
-   - Get Information CTA scroll/anchor behavior without form submission
-   - Community updates form field and validation-message checks
+   - Floating Get Information CTA opens sidebar/modal form
+   - Sidebar/modal form field and validation-message checks
    - Footer/navigation href sanity validation
 
    Form submit scenarios are intentionally left skipped/commented in spec
@@ -106,7 +109,7 @@ export class CondoPlanPage extends SearchablePage {
     this.body = page.locator('body');
     this.floorplanImage = page.locator('img[alt*="Floorplan" i], img[alt*="M2AD" i]').first();
     this.getInformationCta = page.locator('button, a').filter({
-      hasText: /^\s*Get Information\s*$/i
+      hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i
     }).first();
     this.mortgageCalculatorSection = page.locator('section, div').filter({
       hasText: TEXT.mortgageCalculator
@@ -134,18 +137,14 @@ export class CondoPlanPage extends SearchablePage {
     return this.page.locator('a[href]');
   }
 
-  /** Locator: community update forms. */
-  private get communityUpdateForms(): Locator {
-    return this.page.locator(
-      'form, [role="group"], [id^="Sitecore-ScheduleAVisit-FormInstance"], [id^="ScheduleAVisit-FormInstance"], [id*="FormInstance"], [id*="form" i], [class*="form" i]'
-    ).filter({
-      has: this.page.getByRole('button', { name: TEXT.submit })
-    }).filter({
-      has: this.page.locator('input, select, textarea')
-    });
+  /** Locator: Get Information modal form rendered in a modal, drawer, or sidebar. */
+  private get leadFormDialogOrSidebar(): Locator {
+    return this.page
+      .locator('#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible')
+      .filter({ has: this.page.locator('form, input, select, textarea') });
   }
 
-  /** Locator: lead form success message. */
+  /** Locator: modal form success message. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(TEXT.successMessage).last();
   }
@@ -329,34 +328,39 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: Get Information CTA moves focus/viewport toward the form section without submitting it. */
+  /** Verify: initial Get Information CTA scrolls to the footer/community-updates form. */
   async verifyGetInformationCtaScrollsToForm(): Promise<void> {
     await this.step('Verify Get Information CTA scrolls to form', async () => {
-      await expect(this.getInformationCta).toBeVisible({ timeout: TIMEOUT.short });
-      await this.getInformationCta.click();
+      const cta = await this.getLandingGetInformationCta();
+      await expect(cta, 'Landing Get Information or Stay Updated CTA should be visible')
+        .toBeVisible({ timeout: TIMEOUT.medium });
+
+      await cta.scrollIntoViewIfNeeded();
+      await cta.click({ force: true });
       await this.waitForPageReady();
       await expect(this.communityUpdatesSection).toBeVisible({ timeout: TIMEOUT.medium });
+      await expect(this.communityUpdatesSection).toBeInViewport();
     });
   }
 
-  /** Verify: community update form fields are present without submitting the form. */
-  async verifyCommunityUpdateFormFields(): Promise<void> {
-    await this.step('Verify community update form fields', async () => {
-      const form = await this.getAvailableCommunityUpdateForm();
-
-      if (!form) {
-        return;
-      }
-
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
-      await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone number');
-
-      await expect(form.getByRole('button', { name: TEXT.submit }).first())
+  /** Verify: floating Get Information CTA opens the condo plan side modal form. */
+  async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
+    await this.step('Verify Get Information CTA opens lead form', async () => {
+      const form = await this.openSideModalForm();
+      await expect(form, 'Get Information condo plan side modal form should be visible')
         .toBeVisible({ timeout: TIMEOUT.short });
+    });
+  }
+
+  /** Verify: condo plan side modal form fields are present without submitting the form. */
+  async verifySideModalFormFields(): Promise<void> {
+    await this.step('Verify Get Information side modal form fields', async () => {
+      const form = await this.getAvailableSideModalForm();
+      await expectSideModalFormFields(form, {
+        timeout: TIMEOUT.short,
+        expectCommunity: true,
+        expectPlan: true
+      });
     });
   }
 
@@ -383,71 +387,33 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: an empty community update form shows required-field validation. */
-  async validateCommunityUpdateRequiredErrors(): Promise<void> {
-    await this.step('Validate community update required errors', async () => {
-      const form = await this.getAvailableCommunityUpdateForm();
-
-      if (!form) {
-        throw new Error('Community updates form not found; required-field validation cannot be verified');
-      }
-
-      const submitButton = form.getByRole('button', { name: TEXT.submit }).first();
-      await expect(submitButton, 'Community updates form submit button should be visible')
-        .toBeVisible({ timeout: TIMEOUT.short });
-      await submitButton.click();
-
-      const renderedErrors = form
-        .locator('[role="alert"]:visible, [aria-live]:visible, .field-validation-error:visible, .error:visible, div:visible, span:visible, p:visible, label:visible')
-        .filter({ hasText: TEXT.requiredError });
-
-      await expect.poll(async () => {
-        const renderedErrorCount = await renderedErrors.count();
-        const invalidFields = await form.locator('input, select, textarea').evaluateAll((fields) =>
-          fields.filter((field) => {
-            const control = field as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
-            return !control.disabled && !control.validity.valid;
-          }).length
-        );
-
-        return renderedErrorCount + invalidFields;
-      }, {
-        message: 'Submitting the empty community updates form should expose required-field validation',
-        timeout: TIMEOUT.short
-      }).toBeGreaterThan(0);
+  /** Verify: an empty condo plan side modal form shows required-field validation. */
+  async validateSideModalFormRequiredErrors(): Promise<void> {
+    await this.step('Validate Get Information side modal form required errors', async () => {
+      const form = await this.getAvailableSideModalForm();
+      await this.clickSubmit(form);
+      await this.expectRequiredErrorsInForm(form);
     });
   }
 
-  /** Skipped by spec: this would click SUBMIT after entering invalid email data. */
-  async validateCommunityUpdateInvalidEmail(): Promise<void> {
-    await this.step('Validate community update invalid email', async () => {
-      const form = await this.getAvailableCommunityUpdateForm();
-
-      if (!form) {
-        return;
-      }
-
-      await fillLeadFormFields(form, getInvalidLeadData('condoPlan'), {
+  /** Verify: condo plan side modal form rejects invalid email addresses. */
+  async validateSideModalFormInvalidEmail(): Promise<void> {
+    await this.step('Validate Get Information side modal form invalid email', async () => {
+      const form = await this.getAvailableSideModalForm();
+      await fillInvalidSideModalForm(form, 'condoPlan', {
         selectCountry: false,
         checkConsent: false
       });
-
-      await form.getByRole('button', { name: TEXT.submit }).first().click();
-      await expect(form.locator(`text=${TEXT.emailError}`).first())
-        .toBeVisible({ timeout: TIMEOUT.short });
+      await this.clickSubmit(form);
+      await this.expectInvalidEmailErrorInForm(form);
     });
   }
 
-  /** Skipped by spec: this would create a live lead submission. */
-  async verifyCommunityUpdateSuccessfulSubmission(): Promise<void> {
-    await this.step('Submit community update form successfully', async () => {
-      const form = await this.getAvailableCommunityUpdateForm();
-
-      if (!form) {
-        return;
-      }
-
-      await fillLeadFormFields(form, getValidLeadData('condoPlan'), {
+  /** Verify: condo plan Get Information side modal form can be submitted successfully. */
+  async verifySideModalFormSuccessfulSubmission(): Promise<void> {
+    await this.step('Submit Get Information side modal form successfully', async () => {
+      const form = await this.getAvailableSideModalForm();
+      await fillValidSideModalForm(form, 'condoPlan', {
         selectCommunity: true,
         selectPlan: true
       });
@@ -456,8 +422,8 @@ export class CondoPlanPage extends SearchablePage {
       const formUrl = this.page.url();
 
       await this.submitLeadFormAndCaptureApi({
-        formName: 'Condo plan community update form',
-        submitButton: form.getByRole('button', { name: TEXT.submit }).first(),
+        formName: 'Get Information condo plan side modal form',
+        submitButton: getSubmitButton(form),
         successModal: this.successDialogModal,
         successMessage: this.formSuccessMessage,
         timeout: TIMEOUT.long
@@ -466,39 +432,170 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Helper: return the visible community update form when available. */
-  private async getAvailableCommunityUpdateForm(): Promise<Locator | null> {
-    let count = await this.communityUpdateForms.count();
+  /** Open the floating-CTA side modal lead form and return it (for external evidence capture). */
+  async openSideModalLeadForm(
+    formName = 'Get Information condo plan side modal form'
+  ): Promise<Locator> {
+    return this.getAvailableSideModalForm(formName);
+  }
 
-    if (count === 0) {
-      await this.openCommunityUpdateFormIfPresent();
-      count = await this.communityUpdateForms.count();
+  /** Helper: reveal the floating CTA by scrolling until it becomes visible. */
+  private async revealGetInformationCta(): Promise<void> {
+    const initialFloatingCta = await this.getFloatingBarGetInformationCta().catch(() => null);
+    if (initialFloatingCta && await initialFloatingCta.isVisible({ timeout: 1500 }).catch(() => false)) {
+      return;
     }
 
-    if (count === 0) {
-      await this.reportValue('Community updates form not present - skipping form validation');
-      return null;
+    for (const position of [450, 900, 1400]) {
+      await this.page.evaluate((scrollTop) => window.scrollTo(0, scrollTop), position);
+      await this.waitForPageReady();
+      await this.settle(400);
+
+      const floatingCta = await this.getFloatingBarGetInformationCta().catch(() => null);
+      if (floatingCta && await floatingCta.isVisible({ timeout: 1000 }).catch(() => false)) {
+        return;
+      }
+    }
+  }
+
+  /** Helper: click the floating Get Information CTA when the sidebar/modal form is not already open. */
+  private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
+    if (await this.leadFormDialogOrSidebar.count()) {
+      return;
     }
 
-    const form = this.communityUpdateForms.first();
+    await this.revealGetInformationCta();
+    const floatingCta = await this.getFloatingBarGetInformationCta();
+    await expect(floatingCta, 'Floating-bar Get Information or Stay Updated CTA should be visible')
+      .toBeVisible({ timeout: TIMEOUT.medium });
+
+    const previousUrl = this.page.url();
+
+    await floatingCta.scrollIntoViewIfNeeded();
+    await floatingCta.click({ force: true });
+    await this.waitForPageReady();
+    await this.settle(1000);
+    await this.expectNoContactRedirect(previousUrl);
+  }
+
+  /** Helper: return the landing CTA used before the floating bar appears. */
+  private async getLandingGetInformationCta(): Promise<Locator> {
+    return this.getVisibleGetInformationCta('landing');
+  }
+
+  /** Helper: return the floating-bar CTA shown after scrolling down the page. */
+  private async getFloatingBarGetInformationCta(): Promise<Locator> {
+    return this.getVisibleGetInformationCta('floating');
+  }
+
+  /** Helper: choose the best visible Get Information CTA for the requested context. */
+  private async getVisibleGetInformationCta(mode: 'landing' | 'floating'): Promise<Locator> {
+    // Match every visible Get Information / Stay Updated CTA (not just the first): the hero/landing CTA
+    // and the sticky floating-bar CTA are separate DOM nodes, and only the floating one opens the side
+    // modal. Using this.getInformationCta here would be `.first()`-bound and miss the floating CTA.
+    const allCtas = this.page.locator('a:visible, button:visible').filter({
+      hasText: /Get Information|Stay Updated/i
+    });
+    const count = await allCtas.count();
+    let landingFallback: Locator | null = null;
+
+    for (let i = 0; i < count; i++) {
+      const candidate = allCtas.nth(i);
+
+      if (!(await candidate.isVisible().catch(() => false))) {
+        continue;
+      }
+
+      // The CTA that opens the side modal lives on the sticky/fixed "floating bar" that appears after
+      // scrolling; the landing CTA (in the hero) is a normal in-flow element that only scrolls to the
+      // footer form. Distinguish them by position (fixed/sticky ancestor), not by vertical offset —
+      // the hero CTA can also sit near the top of the page.
+      const isFloating = await isFloatingCta(candidate);
+
+      if (mode === 'floating') {
+        if (isFloating) {
+          return candidate;
+        }
+
+        continue;
+      }
+
+      if (!isFloating) {
+        return candidate;
+      }
+
+      landingFallback ??= candidate;
+    }
+
+    if (mode === 'landing' && landingFallback) {
+      return landingFallback;
+    }
+
+    throw new Error(`No visible ${mode} Get Information CTA found on condo plan page`);
+  }
+
+  /** Helper: return the visible Get Information side modal form when available. */
+  private async getAvailableSideModalForm(
+    formName = 'Get Information condo plan side modal form'
+  ): Promise<Locator> {
+    const form = await this.openSideModalForm(formName);
+
+    await expect
+      .poll(
+        () => this.leadFormDialogOrSidebar.count(),
+        {
+          message: `${formName} sidebar/modal should open after Get Information CTA`,
+          timeout: TIMEOUT.medium
+        }
+      )
+      .toBeGreaterThan(0);
+
+    const submitButton = getSubmitButton(form);
+
     await form.scrollIntoViewIfNeeded();
-    await expect(form).toBeVisible({ timeout: TIMEOUT.short });
+    await this.waitForPageReady();
+    await expect(submitButton, `${formName} submit button should be visible inside sidebar/modal`)
+      .toBeVisible({ timeout: TIMEOUT.short });
 
     return form;
   }
 
-  /** Helper: open or scroll to the community update form when the CTA controls it. */
-  private async openCommunityUpdateFormIfPresent(): Promise<void> {
-    const currentUrl = this.page.url();
-    const cta = this.page.locator('button, a').filter({
-      hasText: /^\s*Get Information\s*$/i
-    }).first();
+  /** Helper: open the Get Information side modal form and return the visible container. */
+  private async openSideModalForm(
+    formName = 'Get Information condo plan side modal form'
+  ): Promise<Locator> {
+    await this.openLeadFormFromGetInformationCtaIfPresent();
 
-    if (await cta.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await cta.click({ force: true });
-      await this.waitForPageReady();
-      await this.expectNoContactRedirect(currentUrl);
-    }
+    await expect
+      .poll(
+        () => this.leadFormDialogOrSidebar.count(),
+        {
+          message: `${formName} sidebar/modal should open after Get Information CTA`,
+          timeout: TIMEOUT.medium
+        }
+      )
+      .toBeGreaterThan(0);
+
+    const form = this.leadFormDialogOrSidebar.first();
+    await form.scrollIntoViewIfNeeded();
+    await this.waitForPageReady();
+
+    return form;
+  }
+
+  /** Helper: click a form submit button without waiting on third-party submit requests. */
+  private async clickSubmit(form: Locator): Promise<void> {
+    await clickSubmit(this.page, form, TIMEOUT.short);
+  }
+
+  /** Helper: assert expected required-field messages within a modal form. */
+  private async expectRequiredErrorsInForm(form: Locator): Promise<void> {
+    await expectRequiredErrorsInForm(form, TIMEOUT.short);
+  }
+
+  /** Helper: assert invalid-email validation within a modal form. */
+  private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
+    await expectInvalidEmailErrorInForm(form, TIMEOUT.short);
   }
 
   /** Helper: fail fast when the flow navigates to Contact instead of showing in-page form success. */
@@ -511,11 +608,6 @@ export class CondoPlanPage extends SearchablePage {
       currentUrl,
       `Expected condo plan form flow to stay on page and show success modal, but it navigated from ${previousUrl} to ${currentUrl}`
     ).not.toMatch(/\/contact\/?($|[?#])/i);
-  }
-
-  /** Helper: assert a field is visible only when present. */
-  private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
-    await expectFieldVisibleIfPresent(field, label, TIMEOUT.short);
   }
 
 }

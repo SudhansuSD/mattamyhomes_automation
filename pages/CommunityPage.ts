@@ -15,8 +15,13 @@ import {
   expectFieldVisibleIfPresent,
   expectInvalidEmailErrorInForm,
   expectRequiredErrorsInForm,
+  expectSideModalFormFields,
+  fillExtraLeadFieldsIfPresent,
+  fillInvalidSideModalForm,
   fillIfPresent,
+  fillValidSideModalForm,
   getInvalidLeadData,
+  getSubmitButton,
   getValidLeadData,
   LeadFieldData
 } from '../utils/leadFormHelper';
@@ -593,6 +598,9 @@ export class CommunityPage extends SearchablePage {
     await fillIfPresent(form.getByRole('textbox', { name: /phone/i }), leadData.phone);
     await fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), leadData.zip);
     await this.selectCountryOfResidenceIfPresent(form);
+    // Four extra dropdowns (Bedroom Count, Desired Move Date, New Budget, First Time Home Buyer):
+    // optional on US / custom forms and required on Canada forms, so filled whenever present.
+    await fillExtraLeadFieldsIfPresent(form);
     await this.checkConsentIfPresent(form);
   }
 
@@ -623,14 +631,8 @@ export class CommunityPage extends SearchablePage {
         return;
       }
 
-      await expect(form.getByRole('button', { name: /submit/i }).first())
+      await expect(form, 'Get Information community sideModalForm should be visible')
         .toBeVisible({ timeout: 10000 });
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
-      await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone number');
     });
   }
 
@@ -639,8 +641,8 @@ export class CommunityPage extends SearchablePage {
     await this.getAvailableForm(formIndex, formName);
   }
 
-  /** Returns the visible Get Information form. */
-  private async viewGetInformationForm(formName: string): Promise<void> {
+  /** Returns the visible sideModalForm by name. */
+  private async viewSideModalFormByName(formName: string): Promise<void> {
     await this.getAvailableGetInformationForm(formName);
   }
 
@@ -661,8 +663,8 @@ export class CommunityPage extends SearchablePage {
       .toBeVisible({ timeout: 10000 });
   }
 
-  /** Validates get information empty form errors. */
-  private async validateGetInformationEmptyFormErrors(
+  /** Validates sideModalForm empty form errors. */
+  private async validateSideModalFormEmptyErrors(
     formName: string
   ): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
@@ -697,8 +699,8 @@ export class CommunityPage extends SearchablePage {
       .toBeVisible({ timeout: 10000 });
   }
 
-  /** Validates get information invalid email. */
-  private async validateGetInformationInvalidEmail(
+  /** Validates sideModalForm invalid email by name. */
+  private async validateSideModalFormInvalidEmailByName(
     formName: string
   ): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
@@ -707,9 +709,7 @@ export class CommunityPage extends SearchablePage {
       return;
     }
 
-    const invalid = getInvalidLeadData('community');
-
-    await this.fillCommunityLeadForm(form, invalid);
+    await fillInvalidSideModalForm(form, 'community');
 
     await this.clickSubmit(form);
 
@@ -739,8 +739,8 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Submits successful get information form. */
-  private async submitSuccessfulGetInformationForm(
+  /** Submits successful sideModalForm. */
+  private async submitSuccessfulSideModalForm(
     formName: string
   ): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
@@ -749,13 +749,11 @@ export class CommunityPage extends SearchablePage {
       return;
     }
 
-    const valid = getValidLeadData('communityGetInfo');
-
-    await this.fillCommunityLeadForm(form, valid);
+    await fillValidSideModalForm(form, 'communityGetInfo');
 
     await this.submitLeadFormAndCaptureApi({
       formName,
-      submitButton: form.getByRole('button', { name: /submit/i }).first(),
+      submitButton: getSubmitButton(form),
       successModal: this.successDialogModal,
       successMessage: this.formSuccessMessage
     });
@@ -780,10 +778,10 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Returns the visible Get Information lead form. */
-  async viewGetInformationLeadForm(): Promise<void> {
-    await this.step('View Get Information lead form', async () => {
-      await this.viewGetInformationForm('Get Information community form');
+  /** Returns the visible sideModalForm. */
+  async viewSideModalForm(): Promise<void> {
+    await this.step('View Get Information sideModalForm', async () => {
+      await this.viewSideModalFormByName('Get Information community sideModalForm');
     });
   }
 
@@ -806,10 +804,23 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Validates get information form empty errors. */
-  async validateGetInformationFormEmptyErrors(): Promise<void> {
-    await this.step('Validate Get Information form empty errors', async () => {
-      await this.validateGetInformationEmptyFormErrors('Get Information community form');
+  /** Validates sideModalForm fields. */
+  async verifySideModalFormFields(): Promise<void> {
+    await this.step('Verify Get Information sideModalForm fields', async () => {
+      const form = await this.getAvailableGetInformationForm('Get Information community sideModalForm');
+
+      if (!form) {
+        return;
+      }
+
+      await expectSideModalFormFields(form);
+    });
+  }
+
+  /** Validates sideModalForm empty errors. */
+  async validateSideModalFormRequiredErrors(): Promise<void> {
+    await this.step('Validate Get Information sideModalForm empty errors', async () => {
+      await this.validateSideModalFormEmptyErrors('Get Information community sideModalForm');
     });
   }
 
@@ -832,10 +843,10 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Validates get information form invalid email. */
-  async validateGetInformationFormInvalidEmail(): Promise<void> {
-    await this.step('Validate Get Information form invalid email', async () => {
-      await this.validateGetInformationInvalidEmail('Get Information community form');
+  /** Validates sideModalForm invalid email. */
+  async validateSideModalFormInvalidEmail(): Promise<void> {
+    await this.step('Validate Get Information sideModalForm invalid email', async () => {
+      await this.validateSideModalFormInvalidEmailByName('Get Information community sideModalForm');
     });
   }
 
@@ -853,10 +864,10 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Verifies get information form success submission. */
-  async verifyGetInformationFormSuccessSubmission(): Promise<void> {
-    await this.step('Submit Get Information community form successfully', async () => {
-      await this.submitSuccessfulGetInformationForm('Get Information community form');
+  /** Verifies sideModalForm success submission. */
+  async verifySideModalFormSuccessSubmission(): Promise<void> {
+    await this.step('Submit Get Information community sideModalForm successfully', async () => {
+      await this.submitSuccessfulSideModalForm('Get Information community sideModalForm');
     });
   }
 
