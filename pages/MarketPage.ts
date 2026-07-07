@@ -6,6 +6,7 @@ import {
     clickSubmit,
     expectInvalidEmailErrorInForm,
     expectRequiredErrorsInForm,
+    fillLeadFormByFormId,
     fillLeadFormFields,
     getSubmitButton,
     getInvalidLeadData,
@@ -441,7 +442,8 @@ export class MarketPage extends BasePage {
             await this.expectLeadFormFieldsVisible(fields);
             const valid = getValidLeadData('market');
 
-            await fillLeadFormFields(form, valid, { selectCommunity: true });
+            // Check the form id first, then fill: Canada forms also get the four extra fields.
+            await fillLeadFormByFormId(form, valid, { selectCommunity: true });
 
             await this.submitLeadFormAndCaptureApi({
                 formName: `${marketName} market lead form`,

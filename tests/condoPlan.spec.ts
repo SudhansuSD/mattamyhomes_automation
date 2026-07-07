@@ -74,7 +74,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
       await condoPlanPage.verifyHoursSection();
     });
 
-    test('TC-02 | @regression | Validate Get Information CTA scrolls to form without submitting', async () => {
+    test('TC-02 | @regression | Validate Get Information CTA scrolls to footer form without submitting', async () => {
       await condoPlanPage.verifyGetInformationCtaScrollsToForm();
     });
 
@@ -84,16 +84,20 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Community Updates Form - No Submit', () => {
-    test('TC-01 | @sanity | Validate community updates form fields only', async () => {
-      await condoPlanPage.verifyCommunityUpdateFormFields();
+    test('TC-01 | @sanity | Validate floating bar Get Information CTA opens condo plan side modal form', async () => {
+      await condoPlanPage.verifyGetInformationCtaOpensLeadForm();
     });
 
-    test('TC-02 | @sanity | Validate required field errors', async () => {
-      await condoPlanPage.validateCommunityUpdateRequiredErrors();
+    test('TC-02 | @sanity | Validate Get Information side modal form fields', async () => {
+      await condoPlanPage.verifySideModalFormFields();
     });
 
-    test('TC-03 | @sanity | Validate invalid email error', async () => {
-      await condoPlanPage.validateCommunityUpdateInvalidEmail();
+    test('TC-03 | @sanity | Validate Get Information side modal form required field errors', async () => {
+      await condoPlanPage.validateSideModalFormRequiredErrors();
+    });
+
+    test('TC-04 | @sanity | Validate Get Information side modal form invalid email error', async () => {
+      await condoPlanPage.validateSideModalFormInvalidEmail();
     });
 
     test.describe('Community updates form submission', () => {
@@ -102,8 +106,8 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
         'Skipping condo plan form lead submission on PROD environment.'
       );
 
-      test('TC-01 | @regression @STAGE | Validate successful form submission', async () => {
-        await condoPlanPage.verifyCommunityUpdateSuccessfulSubmission();
+      test('TC-01 | @regression @STAGE | Validate Get Information side modal form successful submission', async () => {
+        await condoPlanPage.verifySideModalFormSuccessfulSubmission();
       });
     });
   });

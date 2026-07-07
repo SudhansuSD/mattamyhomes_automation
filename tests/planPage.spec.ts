@@ -75,8 +75,8 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
         await planPage.verifySalesOfficeSection();
       });
 
-      await test.step('Verify community updates form fields', async () => {
-        await planPage.verifyPlanDetailForm();
+      await test.step('Verify Get Information CTA scrolls to the footer form', async () => {
+        await planPage.verifyGetInformationCtaScrollsToForm();
       });
     });
   });
@@ -85,12 +85,20 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      Form Validation
   -------------------------------------------------------- */
   test.describe('Form Validation', () => {
-    test('TC-01 | @sanity | Validate plan detail form required field errors', async () => {
-      await planPage.validatePlanDetailFormEmptyErrors();
+    test('TC-01 | @sanity | Validate floating bar Get Information CTA opens plan detail side modal form', async () => {
+      await planPage.verifyGetInformationCtaOpensLeadForm();
     });
 
-    test('TC-02 | @sanity | Validate plan detail form invalid email format', async () => {
-      await planPage.validatePlanDetailFormInvalidEmail();
+    test('TC-02 | @sanity | Validate plan detail side modal form fields', async () => {
+      await planPage.verifySideModalFormFields();
+    });
+
+    test('TC-03 | @sanity | Validate plan detail side modal form required field errors', async () => {
+      await planPage.validateSideModalFormRequiredErrors();
+    });
+
+    test('TC-04 | @sanity | Validate plan detail side modal form invalid email format', async () => {
+      await planPage.validateSideModalFormInvalidEmail();
     });
 
     test.describe('Plan detail form submission', () => {
@@ -99,8 +107,8 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
         'Skipping plan detail form lead submission on PROD environment.'
       );
 
-      test('TC-01 | @regression @STAGE | Validate plan detail form successful submission', async () => {
-        await planPage.verifyPlanDetailFormSuccessSubmission();
+      test('TC-01 | @regression @STAGE | Validate plan detail side modal form successful submission', async () => {
+        await planPage.verifySideModalFormSuccessSubmission();
       });
     });
   });

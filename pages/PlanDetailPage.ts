@@ -1,12 +1,14 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { SearchablePage } from './SearchablePage';
-import { escapeRegex, isLocatorVisible } from '../utils/pageObjectUtils';
+import { escapeRegex, isFloatingCta, isLocatorVisible } from '../utils/pageObjectUtils';
 import {
-    fillIfPresent,
-    getInvalidLeadData,
-    getValidLeadData,
-    LeadFieldData,
-    selectCountryIfPresent
+    clickSubmit,
+    expectInvalidEmailErrorInForm,
+    expectRequiredErrorsInForm,
+    expectSideModalFormFields,
+    fillInvalidSideModalForm,
+    fillValidSideModalForm,
+    getSubmitButton
 } from '../utils/leadFormHelper';
 
 /* ==========================================================
@@ -115,8 +117,8 @@ export class PlanDetailPage extends SearchablePage {
         this.qmiSection = page.locator('#availablehomes');
         this.viewAllQMIButton = this.qmiSection.locator('a:has-text("View all")');
         this.qmiHomeslist = this.qmiSection.locator('a[aria-label*="Floorplan"], a:has-text("Floorplan")');
-        this.getInformationCta = page.getByRole('link', {
-            name: /Get Information/i
+        this.getInformationCta = page.locator('a, button').filter({
+            hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i
         }).first();
         this.signUpFormSection = page.getByText(/Sign Up For Community Updates/i)
             .locator('xpath=ancestor::*[self::section or self::div][1]');
@@ -125,22 +127,16 @@ export class PlanDetailPage extends SearchablePage {
         this.successDialogModal = page.locator('.ReactModal__Content');
     }
 
-    /** Locator: Sitecore-generated plan forms. */
-    private get sitecorePlanForms(): Locator {
-        return this.page.locator('[id^="Sitecore-ScheduleAVisit-FormInstance"]');
+    /** Locator: Get Information modal form rendered in a modal, drawer, or sidebar. */
+    private get leadFormDialogOrSidebar(): Locator {
+        return this.page
+            .locator('#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible')
+            .filter({
+                has: this.page.locator('form, input, select, textarea')
+            });
     }
 
-    /** Locator: contact forms inside the contact section. */
-    private get contactForms(): Locator {
-        return this.page.locator('#contact form');
-    }
-
-    /** Locator: schedule visit form containers. */
-    private get scheduleVisitContainers(): Locator {
-        return this.page.locator('[id^="ScheduleAVisit-FormInstance"]');
-    }
-
-    /** Locator: lead form success confirmation message. */
+    /** Locator: modal form success confirmation message. */
     private get formSuccessMessage(): Locator {
         return this.page.getByText(
             /Thank you for your interest in Mattamy Homes/i
@@ -524,69 +520,59 @@ export class PlanDetailPage extends SearchablePage {
         });
     }
 
-    /** Verify: community updates form fields are visible. */
-    async verifyCommunityUpdatesForm(): Promise<void> {
-        await this.verifyPlanDetailForm();
-    }
-
-    /** Helper: return a form by index from a specific form locator group. */
-    private async getFormFromLocator(
-        forms: Locator,
-        formIndex: number
-    ): Promise<Locator | null> {
-        const formCount = await forms.count();
-
-        if (formIndex >= formCount) {
-            return null;
-        }
-
-        return forms.nth(formIndex);
-    }
-
-    /** Helper: find a plan form by index across supported form containers. */
-    private async getFormByIndex(formIndex: number): Promise<Locator | null> {
-        return (
-            await this.getFormFromLocator(this.sitecorePlanForms, formIndex) ??
-            await this.getFormFromLocator(this.contactForms, formIndex) ??
-            await this.getFormFromLocator(this.scheduleVisitContainers, formIndex)
-        );
-    }
-
-    /** Helper: return a visible plan form with a submit button when available. */
+    /** Helper: return the visible plan modal form with a submit button when available. */
     private async getAvailableForm(
         formIndex = 0,
-        formName = 'Plan detail form'
+        formName = 'Get Information plan detail side modal form'
     ): Promise<Locator | null> {
-        const form = await this.getFormByIndex(formIndex);
-
-        if (!form) {
-            await this.reportValue(`${formName} not present - skipping form validation`);
-            return null;
-        }
-
-        const submitButton = form.getByRole('button', { name: /submit/i }).first();
-
-        if (!await submitButton.count()) {
-            await this.reportValue(`${formName} submit button not present - skipping form validation`);
-            return null;
-        }
+        const form = await this.openSideModalForm(formName, formIndex);
+        const submitButton = getSubmitButton(form);
 
         await form.scrollIntoViewIfNeeded();
         await this.waitForPageReady();
+        await expect(submitButton, `${formName} submit button should be visible inside sidebar/modal`)
+            .toBeVisible({ timeout: 10000 });
 
-        if (
-            await isLocatorVisible(form) ||
-            await isLocatorVisible(submitButton)
-        ) {
-            return form;
-        }
-
-        await this.reportValue(`${formName} not visible - skipping form validation`);
-        return null;
+        return form;
     }
 
-    /** Helper: verify required community update form fields by form index. */
-    private async verifyCommunityUpdatesFormByIndex(
+    /** Helper: open the Get Information side modal form and return the visible container by index. */
+    private async openSideModalForm(
+        formName = 'Get Information plan detail side modal form',
+        formIndex = 0
+    ): Promise<Locator> {
+        await this.openLeadFormFromGetInformationCtaIfPresent();
+
+        const formCount = await expect
+            .poll(
+                () => this.leadFormDialogOrSidebar.count(),
+                {
+                    message: `${formName} sidebar/modal should open after Get Information CTA`,
+                    timeout: 15000
+                }
+            )
+            .toBeGreaterThan(formIndex)
+            .then(() => this.leadFormDialogOrSidebar.count())
+            .catch(() => 0);
+
+        if (formCount <= formIndex) {
+            throw new Error(`${formName} sidebar/modal form did not open`);
+        }
+
+        const form = this.leadFormDialogOrSidebar.nth(formIndex);
+        await form.scrollIntoViewIfNeeded();
+        await this.waitForPageReady();
+
+        return form;
+    }
+
+    /** Helper: click a form submit button without waiting on third-party submit requests. */
+    private async clickSubmit(form: Locator): Promise<void> {
+        await clickSubmit(this.page, form, 10000);
+    }
+
+    /** Helper: verify required side modal form fields. */
+    private async verifySideModalFormFieldsByIndex(
         formIndex: number,
         formName: string
     ): Promise<void> {
@@ -596,16 +582,7 @@ export class PlanDetailPage extends SearchablePage {
             return;
         }
 
-        for (const fieldName of [
-            /First name/i,
-            /Last name/i,
-            /^Email/i,
-            /Country of Residence/i,
-            /Zip|Postal/i,
-            /Phone/i
-        ]) {
-            await expect(form.getByText(fieldName).first()).toBeVisible();
-        }
+        await expectSideModalFormFields(form, { timeout: 10000 });
     }
 
     /** Helper: submit an empty form and verify required-field errors. */
@@ -619,10 +596,8 @@ export class PlanDetailPage extends SearchablePage {
             return;
         }
 
-        await form.getByRole('button', { name: /submit/i }).first().click();
-
-        await expect(form.locator('text=/Required|Invalid|Error/i').first())
-            .toBeVisible({ timeout: 10000 });
+        await this.clickSubmit(form);
+        await expectRequiredErrorsInForm(form, 10000);
     }
 
     /** Helper: submit invalid email data and verify email validation errors. */
@@ -636,16 +611,9 @@ export class PlanDetailPage extends SearchablePage {
             return;
         }
 
-        const invalid = getInvalidLeadData('planDetail');
-
-        await this.fillPlanLeadFormFields(form, invalid, {
-            includeCountryAndZip: false
-        });
-
-        await form.getByRole('button', { name: /submit/i }).first().click();
-
-        await expect(form.locator('text=/valid domain name/i').first())
-            .toBeVisible({ timeout: 10000 });
+        await fillInvalidSideModalForm(form, 'planDetail');
+        await this.clickSubmit(form);
+        await expectInvalidEmailErrorInForm(form, 10000);
     }
 
     /** Helper: fill and submit a valid form selected by index. */
@@ -659,65 +627,178 @@ export class PlanDetailPage extends SearchablePage {
             return;
         }
 
-        const valid = getValidLeadData('planDetail');
-
-        await this.fillPlanLeadFormFields(form, valid, {
-            includeCountryAndZip: true
-        });
-
+        await fillValidSideModalForm(form, 'planDetail');
         await this.submitLeadFormAndCaptureApi({
             formName,
-            submitButton: form.getByRole('button', { name: /submit/i }).first(),
+            submitButton: getSubmitButton(form),
             successModal: this.successDialogModal,
             successMessage: this.formSuccessMessage
         });
     }
 
-    /** Helper: fill plan lead fields while preserving each validation flow's original field set. */
-    private async fillPlanLeadFormFields(
-        form: Locator,
-        leadData: LeadFieldData,
-        options: { includeCountryAndZip: boolean }
-    ): Promise<void> {
-        await fillIfPresent(form.getByRole('textbox', { name: /first name/i }), leadData.firstName);
-        await fillIfPresent(form.getByRole('textbox', { name: /last name/i }), leadData.lastName);
-        await fillIfPresent(form.getByRole('textbox', { name: /^email/i }), leadData.email);
-        await fillIfPresent(form.getByRole('textbox', { name: /phone/i }), leadData.phone);
-
-        if (!options.includeCountryAndZip) {
+    /** Helper: reveal the floating CTA by scrolling until it becomes visible. */
+    private async revealGetInformationCta(): Promise<void> {
+        const initialFloatingCta = await this.getFloatingBarGetInformationCta().catch(() => null);
+        if (initialFloatingCta && await initialFloatingCta.isVisible({ timeout: 1500 }).catch(() => false)) {
             return;
         }
 
-        await selectCountryIfPresent(form, leadData.country);
-        await fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), leadData.zip);
+        for (const position of [450, 900, 1400]) {
+            await this.page.evaluate((scrollTop) => window.scrollTo(0, scrollTop), position);
+            await this.waitForPageReady();
+            await this.settle(400);
+
+            const floatingCta = await this.getFloatingBarGetInformationCta().catch(() => null);
+            if (floatingCta && await floatingCta.isVisible({ timeout: 1000 }).catch(() => false)) {
+                return;
+            }
+        }
     }
 
-    /** Verify: plan detail bottom form fields are visible. */
-    async verifyPlanDetailForm(): Promise<void> {
+    /** Helper: click the floating Get Information CTA when the sidebar/modal form is not already open. */
+    private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
+        if (await this.leadFormDialogOrSidebar.count()) {
+            return;
+        }
+
+        await this.revealGetInformationCta();
+        const floatingCta = await this.getFloatingBarGetInformationCta();
+        await expect(floatingCta, 'Floating-bar Get Information or Stay Updated CTA should be visible')
+            .toBeVisible({ timeout: 15000 });
+
+        const previousUrl = this.page.url();
+
+        await floatingCta.scrollIntoViewIfNeeded();
+        await floatingCta.click({ force: true });
+        await this.waitForPageReady();
+        await this.settle(1000);
+
+        expect(
+            this.page.url(),
+            `Plan detail Get Information CTA should keep the lead-form flow on page, not redirect from ${previousUrl}`
+        ).not.toMatch(/\/contact\/?($|[?#])/i);
+    }
+
+    /** Helper: return the landing CTA used before the floating bar appears. */
+    private async getLandingGetInformationCta(): Promise<Locator> {
+        return this.getVisibleGetInformationCta('landing');
+    }
+
+    /** Helper: return the floating-bar CTA shown after scrolling down the page. */
+    private async getFloatingBarGetInformationCta(): Promise<Locator> {
+        return this.getVisibleGetInformationCta('floating');
+    }
+
+    /** Helper: choose the best visible Get Information CTA for the requested context. */
+    private async getVisibleGetInformationCta(mode: 'landing' | 'floating'): Promise<Locator> {
+        const allCtas = this.page.locator('a:visible, button:visible').filter({
+            hasText: /Get Information|Stay Updated/i
+        });
+        const count = await allCtas.count();
+        let landingFallback: Locator | null = null;
+
+        for (let i = 0; i < count; i++) {
+            const candidate = allCtas.nth(i);
+
+            if (!(await candidate.isVisible().catch(() => false))) {
+                continue;
+            }
+
+            // The CTA that opens the side modal lives on the sticky/fixed "floating bar" that appears
+            // after scrolling; the landing CTA (in the hero) is a normal in-flow element that only
+            // scrolls to the footer form. Distinguish them by position (fixed/sticky ancestor), not by
+            // vertical offset — the hero CTA can also sit near the top of the page.
+            const isFloating = await isFloatingCta(candidate);
+
+            if (mode === 'floating') {
+                if (isFloating) {
+                    return candidate;
+                }
+
+                continue;
+            }
+
+            if (!isFloating) {
+                return candidate;
+            }
+
+            landingFallback ??= candidate;
+        }
+
+        if (mode === 'landing' && landingFallback) {
+            return landingFallback;
+        }
+
+        throw new Error(`No visible ${mode} Get Information CTA found on plan detail page`);
+    }
+
+    /** Verify: Get Information CTA opens the plan detail side modal form. */
+    async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
+        await this.step('Verify Get Information CTA opens lead form', async () => {
+            const form = await this.openSideModalForm('Get Information plan detail side modal form');
+
+            if (!form) {
+                return;
+            }
+
+            await expect(form, 'Get Information plan detail side modal form should be visible')
+                .toBeVisible({ timeout: 10000 });
+        });
+    }
+
+    /** Verify: initial Get Information CTA scrolls to the footer/community-updates form. */
+    async verifyGetInformationCtaScrollsToForm(): Promise<void> {
+        await this.step('Verify Get Information CTA scrolls to form', async () => {
+            const cta = await this.getLandingGetInformationCta();
+            await expect(cta, 'Landing Get Information or Stay Updated CTA should be visible')
+                .toBeVisible({ timeout: 15000 });
+            await cta.scrollIntoViewIfNeeded();
+            await cta.click({ force: true });
+            await this.waitForPageReady();
+            await expect(this.signUpFormSection).toBeVisible({ timeout: 15000 });
+            await expect(this.signUpFormSection).toBeInViewport();
+        });
+    }
+
+    /** Verify: plan detail side modal form fields are visible. */
+    async verifySideModalFormFields(): Promise<void> {
         await this.step('Verify plan detail form fields', async () => {
-            await this.verifyCommunityUpdatesFormByIndex(0, 'Plan detail bottom form');
+            await this.verifySideModalFormFieldsByIndex(0, 'Get Information plan detail side modal form');
         });
     }
 
-    /** Verify: plan detail bottom form shows empty required-field errors. */
-    async validatePlanDetailFormEmptyErrors(): Promise<void> {
+    /** Verify: plan detail side modal form shows empty required-field errors. */
+    async validateSideModalFormRequiredErrors(): Promise<void> {
         await this.step('Validate plan detail form empty errors', async () => {
-            await this.validateEmptyFormErrorsByIndex(0, 'Plan detail bottom form');
+            await this.validateEmptyFormErrorsByIndex(0, 'Get Information plan detail side modal form');
         });
     }
 
-    /** Verify: plan detail bottom form rejects invalid email addresses. */
-    async validatePlanDetailFormInvalidEmail(): Promise<void> {
+    /** Verify: plan detail side modal form rejects invalid email addresses. */
+    async validateSideModalFormInvalidEmail(): Promise<void> {
         await this.step('Validate plan detail form invalid email', async () => {
-            await this.validateInvalidEmailByIndex(0, 'Plan detail bottom form');
+            await this.validateInvalidEmailByIndex(0, 'Get Information plan detail side modal form');
         });
     }
 
-    /** Verify: plan detail bottom form can be submitted successfully. */
-    async verifyPlanDetailFormSuccessSubmission(): Promise<void> {
+    /** Verify: plan detail side modal form can be submitted successfully. */
+    async verifySideModalFormSuccessSubmission(): Promise<void> {
         await this.step('Submit plan detail form successfully', async () => {
-            await this.submitSuccessfulFormByIndex(0, 'Plan detail bottom form');
+            await this.submitSuccessfulFormByIndex(0, 'Get Information plan detail side modal form');
         });
+    }
+
+    /** Open the floating-CTA side modal lead form and return it (for external evidence capture). */
+    async openSideModalLeadForm(
+        formName = 'Get Information plan detail side modal form'
+    ): Promise<Locator> {
+        const form = await this.getAvailableForm(0, formName);
+
+        if (!form) {
+            throw new Error(`${formName} did not open`);
+        }
+
+        return form;
     }
 
 }

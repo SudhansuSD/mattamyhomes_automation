@@ -41,9 +41,10 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
         await qmiPage.verifyPriceOrCTA();
       });
 
-      await test.step('Verify Get Information CTA scrolls to the form section', async () => {
+      await test.step('Verify Get Information CTA scrolls to the footer form section', async () => {
         await qmiPage.verifyGetInformationScrollsToForm();
       });
+
     });
   });
 
@@ -92,21 +93,27 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Lead Form', () => {
-    test('TC-01 | @regression @qmi-form-fields | Validate QMI form fields', async () => {
+    test('TC-01 | @sanity | Validate floating bar Get Information CTA opens QMI side modal form', async () => {
+      await test.step('Verify Get Information CTA opens the side modal form', async () => {
+        await qmiPage.verifyGetInformationCtaOpensLeadForm();
+      });
+    });
+
+    test('TC-02 | @regression @qmi-form-fields | Validate QMI side modal form fields', async () => {
       await test.step('Verify QMI form fields are visible', async () => {
-        await qmiPage.validateQmiFormFields();
+        await qmiPage.verifySideModalFormFields();
       });
     });
 
-    test('TC-02 | @regression @qmi-form-required | Validate QMI form required field errors', async () => {
+    test('TC-03 | @regression @qmi-form-required | Validate QMI side modal form required field errors', async () => {
       await test.step('Verify QMI form required field validation', async () => {
-        await qmiPage.validateQmiFormRequiredErrors();
+        await qmiPage.validateSideModalFormRequiredErrors();
       });
     });
 
-    test('TC-03 | @regression @qmi-form-email | Validate QMI form invalid email validation', async () => {
+    test('TC-04 | @regression @qmi-form-email | Validate QMI side modal form invalid email validation', async () => {
       await test.step('Verify QMI form invalid email validation', async () => {
-        await qmiPage.validateQmiFormInvalidEmail();
+        await qmiPage.validateSideModalFormInvalidEmail();
       });
     });
 
@@ -116,9 +123,9 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
         'Skipping QMI form lead submission on PROD environment.'
       );
 
-      test('TC-01 | @regression @STAGE @qmi-form-submit | Validate QMI form successful submission', async () => {
+      test('TC-01 | @regression @STAGE @qmi-form-submit | Validate QMI side modal form successful submission', async () => {
         await test.step('Submit QMI form with valid data and verify success message', async () => {
-          await qmiPage.verifyQmiFormSuccessSubmission();
+          await qmiPage.verifySideModalFormSuccessSubmission();
         });
       });
     });

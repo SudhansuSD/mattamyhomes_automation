@@ -542,22 +542,34 @@ export class BasePage {
     }
   }
 
-  /** Dismisses promo popup if present. */
-  async dismissPromoPopupIfPresent(): Promise<void> {
+  /**
+   * Dismisses the promo popup / National-promotion overlay when present.
+   *
+   * `appearTimeout` is how long to wait for the National-promotion popup to
+   * render before concluding it is absent. The popup renders a beat AFTER
+   * navigation, and Playwright's `isVisible()` returns immediately (its
+   * `timeout` option is ignored), so a plain check would no-op and leave the
+   * promo sitting on top of the lead form where it blocks .fill()/.click().
+   * Pass a positive `appearTimeout` right after navigation to wait for it;
+   * leave it 0 (default) in tight loops where the popup is already handled so
+   * the check does not wait.
+   */
+  async dismissPromoPopupIfPresent(options: { appearTimeout?: number } = {}): Promise<void> {
     await this.acceptCookiesIfPresent();
 
+    const appearTimeout = options.appearTimeout ?? 0;
+    // Case-insensitive / contains match: the aria-label varies across pages
+    // ("National promotion", "National Promotion popup", ...).
     const nationalPromotionDialog = this.page
-      .locator('[role="dialog"][aria-label="National promotion"]:visible')
-      .first();
-    const promotionCloseButton = this.page
-      .getByRole('button', { name: /close national promotion popup/i })
+      .locator('[role="dialog"][aria-label*="promotion" i]:visible, [aria-label="National promotion"]:visible')
       .first();
 
-    if (await promotionCloseButton.isVisible({ timeout: 10000 }).catch(() => false)) {
-      await promotionCloseButton.click({ force: true }).catch(async () => {
-        await promotionCloseButton.dispatchEvent('click').catch(() => undefined);
-      });
-      await nationalPromotionDialog.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => undefined);
+    if (appearTimeout > 0) {
+      await nationalPromotionDialog.waitFor({ state: 'visible', timeout: appearTimeout }).catch(() => undefined);
+    }
+
+    if (await nationalPromotionDialog.isVisible().catch(() => false)) {
+      await this.closeNationalPromotion(nationalPromotionDialog);
       await this.settle(500);
       return;
     }
@@ -621,6 +633,34 @@ export class BasePage {
       }
 
       await dialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => undefined);
+    }
+  }
+
+  /**
+   * Closes the National-promotion overlay: click its close button (matching the
+   * varying aria-label / class) and press Escape, retrying briefly, then remove
+   * the overlay from the DOM as a last resort so a stuck promo cannot sit on top
+   * of a lead form and block .fill()/.click() until the action times out.
+   */
+  private async closeNationalPromotion(dialog: Locator): Promise<void> {
+    const closeButton = this.page
+      .getByRole('button', { name: /close national promotion popup|close national promotion|^close$/i })
+      .or(dialog.locator('button[aria-label*="close" i], button[class*="close" i], button:has-text("×"), button:has-text("✕")'))
+      .first();
+
+    for (let attempt = 0; attempt < 3 && (await dialog.isVisible().catch(() => false)); attempt++) {
+      await closeButton.click({ force: true, timeout: 2000 }).catch(async () => {
+        await closeButton.dispatchEvent('click').catch(() => undefined);
+      });
+      await this.page.keyboard.press('Escape').catch(() => undefined);
+      await dialog.waitFor({ state: 'hidden', timeout: 1500 }).catch(() => undefined);
+    }
+
+    if (await dialog.isVisible().catch(() => false)) {
+      await dialog.evaluate((element) => {
+        const overlay = element.closest('[class*="overlay" i], [class*="ReactModal__Overlay" i], [class*="backdrop" i]');
+        (overlay ?? element).remove();
+      }).catch(() => undefined);
     }
   }
 

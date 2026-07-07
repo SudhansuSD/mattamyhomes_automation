@@ -74,16 +74,20 @@ test.describe(`MPC page tests - ${location.country}`, () => {
 
   test.describe('Form Validation', () => {
     test.describe('Get Information Form Validation', () => {
-      test('TC-01 | @sanity | Validate Get Information CTA opens MPC lead form', async () => {
+      test('TC-01 | @sanity | Validate Get Information CTA opens MPC sideModalForm', async () => {
         await mpcPage.verifyGetInformationCtaOpensLeadForm();
       });
 
-      test('TC-02 | @sanity | Validate Get Information form required field errors', async () => {
-        await mpcPage.validateGetInformationFormEmptyErrors();
+      test('TC-02 | @sanity | Validate MPC sideModalForm fields', async () => {
+        await mpcPage.verifySideModalFormFields();
       });
 
-      test('TC-03 | @sanity | Validate Get Information form invalid email format', async () => {
-        await mpcPage.validateGetInformationFormInvalidEmail();
+      test('TC-03 | @sanity | Validate MPC sideModalForm required field errors', async () => {
+        await mpcPage.validateSideModalFormRequiredErrors();
+      });
+
+      test('TC-04 | @sanity | Validate MPC sideModalForm invalid email format', async () => {
+        await mpcPage.validateSideModalFormInvalidEmail();
       });
 
       test.describe('Get Information form submission', () => {
@@ -92,8 +96,8 @@ test.describe(`MPC page tests - ${location.country}`, () => {
           'Skipping Get Information form lead submission on PROD environment.'
         );
 
-        test('TC-01 | @regression @STAGE | Validate Get Information form successful submission', async () => {
-          await mpcPage.verifyGetInformationFormSuccessSubmission();
+        test('TC-01 | @regression @STAGE | Validate MPC sideModalForm successful submission', async () => {
+          await mpcPage.verifySideModalFormSuccessSubmission();
         });
       });
     });

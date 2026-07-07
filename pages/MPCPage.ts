@@ -7,11 +7,13 @@ import {
     getMediaSource
 } from '../utils/pageObjectUtils';
 import {
-    expectFieldVisibleIfPresent,
     expectInvalidEmailErrorInForm,
     expectRequiredErrorsInForm,
-    fillLeadFormFields,
+    expectSideModalFormFields,
+    fillInvalidSideModalForm,
+    fillValidSideModalForm,
     getInvalidLeadData,
+    getSubmitButton,
     getValidLeadData,
     LeadFieldData
 } from '../utils/leadFormHelper';
@@ -577,7 +579,7 @@ export class MPCPage extends BasePage {
      Lead Form
   ========================================================== */
 
-  /** Verify: Get Information CTA opens the MPC lead form sidebar/modal. */
+  /** Verify: Get Information CTA opens the MPC sideModalForm sidebar/modal. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
       await expect(this.getInformationCta, 'Get Information CTA should be visible')
@@ -585,48 +587,47 @@ export class MPCPage extends BasePage {
 
       const form = await this.getAvailableGetInformationForm();
 
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
-      await this.expectFieldIfPresent(form.getByRole('combobox', { name: /country of residence/i }), 'Country of Residence');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code');
-      await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone');
-      await expect(this.getSubmitButton(form), 'Get Information MPC form submit button should be visible')
+      await expect(form, 'Get Information MPC sideModalForm should be visible')
         .toBeVisible({ timeout: 10000 });
     });
   }
 
-  /** Verify: Get Information MPC form shows required-field validation errors. */
-  async validateGetInformationFormEmptyErrors(): Promise<void> {
-    await this.step('Validate Get Information form required errors', async () => {
+  /** Verify: Get Information MPC sideModalForm fields are visible. */
+  async verifySideModalFormFields(): Promise<void> {
+    await this.step('Validate Get Information sideModalForm fields', async () => {
       const form = await this.getAvailableGetInformationForm();
+      await expectSideModalFormFields(form, { timeout: 10000, expectCommunity: true });
+    });
+  }
 
+  /** Verify: Get Information MPC sideModalForm shows required-field validation errors. */
+  async validateSideModalFormRequiredErrors(): Promise<void> {
+    await this.step('Validate Get Information sideModalForm required errors', async () => {
+      const form = await this.getAvailableGetInformationForm();
       await this.clickSubmit(form);
       await this.expectRequiredErrorsInForm(form);
     });
   }
 
-  /** Verify: Get Information MPC form rejects invalid email addresses. */
-  async validateGetInformationFormInvalidEmail(): Promise<void> {
-    await this.step('Validate Get Information form invalid email', async () => {
+  /** Verify: Get Information MPC sideModalForm rejects invalid email addresses. */
+  async validateSideModalFormInvalidEmail(): Promise<void> {
+    await this.step('Validate Get Information sideModalForm invalid email', async () => {
       const form = await this.getAvailableGetInformationForm();
-
       await this.fillGetInformationFormWithInvalidEmail(form);
       await this.clickSubmit(form);
-
       await this.expectInvalidEmailErrorInForm(form);
     });
   }
 
-  /** Verify: Get Information MPC form can be submitted successfully. */
-  async verifyGetInformationFormSuccessSubmission(): Promise<void> {
-    await this.step('Submit Get Information form successfully', async () => {
+  /** Verify: Get Information MPC sideModalForm can be submitted successfully. */
+  async verifySideModalFormSuccessSubmission(): Promise<void> {
+    await this.step('Submit Get Information sideModalForm successfully', async () => {
       const form = await this.getAvailableGetInformationForm();
 
       await this.fillGetInformationFormWithValidData(form);
       await this.submitLeadFormAndCaptureApi({
-        formName: 'Get Information MPC form',
-        submitButton: this.getSubmitButton(form),
+        formName: 'Get Information MPC sideModalForm',
+        submitButton: getSubmitButton(form),
         successModal: this.successDialogModal,
         successMessage: this.formSuccessMessage
       });
@@ -807,30 +808,25 @@ export class MPCPage extends BasePage {
 
     await form.scrollIntoViewIfNeeded();
     await this.waitForPageReady();
-    await expect(this.getSubmitButton(form), `${formName} submit button should be visible inside sidebar/modal`)
+    await expect(getSubmitButton(form), `${formName} submit button should be visible inside sidebar/modal`)
       .toBeVisible({ timeout: 10000 });
 
     return form;
   }
 
-  /** Helper: fill Get Information lead form with data that should fail email validation. */
+  /** Helper: fill Get Information sideModalForm with data that should fail email validation. */
   private async fillGetInformationFormWithInvalidEmail(form: Locator): Promise<void> {
-    await fillLeadFormFields(form, getInvalidLeadData('mpc'), { selectCommunity: true });
+    await fillInvalidSideModalForm(form, 'mpc', { selectCommunity: true });
   }
 
-  /** Helper: fill Get Information lead form with valid data for successful submission. */
+  /** Helper: fill Get Information sideModalForm with valid data for successful submission. */
   private async fillGetInformationFormWithValidData(form: Locator): Promise<void> {
-    await fillLeadFormFields(form, getValidLeadData('mpcGetInfo'), { selectCommunity: true });
-  }
-
-  /** Helper: locate submit button inside a specific lead form. */
-  private getSubmitButton(form: Locator): Locator {
-    return form.getByRole('button', { name: /submit|register|request|send/i }).first();
+    await fillValidSideModalForm(form, 'mpcGetInfo', { selectCommunity: true });
   }
 
   /** Helper: click a form submit button without waiting on third-party submit requests. */
   private async clickSubmit(form: Locator): Promise<void> {
-    const submitButton = this.getSubmitButton(form);
+    const submitButton = getSubmitButton(form);
 
     await submitButton.scrollIntoViewIfNeeded();
     await expect(submitButton, 'Submit button should be visible before clicking')
@@ -851,11 +847,6 @@ export class MPCPage extends BasePage {
   /** Helper: assert invalid-email validation within a lead form. */
   private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
     await expectInvalidEmailErrorInForm(form);
-  }
-
-  /** Helper: assert a field is visible only when present in the form. */
-  private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
-    await expectFieldVisibleIfPresent(field, label);
   }
 
   /** Helper: return true when a locator becomes visible within the timeout. */

@@ -5,16 +5,19 @@ import {
     escapeRegex,
     getPathSegments,
     getSlugTextPattern,
+    isFloatingCta,
     isLocatorVisible,
     toTitleCase
 } from '../utils/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
 import {
-    expectFieldVisibleIfPresent,
-    fillLeadFormFields,
-    getInvalidLeadData,
+    clickSubmit,
+    expectInvalidEmailErrorInForm,
+    expectRequiredErrorsInForm,
+    expectSideModalFormFields,
+    fillInvalidSideModalForm,
+    fillValidSideModalForm,
     getSubmitButton,
-    getValidLeadData
 } from '../utils/leadFormHelper';
 
 /* ==========================================================
@@ -69,7 +72,7 @@ export class QMIPage extends SearchablePage {
         this.breadcrumb = page.locator('#breadcrumb');
         this.priceSection = this.heroSection.locator("p:has-text('$')");
         this.getInformationCta = page.locator('a, button').filter({
-            hasText: /Get Information/i
+            hasText: /Get Information|Stay Updated/i
         }).first();
         this.formSection = page.locator(
             '#contact, #ScheduleAVisit-FormInstance0, #ScheduleAVisit-FormInstance1'
@@ -115,27 +118,16 @@ export class QMIPage extends SearchablePage {
         this.successDialogModal = page.locator('.ReactModal__Content');
     }
 
-    /** Locator: all visible QMI lead forms with a submit button. */
-    private get qmiForms(): Locator {
+    /** Locator: all visible QMI modal forms with a submit button. */
+    private get leadFormDialogOrSidebar(): Locator {
         return this.page
-            .locator(
-                [
-                    'form',
-                    '[id^="Sitecore-ScheduleAVisit-FormInstance"]',
-                    '[id^="ScheduleAVisit-FormInstance"]',
-                    'section',
-                    '[role="group"]'
-                ].join(', ')
-            )
+            .locator('#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible')
             .filter({
-                has: this.page.getByRole('button', { name: /submit/i })
-            })
-            .filter({
-                has: this.page.locator('input, select, textarea')
+                has: this.page.locator('form, input, select, textarea')
             });
     }
 
-    /** Locator: successful QMI lead form confirmation message. */
+    /** Locator: successful QMI modal form confirmation message. */
     private get formSuccessMessage(): Locator {
         return this.page.getByText(
             /Thank you for your interest in Mattamy Homes/i
@@ -237,13 +229,30 @@ export class QMIPage extends SearchablePage {
         });
     }
 
-    /** Verify: Get Information CTA scrolls the user to the QMI form section. */
+    /** Verify: floating Get Information CTA opens the QMI side modal form. */
+    async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
+        await this.step('Verify Get Information CTA opens lead form', async () => {
+            const form = await this.openGetInformationLeadForm('QMI Get Information side modal form');
+
+            if (!form) {
+                return;
+            }
+
+            await expect(form, 'QMI Get Information side modal form should be visible')
+                .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
+        });
+    }
+
+    /** Verify: initial Get Information CTA scrolls the user to the footer form section. */
     async verifyGetInformationScrollsToForm(): Promise<void> {
         await this.step('Verify Get Information CTA scrolls to form', async () => {
-            await expect(this.getInformationCta).toBeVisible();
+            const cta = await this.getLandingGetInformationCta();
+            await expect(cta, 'Landing Get Information or Stay Updated CTA should be visible')
+                .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
             await expect(this.formSection).toBeAttached();
-            await this.getInformationCta.scrollIntoViewIfNeeded();
-            await this.getInformationCta.click();
+            await cta.scrollIntoViewIfNeeded();
+            await cta.click({ force: true });
+            await this.waitForPageReady();
             await expect(this.formSection).toBeInViewport();
         });
     }
@@ -364,7 +373,7 @@ export class QMIPage extends SearchablePage {
                 await this.verifySalesOfficeMapLinkIfPresent(salesOfficeSection);
             }
 
-            await this.getAvailableForm(0, 'QMI community updates form');
+            await expect(this.getInformationCta).toBeVisible();
         });
     }
 
@@ -373,91 +382,53 @@ export class QMIPage extends SearchablePage {
     ========================================================== */
 
     /** Verify: expected QMI form fields and submit button are visible. */
-    async validateQmiFormFields(): Promise<void> {
-        await this.step('Verify QMI form fields & submit button', async () => {
-            const form = await this.getAvailableForm(0, 'QMI community updates form');
+    async verifySideModalFormFields(): Promise<void> {
+        await this.step('Verify QMI side modal form fields & submit button', async () => {
+            const form = await this.getAvailableForm(0, 'QMI Get Information side modal form');
 
             if (!form) {
                 return;
             }
 
-            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name');
-            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name');
-            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email');
-            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone');
-            await this.expectFieldIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip or postal');
-
-            const countryOfResidence = form.getByRole('combobox', {
-                name: /country of residence/i
-            }).first();
-
-            if (await countryOfResidence.count()) {
-                await expect(countryOfResidence, 'Country of residence field should be visible')
-                    .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
-            }
-
-            await expect(this.getSubmitButton(form)).toBeVisible({
+            await expectSideModalFormFields(form, {
                 timeout: QMIPage.PAGE_LOAD_TIMEOUT
             });
         });
     }
 
     /** Verify: QMI form shows required-field validation errors. */
-    async validateQmiFormRequiredErrors(): Promise<void> {
-        await this.step('Verify QMI form required-field errors', async () => {
-            const form = await this.getAvailableForm(0, 'QMI community updates form');
+    async validateSideModalFormRequiredErrors(): Promise<void> {
+        await this.step('Verify QMI side modal form required-field errors', async () => {
+            const form = await this.getAvailableForm(0, 'QMI Get Information side modal form');
 
             if (!form) {
                 return;
             }
 
-            await this.getSubmitButton(form).click();
-            await expect(form.locator('text=/Required|Please complete|Invalid|Error/i').first())
-                .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
+            await this.clickSubmit(form);
+            await this.expectRequiredErrorsInForm(form);
         });
     }
 
     /** Verify: QMI form rejects an invalid email address. */
-    async validateQmiFormInvalidEmail(): Promise<void> {
-        await this.step('Verify QMI form rejects invalid email', async () => {
-            const form = await this.getAvailableForm(0, 'QMI community updates form');
+    async validateSideModalFormInvalidEmail(): Promise<void> {
+        await this.step('Verify QMI side modal form rejects invalid email', async () => {
+            const form = await this.getAvailableForm(0, 'QMI Get Information side modal form');
 
             if (!form) {
                 return;
             }
 
             await this.fillLeadFormWithInvalidEmail(form);
-            await this.getSubmitButton(form).click();
-
-            const visibleEmailError = form
-                .locator('div:visible, span:visible, p:visible, label:visible')
-                .filter({
-                    hasText: /valid email|invalid email|valid domain name|Required|Invalid|Error/i
-                })
-                .first();
-
-            if (await isLocatorVisible(visibleEmailError)) {
-                await expect(visibleEmailError).toBeVisible();
-                return;
-            }
-
-            const emailField = form.getByRole('textbox', { name: /^email/i }).first();
-            const nativeValidationMessage = await emailField.evaluate((element) => {
-                const input = element as HTMLInputElement;
-                return input.validationMessage;
-            });
-
-            expect(
-                nativeValidationMessage,
-                'QMI email field should reject invalid email format'
-            ).toBeTruthy();
+            await this.clickSubmit(form);
+            await this.expectInvalidEmailErrorInForm(form);
         });
     }
 
     /** Verify: QMI form can be submitted successfully with valid lead data. */
-    async verifyQmiFormSuccessSubmission(): Promise<void> {
-        await this.step('Submit QMI form with valid data', async () => {
-            const form = await this.getAvailableForm(0, 'QMI community updates form');
+    async verifySideModalFormSuccessSubmission(): Promise<void> {
+        await this.step('Submit QMI side modal form with valid data', async () => {
+            const form = await this.getAvailableForm(0, 'QMI Get Information side modal form');
 
             if (!form) {
                 return;
@@ -465,7 +436,7 @@ export class QMIPage extends SearchablePage {
 
             await this.fillLeadFormWithValidData(form);
             await this.submitLeadFormAndCaptureApi({
-                formName: 'QMI community updates form',
+                formName: 'QMI Get Information side modal form',
                 submitButton: this.getSubmitButton(form),
                 successModal: this.successDialogModal,
                 successMessage: this.formSuccessMessage,
@@ -473,6 +444,19 @@ export class QMIPage extends SearchablePage {
             });
             await this.reportValue('QMI form successful submission validated');
         });
+    }
+
+    /** Open the floating-CTA side modal lead form and return it (for external evidence capture). */
+    async openSideModalLeadForm(
+        formName = 'QMI Get Information side modal form'
+    ): Promise<Locator> {
+        const form = await this.getAvailableForm(0, formName);
+
+        if (!form) {
+            throw new Error(`${formName} did not open`);
+        }
+
+        return form;
     }
 
     /* ==========================================================
@@ -565,33 +549,7 @@ export class QMIPage extends SearchablePage {
         formIndex = 0,
         formName = 'QMI form'
     ): Promise<Locator | null> {
-        const formHeading = this.page.getByRole('heading', {
-            name: /Sign Up For Community Updates/i
-        }).first();
-
-        if (await formHeading.count()) {
-            await formHeading.scrollIntoViewIfNeeded();
-            await this.waitForPageReady();
-        }
-
-        const formCount = await expect
-            .poll(
-                () => this.qmiForms.count(),
-                {
-                    message: `${formName} should mount when available`,
-                    timeout: 15000
-                }
-            )
-            .toBeGreaterThan(formIndex)
-            .then(() => this.qmiForms.count())
-            .catch(() => 0);
-
-        if (formCount <= formIndex) {
-            await this.reportValue(`${formName} not present on current QMI page - skipping form validation`);
-            return null;
-        }
-
-        const form = this.qmiForms.nth(formIndex);
+        const form = await this.openGetInformationLeadForm(formName, formIndex);
         const submitButton = this.getSubmitButton(form);
 
         await form.scrollIntoViewIfNeeded();
@@ -603,24 +561,162 @@ export class QMIPage extends SearchablePage {
         return form;
     }
 
+    /** Helper: open the Get Information sidebar/modal form and return the visible container by index. */
+    private async openGetInformationLeadForm(
+        formName = 'QMI Get Information side modal form',
+        formIndex = 0
+    ): Promise<Locator> {
+        await this.openLeadFormFromGetInformationCtaIfPresent();
+
+        const formCount = await expect
+            .poll(
+                () => this.leadFormDialogOrSidebar.count(),
+                {
+                    message: `${formName} sidebar/modal should open after Get Information CTA`,
+                    timeout: 15000
+                }
+            )
+            .toBeGreaterThan(formIndex)
+            .then(() => this.leadFormDialogOrSidebar.count())
+            .catch(() => 0);
+
+        if (formCount <= formIndex) {
+            throw new Error(`${formName} sidebar/modal form did not open`);
+        }
+
+        const form = this.leadFormDialogOrSidebar.nth(formIndex);
+        await form.scrollIntoViewIfNeeded();
+        await this.waitForPageReady();
+
+        return form;
+    }
+
+    /** Helper: reveal the floating CTA by scrolling until it becomes visible. */
+    private async revealGetInformationCta(): Promise<void> {
+        const initialFloatingCta = await this.getFloatingBarGetInformationCta().catch(() => null);
+        if (initialFloatingCta && await initialFloatingCta.isVisible({ timeout: 1500 }).catch(() => false)) {
+            return;
+        }
+
+        for (const position of [450, 900, 1400]) {
+            await this.page.evaluate((scrollTop) => window.scrollTo(0, scrollTop), position);
+            await this.waitForPageReady();
+            await this.settle(400);
+
+            const floatingCta = await this.getFloatingBarGetInformationCta().catch(() => null);
+            if (floatingCta && await floatingCta.isVisible({ timeout: 1000 }).catch(() => false)) {
+                return;
+            }
+        }
+    }
+
+    /** Helper: click the floating Get Information CTA when the sidebar/modal form is not already open. */
+    private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
+        if (await this.leadFormDialogOrSidebar.count()) {
+            return;
+        }
+
+        await this.dismissPromoPopupIfPresent();
+        await this.dismissCookieBannerIfPresent();
+        await this.revealGetInformationCta();
+        const floatingCta = await this.getFloatingBarGetInformationCta();
+        await expect(floatingCta, 'Floating-bar Get Information or Stay Updated CTA should be visible')
+            .toBeVisible({ timeout: QMIPage.PAGE_LOAD_TIMEOUT });
+
+        const previousUrl = this.page.url();
+
+        await floatingCta.scrollIntoViewIfNeeded();
+        await floatingCta.click({ force: true });
+        await this.waitForPageReady();
+        await this.settle(1000);
+
+        expect(
+            this.page.url(),
+            `QMI Get Information CTA should keep the lead-form flow on page, not redirect from ${previousUrl}`
+        ).not.toMatch(/\/contact\/?($|[?#])/i);
+    }
+
+    /** Helper: return the landing CTA used before the floating bar appears. */
+    private async getLandingGetInformationCta(): Promise<Locator> {
+        return this.getVisibleGetInformationCta('landing');
+    }
+
+    /** Helper: return the floating-bar CTA shown after scrolling down the page. */
+    private async getFloatingBarGetInformationCta(): Promise<Locator> {
+        return this.getVisibleGetInformationCta('floating');
+    }
+
+    /** Helper: choose the best visible Get Information CTA for the requested context. */
+    private async getVisibleGetInformationCta(mode: 'landing' | 'floating'): Promise<Locator> {
+        const allCtas = this.page.locator('a:visible, button:visible').filter({
+            hasText: /Get Information|Stay Updated/i
+        });
+        const count = await allCtas.count();
+        let landingFallback: Locator | null = null;
+
+        for (let i = 0; i < count; i++) {
+            const candidate = allCtas.nth(i);
+
+            if (!(await candidate.isVisible().catch(() => false))) {
+                continue;
+            }
+
+            // The CTA that opens the side modal lives on the sticky/fixed "floating bar" that appears
+            // after scrolling; the landing CTA (in the hero) is a normal in-flow element that only
+            // scrolls to the footer form. Distinguish them by position (fixed/sticky ancestor), not by
+            // vertical offset — the hero CTA can also sit near the top of the page.
+            const isFloating = await isFloatingCta(candidate);
+
+            if (mode === 'floating') {
+                if (isFloating) {
+                    return candidate;
+                }
+
+                continue;
+            }
+
+            if (!isFloating) {
+                return candidate;
+            }
+
+            landingFallback ??= candidate;
+        }
+
+        if (mode === 'landing' && landingFallback) {
+            return landingFallback;
+        }
+
+        throw new Error(`No visible ${mode} Get Information CTA found on QMI page`);
+    }
+
     /** Helper: locate the submit button inside a specific form. */
     private getSubmitButton(form: Locator): Locator {
         return getSubmitButton(form);
     }
 
-    /** Helper: assert a form field only if that field exists. */
-    private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
-        await expectFieldVisibleIfPresent(field, label, QMIPage.PAGE_LOAD_TIMEOUT);
+    /** Helper: click a modal-form submit button without waiting on third-party submit requests. */
+    private async clickSubmit(form: Locator): Promise<void> {
+        await clickSubmit(this.page, form, QMIPage.PAGE_LOAD_TIMEOUT);
     }
 
-    /** Helper: fill lead form with data that should fail email validation. */
+    /** Helper: assert expected required-field messages within a modal form. */
+    private async expectRequiredErrorsInForm(form: Locator): Promise<void> {
+        await expectRequiredErrorsInForm(form, QMIPage.PAGE_LOAD_TIMEOUT);
+    }
+
+    /** Helper: assert invalid-email validation within a modal form. */
+    private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
+        await expectInvalidEmailErrorInForm(form, QMIPage.PAGE_LOAD_TIMEOUT);
+    }
+
+    /** Helper: fill modal form with data that should fail email validation. */
     private async fillLeadFormWithInvalidEmail(form: Locator): Promise<void> {
-        await fillLeadFormFields(form, getInvalidLeadData('qmi'));
+        await fillInvalidSideModalForm(form, 'qmi');
     }
 
-    /** Helper: fill lead form with valid data for successful submission tests. */
+    /** Helper: fill modal form with valid data for successful submission tests. */
     private async fillLeadFormWithValidData(form: Locator): Promise<void> {
-        await fillLeadFormFields(form, getValidLeadData('qmi'));
+        await fillValidSideModalForm(form, 'qmi');
     }
 
     /** Helper: return compact visible text for logging and comparisons. */

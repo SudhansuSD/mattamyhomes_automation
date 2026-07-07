@@ -60,16 +60,20 @@ test.describe(`Community Detail - ${location.community}`, () => {
 
     test.describe('Lead Form', () => {
         test.describe('Get Information Form Validation', () => {
-            test('TC-01 | @sanity | Validate Get Information CTA opens community lead form', async () => {
+            test('TC-01 | @sanity | Validate Get Information CTA opens community sideModalForm', async () => {
                 await communityPage.verifyGetInformationCtaOpensLeadForm();
             });
 
-            test('TC-02 | @sanity | Validate Get Information form required field errors', async () => {
-                await communityPage.validateGetInformationFormEmptyErrors();
+            test('TC-02 | @sanity | Validate community sideModalForm fields', async () => {
+                await communityPage.verifySideModalFormFields();
             });
 
-            test('TC-03 | @sanity | Validate Get Information form invalid email format', async () => {
-                await communityPage.validateGetInformationFormInvalidEmail();
+            test('TC-03 | @sanity | Validate community sideModalForm required field errors', async () => {
+                await communityPage.validateSideModalFormRequiredErrors();
+            });
+
+            test('TC-04 | @sanity | Validate community sideModalForm invalid email format', async () => {
+                await communityPage.validateSideModalFormInvalidEmail();
             });
 
             test.describe('Get Information form submission', () => {
@@ -78,8 +82,8 @@ test.describe(`Community Detail - ${location.community}`, () => {
                     'Skipping Get Information form lead submission on PROD environment.'
                 );
 
-                test('TC-01 | @regression @STAGE | Validate Get Information form successful submission', async () => {
-                    await communityPage.verifyGetInformationFormSuccessSubmission();
+                test('TC-01 | @regression @STAGE | Validate community sideModalForm successful submission', async () => {
+                    await communityPage.verifySideModalFormSuccessSubmission();
                 });
             });
         });

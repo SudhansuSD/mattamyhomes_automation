@@ -28,6 +28,31 @@ export async function getMediaSource(locator: Locator): Promise<string> {
     .catch(() => '');
 }
 
+/**
+ * True when the element (or any ancestor) is position:fixed or sticky, i.e. it lives on a floating /
+ * sticky bar. Used to tell the sticky "floating bar" Get Information CTA (which opens the side modal)
+ * apart from the in-flow hero/landing CTA (which only scrolls to the footer form).
+ */
+export async function isFloatingCta(locator: Locator): Promise<boolean> {
+  return locator
+    .evaluate((element) => {
+      let node: HTMLElement | null = element as HTMLElement;
+
+      for (let depth = 0; node && depth < 8; depth++) {
+        const position = window.getComputedStyle(node).position;
+
+        if (position === 'fixed' || position === 'sticky') {
+          return true;
+        }
+
+        node = node.parentElement;
+      }
+
+      return false;
+    })
+    .catch(() => false);
+}
+
 export async function isLocatorVisible(locator: Locator, timeout?: number): Promise<boolean> {
   return typeof timeout === 'number'
     ? locator.isVisible({ timeout }).catch(() => false)
