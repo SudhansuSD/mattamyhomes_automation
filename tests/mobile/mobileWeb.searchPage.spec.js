@@ -1,7 +1,7 @@
 const { MobileWebSearchPage } = require('../../pages/mobile/MobileWebSearchPage');
 const { getLocationConfig } = require('../../config/locations/locationConfig');
 
-describe('Mattamy Homes mobile web - Search Page on Android Chrome', function () {
+describe('Mattamy Homes mobile web - Search Page on mobile (Android/iOS)', function () {
   this.timeout(300000);
 
   let searchPage;

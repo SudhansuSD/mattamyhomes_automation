@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { getMobilePlatform, getUserAgentPatterns } = require('../../utils/mobilePlatform');
 
 class MobileWebBasePage {
   /** Initializes this page object and its locators. */
@@ -418,6 +419,15 @@ class MobileWebBasePage {
   /** Asserts no error page. */
   assertNoErrorPage(snapshot) {
     assert.doesNotMatch(snapshot.bodyText, /404|page not found|server error/i);
+  }
+
+  /** Asserts the browser user agent matches the configured mobile platform (Android Chrome / iOS Safari). */
+  expectMobileUserAgent(userAgent) {
+    const platform = getMobilePlatform();
+    const { device, browser } = getUserAgentPatterns();
+
+    assert.match(userAgent, device, `Expected ${platform} device user agent, received: ${userAgent}`);
+    assert.match(userAgent, browser, `Expected ${platform} browser user agent, received: ${userAgent}`);
   }
 
   /** Logs mobile step. */

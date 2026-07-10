@@ -35,15 +35,14 @@ class MobileWebHomePage extends MobileWebBasePage {
       this.expectedTitle,
       `Expected Mattamy title/source, received title: ${snapshot.title}`
     );
-    assert.match(snapshot.userAgent, /Android/i, `Expected Android Chrome user agent, received: ${snapshot.userAgent}`);
-    assert.match(snapshot.userAgent, /Chrome/i, `Expected Chrome user agent, received: ${snapshot.userAgent}`);
+    this.expectMobileUserAgent(snapshot.userAgent);
     assert.match(snapshot.readyState, /complete|interactive|loading/);
     assert.equal(
       snapshot.hasHomeContent || snapshot.hasSearchEntryPoint,
       true,
       'Expected mobile home page content or Find Your Home entry point'
     );
-    assert.ok(viewport.width > 0 && viewport.height > 0, 'Expected Android Chrome viewport dimensions');
+    assert.ok(viewport.width > 0 && viewport.height > 0, 'Expected mobile browser viewport dimensions');
     this.assertNoErrorPage(snapshot);
   }
 
@@ -434,7 +433,7 @@ class MobileWebHomePage extends MobileWebBasePage {
       });
 
       if (missingMarkets.length === location.markets.length) {
-        this.logSkip('Market cards are not present in the Android emulator source snapshot - skipping rendered card validation');
+        this.logSkip('Market cards are not present in the mobile source snapshot - skipping rendered card validation');
         return;
       }
 

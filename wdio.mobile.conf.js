@@ -8,6 +8,10 @@ const { Status } = require("allure-js-commons");
 const allureReporter = require("@wdio/allure-reporter").default;
 const { getEnvConfig } = require("./config/environments/envConfig");
 const { MOBILE_ALLURE_RESULTS_DIR } = require("./scripts/allurePaths");
+const { getMobilePlatform, getMobilePlatformLabel } = require("./utils/mobilePlatform");
+
+// android (default) | ios. Selects capabilities + session-reset strategy below.
+const mobilePlatform = getMobilePlatform();
 
 // .env may define these with a trailing newline/whitespace; Appium rejects the
 // path as "does not exist" unless we trim it.
@@ -20,7 +24,12 @@ for (const name of ["ANDROID_HOME", "ANDROID_SDK_ROOT"]) {
 const androidUdid = process.env.APPIUM_UDID || "emulator-5554";
 
 // Best-effort adb call; failures are logged but never abort the run.
+// No-op on iOS: adb is Android-only, so the Chrome reset hooks below simply skip on iOS Safari.
 function adb(args) {
+  if (mobilePlatform !== "android") {
+    return;
+  }
+
   const sdkRoot = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
   const bin = process.platform === "win32" ? "adb.exe" : "adb";
   const adbPath = sdkRoot ? path.join(sdkRoot, "platform-tools", bin) : bin;
@@ -146,6 +155,72 @@ function getHookTitle(hook, hookName) {
   return hookName ? `${hookName} ${title}` : title;
 }
 
+// Android Chrome capabilities (UiAutomator2). Chrome-specific options only apply here.
+function buildAndroidCapabilities() {
+  return {
+    platformName: "Android",
+    browserName: "Chrome",
+    // "eager" returns control once the DOM is interactive instead of waiting
+    // on every subresource, which keeps mobile navigation responsive.
+    pageLoadStrategy: "eager",
+
+    "appium:automationName": "UiAutomator2",
+    "appium:deviceName": process.env.APPIUM_DEVICE_NAME || "Android Emulator",
+    "appium:udid": androidUdid,
+
+    // Start each session from a clean Chrome profile. Caching the profile was
+    // slower in practice: Chrome restored the previous run's heavy tab and
+    // stalled the renderer while loading the next page.
+    "appium:noReset": false,
+
+    "appium:autoGrantPermissions": true,
+    // Match ChromeDriver to the device's Chrome version automatically.
+    "appium:chromedriverAutodownload": true,
+
+    "goog:chromeOptions": {
+      androidPackage: "com.android.chrome",
+      // Start a fresh Chrome instance and skip the first-run/welcome screens
+      // and popups that would otherwise block page navigation.
+      androidUseRunningApp: false,
+      args: [
+        "--no-first-run",
+        "--disable-fre",
+        "--disable-popup-blocking",
+        "--disable-notifications",
+      ],
+    },
+  };
+}
+
+// iOS Safari capabilities (XCUITest). Requires macOS + Xcode + `appium driver install xcuitest`.
+// Set APPIUM_DEVICE_NAME / APPIUM_PLATFORM_VERSION (and optionally APPIUM_UDID) to target a
+// specific simulator or real device.
+function buildIosCapabilities() {
+  const capabilities = {
+    platformName: "iOS",
+    browserName: "Safari",
+
+    "appium:automationName": "XCUITest",
+    "appium:deviceName": process.env.APPIUM_DEVICE_NAME || "iPhone 15",
+    "appium:platformVersion": process.env.APPIUM_PLATFORM_VERSION || "17.0",
+
+    // Auto-dismiss Safari/system prompts that would otherwise block navigation.
+    "appium:autoAcceptAlerts": true,
+    "appium:safariInitialUrl": "about:blank",
+  };
+
+  if (process.env.APPIUM_UDID) {
+    capabilities["appium:udid"] = process.env.APPIUM_UDID;
+  }
+
+  return capabilities;
+}
+
+// One capability set per run, chosen by MOBILE_PLATFORM.
+function buildCapabilities() {
+  return [mobilePlatform === "ios" ? buildIosCapabilities() : buildAndroidCapabilities()];
+}
+
 exports.config = {
   runner: "local",
 
@@ -153,6 +228,7 @@ exports.config = {
     "./tests/mobile/mobileWeb.home.spec.js",
     "./tests/mobile/mobileWeb.searchPage.spec.js",
     "./tests/mobile/mobileWeb.community.spec.js",
+    "./tests/mobile/mobileWeb.market.spec.js",
     "./tests/mobile/mobileWeb.mpc.spec.js",
     "./tests/mobile/mobileWeb.plan.spec.js",
     "./tests/mobile/mobileWeb.qmi.spec.js",
@@ -205,45 +281,12 @@ exports.config = {
     ],
   ],
 
-  capabilities: [
-    {
-      platformName: "Android",
-      browserName: "Chrome",
-      // "eager" returns control once the DOM is interactive instead of waiting
-      // on every subresource, which keeps mobile navigation responsive.
-      pageLoadStrategy: "eager",
-
-      "appium:automationName": "UiAutomator2",
-      "appium:deviceName": process.env.APPIUM_DEVICE_NAME || "Android Emulator",
-      "appium:udid": androidUdid,
-
-      // Start each session from a clean Chrome profile. Caching the profile was
-      // slower in practice: Chrome restored the previous run's heavy tab and
-      // stalled the renderer while loading the next page.
-      "appium:noReset": false,
-
-      "appium:autoGrantPermissions": true,
-      // Match ChromeDriver to the device's Chrome version automatically.
-      "appium:chromedriverAutodownload": true,
-
-      "goog:chromeOptions": {
-        androidPackage: "com.android.chrome",
-        // Start a fresh Chrome instance and skip the first-run/welcome screens
-        // and popups that would otherwise block page navigation.
-        androidUseRunningApp: false,
-        args: [
-          "--no-first-run",
-          "--disable-fre",
-          "--disable-popup-blocking",
-          "--disable-notifications",
-        ],
-      },
-    },
-  ],
+  capabilities: buildCapabilities(),
 
   beforeSession: function () {
-    // Stop Chrome and wipe its data so every run starts from a clean, fast slate
-    // (no restored tabs, no stale cookies/cache).
+    // Stop Chrome and wipe its data so every Android run starts from a clean, fast slate
+    // (no restored tabs, no stale cookies/cache). adb() is a no-op on iOS, where Appium's
+    // fresh Safari session provides the clean slate instead.
     adb(["-s", androidUdid, "shell", "am", "force-stop", "com.android.chrome"]);
     adb(["-s", androidUdid, "shell", "pm", "clear", "com.android.chrome"]);
   },
@@ -252,7 +295,7 @@ exports.config = {
     fs.mkdirSync(specLogDir, { recursive: true });
     fs.writeFileSync(
       getSpecTestLogPath(),
-      `${new Date().toISOString()} SPEC START ${getCurrentSpecPath()}\n`,
+      `${new Date().toISOString()} SPEC START [${getMobilePlatformLabel()}] ${getCurrentSpecPath()}\n`,
     );
     globalThis.__mobileSpecStep = (kind, message, status = Status.PASSED) => {
       writeSpecTestLog(`${kind} ${message}`, { allure: true, status });
