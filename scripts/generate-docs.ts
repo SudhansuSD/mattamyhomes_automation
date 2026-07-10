@@ -39,6 +39,32 @@ const PROJECT_NAME = 'Mattamy Homes Web Automation';
 const KNOWN_TAGS = ['@smoke', '@regression', '@sanity', '@ci'] as const;
 type KnownTag = (typeof KNOWN_TAGS)[number];
 
+/**
+ * Spec files that are NOT page-specific (redirect / sitemap / 404 checks).
+ * These are intentionally excluded from the generated docs so `test-plan.md`
+ * only lists page test cases. Matched by file basename, case-insensitively.
+ */
+const NON_PAGE_SPECS = new Set<string>(
+  [
+    'MTTMY-2091.spec.ts',
+    'pasadenaRidge404.spec.ts',
+    'sitemapXml.spec.ts',
+  ].map((n) => n.toLowerCase())
+);
+
+/** Any `*Evidence.spec.ts` is a form-evidence export, not a page test — also
+ *  excluded so future evidence specs never leak into the page-only plan. */
+const NON_PAGE_SPEC_RE = /evidence\.spec\.ts$/i;
+
+/** True when a spec basename should be kept out of the page-only docs. */
+function isNonPageSpec(basename: string): boolean {
+  return NON_PAGE_SPECS.has(basename.toLowerCase()) || NON_PAGE_SPEC_RE.test(basename);
+}
+
+/** Jira Requirement Scenarios are tied to the non-page MTTMY-2091 redirect
+ *  spec, so they are excluded from the page-only test plan. */
+const INCLUDE_JIRA_REQUIREMENT_SCENARIOS = false;
+
 /** Candidate locations for a Playwright JSON report (none is configured by
  *  default in this repo, so all of these are best-effort / optional). */
 const PLAYWRIGHT_JSON_CANDIDATES = [
@@ -222,6 +248,8 @@ function findSpecFiles(dir: string): string[] {
       if (entry.name.toLowerCase() === 'appium') continue;
       out.push(...findSpecFiles(full));
     } else if (/\.spec\.ts$/i.test(entry.name)) {
+      // Skip non-page specs (evidence exports, redirect/sitemap/404 checks).
+      if (isNonPageSpec(entry.name)) continue;
       out.push(full);
     }
   }
@@ -711,6 +739,11 @@ function loadJiraAnalyses(): JiraAnalysis[] {
 }
 
 function appendJiraRequirementScenarios(lines: string[]): void {
+  // Excluded from the page-only test plan (tied to the non-page MTTMY-2091 spec).
+  if (!INCLUDE_JIRA_REQUIREMENT_SCENARIOS) {
+    return;
+  }
+
   const analyses = loadJiraAnalyses();
 
   if (!analyses.length) {
