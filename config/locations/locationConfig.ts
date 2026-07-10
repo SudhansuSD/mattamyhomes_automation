@@ -354,7 +354,7 @@ export function getLocationKey(
   const envName = getEnvConfig().envName as EnvName;
 
   if (!ENVIRONMENT_LOCATION_OVERRIDES[envName][key]) {
-    throw new Error(`Invalid LOCATION provided: ${rawKey}`);
+    throw new Error(`Invalid Location provided: ${rawKey}`);
   }
 
   return key;
