@@ -4,7 +4,7 @@ const {
 const { getEnvConfig } = require("../../config/environments/envConfig");
 const { getLocationConfig } = require("../../config/locations/locationConfig");
 
-describe("Mattamy Homes mobile web - community page on Android Chrome", function () {
+describe("Mattamy Homes mobile web - community page on mobile (Android/iOS)", function () {
   this.timeout(300000);
 
   let communityPage;

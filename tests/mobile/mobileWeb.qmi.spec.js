@@ -2,7 +2,7 @@ const { MobileWebQMIPage } = require('../../pages/mobile/MobileWebQMIPage');
 const { getEnvConfig } = require('../../config/environments/envConfig');
 const { getLocationConfig } = require('../../config/locations/locationConfig');
 
-describe('Mattamy Homes mobile web - QMI detail page on Android Chrome', function () {
+describe('Mattamy Homes mobile web - QMI detail page on mobile (Android/iOS)', function () {
   this.timeout(300000);
 
   let qmiPage;

@@ -320,7 +320,7 @@ class MobileWebPlanPage extends MobileWebHomePage {
     const snapshot = await this.getPlanSourceSnapshot();
 
     if (snapshot.isSourceOnly) {
-      this.logSkip('Plan form is available only in source snapshot on Android emulator - skipping interactive empty-form validation');
+      this.logSkip('Plan form is available only in source snapshot on mobile - skipping interactive empty-form validation');
       return;
     }
 
@@ -339,7 +339,7 @@ class MobileWebPlanPage extends MobileWebHomePage {
     const snapshot = await this.getPlanSourceSnapshot();
 
     if (snapshot.isSourceOnly) {
-      this.logSkip('Plan form is available only in source snapshot on Android emulator - skipping interactive invalid-email validation');
+      this.logSkip('Plan form is available only in source snapshot on mobile - skipping interactive invalid-email validation');
       return;
     }
 
@@ -364,7 +364,7 @@ class MobileWebPlanPage extends MobileWebHomePage {
     const snapshot = await this.getPlanSourceSnapshot();
 
     if (snapshot.isSourceOnly) {
-      this.logSkip('Plan form is available only in source snapshot on Android emulator - skipping interactive success submission');
+      this.logSkip('Plan form is available only in source snapshot on mobile - skipping interactive success submission');
       return;
     }
 
