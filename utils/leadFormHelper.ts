@@ -391,8 +391,11 @@ export async function fillValidSideModalForm(
    they are optional) and the Canada (ScheduleAVisit) forms (where they
    are required). First Time Home Buyer used to be a Yes/No radio group
    and is now a Yes/No dropdown. The helpers fill whichever of the four
-   are present, pick a random valid value for each, and return the
-   chosen values so callers can capture them as submission evidence.
+   are present and return the chosen values so callers can capture them
+   as submission evidence. Bedroom Count / Desired Move Date / New Budget
+   get a random valid value; First Time Home Buyer alternates by iteration
+   (odd attempt -> Yes, even -> No) when an attempt number is supplied, and
+   falls back to a random Yes/No otherwise.
 ========================================================== */
 
 /** Selected values for the extra lead fields; '' for any field that is absent from the form. */
@@ -442,18 +445,20 @@ export async function isCanadaForm(form: Locator): Promise<boolean> {
  * Fill a lead form: the standard fields plus whichever of the four extra dropdowns (Bedroom Count,
  * Desired Move Date, New Budget and First Time Home Buyer) the form renders. The extra fields are
  * optional on US / custom forms and required on Canada (ScheduleAVisit) forms, so filling those
- * that are present covers both. Each extra dropdown gets a random valid option, so required fields
- * never block submission. Returns the extra field values chosen (all '' when none are present) so
- * callers can capture them as evidence.
+ * that are present covers both. Each extra dropdown gets a valid option, so required fields never
+ * block submission. Returns the extra field values chosen (all '' when none are present) so callers
+ * can capture them as evidence. Pass an attempt number to alternate First Time Home Buyer by
+ * iteration (odd -> Yes, even -> No).
  */
 export async function fillLeadFormByFormId(
   form: Locator,
   data: LeadFieldData,
-  options: FillLeadOptions = {}
+  options: FillLeadOptions = {},
+  attempt?: number
 ): Promise<ExtraLeadFields> {
   await fillLeadFormFields(form, data, options);
 
-  return fillExtraLeadFieldsIfPresent(form);
+  return fillExtraLeadFieldsIfPresent(form, attempt);
 }
 
 /**
@@ -462,20 +467,21 @@ export async function fillLeadFormByFormId(
  * The fields are optional on US / custom forms and required on Canada (ScheduleAVisit) forms, so
  * this fills them regardless of the form's country. Use it after filling the standard fields with a
  * custom, field-level fill method (i.e. where {@link fillLeadFormByFormId} can't be used directly).
+ * Pass an attempt number to alternate First Time Home Buyer by iteration (odd -> Yes, even -> No).
  */
-export async function fillExtraLeadFieldsIfPresent(form: Locator): Promise<ExtraLeadFields> {
-  return fillExtraLeadFields(form);
+export async function fillExtraLeadFieldsIfPresent(form: Locator, attempt?: number): Promise<ExtraLeadFields> {
+  return fillExtraLeadFields(form, attempt);
 }
 
 /** Fill whichever of the four extra dropdowns are present; returns the values chosen ('' for any absent field). */
-async function fillExtraLeadFields(form: Locator): Promise<ExtraLeadFields> {
+async function fillExtraLeadFields(form: Locator, attempt?: number): Promise<ExtraLeadFields> {
   return {
     bedroomCount: await selectRandomOptionIfPresent(findSelectByLabel(form, /bedroom/i, 'bedroom')),
     desiredMoveDate: await selectRandomOptionIfPresent(
       findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move')
     ),
     newBudget: await selectRandomOptionIfPresent(findSelectByLabel(form, /budget/i, 'budget')),
-    firstTimeHomeBuyer: await selectFirstTimeHomeBuyerIfPresent(form)
+    firstTimeHomeBuyer: await selectFirstTimeHomeBuyerIfPresent(form, attempt)
   };
 }
 
@@ -512,15 +518,49 @@ async function selectRandomOptionIfPresent(select: Locator): Promise<string> {
 }
 
 /**
- * Select a random Yes/No option in the "First Time Home Buyer" dropdown (it was previously a Yes/No
- * radio group and is now a <select>); returns the chosen value normalized to "Yes"/"No", or ''
- * when the field is absent from the form.
+ * Select the Yes/No answer in the "First Time Home Buyer" dropdown (it was previously a Yes/No radio
+ * group and is now a <select>). When an attempt number is given, the answer alternates by iteration
+ * (odd attempt -> Yes, even -> No) so the value is driven by the iteration rather than the form; it
+ * falls back to a random valid option when no attempt is given or the desired Yes/No option is
+ * missing. Returns the chosen value normalized to "Yes"/"No", or '' when the field is absent.
  */
-async function selectFirstTimeHomeBuyerIfPresent(form: Locator): Promise<string> {
+async function selectFirstTimeHomeBuyerIfPresent(form: Locator, attempt?: number): Promise<string> {
   const select = findSelectByLabel(form, /first.?time.*home.?buyer|first time homebuyer/i, 'buyer');
+
+  if (attempt !== undefined) {
+    const desired = attempt % 2 === 1 ? 'Yes' : 'No';
+
+    if (await selectYesNoOptionByLabel(select, desired)) {
+      return desired;
+    }
+  }
+
   const value = await selectRandomOptionIfPresent(select);
 
   return value ? normalizeYesNoValue(value) : '';
+}
+
+/** Select the Yes/No option matching `desired` in the first visible matching dropdown; returns true when selected. */
+async function selectYesNoOptionByLabel(select: Locator, desired: string): Promise<boolean> {
+  const target = select.first();
+
+  if (!(await target.count()) || !(await target.isVisible().catch(() => false))) {
+    return false;
+  }
+
+  const options = target.locator('option');
+  const optionCount = await options.count();
+
+  for (let index = 0; index < optionCount; index++) {
+    const optionText = ((await options.nth(index).textContent().catch(() => '')) ?? '').trim();
+
+    if (normalizeYesNoValue(optionText) === desired) {
+      await target.selectOption({ index }).catch(() => undefined);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /** Normalize common Yes/No dropdown values so "yes"/"no" render consistently as "Yes"/"No". */
