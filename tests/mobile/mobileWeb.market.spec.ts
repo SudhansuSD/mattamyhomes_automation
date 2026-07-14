@@ -1,6 +1,6 @@
-const { MobileWebMarketPage } = require('../../pages/mobile/MobileWebMarketPage');
-const { getEnvConfig } = require('../../config/environments/envConfig');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
+import { MobileWebMarketPage } from '../../pages/mobile/MobileWebMarketPage';
+import { getEnvConfig } from '../../config/environments/envConfig';
+import { getLocationConfig } from '../../config/locations/locationConfig';
 
 describe('Mattamy Homes mobile web - Market page on mobile (Android/iOS)', function () {
   this.timeout(300000);

@@ -1,10 +1,10 @@
-const assert = require('node:assert/strict');
-const { MobileWebHomePage } = require('./MobileWebHomePage');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
+import assert from 'node:assert/strict';
+import { MobileWebHomePage } from './MobileWebHomePage';
+import { getLocationConfig } from '../../config/locations/locationConfig';
 
 const RESULT_TABS = ['Communities', 'Plans', 'Quick Move-Ins'];
 
-class MobileWebSearchPage extends MobileWebHomePage {
+export class MobileWebSearchPage extends MobileWebHomePage {
   /** Navigates to the configured mobile search page. */
   async navigate() {
     await this.openSearchByMarket(getLocationConfig().market);
@@ -30,6 +30,7 @@ class MobileWebSearchPage extends MobileWebHomePage {
   /** Searches by market. */
   async searchByMarket(market = getLocationConfig().market) {
     await this.openSearchByMarket(market);
+    return true;
   }
 
   /** Verifies search by market. */
@@ -423,5 +424,3 @@ class MobileWebSearchPage extends MobileWebHomePage {
     return `$${Math.round(value / 1000)}k`;
   }
 }
-
-module.exports = { MobileWebSearchPage };

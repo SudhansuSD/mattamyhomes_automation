@@ -1,10 +1,13 @@
-const assert = require('node:assert/strict');
-const { MobileWebBasePage } = require('./MobileWebBasePage');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
+import assert from 'node:assert/strict';
+import { MobileWebBasePage } from './MobileWebBasePage';
+import { getLocationConfig } from '../../config/locations/locationConfig';
 
-class MobileWebHomePage extends MobileWebBasePage {
+export class MobileWebHomePage extends MobileWebBasePage {
+  homePath: string;
+  expectedTitle: RegExp;
+
   /** Initializes this page object and its locators. */
-  constructor(driver = browser) {
+  constructor(driver: MobileBrowser = browser) {
     super(driver);
     this.homePath = '/';
     this.expectedTitle = /Mattamy Homes/i;
@@ -61,7 +64,7 @@ class MobileWebHomePage extends MobileWebBasePage {
 
     await this.closeCookiePreferencesIfVisible();
     const hero = await this.driver.execute(() => {
-      const sections = Array.from(document.querySelectorAll('main section, section, header + *'));
+      const sections = Array.from(document.querySelectorAll('main section, section, header + *')) as HTMLElement[];
       const section = sections.find((candidate) => {
         const text = (candidate.innerText || '').replace(/\s+/g, ' ').trim();
 
@@ -505,7 +508,7 @@ class MobileWebHomePage extends MobileWebBasePage {
   }
 
   /** Searches from home autocomplete. */
-  async searchFromHomeAutocomplete(value, searchType, options = {}) {
+  async searchFromHomeAutocomplete(value: string, searchType: string, options: any = {}) {
     await this.waitForHomeContent();
     await this.closeCookiePreferencesIfVisible();
     await this.dismissPromoPopupIfPresent();
@@ -707,7 +710,7 @@ class MobileWebHomePage extends MobileWebBasePage {
   }
 
   /** Searches from home autocomplete with retry. */
-  async searchFromHomeAutocompleteWithRetry(value, searchType, options = {}) {
+  async searchFromHomeAutocompleteWithRetry(value: string, searchType: string, options: any = {}) {
     const maxAttempts = Number(options.maxAttempts || process.env.APPIUM_SEARCH_MAX_ATTEMPTS || 2);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -898,5 +901,3 @@ class MobileWebHomePage extends MobileWebBasePage {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
-
-module.exports = { MobileWebHomePage };

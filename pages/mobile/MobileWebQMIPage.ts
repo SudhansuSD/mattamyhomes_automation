@@ -1,19 +1,19 @@
-const assert = require('node:assert/strict');
-const { MobileWebHomePage } = require('./MobileWebHomePage');
-const { getEnvConfig } = require('../../config/environments/envConfig');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
-const {
+import assert from 'node:assert/strict';
+import { MobileWebHomePage } from './MobileWebHomePage';
+import { getEnvConfig } from '../../config/environments/envConfig';
+import { getLocationConfig } from '../../config/locations/locationConfig';
+import {
   assertLeadFormSubmissionSuccess,
   fillInvalidEmailLeadFormByIndex,
   fillValidLeadFormByIndex,
   getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} = require('../../utils/mobileLeadFormHelper');
+} from '../../utils/mobileLeadFormHelper';
 
 const QMI_FORM_GLOBAL = '__getVisibleQmiForms';
 
-class MobileWebQMIPage extends MobileWebHomePage {
+export class MobileWebQMIPage extends MobileWebHomePage {
   qmiPageReady = false;
 
   /** Waits for QMI page. */
@@ -836,7 +836,7 @@ class MobileWebQMIPage extends MobileWebHomePage {
           );
         });
 
-        link?.click();
+        (link as HTMLElement | undefined)?.click();
       },
       qmiPlanName,
       planPath
@@ -1055,5 +1055,3 @@ class MobileWebQMIPage extends MobileWebHomePage {
     await assertLeadFormSubmissionSuccess(this.driver, message);
   }
 }
-
-module.exports = { MobileWebQMIPage };

@@ -21,13 +21,17 @@ const INVALID_FORM_DATA = {
   zip: MOBILE.zip
 };
 
+// Structural subset of the WebdriverIO Browser used by the mobile lead-form
+// helpers. Kept intentionally permissive (any-returning execute/waitUntil) so a
+// concrete `WebdriverIO.Browser` is assignable here without depending on the
+// WDIO global types in this shared util's (Playwright-side) tsconfig scope.
 type MobileDriver = {
-  execute: <T = unknown>(script: (...args: any[]) => T, ...args: any[]) => Promise<T>;
+  execute: (script: (...args: any[]) => any, ...args: any[]) => Promise<any>;
   pause: (ms: number) => Promise<void>;
   waitUntil: (
-    condition: () => Promise<boolean>,
-    options: { timeout: number; timeoutMsg: string }
-  ) => Promise<void>;
+    condition: () => Promise<boolean> | boolean,
+    options?: { timeout?: number; timeoutMsg?: string; interval?: number }
+  ) => Promise<unknown>;
 };
 
 type LeadFormFinderOptions = {

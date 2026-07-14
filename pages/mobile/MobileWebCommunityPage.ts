@@ -1,19 +1,19 @@
-const assert = require('node:assert/strict');
-const { MobileWebHomePage } = require('./MobileWebHomePage');
-const { getEnvConfig } = require('../../config/environments/envConfig');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
-const {
+import assert from 'node:assert/strict';
+import { MobileWebHomePage } from './MobileWebHomePage';
+import { getEnvConfig } from '../../config/environments/envConfig';
+import { getLocationConfig } from '../../config/locations/locationConfig';
+import {
   assertLeadFormSubmissionSuccess,
   fillInvalidEmailLeadFormByIndex,
   fillValidLeadFormByIndex,
   getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} = require('../../utils/mobileLeadFormHelper');
+} from '../../utils/mobileLeadFormHelper';
 
 const COMMUNITY_FORM_GLOBAL = '__getVisibleCommunityForms';
 
-class MobileWebCommunityPage extends MobileWebHomePage {
+export class MobileWebCommunityPage extends MobileWebHomePage {
   /** Verifies search by community. */
   async verifySearchByCommunity(expectedCommunity = getLocationConfig().community) {
     await this.waitForPageReady();
@@ -351,5 +351,3 @@ class MobileWebCommunityPage extends MobileWebHomePage {
     });
   }
 }
-
-module.exports = { MobileWebCommunityPage };

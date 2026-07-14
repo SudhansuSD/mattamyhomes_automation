@@ -1,9 +1,11 @@
-const assert = require('node:assert/strict');
-const { getMobilePlatform, getUserAgentPatterns } = require('../../utils/mobilePlatform');
+import assert from 'node:assert/strict';
+import { getMobilePlatform, getUserAgentPatterns } from '../../utils/mobilePlatform';
 
-class MobileWebBasePage {
+export class MobileWebBasePage {
+  driver: MobileBrowser;
+
   /** Initializes this page object and its locators. */
-  constructor(driver = browser) {
+  constructor(driver: MobileBrowser = browser) {
     this.driver = driver;
   }
 
@@ -263,7 +265,7 @@ class MobileWebBasePage {
         return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
       };
 
-      const clickClose = (scope) => {
+      const clickClose = (scope: ParentNode) => {
         const closeSelectors = [
           'button[aria-label*="close" i]',
           'button[class*="close" i]',
@@ -351,7 +353,7 @@ class MobileWebBasePage {
   }
 
   /** Clicks visible by text. */
-  async clickVisibleByText(pattern, selectors = ['button', 'a'], label) {
+  async clickVisibleByText(pattern: RegExp, selectors: string[] = ['button', 'a'], label?: string) {
     const clicked = await this.driver.execute(
       ({ source, flags, selectors }) => {
         const regex = new RegExp(source, flags);
@@ -376,7 +378,7 @@ class MobileWebBasePage {
         }
 
         match.scrollIntoView({ block: 'center', inline: 'center' });
-        match.click();
+        (match as HTMLElement).click();
         return true;
       },
       { source: pattern.source, flags: pattern.flags, selectors }
@@ -431,7 +433,7 @@ class MobileWebBasePage {
   }
 
   /** Logs mobile step. */
-  logMobileStep(kind, message, status) {
+  logMobileStep(kind: string, message: string, status?: unknown) {
     const cleanMessage = String(message || '').replace(/\s+/g, ' ').trim();
 
     if (!cleanMessage) {
@@ -495,5 +497,3 @@ class MobileWebBasePage {
     this.logMobileStep('SKIP', message);
   }
 }
-
-module.exports = { MobileWebBasePage };

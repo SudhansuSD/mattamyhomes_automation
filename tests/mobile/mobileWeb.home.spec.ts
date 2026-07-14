@@ -1,5 +1,5 @@
-const { MobileWebHomePage } = require('../../pages/mobile/MobileWebHomePage');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
+import { MobileWebHomePage } from '../../pages/mobile/MobileWebHomePage';
+import { getLocationConfig } from '../../config/locations/locationConfig';
 
 describe('Mattamy Homes mobile web - home page on mobile (Android/iOS)', function () {
   this.timeout(300000);

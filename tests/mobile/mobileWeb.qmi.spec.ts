@@ -1,6 +1,6 @@
-const { MobileWebQMIPage } = require('../../pages/mobile/MobileWebQMIPage');
-const { getEnvConfig } = require('../../config/environments/envConfig');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
+import { MobileWebQMIPage } from '../../pages/mobile/MobileWebQMIPage';
+import { getEnvConfig } from '../../config/environments/envConfig';
+import { getLocationConfig } from '../../config/locations/locationConfig';
 
 describe('Mattamy Homes mobile web - QMI detail page on mobile (Android/iOS)', function () {
   this.timeout(300000);

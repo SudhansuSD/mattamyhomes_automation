@@ -12,7 +12,7 @@ fs.rmSync(DESKTOP_ALLURE_RESULTS_DIR, { recursive: true, force: true });
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
-  testIgnore: ['appium/**'],
+  testIgnore: ['appium/**', 'mobile/**'],
   globalTeardown: process.env.CI ? undefined : './scripts/generate-allure-report.ts',
   use: {
     // baseURL: 'https://mattamyhomes.com/',

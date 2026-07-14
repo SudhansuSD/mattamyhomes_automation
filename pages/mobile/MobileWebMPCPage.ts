@@ -1,28 +1,30 @@
-const assert = require('node:assert/strict');
-const { MobileWebHomePage } = require('./MobileWebHomePage');
-const { getEnvConfig } = require('../../config/environments/envConfig');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
-const {
+import assert from 'node:assert/strict';
+import { MobileWebHomePage } from './MobileWebHomePage';
+import { getEnvConfig } from '../../config/environments/envConfig';
+import { getLocationConfig } from '../../config/locations/locationConfig';
+import {
   assertLeadFormSubmissionSuccess,
   fillInvalidEmailLeadFormByIndex,
   fillValidLeadFormByIndex,
   getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} = require('../../utils/mobileLeadFormHelper');
+} from '../../utils/mobileLeadFormHelper';
 
 const MPC_FORM_GLOBAL = '__getVisibleMpcLeadForms';
 
-class MobileWebMPCPage extends MobileWebHomePage {
+export class MobileWebMPCPage extends MobileWebHomePage {
+  mpcPageReady: boolean;
+
   /** Initializes this page object and its locators. */
-  constructor(driver = browser) {
+  constructor(driver: MobileBrowser = browser) {
     super(driver);
     this.mpcPageReady = false;
   }
 
   /** Returns configured MPC. */
   getConfiguredMpc() {
-    const location = getLocationConfig();
+    const location = getLocationConfig() as any;
     const mpc = location.country === 'USA' && Array.isArray(location.mpc)
       ? location.mpc[0]
       : undefined;
@@ -91,9 +93,9 @@ class MobileWebMPCPage extends MobileWebHomePage {
       const heading = Array.from(document.querySelectorAll('h1, h2')).find((element) =>
         isVisible(element) && new RegExp(expectedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(element.textContent || '')
       );
-      const hasMedia = (element) => Array.from(element.querySelectorAll('img, picture source, video, [style*="background-image"]'))
+      const hasMedia = (element: Element) => Array.from(element.querySelectorAll('img, picture source, video, [style*="background-image"]'))
         .some((mediaElement) => mediaElement instanceof HTMLElement ? isVisible(mediaElement) : Boolean(mediaElement.closest('picture')));
-      const ancestors = [];
+      const ancestors: Element[] = [];
       let current = heading;
 
       while (current?.parentElement) {
@@ -295,7 +297,7 @@ class MobileWebMPCPage extends MobileWebHomePage {
       const photosControl = Array.from(root.querySelectorAll('button, [role="button"], [aria-label]')).find((element) =>
         isVisible(element) && /photos/i.test(`${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`)
       );
-      photosControl?.click();
+      (photosControl as HTMLElement | undefined)?.click();
       const media = Array.from(root.querySelectorAll('img, picture, video, iframe')).filter((element) =>
         element instanceof HTMLElement ? isVisible(element) : Boolean(element.closest('picture'))
       );
@@ -849,12 +851,10 @@ class MobileWebMPCPage extends MobileWebHomePage {
     };
     const headStatus = await tryRequest('HEAD');
 
-    if (![403, 405, 501].includes(headStatus) && typeof headStatus === 'number') {
+    if (![403, 405, 501].includes(headStatus as number) && typeof headStatus === 'number') {
       return headStatus;
     }
 
     return tryRequest('GET');
   }
 }
-
-module.exports = { MobileWebMPCPage };

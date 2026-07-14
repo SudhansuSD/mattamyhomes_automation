@@ -1,19 +1,19 @@
-const assert = require('node:assert/strict');
-const { MobileWebHomePage } = require('./MobileWebHomePage');
-const { getEnvConfig } = require('../../config/environments/envConfig');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
-const {
+import assert from 'node:assert/strict';
+import { MobileWebHomePage } from './MobileWebHomePage';
+import { getEnvConfig } from '../../config/environments/envConfig';
+import { getLocationConfig } from '../../config/locations/locationConfig';
+import {
   assertLeadFormSubmissionSuccess,
   fillInvalidEmailLeadFormByIndex,
   fillValidLeadFormByIndex,
   getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} = require('../../utils/mobileLeadFormHelper');
+} from '../../utils/mobileLeadFormHelper';
 
 const PLAN_FORM_GLOBAL = '__getVisiblePlanForms';
 
-class MobileWebPlanPage extends MobileWebHomePage {
+export class MobileWebPlanPage extends MobileWebHomePage {
   /** Returns plan source snapshot. */
   async getPlanSourceSnapshot() {
     return this.driver.execute(() => {
@@ -478,5 +478,3 @@ class MobileWebPlanPage extends MobileWebHomePage {
     await assertLeadFormSubmissionSuccess(this.driver, message);
   }
 }
-
-module.exports = { MobileWebPlanPage };

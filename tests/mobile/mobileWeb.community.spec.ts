@@ -1,8 +1,6 @@
-const {
-  MobileWebCommunityPage,
-} = require("../../pages/mobile/MobileWebCommunityPage");
-const { getEnvConfig } = require("../../config/environments/envConfig");
-const { getLocationConfig } = require("../../config/locations/locationConfig");
+import { MobileWebCommunityPage } from "../../pages/mobile/MobileWebCommunityPage";
+import { getEnvConfig } from "../../config/environments/envConfig";
+import { getLocationConfig } from "../../config/locations/locationConfig";
 
 describe("Mattamy Homes mobile web - community page on mobile (Android/iOS)", function () {
   this.timeout(300000);

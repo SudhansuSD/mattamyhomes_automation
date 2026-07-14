@@ -1,14 +1,17 @@
-require("dotenv").config();
-require("ts-node/register/transpile-only");
+import "dotenv/config";
 
-const { execFileSync } = require("node:child_process");
-const fs = require("node:fs");
-const path = require("node:path");
-const { Status } = require("allure-js-commons");
-const allureReporter = require("@wdio/allure-reporter").default;
-const { getEnvConfig } = require("./config/environments/envConfig");
-const { MOBILE_ALLURE_RESULTS_DIR } = require("./scripts/allurePaths");
-const { getMobilePlatform, getMobilePlatformLabel } = require("./utils/mobilePlatform");
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { Status } from "allure-js-commons";
+import allureReporter from "@wdio/allure-reporter";
+import { getEnvConfig } from "./config/environments/envConfig";
+import { MOBILE_ALLURE_RESULTS_DIR } from "./scripts/allurePaths";
+import { getMobilePlatform, getMobilePlatformLabel } from "./utils/mobilePlatform";
+
+// WebdriverIO's launcher auto-registers a TypeScript loader (ts-node,
+// transpile-only) when it detects a .ts config, so no manual
+// `ts-node/register` is needed here to load this file or the .ts specs/pages.
 
 // android (default) | ios. Selects capabilities + session-reset strategy below.
 const mobilePlatform = getMobilePlatform();
@@ -90,7 +93,7 @@ function getCurrentSpecPath() {
   const specArgIndex = process.argv.indexOf("--spec");
   const specFromArg = specArgIndex >= 0 ? process.argv[specArgIndex + 1] : "";
   const wdioBrowser = typeof browser === "undefined" ? undefined : browser;
-  const specFromBrowser = wdioBrowser?.options?.specs?.[0] || "";
+  const specFromBrowser = (wdioBrowser?.options as any)?.specs?.[0] || "";
 
   return specFromArg || specFromBrowser || "mobile-web";
 }
@@ -121,7 +124,7 @@ function addAllureMobileStep(message, status = Status.PASSED) {
   }
 }
 
-function writeSpecTestLog(message, options = {}) {
+function writeSpecTestLog(message: string, options: { allure?: boolean; status?: Status } = {}) {
   const cleanMessage = cleanLogMessage(message);
 
   // Echo every step to the console so the run is readable live, not just in the
@@ -221,17 +224,17 @@ function buildCapabilities() {
   return [mobilePlatform === "ios" ? buildIosCapabilities() : buildAndroidCapabilities()];
 }
 
-exports.config = {
+export const config = {
   runner: "local",
 
   specs: [
-    "./tests/mobile/mobileWeb.home.spec.js",
-    "./tests/mobile/mobileWeb.searchPage.spec.js",
-    "./tests/mobile/mobileWeb.community.spec.js",
-    "./tests/mobile/mobileWeb.market.spec.js",
-    "./tests/mobile/mobileWeb.mpc.spec.js",
-    "./tests/mobile/mobileWeb.plan.spec.js",
-    "./tests/mobile/mobileWeb.qmi.spec.js",
+    "./tests/mobile/mobileWeb.home.spec.ts",
+    "./tests/mobile/mobileWeb.searchPage.spec.ts",
+    "./tests/mobile/mobileWeb.community.spec.ts",
+    "./tests/mobile/mobileWeb.market.spec.ts",
+    "./tests/mobile/mobileWeb.mpc.spec.ts",
+    "./tests/mobile/mobileWeb.plan.spec.ts",
+    "./tests/mobile/mobileWeb.qmi.spec.ts",
   ],
 
   maxInstances: 1,
@@ -298,7 +301,7 @@ exports.config = {
       `${new Date().toISOString()} SPEC START [${getMobilePlatformLabel()}] ${getCurrentSpecPath()}\n`,
     );
     globalThis.__mobileSpecStep = (kind, message, status = Status.PASSED) => {
-      writeSpecTestLog(`${kind} ${message}`, { allure: true, status });
+      writeSpecTestLog(`${kind} ${message}`, { allure: true, status: status as Status });
     };
     await browser.setTimeout({ implicit: 0, pageLoad: 60000, script: 60000 });
   },

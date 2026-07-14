@@ -1,23 +1,25 @@
-const assert = require('node:assert/strict');
-const { MobileWebHomePage } = require('./MobileWebHomePage');
-const { getEnvConfig } = require('../../config/environments/envConfig');
-const { getLocationConfig } = require('../../config/locations/locationConfig');
-const { getMobilePlatformLabel } = require('../../utils/mobilePlatform');
-const testData = require('../../data/test_data.json');
-const {
+import assert from 'node:assert/strict';
+import { MobileWebHomePage } from './MobileWebHomePage';
+import { getEnvConfig } from '../../config/environments/envConfig';
+import { getLocationConfig } from '../../config/locations/locationConfig';
+import { getMobilePlatformLabel } from '../../utils/mobilePlatform';
+import testData from '../../data/test_data.json';
+import {
   assertLeadFormSubmissionSuccess,
   getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} = require('../../utils/mobileLeadFormHelper');
+} from '../../utils/mobileLeadFormHelper';
 
 const MARKET_FORM_GLOBAL = '__getVisibleMarketLeadForms';
 const LEAD_DATA = testData.leadForm;
 const MOBILE_LEAD_DATA = LEAD_DATA.mobile;
 
-class MobileWebMarketPage extends MobileWebHomePage {
+export class MobileWebMarketPage extends MobileWebHomePage {
+  marketPageReady: boolean;
+
   /** Initializes this page object and its locators. */
-  constructor(driver = browser) {
+  constructor(driver: MobileBrowser = browser) {
     super(driver);
     this.marketPageReady = false;
   }
@@ -598,7 +600,7 @@ class MobileWebMarketPage extends MobileWebHomePage {
    * leaving required fields empty; label resolution fills them the same way the web test does.
    * Returns { filled, submitted, invalidFields, descriptors } for assertions and diagnostics.
    */
-  async fillMarketLeadForm(options = {}) {
+  async fillMarketLeadForm(options: any = {}) {
     await this.installLeadFormFinder();
 
     const email = options.invalidEmail
@@ -704,7 +706,7 @@ class MobileWebMarketPage extends MobileWebHomePage {
 
       const consent = Array.from(form.querySelectorAll('input[type="checkbox"]')).find(
         (checkbox) => !/real estate agent/i.test(labelText(checkbox))
-      );
+      ) as HTMLInputElement | undefined;
 
       if (consent) {
         consent.checked = true;
@@ -719,10 +721,10 @@ class MobileWebMarketPage extends MobileWebHomePage {
           form.querySelector('button[type="submit"], input[type="submit"]') || form.querySelector('button');
 
         if (submit) {
-          submit.click();
+          (submit as HTMLElement).click();
           submitted = true;
-        } else if (typeof form.requestSubmit === 'function') {
-          form.requestSubmit();
+        } else if (typeof (form as HTMLFormElement).requestSubmit === 'function') {
+          (form as HTMLFormElement).requestSubmit();
           submitted = true;
         }
       }
@@ -734,7 +736,7 @@ class MobileWebMarketPage extends MobileWebHomePage {
         options: field.tagName.toLowerCase() === 'select' ? field.querySelectorAll('option').length : undefined,
       }));
       const invalidFields = fields
-        .filter((field) => typeof field.checkValidity === 'function' && !field.checkValidity())
+        .filter((field) => typeof (field as HTMLInputElement).checkValidity === 'function' && !(field as HTMLInputElement).checkValidity())
         .map((field) => labelText(field));
 
       return { filled: true, submitted, invalidFields, descriptors };
@@ -990,12 +992,10 @@ class MobileWebMarketPage extends MobileWebHomePage {
     };
     const headStatus = await tryRequest('HEAD');
 
-    if (![403, 405, 501].includes(headStatus) && typeof headStatus === 'number') {
+    if (![403, 405, 501].includes(headStatus as number) && typeof headStatus === 'number') {
       return headStatus;
     }
 
     return tryRequest('GET');
   }
 }
-
-module.exports = { MobileWebMarketPage };
