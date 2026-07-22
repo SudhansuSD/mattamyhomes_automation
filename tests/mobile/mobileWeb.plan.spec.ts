@@ -17,7 +17,7 @@ describe('Mattamy Homes mobile web - plan detail page on mobile (Android/iOS)', 
   });
 
   describe('UI & Functional Validation', () => {
-    it('TC-01 | @regression | Validate Plan Detail page core content', async () => {
+    it('TC-01 | @smoke @regression | Validate Plan Detail page core content', async () => {
       await planPage.verifyPlanUrlContains(location.expectedPlanUrlPart);
       await planPage.verifyHeroSummaryForPlan(location.planName);
       await planPage.verifyHomeSpecsPresent();
@@ -39,11 +39,11 @@ describe('Mattamy Homes mobile web - plan detail page on mobile (Android/iOS)', 
   });
 
   describe('Form Validation', () => {
-    it('TC-01 | @sanity | Validate plan detail form required field errors', async () => {
+    it('TC-01 | @regression | Validate plan detail form required field errors', async () => {
       await planPage.validatePlanDetailFormEmptyErrors();
     });
 
-    it('TC-02 | @sanity | Validate plan detail form invalid email format', async () => {
+    it('TC-02 | @regression | Validate plan detail form invalid email format', async () => {
       await planPage.validatePlanDetailFormInvalidEmail();
     });
 

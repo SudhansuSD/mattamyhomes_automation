@@ -17,15 +17,15 @@ describe('Mattamy Homes mobile web - Search Page on mobile (Android/iOS)', funct
   });
 
   describe('Result Tabs', () => {
-    it('TC-01 | @sanity | Verify community results functionality', async () => {
+    it('TC-01 | @smoke @regression | Verify community results functionality', async () => {
       await searchPage.verifyResults('Communities');
     });
 
-    it('TC-02 | @sanity | Verify plan results functionality', async () => {
+    it('TC-02 | @regression | Verify plan results functionality', async () => {
       await searchPage.verifyResults('Plans');
     });
 
-    it('TC-03 | @sanity | Verify QMI results functionality', async () => {
+    it('TC-03 | @regression | Verify QMI results functionality', async () => {
       await searchPage.verifyResults('Quick Move-Ins');
     });
   });

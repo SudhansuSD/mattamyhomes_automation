@@ -24,7 +24,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Hero & Overview', () => {
-    test('TC-01 | @smoke | Validate QMI hero content and URL', async () => {
+    test('TC-01 | @smoke @regression | Validate QMI hero content and URL', async () => {
       await test.step('Verify exact QMI URL', async () => {
         await qmiPage.verifyExactQmiUrl();
       });
@@ -93,13 +93,13 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Lead Form', () => {
-    test('TC-01 | @sanity | Validate floating bar Get Information CTA opens QMI side modal form', async () => {
+    test('TC-01 | @regression | Validate floating bar Get Information CTA opens QMI side modal form', async () => {
       await test.step('Verify Get Information CTA opens the side modal form', async () => {
         await qmiPage.verifyGetInformationCtaOpensLeadForm();
       });
     });
 
-    test('TC-02 | @regression @qmi-form-fields | Validate QMI side modal form fields', async () => {
+    test('TC-02 | @smoke @regression @qmi-form-fields | Validate QMI side modal form fields', async () => {
       await test.step('Verify QMI form fields are visible', async () => {
         await qmiPage.verifySideModalFormFields();
       });

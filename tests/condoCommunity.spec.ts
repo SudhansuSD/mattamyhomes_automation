@@ -25,7 +25,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
   });
 
   test.describe('Page Load and Hero', () => {
-    test('TC-01 | @smoke | Validate condo community page loads from home search', async () => {
+    test('TC-01 | @smoke @regression | Validate condo community page loads from home search', async () => {
       await condoCommunityPage.verifyHeroContent(condoCommunity!);
     });
   });
@@ -68,19 +68,19 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
 
   test.describe('Lead Form', () => {
     test.describe('Get Information Form Validation', () => {
-      test('TC-01 | @sanity | Validate Get Information CTA opens condo community sideModalForm', async () => {
+      test('TC-01 | @regression | Validate Get Information CTA opens condo community sideModalForm', async () => {
         await condoCommunityPage.verifyGetInformationCtaOpensLeadForm();
       });
 
-      test('TC-02 | @sanity | Validate condo community sideModalForm fields', async () => {
+      test('TC-02 | @smoke @regression | Validate condo community sideModalForm fields', async () => {
         await condoCommunityPage.verifySideModalFormFields();
       });
 
-      test('TC-03 | @sanity | Validate condo community sideModalForm required field errors', async () => {
+      test('TC-03 | @regression | Validate condo community sideModalForm required field errors', async () => {
         await condoCommunityPage.validateSideModalFormRequiredErrors();
       });
 
-      test('TC-04 | @sanity | Validate condo community sideModalForm invalid email format', async () => {
+      test('TC-04 | @regression | Validate condo community sideModalForm invalid email format', async () => {
         await condoCommunityPage.validateSideModalFormInvalidEmail();
       });
 
@@ -97,15 +97,15 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
     });
 
     test.describe('Primary Condo Form Validation', () => {
-      test('TC-01 | @sanity | Validate primary condo form fields', async () => {
+      test('TC-01 | @smoke @regression | Validate primary condo form fields', async () => {
         await condoCommunityPage.validatePrimaryFormFields();
       });
 
-      test('TC-02 | @sanity | Validate primary condo form invalid email error', async () => {
+      test('TC-02 | @regression | Validate primary condo form invalid email error', async () => {
         await condoCommunityPage.validatePrimaryFormInvalidEmailError();
       });
 
-      test('TC-03 | @sanity | Validate primary condo form required field errors', async () => {
+      test('TC-03 | @regression | Validate primary condo form required field errors', async () => {
         await condoCommunityPage.validatePrimaryFormRequiredErrors();
       });
 
@@ -122,15 +122,15 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
     });
 
     test.describe('Footer Condo Form Validation', () => {
-      test('TC-01 | @sanity | Validate footer condo form fields', async () => {
+      test('TC-01 | @smoke @regression | Validate footer condo form fields', async () => {
         await condoCommunityPage.validateFooterFormFields();
       });
 
-      test('TC-02 | @sanity | Validate footer condo form required field errors', async () => {
+      test('TC-02 | @regression | Validate footer condo form required field errors', async () => {
         await condoCommunityPage.validateFooterFormRequiredErrors();
       });
 
-      test('TC-03 | @sanity | Validate footer condo form invalid email error', async () => {
+      test('TC-03 | @regression | Validate footer condo form invalid email error', async () => {
         await condoCommunityPage.validateFooterFormInvalidEmailError();
       });
 

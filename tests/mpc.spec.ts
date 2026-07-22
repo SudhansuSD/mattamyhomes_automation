@@ -25,7 +25,7 @@ test.describe(`MPC page tests - ${location.country}`, () => {
   });
 
   test.describe('Page Load and Hero', () => {
-    test('TC-01 | @smoke | Validate MPC page loads with hero content', async () => {
+    test('TC-01 | @smoke @regression | Validate MPC page loads with hero content', async () => {
       await mpcPage.validateHeroContent(mpc!.name);
     });
   });
@@ -74,19 +74,19 @@ test.describe(`MPC page tests - ${location.country}`, () => {
 
   test.describe('Form Validation', () => {
     test.describe('Get Information Form Validation', () => {
-      test('TC-01 | @sanity | Validate Get Information CTA opens MPC sideModalForm', async () => {
+      test('TC-01 | @regression | Validate Get Information CTA opens MPC sideModalForm', async () => {
         await mpcPage.verifyGetInformationCtaOpensLeadForm();
       });
 
-      test('TC-02 | @sanity | Validate MPC sideModalForm fields', async () => {
+      test('TC-02 | @smoke @regression | Validate MPC sideModalForm fields', async () => {
         await mpcPage.verifySideModalFormFields();
       });
 
-      test('TC-03 | @sanity | Validate MPC sideModalForm required field errors', async () => {
+      test('TC-03 | @regression | Validate MPC sideModalForm required field errors', async () => {
         await mpcPage.validateSideModalFormRequiredErrors();
       });
 
-      test('TC-04 | @sanity | Validate MPC sideModalForm invalid email format', async () => {
+      test('TC-04 | @regression | Validate MPC sideModalForm invalid email format', async () => {
         await mpcPage.validateSideModalFormInvalidEmail();
       });
 
@@ -103,15 +103,15 @@ test.describe(`MPC page tests - ${location.country}`, () => {
     });
 
     test.describe('Community Update Form Validation', () => {
-      test('TC-01 | @sanity | Validate MPC community update form fields', async () => {
+      test('TC-01 | @smoke @regression | Validate MPC community update form fields', async () => {
         await mpcPage.validateCommunityUpdateFormFields();
       });
 
-      test('TC-02 | @sanity | Validate MPC community update form required field errors', async () => {
+      test('TC-02 | @regression | Validate MPC community update form required field errors', async () => {
         await mpcPage.validateCommunityUpdateRequiredErrors();
       });
 
-      test('TC-03 | @sanity | Validate MPC community update form invalid email error', async () => {
+      test('TC-03 | @regression | Validate MPC community update form invalid email error', async () => {
         await mpcPage.validateCommunityUpdateInvalidEmail();
       });
 

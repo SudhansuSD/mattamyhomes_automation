@@ -24,7 +24,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
        UI VALIDATION
     ========================================================== */
     test.describe('UI Validation', () => {
-        test('TC-01 | @regression | Validate community core sections', async () => {
+        test('TC-01 | @smoke @regression | Validate community core sections', async () => {
             await communityPage.verifyCoreSections();
         });
 
@@ -60,19 +60,19 @@ test.describe(`Community Detail - ${location.community}`, () => {
 
     test.describe('Lead Form', () => {
         test.describe('Get Information Form Validation', () => {
-            test('TC-01 | @sanity | Validate Get Information CTA opens community sideModalForm', async () => {
+            test('TC-01 | @regression | Validate Get Information CTA opens community sideModalForm', async () => {
                 await communityPage.verifyGetInformationCtaOpensLeadForm();
             });
 
-            test('TC-02 | @sanity | Validate community sideModalForm fields', async () => {
+            test('TC-02 | @smoke @regression | Validate community sideModalForm fields', async () => {
                 await communityPage.verifySideModalFormFields();
             });
 
-            test('TC-03 | @sanity | Validate community sideModalForm required field errors', async () => {
+            test('TC-03 | @regression | Validate community sideModalForm required field errors', async () => {
                 await communityPage.validateSideModalFormRequiredErrors();
             });
 
-            test('TC-04 | @sanity | Validate community sideModalForm invalid email format', async () => {
+            test('TC-04 | @regression | Validate community sideModalForm invalid email format', async () => {
                 await communityPage.validateSideModalFormInvalidEmail();
             });
 
@@ -89,11 +89,11 @@ test.describe(`Community Detail - ${location.community}`, () => {
         });
 
         test.describe('Primary Form Validation', () => {
-            test('TC-01 | @sanity | Validate primary form required field errors', async () => {
+            test('TC-01 | @regression | Validate primary form required field errors', async () => {
                 await communityPage.validatePrimaryFormEmptyErrors();
             });
 
-            test('TC-02 | @sanity | Validate primary form invalid email format', async () => {
+            test('TC-02 | @regression | Validate primary form invalid email format', async () => {
                 await communityPage.validatePrimaryFormInvalidEmail();
             });
 
@@ -110,11 +110,11 @@ test.describe(`Community Detail - ${location.community}`, () => {
         });
 
         test.describe('Footer Form Validation', () => {
-            test('TC-01 | @sanity | Validate footer form required field errors', async () => {
+            test('TC-01 | @regression | Validate footer form required field errors', async () => {
                 await communityPage.validateFooterFormEmptyErrors();
             });
 
-            test('TC-02 | @sanity | Validate footer form invalid email format', async () => {
+            test('TC-02 | @regression | Validate footer form invalid email format', async () => {
                 await communityPage.validateFooterFormInvalidEmail();
             });
 

@@ -30,7 +30,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      UI & Functional Validation
   -------------------------------------------------------- */
   test.describe('UI & Functional Validation', () => {
-    test('TC-01 | @regression | Validate Plan Detail page core content', async () => {
+    test('TC-01 | @smoke @regression | Validate Plan Detail page core content', async () => {
       await test.step('Verify plan URL contains configured plan path', async () => {
         await planPage.verifyPlanUrlContains(location.expectedPlanUrlPart);
       });
@@ -85,19 +85,19 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      Form Validation
   -------------------------------------------------------- */
   test.describe('Form Validation', () => {
-    test('TC-01 | @sanity | Validate floating bar Get Information CTA opens plan detail side modal form', async () => {
+    test('TC-01 | @regression | Validate floating bar Get Information CTA opens plan detail side modal form', async () => {
       await planPage.verifyGetInformationCtaOpensLeadForm();
     });
 
-    test('TC-02 | @sanity | Validate plan detail side modal form fields', async () => {
+    test('TC-02 | @smoke @regression | Validate plan detail side modal form fields', async () => {
       await planPage.verifySideModalFormFields();
     });
 
-    test('TC-03 | @sanity | Validate plan detail side modal form required field errors', async () => {
+    test('TC-03 | @regression | Validate plan detail side modal form required field errors', async () => {
       await planPage.validateSideModalFormRequiredErrors();
     });
 
-    test('TC-04 | @sanity | Validate plan detail side modal form invalid email format', async () => {
+    test('TC-04 | @regression | Validate plan detail side modal form invalid email format', async () => {
       await planPage.validateSideModalFormInvalidEmail();
     });
 

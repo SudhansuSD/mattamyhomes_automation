@@ -36,7 +36,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
        PAGE LOAD
     ========================================================== */
     test.describe('Page Load', () => {
-        test('TC-01 | @ci @smoke @regression @sanity | Home page should load correctly', async () => {
+        test('TC-01 | @ci @smoke @regression | Home page should load correctly', async () => {
             await test.step('Verify page loaded successfully', async () => {
                 await homePage.verifyPageLoaded();
             });
@@ -55,7 +55,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
        HEADER VALIDATION
     ========================================================== */
     test.describe('Header Validation', () => {
-        test('TC-01 | @smoke | Header navigation should be visible', async ({ page }) => {
+        test('TC-01 | @smoke @regression | Header navigation should be visible', async ({ page }) => {
             const header = new Header(page);
 
             await test.step('Verify header links are visible', async () => {
@@ -71,7 +71,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
        FOOTER VALIDATION
     ========================================================== */
     test.describe('Footer Validation', () => {
-        test('TC-01 | @smoke | Footer should be visible with Privacy Policy link', async ({ page }) => {
+        test('TC-01 | @smoke @regression | Footer should be visible with Privacy Policy link', async ({ page }) => {
             const footer = new Footer(page);
 
             await test.step('Verify footer is loaded correctly', async () => {
@@ -84,7 +84,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
        SEARCH VALIDATION
     ========================================================== */
     test.describe('Search', () => {
-        test('TC-01 | @regression | Search market functionality should work', async () => {
+        test('TC-01 | @smoke @regression | Search market functionality should work', async () => {
             await test.step('Search and validate by market', async () => {
                 await homePage.searchAndValidateByValue('market', location.market);
             });

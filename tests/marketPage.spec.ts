@@ -24,7 +24,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
   ========================================================== */
 
   test.describe('Basic Market Validation', () => {
-    test(`TC-01 | @smoke | Validate all markets navigation and heading`, async () => {
+    test(`TC-01 | @smoke @regression | Validate all markets navigation and heading`, async () => {
       for (const market of location.markets) {
         await test.step(`Verify market: ${market.name}`, async () => {
           await marketPage.navigateToMarket(market.url);

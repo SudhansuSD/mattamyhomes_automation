@@ -21,7 +21,7 @@ test.describe('Hometown Heroes Promo Page Tests - USA', () => {
   });
 
   test.describe('Promo Page Validation', () => {
-  test('TC-01 | @smoke @promo | Validate promo page content and form fields', async () => {
+  test('TC-01 | @smoke @regression @promo | Validate promo page content and form fields', async () => {
     await test.step('Verify promo page loads with expected USA Orlando content', async () => {
       await promoPage.verifyPageLoaded();
     });

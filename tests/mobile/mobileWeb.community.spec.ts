@@ -17,7 +17,7 @@ describe("Mattamy Homes mobile web - community page on mobile (Android/iOS)", fu
   });
 
   describe("UI Validation", () => {
-    it("TC-01 | @regression | Validate community core sections", async () => {
+    it("TC-01 | @smoke @regression | Validate community core sections", async () => {
       await communityPage.verifyCoreSections();
     });
 
@@ -45,11 +45,11 @@ describe("Mattamy Homes mobile web - community page on mobile (Android/iOS)", fu
   });
 
   describe("Lead Form", () => {
-    it("TC-01 | @sanity | Validate primary form required field errors", async () => {
+    it("TC-01 | @regression | Validate primary form required field errors", async () => {
       await communityPage.validatePrimaryFormEmptyErrors();
     });
 
-    it("TC-02 | @sanity | Validate primary form invalid email format", async () => {
+    it("TC-02 | @regression | Validate primary form invalid email format", async () => {
       await communityPage.validatePrimaryFormInvalidEmail();
     });
 
@@ -61,11 +61,11 @@ describe("Mattamy Homes mobile web - community page on mobile (Android/iOS)", fu
       await communityPage.verifyPrimaryFormSuccessSubmission();
     });
 
-    it("TC-04 | @sanity | Validate footer form required field errors", async () => {
+    it("TC-04 | @regression | Validate footer form required field errors", async () => {
       await communityPage.validateFooterFormEmptyErrors();
     });
 
-    it("TC-05 | @sanity | Validate footer form invalid email format", async () => {
+    it("TC-05 | @regression | Validate footer form invalid email format", async () => {
       await communityPage.validateFooterFormInvalidEmail();
     });
 

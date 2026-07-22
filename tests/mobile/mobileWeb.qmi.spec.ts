@@ -17,7 +17,7 @@ describe('Mattamy Homes mobile web - QMI detail page on mobile (Android/iOS)', f
   });
 
   describe('Hero & Overview', () => {
-    it('TC-01 | @smoke | Validate QMI hero content and URL', async () => {
+    it('TC-01 | @smoke @regression | Validate QMI hero content and URL', async () => {
       await qmiPage.verifyExactQmiUrl();
       await qmiPage.verifyHeroSection(location.qmiAddress);
       await qmiPage.verifyHeroHomeFacts();
@@ -51,7 +51,7 @@ describe('Mattamy Homes mobile web - QMI detail page on mobile (Android/iOS)', f
   });
 
   describe('Lead Form', () => {
-    it('TC-01 | @regression @qmi-form-fields | Validate QMI form fields', async () => {
+    it('TC-01 | @smoke @regression @qmi-form-fields | Validate QMI form fields', async () => {
       await qmiPage.validateQmiFormFields();
     });
 

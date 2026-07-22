@@ -25,7 +25,7 @@ describe('Mattamy Homes mobile web - MPC page on mobile (Android/iOS)', function
   });
 
   describe('Page Load and Hero', () => {
-    it('TC-01 | @smoke | Validate MPC page loads with hero content', async () => {
+    it('TC-01 | @smoke @regression | Validate MPC page loads with hero content', async () => {
       await mpcPage.validateHeroContent(mpc.name);
     });
   });
@@ -69,15 +69,15 @@ describe('Mattamy Homes mobile web - MPC page on mobile (Android/iOS)', function
   });
 
   describe('Form Validation', () => {
-    it('TC-01 | @sanity | Validate Get Information CTA opens MPC lead form', async () => {
+    it('TC-01 | @smoke @regression | Validate Get Information CTA opens MPC lead form', async () => {
       await mpcPage.verifyGetInformationCtaOpensLeadForm();
     });
 
-    it('TC-02 | @sanity | Validate Get Information form required field errors', async () => {
+    it('TC-02 | @regression | Validate Get Information form required field errors', async () => {
       await mpcPage.validateGetInformationFormEmptyErrors();
     });
 
-    it('TC-03 | @sanity | Validate Get Information form invalid email format', async () => {
+    it('TC-03 | @regression | Validate Get Information form invalid email format', async () => {
       await mpcPage.validateGetInformationFormInvalidEmail();
     });
 
@@ -89,15 +89,15 @@ describe('Mattamy Homes mobile web - MPC page on mobile (Android/iOS)', function
       await mpcPage.verifyGetInformationFormSuccessSubmission();
     });
 
-    it('TC-05 | @sanity | Validate MPC community update form fields', async () => {
+    it('TC-05 | @smoke @regression | Validate MPC community update form fields', async () => {
       await mpcPage.validateCommunityUpdateFormFields();
     });
 
-    it('TC-06 | @sanity | Validate MPC community update form required field errors', async () => {
+    it('TC-06 | @regression | Validate MPC community update form required field errors', async () => {
       await mpcPage.validateCommunityUpdateRequiredErrors();
     });
 
-    it('TC-07 | @sanity | Validate MPC community update form invalid email error', async () => {
+    it('TC-07 | @regression | Validate MPC community update form invalid email error', async () => {
       await mpcPage.validateCommunityUpdateInvalidEmail();
     });
   });

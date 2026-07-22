@@ -33,7 +33,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Page Load and Hero', () => {
-    test('TC-01 | @smoke | Validate condo plan page URL, title, and hero', async () => {
+    test('TC-01 | @smoke @regression | Validate condo plan page URL, title, and hero', async () => {
       await condoPlanPage.verifyUrlAndTitle(condoPlan!);
       await condoPlanPage.verifyHeroSummary(condoPlan!);
     });
@@ -84,19 +84,19 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Community Updates Form - No Submit', () => {
-    test('TC-01 | @sanity | Validate floating bar Get Information CTA opens condo plan side modal form', async () => {
+    test('TC-01 | @regression | Validate floating bar Get Information CTA opens condo plan side modal form', async () => {
       await condoPlanPage.verifyGetInformationCtaOpensLeadForm();
     });
 
-    test('TC-02 | @sanity | Validate Get Information side modal form fields', async () => {
+    test('TC-02 | @smoke @regression | Validate Get Information side modal form fields', async () => {
       await condoPlanPage.verifySideModalFormFields();
     });
 
-    test('TC-03 | @sanity | Validate Get Information side modal form required field errors', async () => {
+    test('TC-03 | @regression | Validate Get Information side modal form required field errors', async () => {
       await condoPlanPage.validateSideModalFormRequiredErrors();
     });
 
-    test('TC-04 | @sanity | Validate Get Information side modal form invalid email error', async () => {
+    test('TC-04 | @regression | Validate Get Information side modal form invalid email error', async () => {
       await condoPlanPage.validateSideModalFormInvalidEmail();
     });
 

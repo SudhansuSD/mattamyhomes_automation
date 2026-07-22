@@ -27,7 +27,7 @@ describe('Mattamy Homes mobile web - Market page on mobile (Android/iOS)', funct
   ========================================================== */
 
   describe('Basic Market Validation', () => {
-    it('TC-01 | @smoke | Validate all markets navigation and heading', async () => {
+    it('TC-01 | @smoke @regression | Validate all markets navigation and heading', async () => {
       for (const market of location.markets) {
         await marketPage.openMarket(market);
         await marketPage.verifyMarketPage(market);
@@ -45,7 +45,7 @@ describe('Mattamy Homes mobile web - Market page on mobile (Android/iOS)', funct
     });
 
     describe('Page Context and Hero', () => {
-      it('TC-01 | @smoke | Validate mobile browser context (user agent and viewport)', async () => {
+      it('TC-01 | @smoke @regression | Validate mobile browser context (user agent and viewport)', async () => {
         await marketPage.verifyLoaded(configuredMarket);
       });
 
@@ -89,15 +89,15 @@ describe('Mattamy Homes mobile web - Market page on mobile (Android/iOS)', funct
         }
       });
 
-      it('TC-01 | @sanity | Validate market lead form fields', async () => {
+      it('TC-01 | @smoke @regression | Validate market lead form fields', async () => {
         await marketPage.validateLeadFormFields(configuredMarket);
       });
 
-      it('TC-02 | @sanity | Validate market lead form required field errors', async () => {
+      it('TC-02 | @regression | Validate market lead form required field errors', async () => {
         await marketPage.validateLeadFormRequiredErrors(configuredMarket);
       });
 
-      it('TC-03 | @sanity | Validate market lead form invalid email error', async () => {
+      it('TC-03 | @regression | Validate market lead form invalid email error', async () => {
         await marketPage.validateLeadFormInvalidEmail(configuredMarket);
       });
 

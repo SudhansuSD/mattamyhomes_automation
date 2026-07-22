@@ -30,15 +30,15 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
      Default Search Tests
   -------------------------------------------------------- */
   test.describe('Default Search Tests', () => {
-  test('TC-01 | @sanity | Verify community results functionality', async () => {
+  test('TC-01 | @smoke @regression | Verify community results functionality', async () => {
     await searchPage.verifyResults('Communities');
   });
 
-  test('TC-02 | @sanity | Verify plan results functionality', async () => {
+  test('TC-02 | @regression | Verify plan results functionality', async () => {
     await searchPage.verifyResults('Plans');
   });
 
-  test('TC-03 | @sanity | Verify QMI results functionality', async () => {
+  test('TC-03 | @regression | Verify QMI results functionality', async () => {
     await searchPage.verifyResults('Quick Move-Ins');
   });
 

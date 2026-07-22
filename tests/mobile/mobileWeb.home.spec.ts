@@ -15,7 +15,7 @@ describe('Mattamy Homes mobile web - home page on mobile (Android/iOS)', functio
   });
 
   describe('Page Load & Layout', () => {
-    it('TC-01 | @ci @smoke @regression @sanity | Home page should load correctly', async () => {
+    it('TC-01 | @ci @smoke @regression | Home page should load correctly', async () => {
       await homePage.verifyLoaded();
     });
 
@@ -29,13 +29,13 @@ describe('Mattamy Homes mobile web - home page on mobile (Android/iOS)', functio
   });
 
   describe('Header & Footer', () => {
-    it('TC-01 | @smoke | Header navigation should be visible', async () => {
+    it('TC-01 | @smoke @regression | Header navigation should be visible', async () => {
       await homePage.verifyHeaderLinksVisible();
       await homePage.open();
       await homePage.openFindYourHome();
     });
 
-    it('TC-02 | @smoke | Footer should be visible with Privacy Policy link', async () => {
+    it('TC-02 | @smoke @regression | Footer should be visible with Privacy Policy link', async () => {
       await homePage.verifyFooterLoaded();
     });
   });
