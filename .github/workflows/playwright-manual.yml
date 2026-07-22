@@ -1,0 +1,172 @@
+name: Playwright Manual Run
+
+# Manual, on-demand Playwright execution driven entirely from the GitHub Actions UI.
+# This workflow is GitHub-specific: it only controls HOW tests are launched in CI.
+# It does not change local execution, local .env loading, or any developer command.
+run-name: >-
+  Manual • ${{ inputs.environment }}/${{ inputs.country }} •
+  ${{ inputs.browser }} • ${{ inputs.suite }} • #${{ github.run_number }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: STAGE
+        type: choice
+        options:
+          - STAGE
+          - PROD
+      country:
+        description: Country / region
+        required: true
+        default: USA
+        type: choice
+        options:
+          - USA
+          - CAN
+      browser:
+        description: Browser to run
+        required: true
+        default: chromium
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+          - all
+      suite:
+        description: Test suite
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - regression
+          - all
+
+# Do not cancel in-progress manual runs; allow parallel on-demand executions.
+concurrency:
+  group: playwright-manual-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  playwright-manual:
+    name: >-
+      ${{ inputs.environment }}/${{ inputs.country }} |
+      ${{ inputs.browser }} | ${{ inputs.suite }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # 1. Check out the branch/ref the run was dispatched against.
+      - name: Checkout selected branch
+        uses: actions/checkout@v4
+
+      # 2 + 3. Set up Node.js and enable npm dependency caching.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      # 4. Install dependencies from the lockfile.
+      - name: Install dependencies
+        run: npm ci --no-audit --prefer-offline
+
+      # 5. Install Playwright browsers and required Linux system dependencies.
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      # 6. Resolve the selected inputs into Playwright CLI arguments and log them.
+      - name: Resolve execution configuration
+        run: |
+          set -euo pipefail
+
+          BROWSER="${{ inputs.browser }}"
+          SUITE="${{ inputs.suite }}"
+
+          # Map browser -> Playwright project. Note: the chromium project is
+          # named "Chrome" in playwright.config.ts (repo convention). "all"
+          # intentionally passes NO --project flag so every configured project runs.
+          case "$BROWSER" in
+            chromium) PROJECT_ARG="--project=Chrome" ;;
+            firefox)  PROJECT_ARG="--project=firefox" ;;
+            webkit)   PROJECT_ARG="--project=webkit" ;;
+            all)      PROJECT_ARG="" ;;
+            *) echo "::error::Unsupported browser '$BROWSER'"; exit 1 ;;
+          esac
+
+          # Map suite -> tag grep (repo uses @smoke / @regression tags, not folders).
+          # "all" intentionally passes NO --grep filter so the full suite runs.
+          case "$SUITE" in
+            smoke)      GREP_ARG="--grep @smoke" ;;
+            regression) GREP_ARG="--grep @regression" ;;
+            all)        GREP_ARG="" ;;
+            *) echo "::error::Unsupported suite '$SUITE'"; exit 1 ;;
+          esac
+
+          # Expose resolved args to later steps.
+          echo "PROJECT_ARG=$PROJECT_ARG" >> "$GITHUB_ENV"
+          echo "GREP_ARG=$GREP_ARG" >> "$GITHUB_ENV"
+
+          # Print the selected configuration to the logs and the run summary.
+          {
+            echo "## Execution configuration"
+            echo ""
+            echo "| Setting | Value |"
+            echo "| --- | --- |"
+            echo "| Environment | ${{ inputs.environment }} |"
+            echo "| Country/region | ${{ inputs.country }} |"
+            echo "| Browser | $BROWSER |"
+            echo "| Test suite | $SUITE |"
+            echo "| Command | \`npx playwright test $PROJECT_ARG $GREP_ARG\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "Environment : ${{ inputs.environment }}"
+          echo "Country     : ${{ inputs.country }}"
+          echo "Browser     : $BROWSER"
+          echo "Test suite  : $SUITE"
+          echo "Command     : npx playwright test $PROJECT_ARG $GREP_ARG"
+
+      # 7 + 12. Run the tests. A non-zero Playwright exit code fails this step
+      #         (and therefore the job) — the exit code is preserved because it
+      #         is not swallowed. $PROJECT_ARG / $GREP_ARG are intentionally
+      #         unquoted so empty values expand to nothing and "--grep @smoke"
+      #         splits into two arguments.
+      - name: Run Playwright tests
+        run: npx playwright test $PROJECT_ARG $GREP_ARG
+        env:
+          # GitHub inputs are converted into the SAME environment variables the
+          # framework already reads locally (ENV + LOCATION). COUNTRY is set as a
+          # convenience alias; the framework reads LOCATION.
+          ENV: ${{ inputs.environment }}
+          LOCATION: ${{ inputs.country }}
+          COUNTRY: ${{ inputs.country }}
+          # Optional credentials — only used if the selected tests require auth.
+          # Safe to leave unset; not mandatory.
+          TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+          TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+
+      # 8. Upload the Playwright HTML report even when tests fail.
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-report-${{ inputs.environment }}-${{ inputs.country }}-${{ inputs.browser }}-${{ inputs.suite }}-${{ github.run_number }}
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # 9. Upload screenshots, videos, traces and raw test results when available.
+      - name: Upload test results (screenshots / videos / traces)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ inputs.environment }}-${{ inputs.country }}-${{ inputs.browser }}-${{ inputs.suite }}-${{ github.run_number }}
+          path: |
+            test-results/
+            allure-results/desktop/
+          retention-days: 14
+          if-no-files-found: ignore
