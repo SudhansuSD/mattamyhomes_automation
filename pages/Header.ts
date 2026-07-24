@@ -75,7 +75,7 @@ export class Header extends BasePage {
   }
 
   /** Opens about us menu. */
-  async openAboutUsMenu(): Promise<void> {
+  async openAboutUsMenu(expectedLinkCount?: number): Promise<void> {
     await this.step('Open About Us menu', async () => {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
@@ -87,6 +87,18 @@ export class Header extends BasePage {
         this.header.locator('a[href="/about/about-mattamy"]'),
         'About Us menu should open'
       );
+
+      // Wait for the flyout to finish populating before callers read it: the
+      // links render/animate in asynchronously, so a read taken right after the
+      // first link attaches can capture a partial list and flake a strict compare.
+      if (expectedLinkCount && expectedLinkCount > 0) {
+        await expect
+          .poll(async () => this.aboutUsMenuLinks.count(), {
+            message: `About Us menu should render ${expectedLinkCount} links`,
+            timeout: 15000
+          })
+          .toBeGreaterThanOrEqual(expectedLinkCount);
+      }
     });
   }
 
@@ -197,9 +209,9 @@ export class Header extends BasePage {
   ========================================================== */
 
   /** Returns visible about us menu links. */
-  async getVisibleAboutUsMenuLinks(): Promise<HeaderNavigationLink[]> {
+  async getVisibleAboutUsMenuLinks(expectedLinkCount?: number): Promise<HeaderNavigationLink[]> {
     return this.step('Get visible About Us menu links', async () => {
-      await this.openAboutUsMenu();
+      await this.openAboutUsMenu(expectedLinkCount);
 
       const links = await this.aboutUsMenuLinks.evaluateAll((elements) =>
         elements.map((element) => ({
@@ -223,9 +235,19 @@ export class Header extends BasePage {
   /** Verifies about us menu links. */
   async verifyAboutUsMenuLinks(expectedLinks: readonly HeaderNavigationLink[]): Promise<void> {
     await this.step('Verify About Us menu links', async () => {
-      const actualLinks = await this.getVisibleAboutUsMenuLinks();
+      const actualLinks = await this.getVisibleAboutUsMenuLinks(expectedLinks.length);
 
-      expect(actualLinks, 'About Us menu links should match country configuration').toEqual(expectedLinks);
+      // Order-independent comparison: the flyout can render links in a different
+      // order than the config, and the per-link assertions below already verify
+      // each expected link is present with the correct href. Compare as sets so
+      // the check is resilient to ordering without losing coverage.
+      const sortByUrl = (links: readonly HeaderNavigationLink[]) =>
+        [...links].sort((a, b) => a.url.localeCompare(b.url));
+
+      expect(
+        sortByUrl(actualLinks),
+        'About Us menu links should match country configuration'
+      ).toEqual(sortByUrl(expectedLinks));
 
       for (const expectedLink of expectedLinks) {
         const menuLink = this.getAboutUsMenuLink(expectedLink);

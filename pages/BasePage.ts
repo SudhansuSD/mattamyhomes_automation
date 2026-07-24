@@ -18,6 +18,7 @@ import {
 export class BasePage {
 
   protected readonly page: Page;
+  private consentHandlersRegistered = false;
 
   /** Initializes this page object and its locators. */
   constructor(page: Page) {
@@ -37,6 +38,7 @@ export class BasePage {
     const targetUrl = `${baseURL}/?${location.queryParam}`;
 
     await test.step(`Open Mattamy Homes home page for ${location.country} in ${envName}`, async () => {
+    await this.registerConsentDialogHandlers();
     try {
       await this.page.goto(targetUrl, {
         waitUntil: 'domcontentloaded',
@@ -70,7 +72,48 @@ export class BasePage {
 
     // 🔹 Use common load handler instead of inline wait
     await this.waitForPageReady();
+
+    // Recover from the intermittent blank/unhydrated render (empty page where
+    // the shell loaded but the SPA never painted) before handing control back.
+    await this.ensurePageRendered();
     });
+  }
+
+  /**
+   * Guards against the intermittent blank/unhydrated render seen on some
+   * navigations: the HTML shell loads (so the title is set and verifyPageLoaded
+   * passes) but the SPA never paints, leaving an empty page where every
+   * downstream locator times out. Confirms the header actually rendered and
+   * reloads a few times if not, re-accepting the cookie banner after a fresh
+   * render. Never throws - if it still hasn't rendered after the retries the
+   * downstream assertions surface the failure as before.
+   */
+  protected async ensurePageRendered(): Promise<void> {
+    const maxAttempts = 3;
+    const header = this.page.locator('header').first();
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const rendered = await header
+        .waitFor({ state: 'visible', timeout: 15000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (rendered) {
+        return;
+      }
+
+      if (attempt < maxAttempts) {
+        await this.reportValue(`Page rendered blank (attempt ${attempt}); reloading`, this.page.url());
+        // reload can abort ("net::ERR_ABORTED; maybe frame was detached?") when
+        // the SPA kicks off its own navigation mid-reload - swallow it and let
+        // the next attempt re-check, rather than failing the whole test.
+        await this.page
+          .reload({ waitUntil: 'domcontentloaded', timeout: 90_000 })
+          .catch(() => undefined);
+        await this.acceptCookiesIfPresent().catch(() => undefined);
+        await this.waitForPageReady().catch(() => undefined);
+      }
+    }
   }
 
   /* ==========================================================
@@ -513,6 +556,37 @@ export class BasePage {
   /* ==========================================================
      Cookie Handling
   ========================================================== */
+
+  /**
+   * Registers auto-dismiss handlers for late-appearing consent dialogs.
+   *
+   * A "Privacy" consent dialog can load a beat after navigation and intercept
+   * clicks/navigation - it blocks the About > Careers navigation, leaving the
+   * URL on the home page so the route wait times out. addLocatorHandler runs the
+   * dismissal whenever the dialog obscures an action and then retries the
+   * action, so the navigation proceeds. Registered once per page; safe to call
+   * repeatedly.
+   */
+  private async registerConsentDialogHandlers(): Promise<void> {
+    if (this.consentHandlersRegistered) {
+      return;
+    }
+    this.consentHandlersRegistered = true;
+
+    const privacyDialog = this.page.getByRole('dialog', { name: /privacy/i });
+
+    await this.page.addLocatorHandler(privacyDialog, async (dialog) => {
+      const dismissButton = dialog
+        .getByRole('button', { name: /close|accept|agree|got it|ok/i })
+        .first();
+
+      if (await dismissButton.isVisible().catch(() => false)) {
+        await dismissButton.click({ force: true }).catch(() => undefined);
+      } else {
+        await this.page.keyboard.press('Escape').catch(() => undefined);
+      }
+    });
+  }
 
   /** Accepts the cookie banner when it is visible. */
   async acceptCookiesIfPresent(): Promise<void> {

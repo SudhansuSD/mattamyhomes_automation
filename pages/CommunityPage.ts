@@ -81,11 +81,108 @@ export class CommunityPage extends SearchablePage {
   private get navLinks(): Locator {
     return this.page.locator('a');
   }
-  /** Returns the get information CTA locator or value. */
-  private get getInformationCta(): Locator {
+  /** Text shared by every Get Information / Stay Updated CTA. */
+  private static readonly CTA_TEXT = /^\s*(?:Get Information|Stay Updated)\s*$/i;
+
+  /**
+   * The real hero CTA: a <button> that is NOT role="link".
+   *
+   * Targeted by structure rather than accessible name on purpose - the page
+   * also renders an off-canvas duplicate in the sticky quick-action bar as
+   * <button role="link"> with an empty aria-label, so name-based queries
+   * (getByRole with a name) miss it inconsistently. Excluding role="link"
+   * structurally drops that duplicate, which otherwise fails the click
+   * ("Element is outside of the viewport") and, being a link, can navigate away
+   * to /contact.
+   */
+  private get getInformationButtonCta(): Locator {
+    return this.page.locator('button:not([role="link"]):visible').filter({
+      hasText: CommunityPage.CTA_TEXT
+    });
+  }
+
+  /** Returns all Get Information / Stay Updated CTA candidates (any element/role). */
+  private get getInformationCtaCandidates(): Locator {
     return this.page.locator('button:visible, a:visible').filter({
-      hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i
-    }).first();
+      hasText: CommunityPage.CTA_TEXT
+    });
+  }
+
+  /**
+   * Resolves the Get Information CTA to actually click.
+   *
+   * Prefers the real button CTA and polls for it to render inside the viewport -
+   * the hero CTA can appear a beat after the off-canvas sticky-bar duplicate.
+   * Falls back to the first button CTA (Playwright's own scroll handles a below-
+   * fold box), then to any in-viewport candidate, and only as a last resort to
+   * the first raw candidate.
+   */
+  private async resolveGetInformationCta(): Promise<Locator | null> {
+    const buttonCta = this.getInformationButtonCta;
+    const buttonIndex = await this.pollForInViewportCtaIndex(buttonCta);
+    if (buttonIndex !== -1) {
+      return buttonCta.nth(buttonIndex);
+    }
+    if (await buttonCta.count()) {
+      return buttonCta.first();
+    }
+
+    const candidates = this.getInformationCtaCandidates;
+    const anyIndex = await this.firstInViewportIndex(candidates);
+    if (anyIndex !== -1) {
+      return candidates.nth(anyIndex);
+    }
+
+    return (await candidates.count()) ? candidates.first() : null;
+  }
+
+  /** Polls until a CTA in the set lands inside the viewport; returns its index or -1. */
+  private async pollForInViewportCtaIndex(cta: Locator): Promise<number> {
+    let index = -1;
+
+    await expect
+      .poll(async () => (index = await this.firstInViewportIndex(cta)), {
+        message: 'A Get Information CTA should render inside the viewport',
+        timeout: 15000
+      })
+      .toBeGreaterThanOrEqual(0)
+      .catch(() => undefined);
+
+    return index;
+  }
+
+  /**
+   * Returns the index of the first CTA in the set whose box has a real size and
+   * sits within the viewport, or -1 when none qualify. This is what screens out
+   * the off-canvas sticky-bar duplicate whose box falls outside the viewport.
+   */
+  private async firstInViewportIndex(cta: Locator): Promise<number> {
+    const count = await cta.count();
+    if (count === 0) {
+      return -1;
+    }
+
+    const viewport = await this.page.evaluate(() => ({
+      width: window.innerWidth,
+      height: window.innerHeight
+    }));
+
+    for (let i = 0; i < count; i++) {
+      const box = await cta.nth(i).boundingBox();
+
+      if (!box || box.width <= 0 || box.height <= 0) {
+        continue;
+      }
+
+      const withinHorizontalBounds = box.x + box.width > 0 && box.x < viewport.width;
+      const withinVerticalBounds = box.y + box.height > 0 && box.y < viewport.height;
+
+      if (withinHorizontalBounds && withinVerticalBounds) {
+        return i;
+      }
+    }
+
+    return -1;
   }
 
   // ----- Register Form -----
@@ -133,6 +230,10 @@ export class CommunityPage extends SearchablePage {
         await expect(this.page, 'Community search should navigate to the configured community URL')
           .toHaveURL(new RegExp(escapeRegex(communityPath), 'i'), { timeout: 60000 });
       }
+
+      // The community page (reached via search, not navigate()) can also come up
+      // blank/unhydrated on the correct URL - recover before asserting content.
+      await this.ensurePageRendered();
 
       const communityHeading = this.page
         .locator('h1')
@@ -380,9 +481,12 @@ export class CommunityPage extends SearchablePage {
     await this.page.evaluate(() => window.scrollTo(0, 0));
     await this.waitForPageReady();
 
-    const addressHeading = this.page.locator('h1, h2, h3, h4').filter({
-      hasText: /\d{1,}.+,\s*.+\b[A-Z]{2}\b/i
-    }).first();
+    // The address is not always rendered in a heading tag - on the community
+    // page it lives in the "Sales center" strip as a plain text element - so
+    // match by text content regardless of tag rather than restricting to h1-h4.
+    const addressHeading = this.page
+      .getByText(/\d{1,}.+,\s*.+\b[A-Z]{2}\b/i)
+      .first();
     const currentPath = new URL(this.page.url()).pathname;
     const marketFromUrl = this.getMarketFromCurrentUrl();
 
@@ -470,14 +574,16 @@ export class CommunityPage extends SearchablePage {
 
   /** Opens lead form from get information CTA if present. */
   private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
-    if (!(await this.getInformationCta.isVisible({ timeout: 5000 }).catch(() => false))) {
+    const cta = await this.resolveGetInformationCta();
+
+    if (!cta || !(await cta.isVisible({ timeout: 5000 }).catch(() => false))) {
       return;
     }
 
     const previousUrl = this.page.url();
 
-    await this.getInformationCta.scrollIntoViewIfNeeded();
-    await this.getInformationCta.click({ force: true });
+    await cta.scrollIntoViewIfNeeded();
+    await cta.click({ force: true });
     await this.waitForPageReady();
 
     await this.settle(1000);
@@ -622,7 +728,8 @@ export class CommunityPage extends SearchablePage {
   /** Verifies get information CTA opens lead form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
-      await expect(this.getInformationCta, 'Get Information or Stay Updated CTA should be visible')
+      const cta = (await this.resolveGetInformationCta()) ?? this.getInformationCtaCandidates.first();
+      await expect(cta, 'Get Information or Stay Updated CTA should be visible')
         .toBeVisible({ timeout: 15000 });
 
       const form = await this.getAvailableGetInformationForm();

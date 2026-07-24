@@ -173,8 +173,8 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       }],
       community: 'Landmarke',
       communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
-      qmiAddress: '449 W FLAX DR',
-      qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/garnet/449-w-flax-dr',
+      qmiAddress: '356 W FLOYD DR',
+      qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/garnet/356-w-floyd-dr',
       planName: 'Aqua',
       expectedPlanPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/aqua',
       aboutUsLinks: [
