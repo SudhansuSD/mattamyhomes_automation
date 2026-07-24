@@ -1,0 +1,6 @@
+# Pre-commit gate — the same checks CI runs, so broken code can't be pushed.
+# 1) lint + format staged files (auto-fixes where possible)
+npx lint-staged
+
+# 2) full type-check (project-wide; tsc can't reliably run per-file)
+npm run typecheck

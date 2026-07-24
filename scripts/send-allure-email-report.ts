@@ -1,13 +1,13 @@
 import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
-import dotenv from 'dotenv';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import nodemailer from 'nodemailer';
 import { ALLURE_RESULTS_ROOT } from './allurePaths';
+import { loadEnv } from '../config/env';
 
-dotenv.config();
+loadEnv();
 
 type TestStatus = 'passed' | 'failed' | 'skipped' | 'unknown';
 
@@ -120,7 +120,9 @@ function readAllureResults(): AllureResult[] {
 
 function buildSummary(results: AllureResult[]): ExecutionSummary {
   const passed = results.filter((result) => result.status === 'passed').length;
-  const failed = results.filter((result) => result.status === 'failed' || result.status === 'broken').length;
+  const failed = results.filter(
+    (result) => result.status === 'failed' || result.status === 'broken',
+  ).length;
   const skipped = results.filter((result) => result.status === 'skipped').length;
   const total = results.length;
   const passPercentage = total > 0 ? Math.round((passed / total) * 100) : 0;
@@ -410,7 +412,9 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
   ].filter(([, value]) => !value);
 
   if (missing.length > 0) {
-    console.warn(`Email report skipped. Missing required environment variables: ${missing.map(([name]) => name).join(', ')}`);
+    console.warn(
+      `Email report skipped. Missing required environment variables: ${missing.map(([name]) => name).join(', ')}`,
+    );
     return false;
   }
 
@@ -477,7 +481,9 @@ export async function sendAllureEmailReport(): Promise<void> {
   });
 
   const emailSent = await sendEmail(summary, generatedChartPath);
-  console.log(emailSent ? 'Automation report email sent successfully.' : 'Automation report email skipped.');
+  console.log(
+    emailSent ? 'Automation report email sent successfully.' : 'Automation report email skipped.',
+  );
 }
 
 if (require.main === module) {

@@ -1,17 +1,20 @@
 import { defineConfig, type ReporterDescription } from '@playwright/test';
-import fs from 'node:fs';
-import path from 'node:path';
 import process from 'node:process';
 import { DESKTOP_ALLURE_RESULTS_DIR } from './scripts/allurePaths';
+import { loadEnv } from './config/env';
 
-const repoRoot = __dirname;
+// Load .env (repo-root anchored) so TEST_ENV / BROWSER / CI-related vars are
+// available regardless of the directory the command was launched from.
+loadEnv();
 
 // GitHub Actions (and other CI) sets CI=true. Used only to enable CI-specific
 // behaviour; local execution keeps its existing defaults.
 const isCI = !!process.env.CI;
 
+// NOTE: Clearing the Allure results dir is done in globalSetup (main process,
+// once) — NOT here. Top-level side effects run in every worker, so a worker
+// restart after a failing test would otherwise wipe results mid-run.
 delete process.env.PW_TEST_REPORTER;
-fs.rmSync(DESKTOP_ALLURE_RESULTS_DIR, { recursive: true, force: true });
 
 // Desktop browser projects. "Chrome" (chromium) is the only project locally,
 // so `npx playwright test` behaves exactly as before. Firefox and WebKit are
@@ -49,7 +52,12 @@ export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
   testIgnore: ['appium/**', 'mobile/**'],
-  globalTeardown: process.env.CI ? undefined : './scripts/generate-allure-report.ts',
+  // Clear stale Allure results once, in the main process, before any tests.
+  globalSetup: './scripts/playwrightGlobalSetup.ts',
+  // After a local `npx playwright test`, build the desktop Allure HTML report.
+  // Disabled under CI, where the workflow generates the report as an explicit
+  // step (and uploads it as an artifact).
+  globalTeardown: process.env.CI ? undefined : './scripts/playwrightGlobalTeardown.ts',
   use: {
     // baseURL: 'https://mattamyhomes.com/',
     headless: process.env.CI ? true : false,

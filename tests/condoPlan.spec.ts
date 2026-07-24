@@ -11,12 +11,12 @@ import { test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoPlanPage } from '../pages/CondoPlanPage';
+import { annotate, Severity } from '../utils/allureMeta';
 
 const location = getLocationConfig();
 const { envName } = getEnvConfig();
-const condoPlan = location.country === 'CAN' && 'condoPlan' in location
-  ? location.condoPlan
-  : undefined;
+const condoPlan =
+  location.country === 'CAN' && 'condoPlan' in location ? location.condoPlan : undefined;
 
 test.describe(`Condo Plan Page - ${location.country}`, () => {
   let condoPlanPage: CondoPlanPage;
@@ -27,6 +27,14 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   test.beforeEach(async ({ page }) => {
     condoPlanPage = new CondoPlanPage(page);
 
+    await annotate({
+      epic: 'Mattamy Homes Website',
+      feature: 'Condo Plan Page',
+      owner: 'QA Automation',
+      severity: Severity.NORMAL,
+      tags: ['smoke', 'regression'],
+    });
+
     await test.step(`Search and validate condo plan: ${condoPlan?.name}`, async () => {
       await condoPlanPage.searchAndValidateByValue('condoPlan', condoPlan!.name);
     });
@@ -34,87 +42,125 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
 
   test.describe('Page Load and Hero', () => {
     test('TC-01 | @smoke @regression | Validate condo plan page URL, title, and hero', async () => {
-      await condoPlanPage.verifyUrlAndTitle(condoPlan!);
-      await condoPlanPage.verifyHeroSummary(condoPlan!);
+      await test.step('Verify condo plan page URL and title', async () => {
+        await condoPlanPage.verifyUrlAndTitle(condoPlan!);
+      });
+      await test.step('Verify condo plan hero summary', async () => {
+        await condoPlanPage.verifyHeroSummary(condoPlan!);
+      });
     });
 
     test('TC-02 | @regression | Validate condo plan breadcrumb', async () => {
-      await condoPlanPage.verifyBreadcrumb(condoPlan!);
+      await test.step('Validate condo plan breadcrumb', async () => {
+        await condoPlanPage.verifyBreadcrumb(condoPlan!);
+      });
     });
   });
 
   test.describe('Content Validation', () => {
     test('TC-01 | @regression | Validate condo plan details content', async () => {
-      await condoPlanPage.verifyCondoPlanDetailsContent();
+      await test.step('Validate condo plan details content', async () => {
+        await condoPlanPage.verifyCondoPlanDetailsContent();
+      });
     });
 
     test('TC-02 | @regression | Validate floorplan image', async () => {
-      await condoPlanPage.verifyFloorplanImage();
+      await test.step('Validate floorplan image', async () => {
+        await condoPlanPage.verifyFloorplanImage();
+      });
     });
 
     test('TC-03 | @regression | Validate mortgage calculator CTA', async () => {
-      await condoPlanPage.verifyMortgageCalculatorCta();
-      await condoPlanPage.verifySupportHeadline();
+      await test.step('Validate mortgage calculator CTA', async () => {
+        await condoPlanPage.verifyMortgageCalculatorCta();
+      });
+      await test.step('Verify support headline', async () => {
+        await condoPlanPage.verifySupportHeadline();
+      });
     });
   });
 
   test.describe('Available Floorplans', () => {
     test('TC-01 | @regression | Validate related condo floorplans and View All CTA', async () => {
-      await condoPlanPage.verifyAvailableFloorplans(condoPlan!);
+      await test.step('Validate related condo floorplans and View All CTA', async () => {
+        await condoPlanPage.verifyAvailableFloorplans(condoPlan!);
+      });
     });
 
     test('TC-02 | @regression | Validate Show More floorplans control when present', async () => {
-      await condoPlanPage.verifyShowMoreFloorplansIfPresent();
+      await test.step('Validate Show More floorplans control when present', async () => {
+        await condoPlanPage.verifyShowMoreFloorplansIfPresent();
+      });
     });
   });
 
   test.describe('Contact and Navigation', () => {
     test('TC-01 | @regression | Validate contact us and hours sections', async () => {
-      await condoPlanPage.verifyContactUsSection();
-      await condoPlanPage.verifyHoursSection();
+      await test.step('Validate contact us section', async () => {
+        await condoPlanPage.verifyContactUsSection();
+      });
+      await test.step('Validate hours section', async () => {
+        await condoPlanPage.verifyHoursSection();
+      });
     });
 
     test('TC-02 | @regression | Validate Get Information CTA scrolls to footer form without submitting', async () => {
-      await condoPlanPage.verifyGetInformationCtaScrollsToForm();
+      await test.step('Validate Get Information CTA scrolls to footer form without submitting', async () => {
+        await condoPlanPage.verifyGetInformationCtaScrollsToForm();
+      });
     });
 
     test('TC-03 | @regression | Validate page navigation links', async () => {
-      await condoPlanPage.verifyNavigationLinks();
+      await test.step('Validate page navigation links', async () => {
+        await condoPlanPage.verifyNavigationLinks();
+      });
     });
   });
 
   test.describe('Community Updates Form - No Submit', () => {
     test('TC-01 | @regression | Validate floating bar Get Information CTA opens condo plan side modal form', async () => {
-      await condoPlanPage.verifyGetInformationCtaOpensLeadForm();
+      await test.step('Validate floating bar Get Information CTA opens condo plan side modal form', async () => {
+        await condoPlanPage.verifyGetInformationCtaOpensLeadForm();
+      });
     });
 
     test('TC-02 | @smoke @regression | Validate Get Information side modal form fields', async () => {
-      await condoPlanPage.verifySideModalFormFields();
+      await test.step('Validate Get Information side modal form fields', async () => {
+        await condoPlanPage.verifySideModalFormFields();
+      });
     });
 
     test('TC-03 | @regression | Validate Get Information side modal form required field errors', async () => {
-      await condoPlanPage.validateSideModalFormRequiredErrors();
+      await test.step('Validate Get Information side modal form required field errors', async () => {
+        await condoPlanPage.validateSideModalFormRequiredErrors();
+      });
     });
 
     test('TC-04 | @regression | Validate Get Information side modal form invalid email error', async () => {
-      await condoPlanPage.validateSideModalFormInvalidEmail();
+      await test.step('Validate Get Information side modal form invalid email error', async () => {
+        await condoPlanPage.validateSideModalFormInvalidEmail();
+      });
     });
 
     test.describe('Community updates form submission', () => {
       test.skip(
         envName === 'PROD',
-        'Skipping condo plan form lead submission on PROD environment.'
+        'Skipping condo plan form lead submission on PROD environment.',
       );
 
       test('TC-01 | @regression @STAGE | Validate Get Information side modal form successful submission', async () => {
-        await condoPlanPage.verifySideModalFormSuccessfulSubmission();
+        await test.step('Validate Get Information side modal form successful submission', async () => {
+          await condoPlanPage.verifySideModalFormSuccessfulSubmission();
+        });
       });
     });
   });
 
   test.describe('Media Validation', () => {
     test('TC-01 | @regression | Validate condo plan page image and video URLs return 200', async () => {
-      await condoPlanPage.validateImageAndVideoUrlsReturn200('Condo plan page');
+      await test.step('Validate condo plan page image and video URLs return 200', async () => {
+        await condoPlanPage.validateImageAndVideoUrlsReturn200('Condo plan page');
+      });
     });
   });
 });

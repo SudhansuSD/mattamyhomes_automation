@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Broken selector / element not found",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*(locator|selector|element).*(not found|not visible|no element|resolved to 0|strict mode violation).*"
+  },
+  {
+    "name": "Timeouts",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*(Timeout .* exceeded|timed out|waiting for).*"
+  },
+  {
+    "name": "Assertion failures",
+    "matchedStatuses": ["failed"],
+    "messageRegex": ".*(expect\\(|toBe|toEqual|toHaveText|toHaveURL|toContain|AssertionError).*"
+  },
+  {
+    "name": "Network / navigation errors",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": ".*(net::ERR|ECONNREFUSED|ENOTFOUND|navigation|Response status|net error|ERR_).*"
+  },
+  {
+    "name": "Product defects",
+    "matchedStatuses": ["failed"]
+  },
+  {
+    "name": "Test infrastructure / environment",
+    "matchedStatuses": ["broken", "unknown"]
+  }
+]
