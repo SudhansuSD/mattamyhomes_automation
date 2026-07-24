@@ -1,13 +1,15 @@
-import "dotenv/config";
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import { Status } from 'allure-js-commons';
+import allureReporter from '@wdio/allure-reporter';
+import { loadEnv } from './config/env';
+import { getEnvConfig } from './config/environments/envConfig';
+import { MOBILE_ALLURE_RESULTS_DIR } from './scripts/allurePaths';
+import { getMobilePlatform, getMobilePlatformLabel } from './utils/mobilePlatform';
 
-import { execFileSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
-import { Status } from "allure-js-commons";
-import allureReporter from "@wdio/allure-reporter";
-import { getEnvConfig } from "./config/environments/envConfig";
-import { MOBILE_ALLURE_RESULTS_DIR } from "./scripts/allurePaths";
-import { getMobilePlatform, getMobilePlatformLabel } from "./utils/mobilePlatform";
+// Load .env (repo-root anchored) before any env var is read below.
+loadEnv();
 
 // WebdriverIO's launcher auto-registers a TypeScript loader (ts-node,
 // transpile-only) when it detects a .ts config, so no manual
@@ -18,29 +20,29 @@ const mobilePlatform = getMobilePlatform();
 
 // .env may define these with a trailing newline/whitespace; Appium rejects the
 // path as "does not exist" unless we trim it.
-for (const name of ["ANDROID_HOME", "ANDROID_SDK_ROOT"]) {
+for (const name of ['ANDROID_HOME', 'ANDROID_SDK_ROOT']) {
   if (process.env[name]) {
     process.env[name] = process.env[name].trim();
   }
 }
 
-const androidUdid = process.env.APPIUM_UDID || "emulator-5554";
+const androidUdid = process.env.APPIUM_UDID || 'emulator-5554';
 
 // Best-effort adb call; failures are logged but never abort the run.
 // No-op on iOS: adb is Android-only, so the Chrome reset hooks below simply skip on iOS Safari.
 function adb(args) {
-  if (mobilePlatform !== "android") {
+  if (mobilePlatform !== 'android') {
     return;
   }
 
   const sdkRoot = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT;
-  const bin = process.platform === "win32" ? "adb.exe" : "adb";
-  const adbPath = sdkRoot ? path.join(sdkRoot, "platform-tools", bin) : bin;
+  const bin = process.platform === 'win32' ? 'adb.exe' : 'adb';
+  const adbPath = sdkRoot ? path.join(sdkRoot, 'platform-tools', bin) : bin;
 
   try {
-    execFileSync(adbPath, args, { stdio: "ignore", timeout: 30000 });
+    execFileSync(adbPath, args, { stdio: 'ignore', timeout: 30000 });
   } catch (error) {
-    console.log(`adb ${args.join(" ")} failed:`, error.message);
+    console.log(`adb ${args.join(' ')} failed:`, error.message);
   }
 }
 
@@ -54,7 +56,7 @@ function isSessionLostError(error) {
 }
 
 async function reloadMobileSession() {
-  adb(["-s", androidUdid, "shell", "am", "force-stop", "com.android.chrome"]);
+  adb(['-s', androidUdid, 'shell', 'am', 'force-stop', 'com.android.chrome']);
   await browser.reloadSession();
   await browser.setTimeout({ implicit: 0, pageLoad: 60000, script: 60000 });
 }
@@ -78,24 +80,24 @@ async function ensureMobileSession() {
 function getMobileBaseUrl() {
   const url = new URL(process.env.MOBILE_BASE_URL || getEnvConfig().baseURL);
 
-  if (url.hostname.toLowerCase() === "mattamyhomes.com") {
-    url.hostname = "www.mattamyhomes.com";
+  if (url.hostname.toLowerCase() === 'mattamyhomes.com') {
+    url.hostname = 'www.mattamyhomes.com';
   }
 
-  return url.toString().replace(/\/$/, "");
+  return url.toString().replace(/\/$/, '');
 }
 
 const appiumPort = Number(process.env.APPIUM_PORT || 4723);
-const specLogDir = path.join(__dirname, "log", "wdio", "spec-tests");
+const specLogDir = path.join(__dirname, 'log', 'wdio', 'spec-tests');
 let specTestLogPath;
 
 function getCurrentSpecPath() {
-  const specArgIndex = process.argv.indexOf("--spec");
-  const specFromArg = specArgIndex >= 0 ? process.argv[specArgIndex + 1] : "";
-  const wdioBrowser = typeof browser === "undefined" ? undefined : browser;
-  const specFromBrowser = (wdioBrowser?.options as any)?.specs?.[0] || "";
+  const specArgIndex = process.argv.indexOf('--spec');
+  const specFromArg = specArgIndex >= 0 ? process.argv[specArgIndex + 1] : '';
+  const wdioBrowser = typeof browser === 'undefined' ? undefined : browser;
+  const specFromBrowser = (wdioBrowser?.options as any)?.specs?.[0] || '';
 
-  return specFromArg || specFromBrowser || "mobile-web";
+  return specFromArg || specFromBrowser || 'mobile-web';
 }
 
 function getSpecTestLogPath() {
@@ -104,15 +106,15 @@ function getSpecTestLogPath() {
   }
 
   const specPath = getCurrentSpecPath();
-  const specName = path.basename(specPath, path.extname(specPath)) || "mobile-web";
+  const specName = path.basename(specPath, path.extname(specPath)) || 'mobile-web';
 
   specTestLogPath = path.join(specLogDir, `${specName}.tests.log`);
   return specTestLogPath;
 }
 
 function cleanLogMessage(message) {
-  return String(message || "")
-    .replace(/\s+/g, " ")
+  return String(message || '')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
@@ -129,7 +131,7 @@ function writeSpecTestLog(message: string, options: { allure?: boolean; status?:
 
   // Echo every step to the console so the run is readable live, not just in the
   // per-spec log file. Opt out with MOBILE_LOG_CONSOLE=false.
-  if (process.env.MOBILE_LOG_CONSOLE !== "false") {
+  if (process.env.MOBILE_LOG_CONSOLE !== 'false') {
     console.log(cleanMessage);
   }
 
@@ -137,7 +139,7 @@ function writeSpecTestLog(message: string, options: { allure?: boolean; status?:
     fs.mkdirSync(specLogDir, { recursive: true });
     fs.appendFileSync(getSpecTestLogPath(), `${new Date().toISOString()} ${cleanMessage}\n`);
   } catch (error) {
-    console.log("Unable to write spec test log:", error.message);
+    console.log('Unable to write spec test log:', error.message);
   }
 
   if (options.allure) {
@@ -146,11 +148,11 @@ function writeSpecTestLog(message: string, options: { allure?: boolean; status?:
 }
 
 function getTestTitle(test) {
-  if (typeof test?.fullTitle === "function") {
+  if (typeof test?.fullTitle === 'function') {
     return test.fullTitle();
   }
 
-  return test?.fullTitle || test?.title || test?.parent || "Unnamed mobile test";
+  return test?.fullTitle || test?.title || test?.parent || 'Unnamed mobile test';
 }
 
 function getHookTitle(hook, hookName) {
@@ -161,35 +163,35 @@ function getHookTitle(hook, hookName) {
 // Android Chrome capabilities (UiAutomator2). Chrome-specific options only apply here.
 function buildAndroidCapabilities() {
   return {
-    platformName: "Android",
-    browserName: "Chrome",
+    platformName: 'Android',
+    browserName: 'Chrome',
     // "eager" returns control once the DOM is interactive instead of waiting
     // on every subresource, which keeps mobile navigation responsive.
-    pageLoadStrategy: "eager",
+    pageLoadStrategy: 'eager',
 
-    "appium:automationName": "UiAutomator2",
-    "appium:deviceName": process.env.APPIUM_DEVICE_NAME || "Android Emulator",
-    "appium:udid": androidUdid,
+    'appium:automationName': 'UiAutomator2',
+    'appium:deviceName': process.env.APPIUM_DEVICE_NAME || 'Android Emulator',
+    'appium:udid': androidUdid,
 
     // Start each session from a clean Chrome profile. Caching the profile was
     // slower in practice: Chrome restored the previous run's heavy tab and
     // stalled the renderer while loading the next page.
-    "appium:noReset": false,
+    'appium:noReset': false,
 
-    "appium:autoGrantPermissions": true,
+    'appium:autoGrantPermissions': true,
     // Match ChromeDriver to the device's Chrome version automatically.
-    "appium:chromedriverAutodownload": true,
+    'appium:chromedriverAutodownload': true,
 
-    "goog:chromeOptions": {
-      androidPackage: "com.android.chrome",
+    'goog:chromeOptions': {
+      androidPackage: 'com.android.chrome',
       // Start a fresh Chrome instance and skip the first-run/welcome screens
       // and popups that would otherwise block page navigation.
       androidUseRunningApp: false,
       args: [
-        "--no-first-run",
-        "--disable-fre",
-        "--disable-popup-blocking",
-        "--disable-notifications",
+        '--no-first-run',
+        '--disable-fre',
+        '--disable-popup-blocking',
+        '--disable-notifications',
       ],
     },
   };
@@ -200,20 +202,20 @@ function buildAndroidCapabilities() {
 // specific simulator or real device.
 function buildIosCapabilities() {
   const capabilities = {
-    platformName: "iOS",
-    browserName: "Safari",
+    platformName: 'iOS',
+    browserName: 'Safari',
 
-    "appium:automationName": "XCUITest",
-    "appium:deviceName": process.env.APPIUM_DEVICE_NAME || "iPhone 15",
-    "appium:platformVersion": process.env.APPIUM_PLATFORM_VERSION || "17.0",
+    'appium:automationName': 'XCUITest',
+    'appium:deviceName': process.env.APPIUM_DEVICE_NAME || 'iPhone 15',
+    'appium:platformVersion': process.env.APPIUM_PLATFORM_VERSION || '17.0',
 
     // Auto-dismiss Safari/system prompts that would otherwise block navigation.
-    "appium:autoAcceptAlerts": true,
-    "appium:safariInitialUrl": "about:blank",
+    'appium:autoAcceptAlerts': true,
+    'appium:safariInitialUrl': 'about:blank',
   };
 
   if (process.env.APPIUM_UDID) {
-    capabilities["appium:udid"] = process.env.APPIUM_UDID;
+    capabilities['appium:udid'] = process.env.APPIUM_UDID;
   }
 
   return capabilities;
@@ -221,41 +223,41 @@ function buildIosCapabilities() {
 
 // One capability set per run, chosen by MOBILE_PLATFORM.
 function buildCapabilities() {
-  return [mobilePlatform === "ios" ? buildIosCapabilities() : buildAndroidCapabilities()];
+  return [mobilePlatform === 'ios' ? buildIosCapabilities() : buildAndroidCapabilities()];
 }
 
 export const config = {
-  runner: "local",
+  runner: 'local',
 
   specs: [
-    "./tests/mobile/mobileWeb.home.spec.ts",
-    "./tests/mobile/mobileWeb.searchPage.spec.ts",
-    "./tests/mobile/mobileWeb.community.spec.ts",
-    "./tests/mobile/mobileWeb.market.spec.ts",
-    "./tests/mobile/mobileWeb.mpc.spec.ts",
-    "./tests/mobile/mobileWeb.plan.spec.ts",
-    "./tests/mobile/mobileWeb.qmi.spec.ts",
+    './tests/mobile/mobileWeb.home.spec.ts',
+    './tests/mobile/mobileWeb.searchPage.spec.ts',
+    './tests/mobile/mobileWeb.community.spec.ts',
+    './tests/mobile/mobileWeb.market.spec.ts',
+    './tests/mobile/mobileWeb.mpc.spec.ts',
+    './tests/mobile/mobileWeb.plan.spec.ts',
+    './tests/mobile/mobileWeb.qmi.spec.ts',
   ],
 
   maxInstances: 1,
 
-  hostname: process.env.APPIUM_HOST || "127.0.0.1",
+  hostname: process.env.APPIUM_HOST || '127.0.0.1',
   port: appiumPort,
-  path: "/",
+  path: '/',
 
   baseUrl: getMobileBaseUrl(),
 
-  logLevel: process.env.WDIO_LOG_LEVEL || "info",
-  outputDir: "./log/wdio",
+  logLevel: process.env.WDIO_LOG_LEVEL || 'info',
+  outputDir: './log/wdio',
 
   waitforTimeout: 30000,
   connectionRetryTimeout: 120000,
   connectionRetryCount: 3,
 
-  framework: "mocha",
+  framework: 'mocha',
 
   mochaOpts: {
-    ui: "bdd",
+    ui: 'bdd',
     timeout: 180000,
     // Retry once: an intermittent Chrome session crash on the emulator gets a
     // fresh session (via beforeTest) on the second attempt.
@@ -264,7 +266,7 @@ export const config = {
 
   reporters: [
     [
-      "allure",
+      'allure',
       {
         outputDir: MOBILE_ALLURE_RESULTS_DIR,
         disableWebdriverStepsReporting: false,
@@ -275,11 +277,11 @@ export const config = {
 
   services: [
     [
-      "appium",
+      'appium',
       {
-        command: "appium",
+        command: 'appium',
         args: { port: appiumPort, relaxedSecurity: true },
-        logPath: "./log/appium",
+        logPath: './log/appium',
       },
     ],
   ],
@@ -290,8 +292,8 @@ export const config = {
     // Stop Chrome and wipe its data so every Android run starts from a clean, fast slate
     // (no restored tabs, no stale cookies/cache). adb() is a no-op on iOS, where Appium's
     // fresh Safari session provides the clean slate instead.
-    adb(["-s", androidUdid, "shell", "am", "force-stop", "com.android.chrome"]);
-    adb(["-s", androidUdid, "shell", "pm", "clear", "com.android.chrome"]);
+    adb(['-s', androidUdid, 'shell', 'am', 'force-stop', 'com.android.chrome']);
+    adb(['-s', androidUdid, 'shell', 'pm', 'clear', 'com.android.chrome']);
   },
 
   before: async function () {
@@ -347,12 +349,12 @@ export const config = {
       try {
         const screenshot = await browser.takeScreenshot();
         allureReporter.addAttachment(
-          "Failure screenshot",
-          Buffer.from(screenshot, "base64"),
-          "image/png",
+          'Failure screenshot',
+          Buffer.from(screenshot, 'base64'),
+          'image/png',
         );
       } catch (screenshotError) {
-        console.log("Unable to capture failure screenshot:", screenshotError.message);
+        console.log('Unable to capture failure screenshot:', screenshotError.message);
       }
     }
   },

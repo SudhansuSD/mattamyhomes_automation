@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.venv/
+allure-results/
+allure-report/
+playwright-report/
+blob-report/
+test-results/
+reports/
+results/
+artifacts/
+log/
+coverage/
+package-lock.json
+*.md
+sitemap_report.html

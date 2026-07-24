@@ -2,6 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import ExcelJS from 'exceljs';
 
+// Anchor output to the repo root so the file lands in the same place whether the
+// run was launched from the IDE, a plain terminal, or CI (cwd-independent).
+const REPO_ROOT = path.resolve(__dirname, '..');
+
 export type LeadApiCaptureRow = {
   capturedAt: string;
   pageUrl: string;
@@ -13,7 +17,7 @@ export type LeadApiCaptureRow = {
   notes?: string;
 };
 
-const DEFAULT_OUTPUT_FILE = path.resolve(process.cwd(), 'results', 'lead-api-data.xlsx');
+const DEFAULT_OUTPUT_FILE = path.resolve(REPO_ROOT, 'results', 'lead-api-data.xlsx');
 
 const WORKSHEET_NAME = 'Lead API Data';
 
@@ -25,12 +29,12 @@ const WORKSHEET_COLUMNS = [
   { header: 'Request URL', key: 'requestUrl', width: 80 },
   { header: 'Response Status', key: 'responseStatus', width: 16 },
   { header: 'Response Data', key: 'responseData', width: 120 },
-  { header: 'Notes', key: 'notes', width: 40 }
+  { header: 'Notes', key: 'notes', width: 40 },
 ] as const;
 
 export async function appendLeadApiCapture(row: LeadApiCaptureRow): Promise<string> {
   const outputFile = process.env.LEAD_API_CAPTURE_XLSX
-    ? path.resolve(process.cwd(), process.env.LEAD_API_CAPTURE_XLSX)
+    ? path.resolve(REPO_ROOT, process.env.LEAD_API_CAPTURE_XLSX)
     : DEFAULT_OUTPUT_FILE;
 
   fs.mkdirSync(path.dirname(outputFile), { recursive: true });
