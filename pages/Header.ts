@@ -8,7 +8,6 @@ export type HeaderNavigationLink = {
 };
 
 export class Header extends BasePage {
-
   readonly header: Locator;
   readonly findYourHomeLink: Locator;
   readonly aboutUsLink: Locator;
@@ -40,10 +39,13 @@ export class Header extends BasePage {
 
       await this.findYourHomeLink.waitFor({
         state: 'attached',
-        timeout: 20000
+        timeout: 20000,
       });
 
-      await this.assertVisible(this.findYourHomeLink, 'Find Your Dream Home header link should be visible');
+      await this.assertVisible(
+        this.findYourHomeLink,
+        'Find Your Dream Home header link should be visible',
+      );
       await this.assertVisible(this.aboutUsLink, 'About header menu button should be visible');
       await this.aboutUsLink.first().hover();
     });
@@ -85,7 +87,7 @@ export class Header extends BasePage {
       await this.aboutUsLink.click();
       await this.assertAttached(
         this.header.locator('a[href="/about/about-mattamy"]'),
-        'About Us menu should open'
+        'About Us menu should open',
       );
 
       // Wait for the flyout to finish populating before callers read it: the
@@ -95,7 +97,7 @@ export class Header extends BasePage {
         await expect
           .poll(async () => this.aboutUsMenuLinks.count(), {
             message: `About Us menu should render ${expectedLinkCount} links`,
-            timeout: 15000
+            timeout: 15000,
           })
           .toBeGreaterThanOrEqual(expectedLinkCount);
       }
@@ -121,8 +123,8 @@ export class Header extends BasePage {
           'button[aria-label*="close" i]',
           'button[title*="close" i]',
           'button:has(svg)',
-          '[role="button"][aria-label*="close" i]'
-        ].join(', ')
+          '[role="button"][aria-label*="close" i]',
+        ].join(', '),
       )
       .first();
 
@@ -143,9 +145,8 @@ export class Header extends BasePage {
       return;
     }
 
-    await this.page.addLocatorHandler(
-      this.nationalPromotionDialog,
-      async (dialog) => this.closeNationalPromotionDialog(dialog)
+    await this.page.addLocatorHandler(this.nationalPromotionDialog, async (dialog) =>
+      this.closeNationalPromotionDialog(dialog),
     );
     this.promoPopupHandlerRegistered = true;
   }
@@ -167,7 +168,10 @@ export class Header extends BasePage {
         const href = await button.getAttribute('href');
         const text = await button.innerText();
 
-        await this.reportValue(`Find Your Dream Home link ${i + 1}: ${text}`, this.buildFullUrl(href));
+        await this.reportValue(
+          `Find Your Dream Home link ${i + 1}: ${text}`,
+          this.buildFullUrl(href),
+        );
 
         const metroMatch = href?.match(/metro=([^&]+)/);
         const metroValue = metroMatch ? metroMatch[1] : '';
@@ -187,7 +191,7 @@ export class Header extends BasePage {
 
         if (
           !this.nationalPromotionDismissed &&
-          await this.nationalPromotionDialog.isVisible().catch(() => false)
+          (await this.nationalPromotionDialog.isVisible().catch(() => false))
         ) {
           await this.closeNationalPromotionDialog(this.nationalPromotionDialog);
         }
@@ -216,8 +220,8 @@ export class Header extends BasePage {
       const links = await this.aboutUsMenuLinks.evaluateAll((elements) =>
         elements.map((element) => ({
           name: element.textContent?.trim().replace(/\s+/g, ' ') || '',
-          url: element.getAttribute('href') || ''
-        }))
+          url: element.getAttribute('href') || '',
+        })),
       );
 
       const uniqueLinks = new Map<string, HeaderNavigationLink>();
@@ -246,7 +250,7 @@ export class Header extends BasePage {
 
       expect(
         sortByUrl(actualLinks),
-        'About Us menu links should match country configuration'
+        'About Us menu links should match country configuration',
       ).toEqual(sortByUrl(expectedLinks));
 
       for (const expectedLink of expectedLinks) {
@@ -254,16 +258,19 @@ export class Header extends BasePage {
 
         await this.assertAttached(
           menuLink,
-          `${expectedLink.name} should be present in the About Us menu`
+          `${expectedLink.name} should be present in the About Us menu`,
         );
         await this.assertAttribute(
           menuLink,
           'href',
           expectedLink.url,
-          `${expectedLink.name} should point to ${expectedLink.url}`
+          `${expectedLink.name} should point to ${expectedLink.url}`,
         );
 
-        await this.reportValue(`About Us menu link: ${expectedLink.name}`, this.buildFullUrl(expectedLink.url));
+        await this.reportValue(
+          `About Us menu link: ${expectedLink.name}`,
+          this.buildFullUrl(expectedLink.url),
+        );
       }
     });
   }
@@ -277,26 +284,29 @@ export class Header extends BasePage {
         await this.openAboutUsMenu();
 
         const menuLink = this.getAboutUsMenuLink(expectedLink);
-        await this.assertVisible(menuLink, `${expectedLink.name} should be visible in the About Us menu`);
+        await this.assertVisible(
+          menuLink,
+          `${expectedLink.name} should be visible in the About Us menu`,
+        );
 
-        await this.reportValue(`About Us link: ${expectedLink.name}`, this.buildFullUrl(expectedLink.url));
+        await this.reportValue(
+          `About Us link: ${expectedLink.name}`,
+          this.buildFullUrl(expectedLink.url),
+        );
 
         await menuLink.click();
-        await this.page.waitForURL(
-          (url) => url.pathname === expectedLink.url,
-          { timeout: 30000 }
-        );
+        await this.page.waitForURL((url) => url.pathname === expectedLink.url, { timeout: 30000 });
         await this.waitForPageReady();
 
         await this.assertPageUrl(
           new RegExp(`${escapeRegex(expectedLink.url)}(?:\\?.*)?$`),
-          `${expectedLink.name} should navigate to the configured About URL`
+          `${expectedLink.name} should navigate to the configured About URL`,
         );
 
         await this.assertHeadingVisible(
           undefined,
           `${expectedLink.name} page should expose a visible H1`,
-          15_000
+          15_000,
         );
 
         await this.page.goBack({ waitUntil: 'domcontentloaded' });
@@ -310,15 +320,9 @@ export class Header extends BasePage {
     await this.step(`Click About Us menu link: ${expectedLink.name}`, async () => {
       const menuLink = this.getAboutUsMenuLink(expectedLink);
 
-      await this.assertAttached(
-        menuLink,
-        `${expectedLink.name} should be visible before clicking`
-      );
+      await this.assertAttached(menuLink, `${expectedLink.name} should be visible before clicking`);
       await menuLink.click({ timeout: 10000 });
-      await this.page.waitForURL(
-          (url) => url.pathname === expectedLink.url,
-          { timeout: 30000 }
-        );
+      await this.page.waitForURL((url) => url.pathname === expectedLink.url, { timeout: 30000 });
 
       await this.waitForPageReady();
     });
@@ -330,5 +334,91 @@ export class Header extends BasePage {
       .filter({ hasText: new RegExp(`^\\s*${escapeRegex(expectedLink.name)}\\s*$`, 'i') })
       .and(this.header.locator(`a[href="${expectedLink.url}"]`))
       .first();
+  }
+
+  /* ==========================================================
+     Generic Mega-Menu Flyout Validation
+  ========================================================== */
+
+  /** Opens a top-level header menu (flyout) by its button label. */
+  async openMenu(menuName: string): Promise<void> {
+    await this.step(`Open '${menuName}' menu`, async () => {
+      await this.header.waitFor({ state: 'attached', timeout: 20000 });
+      await this.page.evaluate(() => window.scrollTo(0, 0));
+
+      const menuButton = this.header
+        .getByRole('button', { name: new RegExp(`^${escapeRegex(menuName)}$`, 'i') })
+        .first();
+
+      await menuButton.waitFor({ state: 'visible', timeout: 20000 });
+      await menuButton.hover();
+      await menuButton.click();
+      await this.settle(1000);
+    });
+  }
+
+  /** Verifies a header flyout menu exposes the expected navigation links. */
+  async verifyMenuLinks(
+    menuName: string,
+    expectedLinks: readonly HeaderNavigationLink[],
+  ): Promise<void> {
+    await this.step(`Verify '${menuName}' menu links`, async () => {
+      await this.openMenu(menuName);
+
+      for (const expected of expectedLinks) {
+        const link = this.header.locator(`a[href="${expected.url}"]`).first();
+
+        await this.assertAttached(
+          link,
+          `${menuName} menu should expose ${expected.name} (${expected.url})`,
+          15_000,
+        );
+        await this.reportValue(
+          `${menuName} menu link: ${expected.name}`,
+          this.buildFullUrl(expected.url),
+        );
+      }
+    });
+  }
+
+  /** Clicks a top-level header navigation link by its href and waits for the route. */
+  async clickTopLevelNavLink(link: HeaderNavigationLink): Promise<void> {
+    await this.step(`Click top-level nav link: ${link.name}`, async () => {
+      await this.header.waitFor({ state: 'attached', timeout: 20000 });
+      await this.page.evaluate(() => window.scrollTo(0, 0));
+
+      const navLink = this.header.locator(`a[href="${link.url}"]`).first();
+
+      await navLink.waitFor({ state: 'visible', timeout: 20000 });
+      await navLink.click();
+      await this.page.waitForURL((url) => url.pathname === link.url, { timeout: 30000 });
+      await this.waitForPageReady();
+    });
+  }
+
+  /** Verifies the chatbot widget / launcher is loaded on the page. */
+  async verifyChatbotLoaded(): Promise<void> {
+    await this.step('Verify chatbot widget loads', async () => {
+      const launcher = this.page
+        .locator(
+          [
+            'iframe[title*="chat" i]',
+            'iframe[id*="chat" i]',
+            'iframe[src*="atlasrtx" i]',
+            'iframe[src*="chatbot" i]',
+            'button[aria-label*="chat" i]',
+            '[id*="chat" i][class*="launch" i]',
+            '[class*="chatbot" i]',
+          ].join(', '),
+        )
+        .first();
+
+      await this.assertAttached(
+        launcher,
+        'A chatbot launcher / iframe should be present on the page',
+        25_000,
+      );
+      await this.reportValue('Chatbot widget detected');
+    });
   }
 }

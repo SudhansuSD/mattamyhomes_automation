@@ -2,7 +2,7 @@
 
 This repo has a separate Appium/WebdriverIO lane for mobile browser testing on **Android Chrome** and **iOS Safari**. The same specs and page objects run on both platforms; pick the target with the `MOBILE_PLATFORM` environment variable (`android` — the default — or `ios`). Desktop Playwright tests are unchanged and still run with `npm test`.
 
-> **Platform selection:** `MOBILE_PLATFORM=android` (default) runs Chrome via UiAutomator2; `MOBILE_PLATFORM=ios` runs Safari via XCUITest. The `test:mobile:android:*` npm scripts default to Android; the `test:mobile:ios:*` scripts set `MOBILE_PLATFORM=ios` for you. iOS can only run on macOS with Xcode (see [Running on iOS](#running-on-ios-safari)).
+> **Platform selection:** `MOBILE_PLATFORM=android` (default) runs Chrome via UiAutomator2; `MOBILE_PLATFORM=ios` runs Safari via XCUITest. The `test:mobile:android` npm script defaults to Android; `test:mobile:ios` sets `MOBILE_PLATFORM=ios` for you. Target a single spec by appending `-- --spec ./tests/mobile/<file>.spec.ts`. iOS can only run on macOS with Xcode (see [Running on iOS](#running-on-ios-safari)).
 
 ## Covered Mobile Flows
 
@@ -51,13 +51,14 @@ Run the full Android Chrome mobile web suite:
 npm run test:mobile:android
 ```
 
-Run focused mobile flows:
+Run a focused mobile flow by passing `--spec`:
 
 ```powershell
-npm run test:mobile:android:home
-npm run test:mobile:android:search
-npm run test:mobile:android:community
-npm run test:mobile:android:forms
+npm run test:mobile:android -- --spec ./tests/mobile/mobileWeb.home.spec.ts
+npm run test:mobile:android -- --spec ./tests/mobile/mobileWeb.searchPage.spec.ts
+npm run test:mobile:android -- --spec ./tests/mobile/mobileWeb.community.spec.ts
+# multiple specs (e.g. the form flows):
+npm run test:mobile:android -- --spec ./tests/mobile/mobileWeb.plan.spec.ts --spec ./tests/mobile/mobileWeb.qmi.spec.ts
 ```
 
 Optional environment values:
@@ -122,16 +123,16 @@ Run the full iOS Safari mobile web suite:
 npm run test:mobile:ios
 ```
 
-Run focused iOS flows:
+Run a focused iOS flow by passing `--spec`:
 
 ```bash
-npm run test:mobile:ios:home
-npm run test:mobile:ios:search
-npm run test:mobile:ios:community
-npm run test:mobile:ios:market
-npm run test:mobile:ios:mpc
-npm run test:mobile:ios:plan
-npm run test:mobile:ios:qmi
+npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.home.spec.ts
+npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.searchPage.spec.ts
+npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.community.spec.ts
+npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.market.spec.ts
+npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.mpc.spec.ts
+npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.plan.spec.ts
+npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.qmi.spec.ts
 ```
 
 Target a specific simulator / OS version (defaults are `iPhone 15` / `17.0`), and optionally a real device UDID:

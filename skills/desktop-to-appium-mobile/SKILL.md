@@ -114,16 +114,14 @@ Match the desktop spec one-to-one so coverage maps cleanly (see `tests/mobile/mo
 ### 6. Register and run
 
 - Add the new spec to the `specs` array in `wdio.mobile.conf.ts` (note: `.ts`, and spec paths end in `.spec.ts`).
-- Add npm scripts mirroring the existing ones in `package.json` — one per platform:
-  - `"test:mobile:android:<area>": "wdio run wdio.mobile.conf.ts --spec ./tests/mobile/mobileWeb.<area>.spec.ts"`
-  - `"test:mobile:ios:<area>": "MOBILE_PLATFORM=ios wdio run wdio.mobile.conf.ts --spec ./tests/mobile/mobileWeb.<area>.spec.ts"`
+- No per-spec npm scripts needed — run any single spec through the base `test:mobile:android` / `test:mobile:ios` scripts with `-- --spec` (see below).
 - Type-check the layer, then verify on a running device:
 
 ```powershell
 npm run typecheck:mobile                 # tsc -p tsconfig.mobile.json --noEmit
 npm run test:mobile:android              # full mobile suite (Android, adb devices must show `device`)
-npm run test:mobile:android:<area>       # focused new spec on Android
-npm run test:mobile:ios:<area>           # focused new spec on iOS (macOS + Xcode simulator)
+npm run test:mobile:android -- --spec ./tests/mobile/mobileWeb.<area>.spec.ts   # focused new spec on Android
+npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.<area>.spec.ts       # focused new spec on iOS (macOS + Xcode simulator)
 ```
 
 See [docs/appium-mobile-browser-testing.md](../../docs/appium-mobile-browser-testing.md) for prerequisites (Android SDK / `adb devices`, Xcode + xcuitest driver for iOS, Appium drivers) and troubleshooting.
@@ -131,7 +129,7 @@ See [docs/appium-mobile-browser-testing.md](../../docs/appium-mobile-browser-tes
 ### 7. Report
 
 State:
-- Files created/updated (page object, spec, `types/mobile-globals.d.ts` if a new injected global was added, `wdio.mobile.conf.ts`, `package.json`).
+- Files created/updated (page object, spec, `types/mobile-globals.d.ts` if a new injected global was added, `wdio.mobile.conf.ts`).
 - The test inventory with its **feasibility classification** (feasible / mobile-alternative / env-gated / skipped-with-reason) — this is the required deliverable, not optional.
 - The mobile-specific tests added (step 3) that have no desktop equivalent.
 - Mobile adaptations applied, and confirmation the code is platform-neutral (runs on both Android and iOS).
@@ -150,7 +148,7 @@ State:
 3. Add mobile-specific: hamburger nav exposure (`verifyHeaderNavigation`), mobile browser context via `getUserAgentPatterns()` (passes on Android **and** iOS), stacked section scroll.
 4. Create/extend `pages/mobile/MobileWebMarketPage.ts` (TypeScript, `export class … extends MobileWebHomePage`, `driver: MobileBrowser`), driven by `getLocationConfig().markets` and `data/test_data.json` lead data.
 5. Create `tests/mobile/mobileWeb.market.spec.ts` mirroring the desktop section grouping and IDs.
-6. Register in `wdio.mobile.conf.ts` + add `test:mobile:android:market` and `test:mobile:ios:market`.
+6. Register in `wdio.mobile.conf.ts` (no per-spec npm script needed — run with `npm run test:mobile:android -- --spec ./tests/mobile/mobileWeb.market.spec.ts`).
 7. Report inventory + classifications + run/typecheck commands.
 
 ## Guardrails

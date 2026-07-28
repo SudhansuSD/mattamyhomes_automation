@@ -147,4 +147,16 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
       });
     });
   });
+
+  /* -------------------------------------------------------
+     Savings Calculator Tests
+  -------------------------------------------------------- */
+
+  test.describe('Savings Calculator', () => {
+    test('TC-01 | @regression | Validate savings calculator sidebar', async () => {
+      await test.step('Validate savings calculator sidebar', async () => {
+        await searchPage.validateSavingsCalculatorSidebar();
+      });
+    });
+  });
 });

@@ -18,6 +18,28 @@ loadEnv();
 // android (default) | ios. Selects capabilities + session-reset strategy below.
 const mobilePlatform = getMobilePlatform();
 
+// Permissive local type for the WebdriverIO `browser` global. The mobile suite
+// runs under tsconfig.mobile.json (which supplies @wdio/globals ambient types),
+// but this root-level config file is also opened in editors whose base tsconfig
+// profile doesn't load those types. Declaring the shape locally keeps the file
+// type-clean either way; `declare const` is erased at compile time, so the real
+// WDIO-injected global is still what runs.
+type WdioBrowser = {
+  sessionId?: string;
+  getUrl(): Promise<string>;
+  reloadSession(...args: unknown[]): Promise<unknown>;
+  setTimeout(timeouts: { implicit?: number; pageLoad?: number; script?: number }): Promise<void>;
+  takeScreenshot(): Promise<string>;
+  options?: { specs?: string[] };
+  [key: string]: unknown;
+};
+declare const browser: WdioBrowser;
+
+// Narrows an unknown thrown value to a readable message string.
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error ?? '');
+}
+
 // .env may define these with a trailing newline/whitespace; Appium rejects the
 // path as "does not exist" unless we trim it.
 for (const name of ['ANDROID_HOME', 'ANDROID_SDK_ROOT']) {
@@ -30,7 +52,7 @@ const androidUdid = process.env.APPIUM_UDID || 'emulator-5554';
 
 // Best-effort adb call; failures are logged but never abort the run.
 // No-op on iOS: adb is Android-only, so the Chrome reset hooks below simply skip on iOS Safari.
-function adb(args) {
+function adb(args: string[]): void {
   if (mobilePlatform !== 'android') {
     return;
   }
@@ -42,16 +64,16 @@ function adb(args) {
   try {
     execFileSync(adbPath, args, { stdio: 'ignore', timeout: 30000 });
   } catch (error) {
-    console.log(`adb ${args.join(' ')} failed:`, error.message);
+    console.log(`adb ${args.join(' ')} failed:`, errorMessage(error));
   }
 }
 
 // Android Chrome occasionally crashes its renderer/session mid-test on the
 // emulator. Detect that and recover by relaunching a fresh session instead of
 // failing the whole suite.
-function isSessionLostError(error) {
+function isSessionLostError(error: unknown): boolean {
   return /invalid session id|browser has closed the connection|disconnected|chrome not reachable|unable to receive message from renderer/i.test(
-    String(error?.message || error),
+    errorMessage(error),
   );
 }
 
@@ -89,13 +111,13 @@ function getMobileBaseUrl() {
 
 const appiumPort = Number(process.env.APPIUM_PORT || 4723);
 const specLogDir = path.join(__dirname, 'log', 'wdio', 'spec-tests');
-let specTestLogPath;
+let specTestLogPath: string | undefined;
 
-function getCurrentSpecPath() {
+function getCurrentSpecPath(): string {
   const specArgIndex = process.argv.indexOf('--spec');
   const specFromArg = specArgIndex >= 0 ? process.argv[specArgIndex + 1] : '';
   const wdioBrowser = typeof browser === 'undefined' ? undefined : browser;
-  const specFromBrowser = (wdioBrowser?.options as any)?.specs?.[0] || '';
+  const specFromBrowser = wdioBrowser?.options?.specs?.[0] || '';
 
   return specFromArg || specFromBrowser || 'mobile-web';
 }
@@ -112,13 +134,13 @@ function getSpecTestLogPath() {
   return specTestLogPath;
 }
 
-function cleanLogMessage(message) {
+function cleanLogMessage(message: unknown): string {
   return String(message || '')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-function addAllureMobileStep(message, status = Status.PASSED) {
+function addAllureMobileStep(message: string, status: Status = Status.PASSED): void {
   try {
     allureReporter.addStep(cleanLogMessage(message), undefined, status);
   } catch {
@@ -139,7 +161,7 @@ function writeSpecTestLog(message: string, options: { allure?: boolean; status?:
     fs.mkdirSync(specLogDir, { recursive: true });
     fs.appendFileSync(getSpecTestLogPath(), `${new Date().toISOString()} ${cleanMessage}\n`);
   } catch (error) {
-    console.log('Unable to write spec test log:', error.message);
+    console.log('Unable to write spec test log:', errorMessage(error));
   }
 
   if (options.allure) {
@@ -147,7 +169,9 @@ function writeSpecTestLog(message: string, options: { allure?: boolean; status?:
   }
 }
 
-function getTestTitle(test) {
+// WDIO/Mocha test + hook objects are loosely shaped across framework versions;
+// `any` here matches the permissive intent of the mobile layer.
+function getTestTitle(test: any): string {
   if (typeof test?.fullTitle === 'function') {
     return test.fullTitle();
   }
@@ -155,7 +179,7 @@ function getTestTitle(test) {
   return test?.fullTitle || test?.title || test?.parent || 'Unnamed mobile test';
 }
 
-function getHookTitle(hook, hookName) {
+function getHookTitle(hook: any, hookName?: string): string {
   const title = getTestTitle(hook);
   return hookName ? `${hookName} ${title}` : title;
 }
@@ -200,8 +224,8 @@ function buildAndroidCapabilities() {
 // iOS Safari capabilities (XCUITest). Requires macOS + Xcode + `appium driver install xcuitest`.
 // Set APPIUM_DEVICE_NAME / APPIUM_PLATFORM_VERSION (and optionally APPIUM_UDID) to target a
 // specific simulator or real device.
-function buildIosCapabilities() {
-  const capabilities = {
+function buildIosCapabilities(): Record<string, unknown> {
+  const capabilities: Record<string, unknown> = {
     platformName: 'iOS',
     browserName: 'Safari',
 
@@ -302,35 +326,40 @@ export const config = {
       getSpecTestLogPath(),
       `${new Date().toISOString()} SPEC START [${getMobilePlatformLabel()}] ${getCurrentSpecPath()}\n`,
     );
-    globalThis.__mobileSpecStep = (kind, message, status = Status.PASSED) => {
-      writeSpecTestLog(`${kind} ${message}`, { allure: true, status: status as Status });
+    const mobileSpecStep = (
+      kind: string,
+      message: string,
+      status: Status = Status.PASSED,
+    ): void => {
+      writeSpecTestLog(`${kind} ${message}`, { allure: true, status });
     };
+    (globalThis as Record<string, unknown>).__mobileSpecStep = mobileSpecStep;
     await browser.setTimeout({ implicit: 0, pageLoad: 60000, script: 60000 });
   },
 
-  beforeTest: async function (test) {
+  beforeTest: async function (test: any) {
     writeSpecTestLog(`TEST START ${getTestTitle(test)}`, { allure: true });
     await ensureMobileSession();
   },
 
-  beforeHook: function (hook, context, hookName) {
+  beforeHook: function (hook: any, _context: any, hookName?: string) {
     writeSpecTestLog(`ACTION HOOK START ${getHookTitle(hook, hookName)}`, { allure: true });
   },
 
-  afterHook: function (hook, context, result, hookName) {
+  afterHook: function (hook: any, _context: any, result: any, hookName?: string) {
     const error = result?.error;
     writeSpecTestLog(
       error
-        ? `FAIL HOOK ${getHookTitle(hook, hookName)} | ${cleanLogMessage(error?.message || error).slice(0, 1000)}`
+        ? `FAIL HOOK ${getHookTitle(hook, hookName)} | ${cleanLogMessage(errorMessage(error)).slice(0, 1000)}`
         : `PASS HOOK ${getHookTitle(hook, hookName)}`,
       { allure: true, status: error ? Status.FAILED : Status.PASSED },
     );
   },
 
-  afterTest: async function (test, context, { error }) {
+  afterTest: async function (test: any, _context: any, { error }: { error?: unknown }) {
     writeSpecTestLog(
       error
-        ? `FAIL TEST ${getTestTitle(test)} | ${cleanLogMessage(error?.message || error).slice(0, 1000)}`
+        ? `FAIL TEST ${getTestTitle(test)} | ${cleanLogMessage(errorMessage(error)).slice(0, 1000)}`
         : `PASS TEST ${getTestTitle(test)}`,
       { allure: true, status: error ? Status.FAILED : Status.PASSED },
     );
@@ -354,7 +383,7 @@ export const config = {
           'image/png',
         );
       } catch (screenshotError) {
-        console.log('Unable to capture failure screenshot:', screenshotError.message);
+        console.log('Unable to capture failure screenshot:', errorMessage(screenshotError));
       }
     }
   },

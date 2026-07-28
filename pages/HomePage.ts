@@ -2,7 +2,6 @@ import { Locator, Page, expect } from '@playwright/test';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { SearchablePage } from './SearchablePage';
 
-
 type HeroVideoState = {
   autoplayAttribute: boolean;
   autoplayProperty: boolean;
@@ -42,7 +41,7 @@ type UnmatchedMarketRow = {
 };
 
 export class HomePage extends SearchablePage {
-   readonly heroSection: Locator;
+  readonly heroSection: Locator;
   readonly heroVideo: Locator;
   readonly header: Locator;
   readonly marketCards: Locator;
@@ -97,10 +96,9 @@ export class HomePage extends SearchablePage {
       muted: video.muted,
       defaultMuted: video.defaultMuted,
       playsInlineAttribute:
-        video.hasAttribute('playsinline') ||
-        video.hasAttribute('webkit-playsinline'),
+        video.hasAttribute('playsinline') || video.hasAttribute('webkit-playsinline'),
       sourceCount: video.querySelectorAll('source').length,
-      src: video.currentSrc || video.src
+      src: video.currentSrc || video.src,
     }));
   }
 
@@ -108,22 +106,22 @@ export class HomePage extends SearchablePage {
   private expectHeroVideoAutoplayAttributes(videoState: HeroVideoState): void {
     expect(
       videoState.autoplayAttribute || videoState.autoplayProperty,
-      'Hero video should have autoplay enabled'
+      'Hero video should have autoplay enabled',
     ).toBeTruthy();
 
     expect(
       videoState.muted || videoState.defaultMuted,
-      'Hero autoplay video should be muted so browsers allow autoplay'
+      'Hero autoplay video should be muted so browsers allow autoplay',
     ).toBeTruthy();
 
     expect(
       videoState.playsInlineAttribute,
-      'Hero autoplay video should include playsinline for mobile playback'
+      'Hero autoplay video should include playsinline for mobile playback',
     ).toBeTruthy();
 
     expect(
       videoState.src || videoState.sourceCount > 0,
-      'Hero video should have a playable source'
+      'Hero video should have a playable source',
     ).toBeTruthy();
   }
 
@@ -131,14 +129,11 @@ export class HomePage extends SearchablePage {
   private async expectHeroVideoReadyForPlayback(): Promise<void> {
     await expect
       .poll(
-        async () =>
-          this.heroVideo.evaluate(
-            (video: HTMLVideoElement) => video.readyState >= 2
-          ),
+        async () => this.heroVideo.evaluate((video: HTMLVideoElement) => video.readyState >= 2),
         {
           message: 'Hero video should load enough data to start playback',
-          timeout: 15000
-        }
+          timeout: 15000,
+        },
       )
       .toBeTruthy();
   }
@@ -158,21 +153,18 @@ export class HomePage extends SearchablePage {
   }
 
   // Asserts the hero video keeps playing and advances past the captured start time.
-  private async expectHeroVideoPlaybackProgress(
-    playbackStartTime: number
-  ): Promise<void> {
+  private async expectHeroVideoPlaybackProgress(playbackStartTime: number): Promise<void> {
     await expect
       .poll(
         async () =>
           this.heroVideo.evaluate(
-            (video: HTMLVideoElement, startTime) =>
-              !video.paused && video.currentTime > startTime,
-            playbackStartTime
+            (video: HTMLVideoElement, startTime) => !video.paused && video.currentTime > startTime,
+            playbackStartTime,
           ),
         {
           message: 'Hero video should autoplay and advance playback time',
-          timeout: 10000
-        }
+          timeout: 10000,
+        },
       )
       .toBeTruthy();
   }
@@ -203,7 +195,7 @@ export class HomePage extends SearchablePage {
         return {
           isCloned,
           marketName,
-          href
+          href,
         };
       });
     });
@@ -217,7 +209,7 @@ export class HomePage extends SearchablePage {
       if (!uniqueMarkets.has(slide.href)) {
         uniqueMarkets.set(slide.href, {
           marketName: slide.marketName,
-          href: slide.href
+          href: slide.href,
         });
       }
     }
@@ -226,17 +218,13 @@ export class HomePage extends SearchablePage {
   }
 
   // Returns true when a slide's name and href match a configured market entry.
-  private doesSlideMatchMarket(
-    slide: MarketSlide,
-    market: { name: string; url: string }
-  ): boolean {
+  private doesSlideMatchMarket(slide: MarketSlide, market: { name: string; url: string }): boolean {
     const acceptedNames = this.getAcceptedNames(market.name);
     const normalizedName = this.normalizeText(slide.marketName);
     const normalizedHref = slide.href.toLowerCase().trim();
 
     return (
-      acceptedNames.includes(normalizedName) &&
-      normalizedHref === market.url.toLowerCase().trim()
+      acceptedNames.includes(normalizedName) && normalizedHref === market.url.toLowerCase().trim()
     );
   }
 
@@ -255,13 +243,13 @@ export class HomePage extends SearchablePage {
       const slides = await this.getMarketSlides();
 
       const validSlides = slides.filter(
-        (slide) => !slide.isCloned && slide.marketName && slide.href
+        (slide) => !slide.isCloned && slide.marketName && slide.href,
       );
 
       const uniqueSlides = this.getUniqueMarketSlides(validSlides);
 
       await this.reportValue(
-        `Market cards: ${slides.length} total, ${validSlides.length} valid, ${uniqueSlides.length} unique`
+        `Market cards: ${slides.length} total, ${validSlides.length} valid, ${uniqueSlides.length} unique`,
       );
 
       this.assertGreaterThan(uniqueSlides.length, 0, 'No unique market cards found');
@@ -272,14 +260,14 @@ export class HomePage extends SearchablePage {
 
       for (const expectedMarket of location.markets) {
         const matchedCard = uniqueSlides.find((slide) =>
-          this.doesSlideMatchMarket(slide, expectedMarket)
+          this.doesSlideMatchMarket(slide, expectedMarket),
         );
 
         if (!matchedCard) {
           missingMarkets.push({
             configName: expectedMarket.name,
             configUrl: expectedMarket.url,
-            status: 'Missing on UI'
+            status: 'Missing on UI',
           });
 
           continue;
@@ -289,22 +277,25 @@ export class HomePage extends SearchablePage {
           name: matchedCard.marketName,
           configUrl: expectedMarket.url,
           uiUrl: matchedCard.href,
-          status: 'Matched'
+          status: 'Matched',
         });
 
-        await this.reportValue(`Matched market: ${matchedCard.marketName}`, this.buildFullUrl(matchedCard.href));
+        await this.reportValue(
+          `Matched market: ${matchedCard.marketName}`,
+          this.buildFullUrl(matchedCard.href),
+        );
       }
 
       for (const slide of uniqueSlides) {
         const existsInConfig = location.markets.some((market) =>
-          this.doesSlideMatchMarket(slide, market)
+          this.doesSlideMatchMarket(slide, market),
         );
 
         if (!existsInConfig) {
           unmatchedUICards.push({
             uiName: slide.marketName,
             uiUrl: slide.href,
-            status: 'Not in Config'
+            status: 'Not in Config',
           });
         }
       }
@@ -317,10 +308,10 @@ export class HomePage extends SearchablePage {
   private async reportMarketValidationSummary(
     matchedMarkets: MarketValidationRow[],
     missingMarkets: MissingMarketRow[],
-    unmatchedUICards: UnmatchedMarketRow[]
+    unmatchedUICards: UnmatchedMarketRow[],
   ): Promise<void> {
     await this.reportValue(
-      `Market validation summary: ${matchedMarkets.length} matched, ${missingMarkets.length} missing on UI, ${unmatchedUICards.length} not in config`
+      `Market validation summary: ${matchedMarkets.length} matched, ${missingMarkets.length} missing on UI, ${unmatchedUICards.length} not in config`,
     );
   }
 
@@ -335,7 +326,7 @@ export class HomePage extends SearchablePage {
       // is visible at a time, so each card is scrolled into view individually in the loop below.
       await this.page.waitForSelector('#cards .slick-slide:not(.slick-cloned)', {
         state: 'attached',
-        timeout: 15000
+        timeout: 15000,
       });
 
       const cards = this.marketCards.filter({ has: this.page.locator('a[href]') });
@@ -353,13 +344,15 @@ export class HomePage extends SearchablePage {
         expect(href, `Market card ${index + 1} should have a valid href`).toBeTruthy();
         expect(
           href!,
-          `Market card ${index + 1} should link to a site path or absolute URL`
+          `Market card ${index + 1} should link to a site path or absolute URL`,
         ).toMatch(/^(\/|https?:\/\/)/i);
 
         await this.reportValue(`Market card ${index + 1}`, this.buildFullUrl(href));
 
         const image = card.locator('img').first();
-        await expect(image, `Market card ${index + 1} should include an image`).toBeAttached({ timeout: 10000 });
+        await expect(image, `Market card ${index + 1} should include an image`).toBeAttached({
+          timeout: 10000,
+        });
 
         // Bring the (often lazy-loaded) image into view, then poll until the browser has actually
         // decoded it - checking naturalWidth in the same tick as the scroll races the lazy load.
@@ -373,12 +366,12 @@ export class HomePage extends SearchablePage {
                   Boolean(img.currentSrc || img.src) &&
                   img.complete &&
                   img.naturalWidth > 0 &&
-                  img.naturalHeight > 0
+                  img.naturalHeight > 0,
               ),
             {
               message: `Market card ${index + 1} image should be loaded`,
-              timeout: 15000
-            }
+              timeout: 15000,
+            },
           )
           .toBeTruthy();
       }
@@ -393,7 +386,9 @@ export class HomePage extends SearchablePage {
       // Reveal the search input first - on the home page it can sit behind the header search toggle.
       const searchBox = await this.ensureSearchBoxVisible();
 
-      await expect(searchBox, 'Home search input should be visible').toBeVisible({ timeout: 15000 });
+      await expect(searchBox, 'Home search input should be visible').toBeVisible({
+        timeout: 15000,
+      });
       const noMatchQuery = 'zzzz automation no match';
       await searchBox.fill('');
       await searchBox.type(noMatchQuery, { delay: 75 });
@@ -405,16 +400,16 @@ export class HomePage extends SearchablePage {
           '[role="listbox"] a[href]:visible',
           '[role="option"]:visible',
           '[aria-live] a[href]:visible',
-          '[class*="search"] a[href]:visible'
-        ].join(', ')
+          '[class*="search"] a[href]:visible',
+        ].join(', '),
       );
       const matchingSuggestions = suggestions.filter({
-        hasText: new RegExp(noMatchQuery.replace(/\s+/g, '.*'), 'i')
+        hasText: new RegExp(noMatchQuery.replace(/\s+/g, '.*'), 'i'),
       });
 
       expect(
         await matchingSuggestions.count(),
-        'No-match search should not expose a selectable suggestion for the impossible query'
+        'No-match search should not expose a selectable suggestion for the impossible query',
       ).toBe(0);
     });
   }
@@ -427,23 +422,84 @@ export class HomePage extends SearchablePage {
 
       await this.acceptCookiesIfPresent();
 
-      await expect(banner, 'Cookie banner should be hidden after accepting or closing').toBeHidden({ timeout: 10000 });
+      await expect(banner, 'Cookie banner should be hidden after accepting or closing').toBeHidden({
+        timeout: 10000,
+      });
 
       const consentCookies = await this.page.context().cookies();
       if (bannerWasVisible) {
         expect(
-          consentCookies.some(cookie => /OptanonConsent|OptanonAlertBoxClosed/i.test(cookie.name)),
-          'Accepting/closing cookie banner should store a OneTrust consent cookie'
+          consentCookies.some((cookie) =>
+            /OptanonConsent|OptanonAlertBoxClosed/i.test(cookie.name),
+          ),
+          'Accepting/closing cookie banner should store a OneTrust consent cookie',
         ).toBeTruthy();
       }
 
       await this.page.reload({ waitUntil: 'domcontentloaded', timeout: 90_000 });
       await this.waitForPageReady();
 
-      await expect(
-        banner,
-        'Cookie banner should remain hidden after page reload'
-      ).toBeHidden({ timeout: 10000 });
+      await expect(banner, 'Cookie banner should remain hidden after page reload').toBeHidden({
+        timeout: 10000,
+      });
+    });
+  }
+
+  /* ==========================================================
+     PROMOTION / NOTIFICATION BANNER VALIDATION
+  ========================================================== */
+
+  // Validates the promotion / notification banner renders content and is dismissible when shown.
+  async validatePromotionOrNotificationBanner(): Promise<void> {
+    await this.step('Validate promotion / notification banner', async () => {
+      await this.waitForPageReady();
+
+      const banner = this.page
+        .locator(
+          [
+            '#national-notification-banner',
+            '#market-notification-banner',
+            '#notification-banner',
+            '[class*="promotion" i][class*="banner" i]',
+            '[class*="notification" i][class*="banner" i]',
+          ].join(', '),
+        )
+        .filter({ hasText: /\S/ })
+        .first();
+
+      if (!(await banner.isVisible({ timeout: 8000 }).catch(() => false))) {
+        await this.reportValue(
+          'No promotion / notification banner shown on the home page (skipping)',
+        );
+        return;
+      }
+
+      const text = (await banner.innerText().catch(() => ''))?.replace(/\s+/g, ' ').trim() ?? '';
+      expect(text.length, 'A shown banner should render meaningful text').toBeGreaterThan(0);
+      await this.reportValue('Promotion / notification banner text', text.slice(0, 120));
+
+      // Any link in the banner should carry a destination.
+      const bannerLink = banner.locator('a[href]').first();
+      if (await bannerLink.isVisible({ timeout: 2000 }).catch(() => false)) {
+        const href = await bannerLink.getAttribute('href');
+        expect(href, 'Banner CTA should link to a destination').toBeTruthy();
+        await this.reportValue('Banner CTA', this.buildFullUrl(href));
+      }
+
+      // When dismissible, closing it should hide the banner.
+      const closeButton = banner
+        .getByRole('button', { name: /close|dismiss|got it|ok|x/i })
+        .or(
+          banner.locator(
+            'button[aria-label*="close" i], button[title*="close" i], button:has(svg)',
+          ),
+        )
+        .first();
+
+      if (await closeButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await closeButton.click({ force: true }).catch(() => undefined);
+        await expect(banner, 'Dismissing the banner should hide it').toBeHidden({ timeout: 10000 });
+      }
     });
   }
 }

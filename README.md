@@ -87,9 +87,11 @@ Requires a running Appium server + emulator/device. See the mobile doc above.
 
 ```bash
 npm run test:mobile:android            # full Android suite
-npm run test:mobile:android:home       # single spec
 npm run test:mobile:ios                # iOS (uses cross-env, works on Windows)
-npm run test:mobile:ios:search         # single iOS spec
+
+# single spec — pass --spec (works for both platforms):
+npm run test:mobile:android -- --spec ./tests/mobile/mobileWeb.home.spec.ts
+npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.searchPage.spec.ts
 ```
 
 All mobile scripts are cross-shell safe (inline env vars go through `cross-env`).
