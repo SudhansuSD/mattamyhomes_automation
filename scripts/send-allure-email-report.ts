@@ -65,6 +65,28 @@ function maskEmailList(value: string): string {
   return `${emails.length} recipient(s) configured`;
 }
 
+function isGmailHost(host: string): boolean {
+  return /gmail\.com$/i.test(host) || /smtp\.googlemail\.com$/i.test(host);
+}
+
+function buildSmtpHelpMessage(host: string, error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (
+    isGmailHost(host) &&
+    /535|BadCredentials|Username and Password not accepted|EAUTH/i.test(message)
+  ) {
+    return [
+      'Gmail SMTP authentication failed.',
+      'Verify that EMAIL_USER is the full Gmail address and EMAIL_PASSWORD is a current Google App Password for that account.',
+      'Regular Gmail account passwords usually fail here, especially when 2-Step Verification is enabled.',
+      'After rotating the App Password in Google Account settings, update the GitHub Actions secret EMAIL_PASSWORD and rerun the workflow.',
+    ].join(' ');
+  }
+
+  return `SMTP authentication failed for host "${host}". Verify EMAIL_HOST, EMAIL_PORT, EMAIL_SECURE, EMAIL_USER, and EMAIL_PASSWORD.`;
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -397,7 +419,7 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
   const port = Number(getEnv('EMAIL_PORT', '587'));
   const user = getEnv('EMAIL_USER');
   const rawPassword = getEnv('EMAIL_PASSWORD');
-  const password = host.includes('gmail.com') ? rawPassword.replace(/\s+/g, '') : rawPassword;
+  const password = isGmailHost(host) ? rawPassword.replace(/\s+/g, '') : rawPassword;
   const from = getEnv('EMAIL_FROM', user);
   const to = parseList(getEnv('EMAIL_TO'));
   const cc = parseList(getEnv('EMAIL_CC'));
@@ -443,7 +465,9 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
     console.log('SMTP connection verified successfully.');
   } catch (error) {
     console.error('SMTP connection verification failed:', error);
-    throw error;
+    const wrappedError = new Error(buildSmtpHelpMessage(host, error));
+    (wrappedError as Error & { cause?: unknown }).cause = error;
+    throw wrappedError;
   }
 
   await transporter.sendMail({

@@ -192,6 +192,11 @@ come from GitHub **secrets**, not a file.
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_SECURE` | email report | sending email | `587` / `false` |
 | `EMAIL_USER` / `EMAIL_PASSWORD` | email report | SMTP auth | — |
 | `EMAIL_FROM` / `EMAIL_TO` / `EMAIL_CC` | email report | recipients | — |
+
+If you use Gmail SMTP, set `EMAIL_USER` to the full Gmail address and set
+`EMAIL_PASSWORD` to a Google App Password. A normal Gmail account password is
+commonly rejected with `535 5.7.8 Username and Password not accepted`.
+
 | `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` | `jiraClient.ts` | Jira scripts | — |
 | `REQUIRE_LEAD_API_CAPTURE` | `BasePage.ts` | asserting lead API capture | `false` |
 | `LEAD_API_URL_PATTERN` | `BasePage.ts` | identifying lead API call | — |
