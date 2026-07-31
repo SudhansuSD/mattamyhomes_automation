@@ -28,7 +28,7 @@ on:
       location:
         description: Test location
         required: true
-        default: CAN
+        default: USA
         type: choice
         options:
           - CAN
@@ -47,11 +47,14 @@ jobs:
   playwright:
     timeout-minutes: 90
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy-pages.outputs.page_url }}
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     env:
       TEST_ENV: ${{ github.event.inputs.env || 'STAGE' }}
-      TEST_LOCATION: ${{ github.event.inputs.location || 'CAN' }}
+      TEST_LOCATION: ${{ github.event.inputs.location || 'USA' }}
       TEST_SUITE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[single-test]') && 'ci' || github.event.inputs.suite || 'smoke' }}
       BROWSER: Chrome
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
@@ -123,6 +126,11 @@ jobs:
             echo "has_report=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Configure GitHub Pages
+        if: always() && steps.allure-site.outputs.has_report == 'true'
+        id: pages
+        uses: actions/configure-pages@v5
+
       - name: Upload Allure report for GitHub Pages
         if: always() && steps.allure-site.outputs.has_report == 'true'
         uses: actions/upload-pages-artifact@v3
@@ -173,7 +181,7 @@ jobs:
           echo "EMAIL_TO configured: ${{ secrets.EMAIL_TO != '' }}"
           echo "EMAIL_CC configured: ${{ secrets.EMAIL_CC != '' }}"
           echo "Allure site generated: ${{ steps.allure-site.outputs.has_report == 'true' }}"
-          echo "GitHub Pages URL: ${{ steps.deploy-pages.outputs.page_url || 'not deployed' }}"
+          echo "GitHub Pages URL: ${{ steps.deploy-pages.outputs.page_url || steps.pages.outputs.base_url || 'not deployed' }}"
 
       - name: Send email report
         if: always()
@@ -189,4 +197,4 @@ jobs:
           EMAIL_CC: ${{ secrets.EMAIL_CC }}
           TEST_ENV: ${{ env.TEST_ENV }}
           BROWSER: ${{ env.BROWSER }}
-          ALLURE_REPORT_URL: ${{ steps.deploy-pages.outputs.page_url }}
+          ALLURE_REPORT_URL: ${{ steps.deploy-pages.outputs.page_url || steps.pages.outputs.base_url }}
