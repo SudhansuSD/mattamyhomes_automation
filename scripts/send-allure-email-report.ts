@@ -4,25 +4,46 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import nodemailer from 'nodemailer';
-import { ALLURE_RESULTS_ROOT } from './allurePaths';
+import { DESKTOP_ALLURE_REPORT_DIR, DESKTOP_ALLURE_RESULTS_DIR } from './allurePaths';
 import { loadEnv } from '../config/env';
 
 loadEnv();
 
-type TestStatus = 'passed' | 'failed' | 'skipped' | 'unknown';
+type TestStatus = 'passed' | 'failed' | 'broken' | 'skipped' | 'unknown';
 
 type AllureResult = {
+  uuid?: string;
   name?: string;
   fullName?: string;
-  status?: TestStatus | 'broken';
+  historyId?: string;
+  testCaseId?: string;
+  status?: TestStatus;
   statusDetails?: {
     message?: string;
     trace?: string;
   };
+  start?: number;
+  stop?: number;
   labels?: Array<{
     name?: string;
     value?: string;
   }>;
+};
+
+type AllureReportSummary = {
+  statistic?: Partial<Record<TestStatus | 'total', number>>;
+};
+
+type AllureReportTestCase = {
+  name?: string;
+  fullName?: string;
+  status?: TestStatus;
+  statusMessage?: string;
+  statusTrace?: string;
+  testStage?: {
+    statusMessage?: string;
+    statusTrace?: string;
+  };
 };
 
 type ExecutionSummary = {
@@ -41,7 +62,6 @@ type ExecutionSummary = {
   }>;
 };
 
-const repoRoot = path.resolve(__dirname, '..');
 const chartPath = path.resolve(os.tmpdir(), 'test-summary-chart.png');
 const chartCid = 'test-summary-chart';
 
@@ -119,13 +139,36 @@ function collectResultFiles(dir: string): string[] {
   return collected;
 }
 
+function collectJsonFiles(dir: string): string[] {
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+
+  const collected: string[] = [];
+
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      collected.push(...collectJsonFiles(fullPath));
+      continue;
+    }
+
+    if (entry.isFile() && entry.name.endsWith('.json')) {
+      collected.push(fullPath);
+    }
+  }
+
+  return collected;
+}
+
 function readAllureResults(): AllureResult[] {
   const results: AllureResult[] = [];
 
-  const resultFiles = collectResultFiles(ALLURE_RESULTS_ROOT);
+  const resultFiles = collectResultFiles(DESKTOP_ALLURE_RESULTS_DIR);
 
   if (resultFiles.length === 0) {
-    console.warn(`Allure results folder not found or empty: ${ALLURE_RESULTS_ROOT}`);
+    console.warn(`Allure results folder not found or empty: ${DESKTOP_ALLURE_RESULTS_DIR}`);
     return results;
   }
 
@@ -140,26 +183,97 @@ function readAllureResults(): AllureResult[] {
   return results;
 }
 
-function buildSummary(results: AllureResult[]): ExecutionSummary {
-  const passed = results.filter((result) => result.status === 'passed').length;
-  const failed = results.filter(
-    (result) => result.status === 'failed' || result.status === 'broken',
-  ).length;
-  const skipped = results.filter((result) => result.status === 'skipped').length;
-  const total = results.length;
-  const passPercentage = total > 0 ? Math.round((passed / total) * 100) : 0;
-  const failedTests = results
-    .filter((result) => result.status === 'failed' || result.status === 'broken')
-    .map((result) => ({
-      name: result.fullName || result.name || 'Unnamed test',
-      message: result.statusDetails?.message || 'No failure message available',
-    }));
+function readAllureReportSummary(): AllureReportSummary | null {
+  const summaryPath = path.join(DESKTOP_ALLURE_REPORT_DIR, 'widgets', 'summary.json');
+
+  if (!fs.existsSync(summaryPath)) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(summaryPath, 'utf8')) as AllureReportSummary;
+  } catch (error) {
+    console.warn(`Unable to read Allure report summary ${summaryPath}:`, error);
+    return null;
+  }
+}
+
+function readAllureReportFailedTests(): ExecutionSummary['failedTests'] {
+  const testCaseDir = path.join(DESKTOP_ALLURE_REPORT_DIR, 'data', 'test-cases');
+  const failedTests: ExecutionSummary['failedTests'] = [];
+
+  for (const testCasePath of collectJsonFiles(testCaseDir)) {
+    try {
+      const testCase = JSON.parse(fs.readFileSync(testCasePath, 'utf8')) as AllureReportTestCase;
+
+      if (testCase.status !== 'failed' && testCase.status !== 'broken') {
+        continue;
+      }
+
+      failedTests.push({
+        name: testCase.fullName || testCase.name || 'Unnamed test',
+        message:
+          testCase.statusMessage ||
+          testCase.testStage?.statusMessage ||
+          testCase.statusTrace ||
+          testCase.testStage?.statusTrace ||
+          'No failure message available',
+      });
+    } catch (error) {
+      console.warn(`Unable to read Allure report test case ${testCasePath}:`, error);
+    }
+  }
+
+  return failedTests;
+}
+
+function getPassPercentage(passed: number, failed: number, broken: number): number {
+  const executed = passed + failed + broken;
+  return executed > 0 ? Math.round((passed / executed) * 100) : 0;
+}
+
+function getResultKey(result: AllureResult): string {
+  return (
+    result.historyId ||
+    result.testCaseId ||
+    result.fullName ||
+    result.name ||
+    result.uuid ||
+    'unknown'
+  );
+}
+
+function getResultTimestamp(result: AllureResult): number {
+  return result.stop ?? result.start ?? 0;
+}
+
+function dedupeRetries(results: AllureResult[]): AllureResult[] {
+  const latestByTest = new Map<string, AllureResult>();
+
+  for (const result of results) {
+    const key = getResultKey(result);
+    const current = latestByTest.get(key);
+
+    if (!current || getResultTimestamp(result) >= getResultTimestamp(current)) {
+      latestByTest.set(key, result);
+    }
+  }
+
+  return Array.from(latestByTest.values());
+}
+
+function buildSummaryFromCounts(
+  counts: { passed: number; failed: number; broken: number; skipped: number; total: number },
+  failedTests: ExecutionSummary['failedTests'],
+): ExecutionSummary {
+  const failed = counts.failed + counts.broken;
+  const passPercentage = getPassPercentage(counts.passed, counts.failed, counts.broken);
 
   return {
-    total,
-    passed,
+    total: counts.total,
+    passed: counts.passed,
     failed,
-    skipped,
+    skipped: counts.skipped,
     passPercentage,
     environment: getEnv('TEST_ENV', getEnv('ENV', 'Not configured')),
     browser: getEnv('BROWSER', 'Chrome'),
@@ -167,6 +281,62 @@ function buildSummary(results: AllureResult[]): ExecutionSummary {
     reportUrl: getEnv('ALLURE_REPORT_URL', ''),
     failedTests,
   };
+}
+
+function buildSummaryFromReport(): ExecutionSummary | null {
+  const reportSummary = readAllureReportSummary();
+  const statistic = reportSummary?.statistic;
+
+  if (!statistic || typeof statistic.total !== 'number') {
+    return null;
+  }
+
+  return buildSummaryFromCounts(
+    {
+      passed: statistic.passed ?? 0,
+      failed: statistic.failed ?? 0,
+      broken: statistic.broken ?? 0,
+      skipped: statistic.skipped ?? 0,
+      total: statistic.total,
+    },
+    readAllureReportFailedTests(),
+  );
+}
+
+function buildSummaryFromResults(results: AllureResult[]): ExecutionSummary {
+  const finalResults = dedupeRetries(results);
+  const passed = finalResults.filter((result) => result.status === 'passed').length;
+  const failedCount = finalResults.filter((result) => result.status === 'failed').length;
+  const broken = finalResults.filter((result) => result.status === 'broken').length;
+  const skipped = finalResults.filter((result) => result.status === 'skipped').length;
+  const total = finalResults.length;
+  const failedTests = finalResults
+    .filter((result) => result.status === 'failed' || result.status === 'broken')
+    .map((result) => ({
+      name: result.fullName || result.name || 'Unnamed test',
+      message: result.statusDetails?.message || 'No failure message available',
+    }));
+
+  return buildSummaryFromCounts(
+    {
+      passed,
+      failed: failedCount,
+      broken,
+      skipped,
+      total,
+    },
+    failedTests,
+  );
+}
+
+function buildSummary(results: AllureResult[]): ExecutionSummary {
+  const reportSummary = buildSummaryFromReport();
+
+  if (reportSummary) {
+    return reportSummary;
+  }
+
+  return buildSummaryFromResults(results);
 }
 
 async function generateChart(summary: ExecutionSummary): Promise<string> {

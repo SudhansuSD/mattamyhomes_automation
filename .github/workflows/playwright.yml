@@ -103,6 +103,15 @@ jobs:
           ENV: ${{ env.TEST_ENV }}
           LOCATION: ${{ env.TEST_LOCATION }}
 
+      - name: Restore Allure history
+        if: always()
+        uses: actions/cache/restore@v4
+        with:
+          path: allure-report/desktop/history
+          key: allure-history-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            allure-history-${{ github.ref_name }}-
+
       - name: Generate Allure HTML report
         if: always()
         run: npm run allure:generate
@@ -125,6 +134,13 @@ jobs:
           else
             echo "has_report=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Save Allure history
+        if: always() && steps.allure-site.outputs.has_report == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: allure-report/desktop/history
+          key: allure-history-${{ github.ref_name }}-${{ github.run_id }}
 
       - name: Configure GitHub Pages
         if: always() && steps.allure-site.outputs.has_report == 'true'
