@@ -61,11 +61,13 @@ export default defineConfig({
   use: {
     // baseURL: 'https://mattamyhomes.com/',
     headless: process.env.CI ? true : false,
-    viewport: null,
+    // Headless Linux does not reliably honor --start-maximized. Keep CI at a
+    // deterministic desktop size so responsive navigation stays in desktop mode.
+    viewport: isCI ? { width: 1920, height: 1080 } : null,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     launchOptions: {
-      args: ['--start-maximized'],
+      args: isCI ? [] : ['--start-maximized'],
     },
     video: 'off',
   },
