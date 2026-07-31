@@ -12,7 +12,7 @@ const condoCommunity =
 test.describe(`Condo Community Detail - ${location.country}`, () => {
   let condoCommunityPage: CondoCommunityPage;
 
-  test.skip(location.country !== 'CAN', 'Condo communities are available only for Canada location');
+  test.skip(location.country === 'USA', 'Skipping condo community tests for USA location');
   test.skip(!condoCommunity, 'Condo community is not configured for this location');
 
   test.beforeEach(async ({ page }) => {

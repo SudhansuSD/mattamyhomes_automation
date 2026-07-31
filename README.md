@@ -197,6 +197,10 @@ If you use Gmail SMTP, set `EMAIL_USER` to the full Gmail address and set
 `EMAIL_PASSWORD` to a Google App Password. A normal Gmail account password is
 commonly rejected with `535 5.7.8 Username and Password not accepted`.
 
+In CI, `playwright.yml` now publishes `allure-report/desktop` to GitHub Pages
+and injects the deployed Pages URL into the email automatically. `ALLURE_REPORT_URL`
+is still useful for local or manual runs when you want to override the link.
+
 | `JIRA_BASE_URL` / `JIRA_EMAIL` / `JIRA_API_TOKEN` | `jiraClient.ts` | Jira scripts | — |
 | `REQUIRE_LEAD_API_CAPTURE` | `BasePage.ts` | asserting lead API capture | `false` |
 | `LEAD_API_URL_PATTERN` | `BasePage.ts` | identifying lead API call | — |
