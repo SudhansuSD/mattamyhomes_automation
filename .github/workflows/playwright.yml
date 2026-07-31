@@ -181,7 +181,7 @@ jobs:
           echo "EMAIL_TO configured: ${{ secrets.EMAIL_TO != '' }}"
           echo "EMAIL_CC configured: ${{ secrets.EMAIL_CC != '' }}"
           echo "Allure site generated: ${{ steps.allure-site.outputs.has_report == 'true' }}"
-          echo "GitHub Pages URL: ${{ steps.deploy-pages.outputs.page_url || steps.pages.outputs.base_url || 'not deployed' }}"
+          echo "GitHub Pages URL: ${{ steps.deploy-pages.outputs.page_url || 'not deployed' }}"
 
       - name: Send email report
         if: always()
@@ -197,4 +197,4 @@ jobs:
           EMAIL_CC: ${{ secrets.EMAIL_CC }}
           TEST_ENV: ${{ env.TEST_ENV }}
           BROWSER: ${{ env.BROWSER }}
-          ALLURE_REPORT_URL: ${{ steps.deploy-pages.outputs.page_url || steps.pages.outputs.base_url }}
+          ALLURE_REPORT_URL: ${{ steps.deploy-pages.outputs.page_url }}

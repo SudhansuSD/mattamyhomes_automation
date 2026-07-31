@@ -275,7 +275,7 @@ function renderFailedTests(summary: ExecutionSummary): string {
 
 function buildEmailHtml(summary: ExecutionSummary): string {
   const reportLink = summary.reportUrl
-    ? `<a class="button" href="${escapeHtml(summary.reportUrl)}">View Allure HTML Report</a>`
+    ? `<a class="button" href="${escapeHtml(summary.reportUrl)}" target="_blank" rel="noopener noreferrer">View Allure HTML Report</a>`
     : '<span class="missing-link">Report link not configured</span>';
 
   return `
