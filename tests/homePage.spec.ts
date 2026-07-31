@@ -6,6 +6,7 @@
 import { test } from '@playwright/test';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { HomePage } from '../pages/HomePage';
+import { annotate, Severity } from '../utils/allureMeta';
 
 const location = getLocationConfig();
 const condoCommunity = 'condoCommunity' in location ? location.condoCommunity : undefined;
@@ -20,6 +21,14 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     ========================================================== */
   test.beforeEach(async ({ page }) => {
     homePage = new HomePage(page);
+
+    await annotate({
+      epic: 'Mattamy Homes Website',
+      feature: 'Home Page',
+      owner: 'QA Automation',
+      severity: Severity.CRITICAL,
+      tags: ['smoke', 'regression'],
+    });
 
     await test.step('Navigate to Home Page', async () => {
       await homePage.navigate();

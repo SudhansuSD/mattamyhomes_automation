@@ -8,6 +8,7 @@ import { test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { QMIPage } from '../pages/QMIPage';
+import { annotate, Severity } from '../utils/allureMeta';
 
 const location = getLocationConfig();
 const { envName } = getEnvConfig();
@@ -17,6 +18,14 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
 
   test.beforeEach(async ({ page }) => {
     qmiPage = new QMIPage(page);
+
+    await annotate({
+      epic: 'Mattamy Homes Website',
+      feature: 'QMI Detail Page',
+      owner: 'QA Automation',
+      severity: Severity.CRITICAL,
+      tags: ['smoke', 'regression'],
+    });
 
     await test.step('Search and validate QMI', async () => {
       await qmiPage.searchAndValidateByValue('qmi', location.qmiAddress);
@@ -44,7 +53,6 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
       await test.step('Verify Get Information CTA scrolls to the footer form section', async () => {
         await qmiPage.verifyGetInformationScrollsToForm();
       });
-
     });
   });
 
@@ -118,10 +126,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
     });
 
     test.describe('QMI form submission', () => {
-      test.skip(
-        envName === 'PROD',
-        'Skipping QMI form lead submission on PROD environment.'
-      );
+      test.skip(envName === 'PROD', 'Skipping QMI form lead submission on PROD environment.');
 
       test('TC-01 | @regression @STAGE @qmi-form-submit | Validate QMI side modal form successful submission', async () => {
         await test.step('Submit QMI form with valid data and verify success message', async () => {

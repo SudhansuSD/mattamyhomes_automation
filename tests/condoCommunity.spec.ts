@@ -22,7 +22,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       epic: 'Mattamy Homes Website',
       feature: 'Condo Community Page',
       owner: 'QA Automation',
-      severity: Severity.NORMAL,
+      severity: Severity.CRITICAL,
       tags: ['smoke', 'regression'],
     });
 

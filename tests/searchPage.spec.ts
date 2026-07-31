@@ -25,7 +25,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
       epic: 'Mattamy Homes Website',
       feature: 'Search Page',
       owner: 'QA Automation',
-      severity: Severity.NORMAL,
+      severity: Severity.CRITICAL,
       tags: ['smoke', 'regression'],
     });
     await test.step('Search and validate market', async () => {

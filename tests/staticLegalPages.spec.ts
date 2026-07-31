@@ -5,8 +5,19 @@
 
 import { test } from '@playwright/test';
 import { STATIC_LEGAL_PAGES, StaticLegalPage } from '../pages/StaticLegalPage';
+import { annotate, Severity } from '../utils/allureMeta';
 
 test.describe('Mattamy Homes - Static Legal and Policy Pages', () => {
+  test.beforeEach(async () => {
+    await annotate({
+      epic: 'Mattamy Homes Website',
+      feature: 'Static Legal Pages',
+      owner: 'QA Automation',
+      severity: Severity.NORMAL,
+      tags: ['smoke', 'regression'],
+    });
+  });
+
   for (const staticPageConfig of STATIC_LEGAL_PAGES) {
     test(`TC-01 | @smoke @regression | ${staticPageConfig.name} page should load with valid static content`, async ({
       page,

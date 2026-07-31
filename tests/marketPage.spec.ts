@@ -2,21 +2,30 @@ import { test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { MarketPage } from '../pages/MarketPage';
+import { annotate, Severity } from '../utils/allureMeta';
 
 const { envName } = getEnvConfig();
 const location = getLocationConfig();
-const configuredMarket = location.markets.find((market) =>
-  market.name
-    .split('||')
-    .map((name) => name.trim())
-    .includes(location.market)
-) ?? location.markets[0];
+const configuredMarket =
+  location.markets.find((market) =>
+    market.name
+      .split('||')
+      .map((name) => name.trim())
+      .includes(location.market),
+  ) ?? location.markets[0];
 
 test.describe(`@regression Market page tests - ${location.country}`, () => {
   let marketPage: MarketPage;
 
   test.beforeEach(async ({ page }) => {
     marketPage = new MarketPage(page);
+    await annotate({
+      epic: 'Mattamy Homes Website',
+      feature: 'Market Page',
+      owner: 'QA Automation',
+      severity: Severity.CRITICAL,
+      tags: ['smoke', 'regression'],
+    });
   });
 
   /* ==========================================================
@@ -40,7 +49,6 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
 
   for (const market of location.markets) {
     test.describe(`Market: ${market.name}`, () => {
-
       test.beforeEach(async () => {
         await marketPage.navigateToMarket(market.url);
       });
@@ -55,7 +63,6 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
           await marketPage.validateDiscoverOurHomesSection();
         });
       });
-
     });
   }
   /* ==========================================================
@@ -83,8 +90,6 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
         await marketPage.validateCommunityCardDetails();
       });
 
-
-
       await test.step('Validate first community card navigation', async () => {
         await marketPage.validateFirstCommunityCardNavigation();
       });
@@ -93,7 +98,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
     test.describe('Lead Form Validation', () => {
       test.skip(
         location.country === 'CAN',
-        'Skipping market lead form validation for Canada because no market form is currently available.'
+        'Skipping market lead form validation for Canada because no market form is currently available.',
       );
 
       test(`TC-01 | @regression | Validate lead form required errors on empty submit`, async () => {
@@ -109,10 +114,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
       });
 
       test.describe('Lead form submission', () => {
-        test.skip(
-          envName === 'PROD',
-          'Skipping lead form submission on PROD environment.'
-        );
+        test.skip(envName === 'PROD', 'Skipping lead form submission on PROD environment.');
 
         test(`TC-01 | @regression @STAGE | Validate lead form successful submission and API response`, async () => {
           await test.step(`Submit lead form with valid data and validate API for ${configuredMarket.name}`, async () => {
@@ -127,6 +129,5 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
         await marketPage.validateImageAndVideoUrlsReturn200('Market page');
       });
     });
-
   });
 });

@@ -20,7 +20,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
       epic: 'Mattamy Homes Website',
       feature: 'Community Detail Page',
       owner: 'QA Automation',
-      severity: Severity.NORMAL,
+      severity: Severity.CRITICAL,
       tags: ['smoke', 'regression'],
     });
 

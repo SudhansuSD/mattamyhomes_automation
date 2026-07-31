@@ -9,12 +9,23 @@ import { TOP_LEVEL_STATIC_LINKS_BY_COUNTRY } from '../config/navigation/countryN
 import { AboutUsPage } from '../pages/AboutUsPage';
 import { Header } from '../pages/Header';
 import { HomePage } from '../pages/HomePage';
+import { annotate, Severity } from '../utils/allureMeta';
 
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);
 const topLevelStaticLinks = TOP_LEVEL_STATIC_LINKS_BY_COUNTRY[locationKey];
 
 test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () => {
+  test.beforeEach(async () => {
+    await annotate({
+      epic: 'Mattamy Homes Website',
+      feature: 'About Us',
+      owner: 'QA Automation',
+      severity: Severity.NORMAL,
+      tags: ['smoke', 'regression'],
+    });
+  });
+
   test.describe('Header Menu Validation', () => {
     test(`TC-01 | @smoke @regression | ${location.country} About Us header menu links should be visible`, async ({
       page,

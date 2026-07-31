@@ -7,8 +7,19 @@ import { test } from '@playwright/test';
 import { CONTACT_COUNTRIES, ContactPage } from '../pages/ContactPage';
 import { Header } from '../pages/Header';
 import { HomePage } from '../pages/HomePage';
+import { annotate, Severity } from '../utils/allureMeta';
 
 test.describe('Mattamy Homes - Contact Page', () => {
+  test.beforeEach(async () => {
+    await annotate({
+      epic: 'Mattamy Homes Website',
+      feature: 'Contact Page',
+      owner: 'QA Automation',
+      severity: Severity.NORMAL,
+      tags: ['smoke', 'regression'],
+    });
+  });
+
   for (const countryConfig of CONTACT_COUNTRIES) {
     test.describe(`${countryConfig.locationKey} contact experience`, () => {
       let contactPage: ContactPage;

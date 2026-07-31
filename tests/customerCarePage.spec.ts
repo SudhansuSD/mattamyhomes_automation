@@ -5,8 +5,19 @@
 
 import { test } from '@playwright/test';
 import { CUSTOMER_CARE_COUNTRIES, CustomerCarePage } from '../pages/CustomerCarePage';
+import { annotate, Severity } from '../utils/allureMeta';
 
 test.describe('Mattamy Homes - Customer Care Page', () => {
+  test.beforeEach(async () => {
+    await annotate({
+      epic: 'Mattamy Homes Website',
+      feature: 'Customer Care',
+      owner: 'QA Automation',
+      severity: Severity.NORMAL,
+      tags: ['smoke', 'regression'],
+    });
+  });
+
   for (const countryConfig of CUSTOMER_CARE_COUNTRIES) {
     test.describe(`${countryConfig.locationKey} customer care experience`, () => {
       let customerCarePage: CustomerCarePage;

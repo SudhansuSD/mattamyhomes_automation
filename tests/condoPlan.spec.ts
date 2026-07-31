@@ -31,7 +31,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
       epic: 'Mattamy Homes Website',
       feature: 'Condo Plan Page',
       owner: 'QA Automation',
-      severity: Severity.NORMAL,
+      severity: Severity.CRITICAL,
       tags: ['smoke', 'regression'],
     });
 

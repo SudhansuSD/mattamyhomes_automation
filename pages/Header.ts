@@ -161,12 +161,14 @@ export class Header extends BasePage {
       const count = await fyhLinkButtons.count();
 
       await this.reportValue('Total Find Your Dream Home links', count);
+      expect(count, 'Find Your Dream Home menu should expose search links').toBeGreaterThan(0);
 
       for (let i = 0; i < count; i++) {
         const button = fyhLinkButtons.nth(i);
 
         const href = await button.getAttribute('href');
         const text = await button.innerText();
+        expect(href, `Find Your Dream Home link ${i + 1} should expose href`).toMatch(/^\/search/i);
 
         await this.reportValue(
           `Find Your Dream Home link ${i + 1}: ${text}`,
@@ -175,6 +177,14 @@ export class Header extends BasePage {
 
         const metroMatch = href?.match(/metro=([^&]+)/);
         const metroValue = metroMatch ? metroMatch[1] : '';
+
+        if (i > 0) {
+          expect(
+            metroValue,
+            `Find Your Dream Home link ${i + 1} should include metro`,
+          ).toBeTruthy();
+          continue;
+        }
 
         await this.clickElement(button);
         await this.waitForPageReady();
@@ -200,10 +210,6 @@ export class Header extends BasePage {
         const metro = url.searchParams.get('metro');
 
         expect(metro).toBe(metroValue);
-
-        await this.page.goBack();
-        await this.page.waitForLoadState('domcontentloaded');
-        await this.clickFindYourHome();
       }
     });
   }

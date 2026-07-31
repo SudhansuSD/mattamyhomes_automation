@@ -8,6 +8,7 @@ import { test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { PlanDetailPage } from '../pages/PlanDetailPage';
+import { annotate, Severity } from '../utils/allureMeta';
 
 const location = getLocationConfig();
 const { envName } = getEnvConfig();
@@ -20,6 +21,14 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
   -------------------------------------------------------- */
   test.beforeEach(async ({ page }) => {
     planPage = new PlanDetailPage(page);
+
+    await annotate({
+      epic: 'Mattamy Homes Website',
+      feature: 'Plan Detail Page',
+      owner: 'QA Automation',
+      severity: Severity.CRITICAL,
+      tags: ['smoke', 'regression'],
+    });
 
     await test.step('Search and validate Plan', async () => {
       await planPage.searchAndValidateByValue('plan', location.planName);
@@ -104,7 +113,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
     test.describe('Plan detail form submission', () => {
       test.skip(
         envName === 'PROD',
-        'Skipping plan detail form lead submission on PROD environment.'
+        'Skipping plan detail form lead submission on PROD environment.',
       );
 
       test('TC-01 | @regression @STAGE | Validate plan detail side modal form successful submission', async () => {
