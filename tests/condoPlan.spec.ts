@@ -21,7 +21,7 @@ const condoPlan =
 test.describe(`Condo Plan Page - ${location.country}`, () => {
   let condoPlanPage: CondoPlanPage;
 
-  test.skip(location.country !== 'CAN', 'Condo plans are available only for Canada location');
+  test.skip(location.country === 'USA', 'Skipping condo plan tests for USA location');
   test.skip(!condoPlan, 'Condo plan is not configured for this location');
 
   test.beforeEach(async ({ page }) => {

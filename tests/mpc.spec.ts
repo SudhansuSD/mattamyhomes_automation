@@ -14,7 +14,7 @@ const mpc =
 test.describe(`MPC page tests - ${location.country}`, () => {
   let mpcPage: MPCPage;
 
-  test.skip(location.country !== 'USA', 'MPC pages are available only for USA location');
+  test.skip(location.country === 'CAN', 'Skipping MPC tests for Canada location');
   test.skip(!mpc, 'MPC configuration is not available for this location');
 
   test.beforeEach(async ({ page }) => {
