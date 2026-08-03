@@ -1,7 +1,7 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { SearchablePage } from './SearchablePage';
 import { getLocationConfig } from '../config/locations/locationConfig';
-import { escapeRegex, isFloatingCta, isIgnorableHref } from '../utils/pageObjectUtils';
+import { escapeRegex, isIgnorableHref } from '../utils/pageObjectUtils';
 import {
   clickSubmit,
   expectInvalidEmailErrorInForm,
@@ -10,13 +10,13 @@ import {
   fillInvalidSideModalForm,
   fillValidSideModalForm,
   getSubmitButton,
-  selectOptionIfPresent
+  selectOptionIfPresent,
 } from '../utils/leadFormHelper';
 
 const TIMEOUT = {
   short: 10000,
   medium: 15000,
-  long: 20000
+  long: 20000,
 };
 
 const TEXT = {
@@ -31,7 +31,7 @@ const TEXT = {
   submit: /submit/i,
   requiredError: /Required|Please complete|Invalid|Error/i,
   emailError: /valid domain name|valid email|invalid email/i,
-  successMessage: /Thank you for your interest in Mattamy Homes/i
+  successMessage: /Thank you for your interest in Mattamy Homes/i,
 };
 
 export type CondoPlanDetails = {
@@ -44,27 +44,21 @@ export type CondoPlanDetails = {
 const EXPECTED_CONDO_PLAN = {
   city: 'Burlington',
   title: /The M2ad plan.*Martha James Condominiums.*Mattamy Homes/i,
-  specs: [
-    '2 Beds',
-    '2 Baths',
-    '946 Sq. Ft.',
-    'Floor 5',
-    '2 Bedroom + Den'
-  ],
+  specs: ['2 Beds', '2 Baths', '946 Sq. Ft.', 'Floor 5', '2 Bedroom + Den'],
   planType: 'Condo',
   descriptionKeywords: [
     /2-bedroom \+ den/i,
     /open-concept kitchen/i,
     /primary bedroom/i,
     /terrace|balcony/i,
-    /stacked washer\/dryer/i
+    /stacked washer\/dryer/i,
   ],
   relatedPlanNames: ['M1bd', 'Mj1b', 'Mj1f'],
   salesOffice: {
     address: '1388 Dundas Street West',
     cityProvincePostal: 'Oakville, ON L6M 4L8',
-    phone: '416-630-8282'
-  }
+    phone: '416-630-8282',
+  },
 } as const;
 
 /* ==========================================================
@@ -108,27 +102,47 @@ export class CondoPlanPage extends SearchablePage {
     this.breadcrumb = page.locator('#breadcrumb, nav[aria-label*="breadcrumb" i]').first();
     this.body = page.locator('body');
     this.floorplanImage = page.locator('img[alt*="Floorplan" i], img[alt*="M2AD" i]').first();
-    this.getInformationCta = page.locator('button, a').filter({
-      hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i
-    }).first();
-    this.mortgageCalculatorSection = page.locator('section, div').filter({
-      hasText: TEXT.mortgageCalculator
-    }).first();
-    this.mortgageCalculatorCta = this.mortgageCalculatorSection.getByRole('button', {
-      name: /Get Started/i
-    }).first();
-    this.availableFloorplansSection = page.locator('section, div').filter({
-      has: page.getByRole('heading', { name: TEXT.availableFloorplans })
-    }).first();
-    this.contactSection = page.locator('section, div').filter({
-      has: page.getByRole('heading', { name: TEXT.contactUs })
-    }).first();
-    this.hoursSection = page.locator('section, div').filter({
-      has: page.getByRole('heading', { name: TEXT.hours })
-    }).first();
-    this.communityUpdatesSection = page.locator('section, div').filter({
-      has: page.getByRole('heading', { name: TEXT.communityUpdates })
-    }).last();
+    this.getInformationCta = page
+      .locator('button, a')
+      .filter({
+        hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i,
+      })
+      .first();
+    this.mortgageCalculatorSection = page
+      .locator('section, div')
+      .filter({
+        hasText: TEXT.mortgageCalculator,
+      })
+      .first();
+    this.mortgageCalculatorCta = this.mortgageCalculatorSection
+      .getByRole('button', {
+        name: /Get Started/i,
+      })
+      .first();
+    this.availableFloorplansSection = page
+      .locator('section, div')
+      .filter({
+        has: page.getByRole('heading', { name: TEXT.availableFloorplans }),
+      })
+      .first();
+    this.contactSection = page
+      .locator('section, div')
+      .filter({
+        has: page.getByRole('heading', { name: TEXT.contactUs }),
+      })
+      .first();
+    this.hoursSection = page
+      .locator('section, div')
+      .filter({
+        has: page.getByRole('heading', { name: TEXT.hours }),
+      })
+      .first();
+    this.communityUpdatesSection = page
+      .locator('section, div')
+      .filter({
+        has: page.getByRole('heading', { name: TEXT.communityUpdates }),
+      })
+      .last();
     this.successDialogModal = page.locator('.ReactModal__Content');
   }
 
@@ -140,7 +154,9 @@ export class CondoPlanPage extends SearchablePage {
   /** Locator: Get Information modal form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
     return this.page
-      .locator('#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible')
+      .locator(
+        '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
+      )
       .filter({ has: this.page.locator('form, input, select, textarea') });
   }
 
@@ -163,9 +179,12 @@ export class CondoPlanPage extends SearchablePage {
       await this.waitForPageReady();
       await this.assertPageUrlContains(
         location.condoPlan.url,
-        `Condo plan URL should contain configured path: ${location.condoPlan.url}`
+        `Condo plan URL should contain configured path: ${location.condoPlan.url}`,
       );
-      await this.assertHeadingVisible(undefined, 'Condo plan detail page should expose a visible H1');
+      await this.assertHeadingVisible(
+        undefined,
+        'Condo plan detail page should expose a visible H1',
+      );
     });
   }
 
@@ -190,11 +209,17 @@ export class CondoPlanPage extends SearchablePage {
     await this.step('Verify breadcrumb context', async () => {
       if (await this.breadcrumb.count()) {
         await expect(this.breadcrumb).toBeVisible({ timeout: TIMEOUT.short });
-        await expect(this.breadcrumb.getByRole('link', { name: /Greater To|Greater Toronto Area/i }).first())
-          .toHaveAttribute('href', /\/ontario\/gta$/i);
-        await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(EXPECTED_CONDO_PLAN.city), 'i'));
-        await expect(this.breadcrumb.getByRole('link', { name: /Martha Jam|Martha James Condominiums/i }).first())
-          .toHaveAttribute('href', /\/ontario\/gta\/burlington\/martha-james-condominiums$/i);
+        await expect(
+          this.breadcrumb.getByRole('link', { name: /Greater To|Greater Toronto Area/i }).first(),
+        ).toHaveAttribute('href', /\/ontario\/gta$/i);
+        await expect(this.breadcrumb).toContainText(
+          new RegExp(escapeRegex(EXPECTED_CONDO_PLAN.city), 'i'),
+        );
+        await expect(
+          this.breadcrumb
+            .getByRole('link', { name: /Martha Jam|Martha James Condominiums/i })
+            .first(),
+        ).toHaveAttribute('href', /\/ontario\/gta\/burlington\/martha-james-condominiums$/i);
         await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
         return;
       }
@@ -213,15 +238,18 @@ export class CondoPlanPage extends SearchablePage {
         await expect(this.body).toContainText(new RegExp(escapeRegex(spec), 'i'));
       }
 
-      await expect(this.body).toContainText(new RegExp(escapeRegex(EXPECTED_CONDO_PLAN.planType), 'i'));
+      await expect(this.body).toContainText(
+        new RegExp(escapeRegex(EXPECTED_CONDO_PLAN.planType), 'i'),
+      );
     });
   }
 
   /** Verify: main Condo Plan Details copy is present and meaningful. */
   async verifyCondoPlanDetailsContent(): Promise<void> {
     await this.step('Verify condo plan details content', async () => {
-      await expect(this.page.getByRole('heading', { name: TEXT.condoPlanDetails }))
-        .toBeVisible({ timeout: TIMEOUT.short });
+      await expect(this.page.getByRole('heading', { name: TEXT.condoPlanDetails })).toBeVisible({
+        timeout: TIMEOUT.short,
+      });
 
       for (const keyword of EXPECTED_CONDO_PLAN.descriptionKeywords) {
         await expect(this.body).toContainText(keyword);
@@ -253,19 +281,21 @@ export class CondoPlanPage extends SearchablePage {
   }
 
   /** Verify: related floorplans and View All CTA are present and valid. */
-  async verifyAvailableFloorplans(plan: CondoPlanDetails): Promise<void> {
+  async verifyAvailableFloorplans(_plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify available floorplans', async () => {
       await expect(this.availableFloorplansSection).toBeVisible({ timeout: TIMEOUT.medium });
       await expect(this.availableFloorplansSection).toContainText(TEXT.availableFloorplans);
 
       const viewAllLink = this.page
-        .locator('a[href*="productType=plan"][href*="Martha%20James%20Condominiums"], a[href*="productType=plan"][href*="Martha James Condominiums"]')
+        .locator(
+          'a[href*="productType=plan"][href*="Martha%20James%20Condominiums"], a[href*="productType=plan"][href*="Martha James Condominiums"]',
+        )
         .first();
 
       await expect(viewAllLink).toBeVisible({ timeout: TIMEOUT.short });
       await expect(viewAllLink).toHaveAttribute(
         'href',
-        /\/search\?productType=plan.*community=Martha(\+|%20| )James(\+|%20| )Condominiums/i
+        /\/search\?productType=plan.*community=Martha(\+|%20| )James(\+|%20| )Condominiums/i,
       );
 
       for (const planName of EXPECTED_CONDO_PLAN.relatedPlanNames) {
@@ -273,11 +303,13 @@ export class CondoPlanPage extends SearchablePage {
           .locator(`a[href$="/martha-james-condominiums/${planName.toLowerCase()}"]`)
           .first();
 
-        await expect(relatedPlanLink, `${planName} related floorplan should be visible`)
-          .toBeVisible({ timeout: TIMEOUT.short });
+        await expect(
+          relatedPlanLink,
+          `${planName} related floorplan should be visible`,
+        ).toBeVisible({ timeout: TIMEOUT.short });
         await expect(relatedPlanLink).toHaveAttribute(
           'href',
-          new RegExp(`/martha-james-condominiums/${escapeRegex(planName.toLowerCase())}`, 'i')
+          new RegExp(`/martha-james-condominiums/${escapeRegex(planName.toLowerCase())}`, 'i'),
         );
 
         const relatedPlanHref = await relatedPlanLink.getAttribute('href');
@@ -289,9 +321,11 @@ export class CondoPlanPage extends SearchablePage {
   /** Verify: Show More button is safe to use when available and keeps user on the same page. */
   async verifyShowMoreFloorplansIfPresent(): Promise<void> {
     await this.step('Verify Show More floorplans', async () => {
-      const showMore = this.page.getByRole('button', {
-        name: /show more/i
-      }).first();
+      const showMore = this.page
+        .getByRole('button', {
+          name: /show more/i,
+        })
+        .first();
 
       if (!(await showMore.isVisible().catch(() => false))) {
         await this.reportValue('Show More floorplans button not present - skipping validation');
@@ -310,13 +344,18 @@ export class CondoPlanPage extends SearchablePage {
     await this.step('Verify Contact Us section', async () => {
       await expect(this.contactSection).toBeVisible({ timeout: TIMEOUT.short });
       await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.address);
-      await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.cityProvincePostal);
+      await expect(this.contactSection).toContainText(
+        EXPECTED_CONDO_PLAN.salesOffice.cityProvincePostal,
+      );
       await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.phone);
 
-      await expect(this.contactSection.locator('a[href^="tel:"]').first())
-        .toHaveAttribute('href', new RegExp(EXPECTED_CONDO_PLAN.salesOffice.phone.replace(/-/g, '\\-')));
-      await expect(this.contactSection.locator('a[href*="maps.google.com"]').first())
-        .toHaveAttribute('href', /maps\.google\.com\/maps\?q=/i);
+      await expect(this.contactSection.locator('a[href^="tel:"]').first()).toHaveAttribute(
+        'href',
+        new RegExp(EXPECTED_CONDO_PLAN.salesOffice.phone.replace(/-/g, '\\-')),
+      );
+      await expect(
+        this.contactSection.locator('a[href*="maps.google.com"]').first(),
+      ).toHaveAttribute('href', /maps\.google\.com\/maps\?q=/i);
     });
   }
 
@@ -328,27 +367,14 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: initial Get Information CTA scrolls to the footer/community-updates form. */
-  async verifyGetInformationCtaScrollsToForm(): Promise<void> {
-    await this.step('Verify Get Information CTA scrolls to form', async () => {
-      const cta = await this.getLandingGetInformationCta();
-      await expect(cta, 'Landing Get Information or Stay Updated CTA should be visible')
-        .toBeVisible({ timeout: TIMEOUT.medium });
-
-      await cta.scrollIntoViewIfNeeded();
-      await cta.click({ force: true });
-      await this.waitForPageReady();
-      await expect(this.communityUpdatesSection).toBeVisible({ timeout: TIMEOUT.medium });
-      await expect(this.communityUpdatesSection).toBeInViewport();
-    });
-  }
-
-  /** Verify: floating Get Information CTA opens the condo plan side modal form. */
+  /** Verify: Get Information CTA opens the condo plan side modal form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
       const form = await this.openSideModalForm();
-      await expect(form, 'Get Information condo plan side modal form should be visible')
-        .toBeVisible({ timeout: TIMEOUT.short });
+      await expect(
+        form,
+        'Get Information condo plan side modal form should be visible',
+      ).toBeVisible({ timeout: TIMEOUT.short });
     });
   }
 
@@ -359,7 +385,7 @@ export class CondoPlanPage extends SearchablePage {
       await expectSideModalFormFields(form, {
         timeout: TIMEOUT.short,
         expectCommunity: true,
-        expectPlan: true
+        expectPlan: true,
       });
     });
   }
@@ -379,8 +405,9 @@ export class CondoPlanPage extends SearchablePage {
         }
 
         expect(href, `Navigation link ${i + 1} href missing`).toBeTruthy();
-        expect(href, `Navigation link ${i + 1} should not be javascript`)
-          .not.toMatch(/^javascript:/i);
+        expect(href, `Navigation link ${i + 1} should not be javascript`).not.toMatch(
+          /^javascript:/i,
+        );
 
         await this.reportValue(`Navigation link ${i + 1}`, this.buildFullUrl(href));
       }
@@ -391,8 +418,8 @@ export class CondoPlanPage extends SearchablePage {
   async validateSideModalFormRequiredErrors(): Promise<void> {
     await this.step('Validate Get Information side modal form required errors', async () => {
       const form = await this.getAvailableSideModalForm();
-      await this.clickSubmit(form);
-      await this.expectRequiredErrorsInForm(form);
+      await clickSubmit(this.page, form, TIMEOUT.short);
+      await expectRequiredErrorsInForm(form, TIMEOUT.short);
     });
   }
 
@@ -402,10 +429,10 @@ export class CondoPlanPage extends SearchablePage {
       const form = await this.getAvailableSideModalForm();
       await fillInvalidSideModalForm(form, 'condoPlan', {
         selectCountry: false,
-        checkConsent: false
+        checkConsent: false,
       });
-      await this.clickSubmit(form);
-      await this.expectInvalidEmailErrorInForm(form);
+      await clickSubmit(this.page, form, TIMEOUT.short);
+      await expectInvalidEmailErrorInForm(form, TIMEOUT.short);
     });
   }
 
@@ -415,7 +442,7 @@ export class CondoPlanPage extends SearchablePage {
       const form = await this.getAvailableSideModalForm();
       await fillValidSideModalForm(form, 'condoPlan', {
         selectCommunity: true,
-        selectPlan: true
+        selectPlan: true,
       });
       await selectOptionIfPresent(form.getByRole('combobox', { name: /^country$/i }), 'Canada');
 
@@ -426,188 +453,43 @@ export class CondoPlanPage extends SearchablePage {
         submitButton: getSubmitButton(form),
         successModal: this.successDialogModal,
         successMessage: this.formSuccessMessage,
-        timeout: TIMEOUT.long
+        timeout: TIMEOUT.long,
       });
-      await this.expectNoContactRedirect(formUrl);
+      await this.expectNoContactRedirect(formUrl, 'condo plan page');
     });
   }
 
-  /** Open the floating-CTA side modal lead form and return it (for external evidence capture). */
+  /** Open the side modal lead form and return it (for external evidence capture). */
   async openSideModalLeadForm(
-    formName = 'Get Information condo plan side modal form'
+    formName = 'Get Information condo plan side modal form',
   ): Promise<Locator> {
     return this.getAvailableSideModalForm(formName);
   }
 
-  /** Helper: reveal the floating CTA by scrolling until it becomes visible. */
-  private async revealGetInformationCta(): Promise<void> {
-    const initialFloatingCta = await this.getFloatingBarGetInformationCta().catch(() => null);
-    if (initialFloatingCta && await initialFloatingCta.isVisible({ timeout: 1500 }).catch(() => false)) {
-      return;
-    }
-
-    for (const position of [450, 900, 1400]) {
-      await this.page.evaluate((scrollTop) => window.scrollTo(0, scrollTop), position);
-      await this.waitForPageReady();
-      await this.settle(400);
-
-      const floatingCta = await this.getFloatingBarGetInformationCta().catch(() => null);
-      if (floatingCta && await floatingCta.isVisible({ timeout: 1000 }).catch(() => false)) {
-        return;
-      }
-    }
-  }
-
-  /** Helper: click the floating Get Information CTA when the sidebar/modal form is not already open. */
-  private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
-    if (await this.leadFormDialogOrSidebar.count()) {
-      return;
-    }
-
-    await this.revealGetInformationCta();
-    const floatingCta = await this.getFloatingBarGetInformationCta();
-    await expect(floatingCta, 'Floating-bar Get Information or Stay Updated CTA should be visible')
-      .toBeVisible({ timeout: TIMEOUT.medium });
-
-    const previousUrl = this.page.url();
-
-    await floatingCta.scrollIntoViewIfNeeded();
-    await floatingCta.click({ force: true });
-    await this.waitForPageReady();
-    await this.settle(1000);
-    await this.expectNoContactRedirect(previousUrl);
-  }
-
-  /** Helper: return the landing CTA used before the floating bar appears. */
-  private async getLandingGetInformationCta(): Promise<Locator> {
-    return this.getVisibleGetInformationCta('landing');
-  }
-
-  /** Helper: return the floating-bar CTA shown after scrolling down the page. */
-  private async getFloatingBarGetInformationCta(): Promise<Locator> {
-    return this.getVisibleGetInformationCta('floating');
-  }
-
-  /** Helper: choose the best visible Get Information CTA for the requested context. */
-  private async getVisibleGetInformationCta(mode: 'landing' | 'floating'): Promise<Locator> {
-    // Match every visible Get Information / Stay Updated CTA (not just the first): the hero/landing CTA
-    // and the sticky floating-bar CTA are separate DOM nodes, and only the floating one opens the side
-    // modal. Using this.getInformationCta here would be `.first()`-bound and miss the floating CTA.
-    const allCtas = this.page.locator('a:visible, button:visible').filter({
-      hasText: /Get Information|Stay Updated/i
-    });
-    const count = await allCtas.count();
-    let landingFallback: Locator | null = null;
-
-    for (let i = 0; i < count; i++) {
-      const candidate = allCtas.nth(i);
-
-      if (!(await candidate.isVisible().catch(() => false))) {
-        continue;
-      }
-
-      // The CTA that opens the side modal lives on the sticky/fixed "floating bar" that appears after
-      // scrolling; the landing CTA (in the hero) is a normal in-flow element that only scrolls to the
-      // footer form. Distinguish them by position (fixed/sticky ancestor), not by vertical offset —
-      // the hero CTA can also sit near the top of the page.
-      const isFloating = await isFloatingCta(candidate);
-
-      if (mode === 'floating') {
-        if (isFloating) {
-          return candidate;
-        }
-
-        continue;
-      }
-
-      if (!isFloating) {
-        return candidate;
-      }
-
-      landingFallback ??= candidate;
-    }
-
-    if (mode === 'landing' && landingFallback) {
-      return landingFallback;
-    }
-
-    throw new Error(`No visible ${mode} Get Information CTA found on condo plan page`);
-  }
-
-  /** Helper: return the visible Get Information side modal form when available. */
+  /** Helper: return the visible Get Information side modal form, asserting its submit button is usable. */
   private async getAvailableSideModalForm(
-    formName = 'Get Information condo plan side modal form'
+    formName = 'Get Information condo plan side modal form',
   ): Promise<Locator> {
     const form = await this.openSideModalForm(formName);
 
-    await expect
-      .poll(
-        () => this.leadFormDialogOrSidebar.count(),
-        {
-          message: `${formName} sidebar/modal should open after Get Information CTA`,
-          timeout: TIMEOUT.medium
-        }
-      )
-      .toBeGreaterThan(0);
-
-    const submitButton = getSubmitButton(form);
-
-    await form.scrollIntoViewIfNeeded();
-    await this.waitForPageReady();
-    await expect(submitButton, `${formName} submit button should be visible inside sidebar/modal`)
-      .toBeVisible({ timeout: TIMEOUT.short });
+    await expect(
+      getSubmitButton(form),
+      `${formName} submit button should be visible inside sidebar/modal`,
+    ).toBeVisible({ timeout: TIMEOUT.short });
 
     return form;
   }
 
   /** Helper: open the Get Information side modal form and return the visible container. */
   private async openSideModalForm(
-    formName = 'Get Information condo plan side modal form'
+    formName = 'Get Information condo plan side modal form',
   ): Promise<Locator> {
-    await this.openLeadFormFromGetInformationCtaIfPresent();
-
-    await expect
-      .poll(
-        () => this.leadFormDialogOrSidebar.count(),
-        {
-          message: `${formName} sidebar/modal should open after Get Information CTA`,
-          timeout: TIMEOUT.medium
-        }
-      )
-      .toBeGreaterThan(0);
-
-    const form = this.leadFormDialogOrSidebar.first();
-    await form.scrollIntoViewIfNeeded();
-    await this.waitForPageReady();
-
-    return form;
+    return this.openSideModalFormByIndex({
+      leadForms: this.leadFormDialogOrSidebar,
+      formName,
+      pageLabel: 'condo plan page',
+      ctaTimeout: TIMEOUT.medium,
+      openTimeout: TIMEOUT.medium,
+    });
   }
-
-  /** Helper: click a form submit button without waiting on third-party submit requests. */
-  private async clickSubmit(form: Locator): Promise<void> {
-    await clickSubmit(this.page, form, TIMEOUT.short);
-  }
-
-  /** Helper: assert expected required-field messages within a modal form. */
-  private async expectRequiredErrorsInForm(form: Locator): Promise<void> {
-    await expectRequiredErrorsInForm(form, TIMEOUT.short);
-  }
-
-  /** Helper: assert invalid-email validation within a modal form. */
-  private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
-    await expectInvalidEmailErrorInForm(form, TIMEOUT.short);
-  }
-
-  /** Helper: fail fast when the flow navigates to Contact instead of showing in-page form success. */
-  private async expectNoContactRedirect(previousUrl: string): Promise<void> {
-    await this.settle(1000);
-
-    const currentUrl = this.page.url();
-
-    expect(
-      currentUrl,
-      `Expected condo plan form flow to stay on page and show success modal, but it navigated from ${previousUrl} to ${currentUrl}`
-    ).not.toMatch(/\/contact\/?($|[?#])/i);
-  }
-
 }

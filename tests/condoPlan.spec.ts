@@ -104,13 +104,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
       });
     });
 
-    test('TC-02 | @regression | Validate Get Information CTA scrolls to footer form without submitting', async () => {
-      await test.step('Validate Get Information CTA scrolls to footer form without submitting', async () => {
-        await condoPlanPage.verifyGetInformationCtaScrollsToForm();
-      });
-    });
-
-    test('TC-03 | @regression | Validate page navigation links', async () => {
+    test('TC-02 | @regression | Validate page navigation links', async () => {
       await test.step('Validate page navigation links', async () => {
         await condoPlanPage.verifyNavigationLinks();
       });
@@ -118,8 +112,8 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Community Updates Form - No Submit', () => {
-    test('TC-01 | @regression | Validate floating bar Get Information CTA opens condo plan side modal form', async () => {
-      await test.step('Validate floating bar Get Information CTA opens condo plan side modal form', async () => {
+    test('TC-01 | @regression | Validate Get Information CTA opens condo plan side modal form', async () => {
+      await test.step('Validate Get Information CTA opens condo plan side modal form', async () => {
         await condoPlanPage.verifyGetInformationCtaOpensLeadForm();
       });
     });

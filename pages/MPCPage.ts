@@ -1,21 +1,18 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
+import { escapeRegex, getLastPathSegment, getMediaSource } from '../utils/pageObjectUtils';
 import {
-    escapeRegex,
-    getLastPathSegment,
-    getMediaSource
-} from '../utils/pageObjectUtils';
-import {
-    expectInvalidEmailErrorInForm,
-    expectRequiredErrorsInForm,
-    expectSideModalFormFields,
-    fillInvalidSideModalForm,
-    fillValidSideModalForm,
-    getInvalidLeadData,
-    getSubmitButton,
-    getValidLeadData,
-    LeadFieldData
+  clickSubmit,
+  expectInvalidEmailErrorInForm,
+  expectRequiredErrorsInForm,
+  expectSideModalFormFields,
+  fillInvalidSideModalForm,
+  fillValidSideModalForm,
+  getInvalidLeadData,
+  getSubmitButton,
+  getValidLeadData,
+  LeadFieldData,
 } from '../utils/leadFormHelper';
 import { BasePage } from './BasePage';
 
@@ -73,30 +70,32 @@ export class MPCPage extends BasePage {
       .locator('section')
       .filter({
         has: page.getByRole('heading', {
-          name: /Explore neighborhoods in this community/i
-        })
+          name: /Explore neighborhoods in this community/i,
+        }),
       })
       .first();
     this.communityUpdateHeading = page.getByRole('heading', {
-      name: /Sign Up For Community Updates/i
+      name: /Sign Up For Community Updates/i,
     });
     this.imageGallerySection = page
       .locator('[role="region"][aria-label*="Images and videos of"]')
       .or(page.locator('#gallery'))
       .filter({ has: page.locator('img, picture, video, iframe, button') })
       .or(
-        page.locator('section')
+        page
+          .locator('section')
           .filter({ has: page.locator('img, picture, video, iframe, button') })
           .filter({
             has: page.getByRole('heading', {
-              name: /gallery|photos|images/i
-            })
-          })
+              name: /gallery|photos|images/i,
+            }),
+          }),
       )
       .or(
-        page.locator('section')
+        page
+          .locator('section')
           .filter({ has: page.locator('img, picture, video, iframe, button') })
-          .filter({ hasText: /New Home Gallery|Community Gallery|Photos|Videos/i })
+          .filter({ hasText: /New Home Gallery|Community Gallery|Photos|Videos/i }),
       )
       .first();
     this.imageGalleryImages = this.imageGallerySection.locator('img');
@@ -106,25 +105,29 @@ export class MPCPage extends BasePage {
 
   /** Locator: Get Information CTA that opens the lead form sidebar/modal. */
   private get getInformationCta(): Locator {
-    return this.page.locator('button:visible, a:visible').filter({
-      hasText: /^\s*Get Information\s*$/i
-    }).first();
+    return this.page
+      .locator('button:visible, a:visible')
+      .filter({
+        hasText: /^\s*Get Information\s*$/i,
+      })
+      .first();
   }
 
   /** Locator: Get Information lead form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
-    return this.page.locator(
-      [
-        '#ModalForm',
-        '[id*="ModalForm"]',
-        '[role="dialog"]',
-        '.ReactModal__Content',
-        'aside',
-        '[class*="modal" i]',
-        '[class*="drawer" i]',
-        '[class*="sidebar" i]'
-      ].join(', ')
-    )
+    return this.page
+      .locator(
+        [
+          '#ModalForm',
+          '[id*="ModalForm"]',
+          '[role="dialog"]',
+          '.ReactModal__Content',
+          'aside',
+          '[class*="modal" i]',
+          '[class*="drawer" i]',
+          '[class*="sidebar" i]',
+        ].join(', '),
+      )
       .filter({ has: this.page.getByRole('button', { name: /submit|register|request|send/i }) })
       .filter({ has: this.page.locator('input, select, textarea') });
   }
@@ -146,11 +149,14 @@ export class MPCPage extends BasePage {
       const homeUrl = `${baseURL}/?${location.queryParam}`;
       const mpcUrl = `${baseURL}${relativeUrl}`;
 
-      await this.reportValue('MPC navigation', `ENV=${envName} | COUNTRY=${location.country} | MPC=${mpcUrl}`);
+      await this.reportValue(
+        'MPC navigation',
+        `ENV=${envName} | COUNTRY=${location.country} | MPC=${mpcUrl}`,
+      );
 
       await this.page.goto(homeUrl, {
         waitUntil: 'domcontentloaded',
-        timeout: 90_000
+        timeout: 90_000,
       });
 
       await this.acceptCookiesIfPresent();
@@ -159,7 +165,7 @@ export class MPCPage extends BasePage {
 
       await this.page.goto(mpcUrl, {
         waitUntil: 'domcontentloaded',
-        timeout: 90_000
+        timeout: 90_000,
       });
 
       await this.acceptCookiesIfPresent();
@@ -177,31 +183,45 @@ export class MPCPage extends BasePage {
   /** Verify: MPC page URL, title, and heading match expected configuration. */
   async verifyMPCPage(mpc: MPCConfig): Promise<void> {
     await this.step(`Verify MPC page: ${mpc.name}`, async () => {
-    await this.waitForPageReady();
+      await this.waitForPageReady();
 
-    await expect.poll(
-      async () => {
-        if (await this.heading.first().isVisible({ timeout: 1000 }).catch(() => false)) {
-          return true;
-        }
+      await expect
+        .poll(
+          async () => {
+            if (
+              await this.heading
+                .first()
+                .isVisible({ timeout: 1000 })
+                .catch(() => false)
+            ) {
+              return true;
+            }
 
-        await this.dismissPromoPopupIfPresent();
-        return this.heading.first().isVisible({ timeout: 1000 }).catch(() => false);
-      },
-      {
-        message: 'MPC heading should become accessible after promotional overlays are dismissed',
-        timeout: 30_000
-      }
-    ).toBeTruthy();
+            await this.dismissPromoPopupIfPresent();
+            return this.heading
+              .first()
+              .isVisible({ timeout: 1000 })
+              .catch(() => false);
+          },
+          {
+            message:
+              'MPC heading should become accessible after promotional overlays are dismissed',
+            timeout: 30_000,
+          },
+        )
+        .toBeTruthy();
 
-    await this.assertPageUrlContains(mpc.url, `MPC page URL should contain configured path: ${mpc.url}`);
-    await this.assertPageTitle(/Mattamy Homes/i, 'MPC page title should include Mattamy Homes');
-    await this.assertTextContains(
-      this.heading,
-      new RegExp(mpc.name, 'i'),
-      `MPC page heading should contain configured name: ${mpc.name}`,
-      20_000
-    );
+      await this.assertPageUrlContains(
+        mpc.url,
+        `MPC page URL should contain configured path: ${mpc.url}`,
+      );
+      await this.assertPageTitle(/Mattamy Homes/i, 'MPC page title should include Mattamy Homes');
+      await this.assertTextContains(
+        this.heading,
+        new RegExp(mpc.name, 'i'),
+        `MPC page heading should contain configured name: ${mpc.name}`,
+        20_000,
+      );
     });
   }
 
@@ -211,7 +231,7 @@ export class MPCPage extends BasePage {
       await this.assertTextContains(
         this.heading,
         new RegExp(mpcName, 'i'),
-        `MPC hero heading should contain ${mpcName}`
+        `MPC hero heading should contain ${mpcName}`,
       );
       await this.assertVisible(this.heroSection, 'MPC hero section should be visible', 15_000);
 
@@ -219,15 +239,18 @@ export class MPCPage extends BasePage {
       this.assertGreaterThan(
         heroText.trim().length,
         mpcName.length,
-        'MPC hero should include descriptive content'
+        'MPC hero should include descriptive content',
       );
 
       const favoriteButton = this.page.getByRole('button', {
-        name: /Mark as favorite/i
+        name: /Mark as favorite/i,
       });
 
       if (await favoriteButton.count()) {
-        await this.assertVisible(favoriteButton.first(), 'MPC favorite button should be visible when present');
+        await this.assertVisible(
+          favoriteButton.first(),
+          'MPC favorite button should be visible when present',
+        );
       }
     });
   }
@@ -245,12 +268,12 @@ export class MPCPage extends BasePage {
           this.summaryTab,
           'aria-selected',
           'true',
-          'MPC Summary tab should be selected after opening'
+          'MPC Summary tab should be selected after opening',
         );
       }
       await this.assertBodyContains(
         /community|homes|neighborhood|designed|location/i,
-        'MPC Summary tab should display community summary content'
+        'MPC Summary tab should display community summary content',
       );
     });
   }
@@ -266,7 +289,7 @@ export class MPCPage extends BasePage {
         /Full Bathrooms/i,
         /SQ\. FT\./i,
         /Stories/i,
-        /Garages/i
+        /Garages/i,
       ];
 
       for (const detail of expectedDetails) {
@@ -282,10 +305,16 @@ export class MPCPage extends BasePage {
 
       await this.assertBodyContains(
         /Sales Office|New Home Gallery|Contact/i,
-        'MPC Contact & Hours tab should display sales contact content'
+        'MPC Contact & Hours tab should display sales contact content',
       );
-      await this.assertBodyContains(/\d{3}-\d{3}-\d{4}/, 'MPC Contact & Hours tab should display phone number');
-      await this.assertBodyContains(/Hours|Open|Closed/i, 'MPC Contact & Hours tab should display hours');
+      await this.assertBodyContains(
+        /\d{3}-\d{3}-\d{4}/,
+        'MPC Contact & Hours tab should display phone number',
+      );
+      await this.assertBodyContains(
+        /Hours|Open|Closed/i,
+        'MPC Contact & Hours tab should display hours',
+      );
     });
   }
 
@@ -297,11 +326,13 @@ export class MPCPage extends BasePage {
     const hasTab = await tab.isVisible({ timeout: 5000 }).catch(() => false);
 
     if (!hasTab) {
-      await this.reportValue(`${tabName} tab is not present in the current MPC layout - validating page content instead`);
+      await this.reportValue(
+        `${tabName} tab is not present in the current MPC layout - validating page content instead`,
+      );
       return false;
     }
 
-    if (await tab.getAttribute('aria-selected') === 'true') {
+    if ((await tab.getAttribute('aria-selected')) === 'true') {
       return true;
     }
 
@@ -318,7 +349,7 @@ export class MPCPage extends BasePage {
   async validateAmenityAndLocationSections(): Promise<void> {
     await this.step('Validate amenity and location sections', async () => {
       const amenityOrLocationHeading = this.page.getByRole('heading', {
-        name: /amenit|location|convenient|destination|lifestyle|nearby|explore/i
+        name: /amenit|location|convenient|destination|lifestyle|nearby|explore/i,
       });
 
       await expect(amenityOrLocationHeading.first()).toBeVisible({ timeout: 15000 });
@@ -330,7 +361,7 @@ export class MPCPage extends BasePage {
 
       expect(
         matchingSectionCount,
-        'MPC page should include at least one amenity or location section'
+        'MPC page should include at least one amenity or location section',
       ).toBeGreaterThan(0);
     });
   }
@@ -338,26 +369,25 @@ export class MPCPage extends BasePage {
   /** Verify: promotional CTA points into the expected MPC URL path. */
   async validatePromotionCTA(mpcUrl: string): Promise<void> {
     await this.step('Validate promotion CTA', async () => {
-      const promotionButton = this.page
-        .getByRole('button', { name: /View promotions/i })
-        .first();
+      const promotionButton = this.page.getByRole('button', { name: /View promotions/i }).first();
 
       if (await promotionButton.isVisible({ timeout: 5000 }).catch(() => false)) {
         await promotionButton.scrollIntoViewIfNeeded();
-        await expect(promotionButton, 'Promotion CTA should be visible')
-          .toBeVisible({ timeout: 10000 });
+        await expect(promotionButton, 'Promotion CTA should be visible').toBeVisible({
+          timeout: 10000,
+        });
         return;
       }
 
       const exploreLink = this.page
         .locator(
-          `a[href="${mpcUrl}"]:visible, a[href^="${mpcUrl}/"]:visible, a[href*="${mpcUrl}/"]:visible`
+          `a[href="${mpcUrl}"]:visible, a[href^="${mpcUrl}/"]:visible, a[href*="${mpcUrl}/"]:visible`,
         )
         .first();
 
       await expect(
         exploreLink,
-        `Expected a visible promotion CTA or community link under ${mpcUrl}`
+        `Expected a visible promotion CTA or community link under ${mpcUrl}`,
       ).toBeVisible({ timeout: 10000 });
 
       const href = await exploreLink.getAttribute('href');
@@ -375,28 +405,35 @@ export class MPCPage extends BasePage {
       }
 
       await this.scrollTo(this.imageGallerySection);
-      await expect(this.imageGallerySection, 'MPC image gallery should be visible')
-        .toBeVisible({ timeout: 10000 });
+      await expect(this.imageGallerySection, 'MPC image gallery should be visible').toBeVisible({
+        timeout: 10000,
+      });
 
       await this.showGalleryPhotosIfAvailable();
 
       const mediaCount = await this.imageGalleryMedia.count();
-      expect(mediaCount, 'MPC image gallery should include at least one media item')
-        .toBeGreaterThan(0);
+      expect(
+        mediaCount,
+        'MPC image gallery should include at least one media item',
+      ).toBeGreaterThan(0);
 
       const firstMedia = this.getActiveGalleryMedia();
-      await expect(firstMedia, 'First MPC gallery media should be visible')
-        .toBeVisible({ timeout: 10000 });
+      await expect(firstMedia, 'First MPC gallery media should be visible').toBeVisible({
+        timeout: 10000,
+      });
 
       const src = await getMediaSource(firstMedia);
       expect(src, 'First MPC gallery media src missing').toBeTruthy();
 
       await firstMedia.click({ force: true });
 
-      await expect(this.galleryModal, 'MPC gallery modal should open')
-        .toBeVisible({ timeout: 10000 });
-      await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'MPC gallery modal should show media')
-        .toBeVisible({ timeout: 10000 });
+      await expect(this.galleryModal, 'MPC gallery modal should open').toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        this.galleryModal.locator('img, video, iframe, picture').first(),
+        'MPC gallery modal should show media',
+      ).toBeVisible({ timeout: 10000 });
 
       await this.navigateGalleryModalMediaIfAvailable();
       await this.closeGalleryModal();
@@ -405,7 +442,8 @@ export class MPCPage extends BasePage {
 
   /** Locator: visible MPC gallery modal/dialog after opening media. */
   private get galleryModal(): Locator {
-    return this.page.locator('.ReactModal__Content:visible, [role="dialog"]:visible')
+    return this.page
+      .locator('.ReactModal__Content:visible, [role="dialog"]:visible')
       .filter({ has: this.page.locator('img, video, iframe, picture') })
       .last();
   }
@@ -413,7 +451,9 @@ export class MPCPage extends BasePage {
   /** Locator: close button inside the visible gallery modal. */
   private get galleryModalCloseButton(): Locator {
     return this.galleryModal
-      .locator('button[aria-label*="Close" i], button:has-text("Close"), button:has-text("Close Icon")')
+      .locator(
+        'button[aria-label*="Close" i], button:has-text("Close"), button:has-text("Close Icon")',
+      )
       .first();
   }
 
@@ -421,7 +461,7 @@ export class MPCPage extends BasePage {
   private getActiveGalleryMedia(): Locator {
     return this.imageGallerySection
       .locator(
-        '.slick-active img:visible, .slick-active video:visible, .slick-active iframe:visible, .slick-active picture:visible'
+        '.slick-active img:visible, .slick-active video:visible, .slick-active iframe:visible, .slick-active picture:visible',
       )
       .first();
   }
@@ -429,8 +469,9 @@ export class MPCPage extends BasePage {
   /** Helper: switch the MPC gallery to photos before opening the modal when the filter exists. */
   private async showGalleryPhotosIfAvailable(): Promise<void> {
     const clickedPhotosFilter = await this.page.evaluate(() => {
-      const photosControl = Array.from(document.querySelectorAll<HTMLElement>('[aria-label]'))
-        .find((element) => /photos/i.test(element.getAttribute('aria-label') ?? ''));
+      const photosControl = Array.from(document.querySelectorAll<HTMLElement>('[aria-label]')).find(
+        (element) => /photos/i.test(element.getAttribute('aria-label') ?? ''),
+      );
 
       photosControl?.click();
 
@@ -448,32 +489,37 @@ export class MPCPage extends BasePage {
       .locator('button[aria-label*="Next" i], button:has-text("Next")')
       .first();
     const previousButton = this.galleryModal
-      .locator('button[aria-label*="Previous" i], button[aria-label*="Prev" i], button:has-text("Previous"), button:has-text("Prev")')
+      .locator(
+        'button[aria-label*="Previous" i], button[aria-label*="Prev" i], button:has-text("Previous"), button:has-text("Prev")',
+      )
       .first();
     const initialMediaKey = await this.getVisibleGalleryModalMediaKey();
 
-    expect(initialMediaKey, 'MPC gallery modal should expose a visible media source before navigation')
-      .toBeTruthy();
+    expect(
+      initialMediaKey,
+      'MPC gallery modal should expose a visible media source before navigation',
+    ).toBeTruthy();
 
     if (await nextButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await nextButton.click({ force: true });
-      await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'MPC gallery modal media should remain visible after next')
-        .toBeVisible({ timeout: 10000 });
+      await expect(
+        this.galleryModal.locator('img, video, iframe, picture').first(),
+        'MPC gallery modal media should remain visible after next',
+      ).toBeVisible({ timeout: 10000 });
       await expect
-        .poll(
-          () => this.getVisibleGalleryModalMediaKey(),
-          {
-            message: 'MPC gallery modal next control should navigate or keep visible media stable',
-            timeout: 10000
-          }
-        )
+        .poll(() => this.getVisibleGalleryModalMediaKey(), {
+          message: 'MPC gallery modal next control should navigate or keep visible media stable',
+          timeout: 10000,
+        })
         .not.toEqual('');
     }
 
     if (await previousButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await previousButton.click({ force: true });
-      await expect(this.galleryModal.locator('img, video, iframe, picture').first(), 'MPC gallery modal media should remain visible after previous')
-        .toBeVisible({ timeout: 10000 });
+      await expect(
+        this.galleryModal.locator('img, video, iframe, picture').first(),
+        'MPC gallery modal media should remain visible after previous',
+      ).toBeVisible({ timeout: 10000 });
     }
   }
 
@@ -485,8 +531,9 @@ export class MPCPage extends BasePage {
       await this.page.keyboard.press('Escape');
     }
 
-    await expect(this.galleryModal, 'MPC gallery modal should close')
-      .toBeHidden({ timeout: 10000 });
+    await expect(this.galleryModal, 'MPC gallery modal should close').toBeHidden({
+      timeout: 10000,
+    });
   }
 
   /** Helper: return the first visible media source rendered in the gallery modal. */
@@ -494,7 +541,7 @@ export class MPCPage extends BasePage {
     return getMediaSource(
       this.galleryModal
         .locator('img:visible, video:visible, iframe:visible, picture:visible')
-        .first()
+        .first(),
     );
   }
 
@@ -503,7 +550,7 @@ export class MPCPage extends BasePage {
   ========================================================== */
 
   /** Verify: neighborhood cards are visible and link under the expected MPC path. */
-  async validateNeighborhoodCards(mpcName: string, mpcUrl: string): Promise<void> {
+  async validateNeighborhoodCards(mpcName: string, _mpcUrl: string): Promise<void> {
     await this.step(`Validate neighborhood cards: ${mpcName}`, async () => {
       await this.scrollTo(this.neighborhoodSection);
       await this.waitForPageReady();
@@ -515,7 +562,7 @@ export class MPCPage extends BasePage {
 
       expect(
         currentMpcSegment,
-        `Current MPC URL segment should be available for ${mpcName}`
+        `Current MPC URL segment should be available for ${mpcName}`,
       ).toBeTruthy();
       expect(count, 'MPC page should show neighborhood cards').toBeGreaterThan(0);
 
@@ -530,11 +577,11 @@ export class MPCPage extends BasePage {
         expect(href, `Neighborhood card ${i + 1} href missing`).toBeTruthy();
         expect(
           hrefSegments,
-          `Neighborhood card ${i + 1} href should include the exact current MPC URL segment`
+          `Neighborhood card ${i + 1} href should include the exact current MPC URL segment`,
         ).toContain(currentMpcSegment);
         expect(
           cardText.trim().length,
-          `Neighborhood card ${i + 1} should include visible content for ${mpcName}`
+          `Neighborhood card ${i + 1} should include visible content for ${mpcName}`,
         ).toBeGreaterThan(0);
 
         await this.reportValue(`${i + 1}. ${cardText.trim()}`, this.buildFullUrl(href));
@@ -545,7 +592,7 @@ export class MPCPage extends BasePage {
   }
 
   /** Verify: first neighborhood card navigates to its detail page. */
-  async validateFirstNeighborhoodNavigation(mpcUrl: string): Promise<void> {
+  async validateFirstNeighborhoodNavigation(_mpcUrl: string): Promise<void> {
     await this.step('Validate first neighborhood card navigation', async () => {
       await this.scrollTo(this.neighborhoodSection);
       await this.waitForPageReady();
@@ -566,8 +613,7 @@ export class MPCPage extends BasePage {
 
   /** Helper: return visible neighborhood card links under the expected MPC path. */
   private getNeighborhoodCardLinks(): Locator {
-    return this.neighborhoodSection
-      .locator('a[href]:visible');
+    return this.neighborhoodSection.locator('a[href]:visible');
   }
 
   /** Helper: return the exact MPC path segment from the current page URL. */
@@ -582,13 +628,15 @@ export class MPCPage extends BasePage {
   /** Verify: Get Information CTA opens the MPC sideModalForm sidebar/modal. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
-      await expect(this.getInformationCta, 'Get Information CTA should be visible')
-        .toBeVisible({ timeout: 15000 });
+      await expect(this.getInformationCta, 'Get Information CTA should be visible').toBeVisible({
+        timeout: 15000,
+      });
 
       const form = await this.getAvailableGetInformationForm();
 
-      await expect(form, 'Get Information MPC sideModalForm should be visible')
-        .toBeVisible({ timeout: 10000 });
+      await expect(form, 'Get Information MPC sideModalForm should be visible').toBeVisible({
+        timeout: 10000,
+      });
     });
   }
 
@@ -605,7 +653,7 @@ export class MPCPage extends BasePage {
     await this.step('Validate Get Information sideModalForm required errors', async () => {
       const form = await this.getAvailableGetInformationForm();
       await this.clickSubmit(form);
-      await this.expectRequiredErrorsInForm(form);
+      await expectRequiredErrorsInForm(form);
     });
   }
 
@@ -615,7 +663,7 @@ export class MPCPage extends BasePage {
       const form = await this.getAvailableGetInformationForm();
       await this.fillGetInformationFormWithInvalidEmail(form);
       await this.clickSubmit(form);
-      await this.expectInvalidEmailErrorInForm(form);
+      await expectInvalidEmailErrorInForm(form);
     });
   }
 
@@ -629,7 +677,7 @@ export class MPCPage extends BasePage {
         formName: 'Get Information MPC sideModalForm',
         submitButton: getSubmitButton(form),
         successModal: this.successDialogModal,
-        successMessage: this.formSuccessMessage
+        successMessage: this.formSuccessMessage,
       });
     });
   }
@@ -649,7 +697,7 @@ export class MPCPage extends BasePage {
         fields.zip,
         fields.phone,
         fields.terms,
-        fields.submit
+        fields.submit,
       ]) {
         await expect(field.first()).toBeVisible({ timeout: 10000 });
       }
@@ -657,7 +705,7 @@ export class MPCPage extends BasePage {
       const options = await fields.community.locator('option').allTextContents();
       expect(
         options.filter((option) => option.trim().length > 0).length,
-        'Community of Interest should include selectable communities'
+        'Community of Interest should include selectable communities',
       ).toBeGreaterThan(0);
     });
   }
@@ -670,8 +718,9 @@ export class MPCPage extends BasePage {
 
       await fields.submit.click();
 
-      await expect(form.locator('text=/Required|Please complete/i').first())
-        .toBeVisible({ timeout: 10000 });
+      await expect(form.locator('text=/Required|Please complete/i').first()).toBeVisible({
+        timeout: 10000,
+      });
     });
   }
 
@@ -687,8 +736,9 @@ export class MPCPage extends BasePage {
 
       await fields.submit.click();
 
-      await expect(form.getByText(/Email addresses must contain.*valid domain name/i))
-        .toBeVisible({ timeout: 10000 });
+      await expect(form.getByText(/Email addresses must contain.*valid domain name/i)).toBeVisible({
+        timeout: 10000,
+      });
     });
   }
 
@@ -706,7 +756,7 @@ export class MPCPage extends BasePage {
         formName: 'MPC community update form',
         submitButton: fields.submit,
         successModal: this.successDialogModal,
-        successMessage: this.formSuccessMessage
+        successMessage: this.formSuccessMessage,
       });
     });
   }
@@ -722,13 +772,12 @@ export class MPCPage extends BasePage {
     const form = this.page
       .locator('section')
       .filter({
-        has: this.communityUpdateHeading
+        has: this.communityUpdateHeading,
       })
       .filter({ has: this.page.locator('button[type="submit"]') })
       .first();
 
-    await expect(form, 'Community update form section not found')
-      .toBeVisible({ timeout: 10000 });
+    await expect(form, 'Community update form section not found').toBeVisible({ timeout: 10000 });
 
     return form;
   }
@@ -744,16 +793,16 @@ export class MPCPage extends BasePage {
       zip: form.getByRole('textbox', { name: /Zip|Postal/i }),
       phone: form.getByRole('textbox', { name: /Phone/i }),
       terms: form.getByRole('checkbox', {
-        name: /I am providing express consent/i
+        name: /I am providing express consent/i,
       }),
-      submit: form.locator('button[type="submit"]').first()
+      submit: form.locator('button[type="submit"]').first(),
     };
   }
 
   /** Helper: fill MPC community update form fields while preserving original dropdown and consent behavior. */
   private async fillCommunityUpdateFormFields(
     fields: ReturnType<MPCPage['getCommunityUpdateFormFields']>,
-    leadData: LeadFieldData
+    leadData: LeadFieldData,
   ): Promise<void> {
     await fields.community.selectOption({ index: 1 });
     await fields.firstName.fill(leadData.firstName);
@@ -771,8 +820,9 @@ export class MPCPage extends BasePage {
       return;
     }
 
-    await expect(this.getInformationCta, 'Get Information CTA should be visible')
-      .toBeVisible({ timeout: 15000 });
+    await expect(this.getInformationCta, 'Get Information CTA should be visible').toBeVisible({
+      timeout: 15000,
+    });
 
     const previousUrl = this.page.url();
 
@@ -783,33 +833,32 @@ export class MPCPage extends BasePage {
 
     expect(
       this.page.url(),
-      `Get Information CTA should keep the MPC lead form flow on page, not redirect from ${previousUrl}`
+      `Get Information CTA should keep the MPC lead form flow on page, not redirect from ${previousUrl}`,
     ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
   /** Helper: find the Get Information lead form after opening its CTA. */
   private async getAvailableGetInformationForm(
-    formName = 'Get Information MPC form'
+    formName = 'Get Information MPC form',
   ): Promise<Locator> {
     await this.dismissBlockingOverlays();
     await this.openLeadFormFromGetInformationCtaIfPresent();
 
     await expect
-      .poll(
-        () => this.leadFormDialogOrSidebar.count(),
-        {
-          message: `${formName} sidebar/modal should open after Get Information CTA`,
-          timeout: 15000
-        }
-      )
+      .poll(() => this.leadFormDialogOrSidebar.count(), {
+        message: `${formName} sidebar/modal should open after Get Information CTA`,
+        timeout: 15000,
+      })
       .toBeGreaterThan(0);
 
     const form = this.leadFormDialogOrSidebar.first();
 
     await form.scrollIntoViewIfNeeded();
     await this.waitForPageReady();
-    await expect(getSubmitButton(form), `${formName} submit button should be visible inside sidebar/modal`)
-      .toBeVisible({ timeout: 10000 });
+    await expect(
+      getSubmitButton(form),
+      `${formName} submit button should be visible inside sidebar/modal`,
+    ).toBeVisible({ timeout: 10000 });
 
     return form;
   }
@@ -826,27 +875,7 @@ export class MPCPage extends BasePage {
 
   /** Helper: click a form submit button without waiting on third-party submit requests. */
   private async clickSubmit(form: Locator): Promise<void> {
-    const submitButton = getSubmitButton(form);
-
-    await submitButton.scrollIntoViewIfNeeded();
-    await expect(submitButton, 'Submit button should be visible before clicking')
-      .toBeVisible({ timeout: 10000 });
-    await submitButton.click({
-      force: true,
-      noWaitAfter: true,
-      timeout: 5000
-    });
-    await this.settle(800);
-  }
-
-  /** Helper: assert expected required-field messages within a lead form. */
-  private async expectRequiredErrorsInForm(form: Locator): Promise<void> {
-    await expectRequiredErrorsInForm(form);
-  }
-
-  /** Helper: assert invalid-email validation within a lead form. */
-  private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
-    await expectInvalidEmailErrorInForm(form);
+    await clickSubmit(this.page, form, 10000, { settle: (ms) => this.settle(ms) });
   }
 
   /** Helper: return true when a locator becomes visible within the timeout. */
@@ -879,7 +908,7 @@ export class MPCPage extends BasePage {
     }
 
     const modalCloseButtons = this.page.locator(
-      '.ReactModalPortal button[aria-label="Close"], .ReactModalPortal button:has-text("Close Icon")'
+      '.ReactModalPortal button[aria-label="Close"], .ReactModalPortal button:has-text("Close Icon")',
     );
     const closeCount = await modalCloseButtons.count();
 
@@ -890,5 +919,4 @@ export class MPCPage extends BasePage {
       }
     }
   }
-
 }

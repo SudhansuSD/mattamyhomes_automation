@@ -54,7 +54,7 @@ function resolveLocation(profile: WebProfile): { country: string; phone: string;
   return {
     country: REGIONS[profile.region].country,
     phone: profile.phone,
-    zip: profile.zip
+    zip: profile.zip,
   };
 }
 
@@ -79,7 +79,7 @@ export function getValidLeadData(profile: LeadFormProfileKey): LeadFieldData {
     email: buildValidEmail(entry.emailPrefix),
     phone: location.phone,
     zip: location.zip,
-    country: location.country
+    country: location.country,
   };
 }
 
@@ -94,7 +94,7 @@ export function getInvalidLeadData(profile: LeadFormProfileKey): LeadFieldData {
     email: entry.invalidEmail ?? LEAD.invalidEmail,
     phone: entry.invalidPhone ?? location.phone,
     zip: entry.invalidZip ?? location.zip,
-    country: location.country
+    country: location.country,
   };
 }
 
@@ -115,11 +115,17 @@ export async function selectFirstOptionIfPresent(field: Locator): Promise<void> 
     return;
   }
 
-  await field.first().selectOption({ index: 1 }).catch(() => undefined);
+  await field
+    .first()
+    .selectOption({ index: 1 })
+    .catch(() => undefined);
 }
 
 /** Select a dropdown value when the field exists, preferring a label then falling back to the first option. */
-export async function selectOptionIfPresent(field: Locator, preferredLabel?: string): Promise<void> {
+export async function selectOptionIfPresent(
+  field: Locator,
+  preferredLabel?: string,
+): Promise<void> {
   const target = field.first();
 
   if (!(await target.count())) {
@@ -150,7 +156,10 @@ export async function checkIfPresent(field: Locator): Promise<void> {
 }
 
 /** Select country of residence when the field exists, preferring a label then falling back to the first option. */
-export async function selectCountryIfPresent(form: Locator, preferredCountry?: string): Promise<void> {
+export async function selectCountryIfPresent(
+  form: Locator,
+  preferredCountry?: string,
+): Promise<void> {
   const country = form.getByRole('combobox', { name: /country of residence/i }).first();
 
   if (!(await country.count())) {
@@ -173,9 +182,11 @@ export async function selectCountryIfPresent(form: Locator, preferredCountry?: s
 
 /** Check the appropriate consent checkbox when present (skips "real estate agent" opt-ins). */
 export async function checkConsentIfPresent(form: Locator): Promise<void> {
-  const named = form.getByRole('checkbox', {
-    name: /express consent|providing consent|privacy policy/i
-  }).first();
+  const named = form
+    .getByRole('checkbox', {
+      name: /express consent|providing consent|privacy policy/i,
+    })
+    .first();
 
   if (await named.count()) {
     await named.check({ force: true }).catch(() => undefined);
@@ -207,7 +218,7 @@ export function getSubmitButton(form: Locator): Locator {
 export async function expectFieldVisibleIfPresent(
   field: Locator,
   label: string,
-  timeout = 10000
+  timeout = 10000,
 ): Promise<void> {
   if (await field.count()) {
     await expect(field.first(), `${label} field should be visible`).toBeVisible({ timeout });
@@ -218,39 +229,76 @@ export async function expectFieldVisibleIfPresent(
    Submit + validation
 ========================================================== */
 
-/** Click a form submit button without waiting on third-party submit requests. */
-export async function clickSubmit(page: Page, form: Locator, timeout = 10000): Promise<void> {
-  const submitButton = getSubmitButton(form);
+/**
+ * Click a form submit button without waiting on third-party submit requests.
+ *
+ * `options.submitButton` overrides how the submit button is resolved (some forms
+ * match it by a page-specific label rather than the default /submit/i).
+ * `options.settle` overrides the post-click pause: pass BasePage's adaptive
+ * `settle` to return as soon as the DOM stops mutating instead of always
+ * sleeping the full 800ms. Both default to the previous behaviour.
+ */
+export async function clickSubmit(
+  page: Page,
+  form: Locator,
+  timeout = 10000,
+  options: {
+    submitButton?: Locator;
+    settle?: (ms: number) => Promise<void>;
+  } = {},
+): Promise<void> {
+  const submitButton = options.submitButton ?? getSubmitButton(form);
 
   await submitButton.scrollIntoViewIfNeeded();
-  await expect(submitButton, 'Submit button should be visible before clicking').toBeVisible({ timeout });
+  await expect(submitButton, 'Submit button should be visible before clicking').toBeVisible({
+    timeout,
+  });
   await submitButton.click({
     force: true,
     noWaitAfter: true,
-    timeout: 5000
+    timeout: 5000,
   });
+
+  if (options.settle) {
+    await options.settle(800);
+    return;
+  }
+
   await page.waitForTimeout(800);
 }
 
 /** Assert expected required-field messages within a lead form. */
 export async function expectRequiredErrorsInForm(form: Locator, timeout = 10000): Promise<void> {
-  await expect(form.locator('text=/Error:\\s*First name is Required|First name.*Required/i').first())
-    .toBeVisible({ timeout });
-  await expect(form.locator('text=/Error:\\s*Last name is Required|Last name.*Required/i').first())
-    .toBeVisible({ timeout });
-  await expect(form.locator('text=/Error:\\s*Email is Required|Email.*Required/i').first())
-    .toBeVisible({ timeout });
-  await expect(form.locator('text=/Error:\\s*Country of Residence is Required|Country of Residence.*Required/i').first())
-    .toBeVisible({ timeout });
-  await expect(form.locator('text=/Error:\\s*Zip\\/Postal Code is Required|Zip\\/Postal Code.*Required|Postal.*Required/i').first())
-    .toBeVisible({ timeout });
+  await expect(
+    form.locator('text=/Error:\\s*First name is Required|First name.*Required/i').first(),
+  ).toBeVisible({ timeout });
+  await expect(
+    form.locator('text=/Error:\\s*Last name is Required|Last name.*Required/i').first(),
+  ).toBeVisible({ timeout });
+  await expect(
+    form.locator('text=/Error:\\s*Email is Required|Email.*Required/i').first(),
+  ).toBeVisible({ timeout });
+  await expect(
+    form
+      .locator('text=/Error:\\s*Country of Residence is Required|Country of Residence.*Required/i')
+      .first(),
+  ).toBeVisible({ timeout });
+  await expect(
+    form
+      .locator(
+        'text=/Error:\\s*Zip\\/Postal Code is Required|Zip\\/Postal Code.*Required|Postal.*Required/i',
+      )
+      .first(),
+  ).toBeVisible({ timeout });
 }
 
 /** Assert invalid-email validation within a lead form. */
 export async function expectInvalidEmailErrorInForm(form: Locator, timeout = 10000): Promise<void> {
-  await expect(form.locator(
-    'text=/valid domain name|valid email|invalid email|Error:.*Email|Email.*Invalid/i'
-  ).first()).toBeVisible({ timeout });
+  await expect(
+    form
+      .locator('text=/valid domain name|valid email|invalid email|Error:.*Email|Email.*Invalid/i')
+      .first(),
+  ).toBeVisible({ timeout });
 }
 
 /* ==========================================================
@@ -279,7 +327,7 @@ export type SideModalFormOptions = FillLeadOptions & {
 export async function fillLeadFormFields(
   form: Locator,
   data: LeadFieldData,
-  options: FillLeadOptions = {}
+  options: FillLeadOptions = {},
 ): Promise<void> {
   const emailName = options.emailName ?? /^email/i;
 
@@ -298,7 +346,9 @@ export async function fillLeadFormFields(
   }
 
   if (options.selectPlan) {
-    await selectFirstOptionIfPresent(form.getByRole('combobox', { name: /suite|floorplan|plan/i }).first());
+    await selectFirstOptionIfPresent(
+      form.getByRole('combobox', { name: /suite|floorplan|plan/i }).first(),
+    );
   }
 
   if (options.checkConsent !== false) {
@@ -313,26 +363,46 @@ export async function fillLeadFormFields(
  */
 export async function expectSideModalFormFields(
   form: Locator,
-  options: SideModalFormOptions = {}
+  options: SideModalFormOptions = {},
 ): Promise<void> {
   const timeout = options.timeout ?? 10000;
 
-  await expectFieldVisibleIfPresent(form.getByRole('textbox', { name: /first name/i }), 'First name', timeout);
-  await expectFieldVisibleIfPresent(form.getByRole('textbox', { name: /last name/i }), 'Last name', timeout);
-  await expectFieldVisibleIfPresent(form.getByRole('textbox', { name: /^email/i }), 'Email', timeout);
+  await expectFieldVisibleIfPresent(
+    form.getByRole('textbox', { name: /first name/i }),
+    'First name',
+    timeout,
+  );
+  await expectFieldVisibleIfPresent(
+    form.getByRole('textbox', { name: /last name/i }),
+    'Last name',
+    timeout,
+  );
+  await expectFieldVisibleIfPresent(
+    form.getByRole('textbox', { name: /^email/i }),
+    'Email',
+    timeout,
+  );
   await expectFieldVisibleIfPresent(
     form.getByRole('combobox', { name: /country of residence/i }).first(),
     'Country of Residence',
-    timeout
+    timeout,
   );
-  await expectFieldVisibleIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), 'Zip/Postal Code', timeout);
-  await expectFieldVisibleIfPresent(form.getByRole('textbox', { name: /phone/i }), 'Phone number', timeout);
+  await expectFieldVisibleIfPresent(
+    form.getByRole('textbox', { name: /zip|postal/i }),
+    'Zip/Postal Code',
+    timeout,
+  );
+  await expectFieldVisibleIfPresent(
+    form.getByRole('textbox', { name: /phone/i }),
+    'Phone number',
+    timeout,
+  );
 
   if (options.expectCommunity) {
     await expectFieldVisibleIfPresent(
       form.getByRole('combobox', { name: /community/i }).first(),
       'Community',
-      timeout
+      timeout,
     );
   }
 
@@ -340,36 +410,46 @@ export async function expectSideModalFormFields(
     await expectFieldVisibleIfPresent(
       form.getByRole('combobox', { name: /suite|floorplan|plan/i }).first(),
       'Suite/Floorplan/Plan',
-      timeout
+      timeout,
     );
   }
 
   // These four dropdowns are optional on the US / custom forms but required on the Canada
   // (ScheduleAVisit) forms, so their visibility is only asserted for Canada forms.
   if (await isCanadaForm(form)) {
-    await expectFieldVisibleIfPresent(findSelectByLabel(form, /bedroom/i, 'bedroom'), 'Bedroom Count', timeout);
+    await expectFieldVisibleIfPresent(
+      findSelectByLabel(form, /bedroom/i, 'bedroom'),
+      'Bedroom Count',
+      timeout,
+    );
     await expectFieldVisibleIfPresent(
       findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move'),
       'Desired Move Date',
-      timeout
+      timeout,
     );
-    await expectFieldVisibleIfPresent(findSelectByLabel(form, /budget/i, 'budget'), 'Budget', timeout);
+    await expectFieldVisibleIfPresent(
+      findSelectByLabel(form, /budget/i, 'budget'),
+      'Budget',
+      timeout,
+    );
     await expectFieldVisibleIfPresent(
       findSelectByLabel(form, /first.?time.*home.?buyer|first time homebuyer/i, 'buyer'),
       'First Time Home Buyer',
-      timeout
+      timeout,
     );
   }
 
-  await expect(getSubmitButton(form), 'Submit button should be visible inside side modal form')
-    .toBeVisible({ timeout });
+  await expect(
+    getSubmitButton(form),
+    'Submit button should be visible inside side modal form',
+  ).toBeVisible({ timeout });
 }
 
 /** Fill a side modal form with invalid-email data using the shared profile and form-id branching. */
 export async function fillInvalidSideModalForm(
   form: Locator,
   profile: LeadFormProfileKey,
-  options: FillLeadOptions = {}
+  options: FillLeadOptions = {},
 ): Promise<void> {
   await fillLeadFormFields(form, getInvalidLeadData(profile), options);
 }
@@ -378,7 +458,7 @@ export async function fillInvalidSideModalForm(
 export async function fillValidSideModalForm(
   form: Locator,
   profile: LeadFormProfileKey,
-  options: FillLeadOptions = {}
+  options: FillLeadOptions = {},
 ): Promise<ExtraLeadFields> {
   return fillLeadFormByFormId(form, getValidLeadData(profile), options);
 }
@@ -416,7 +496,7 @@ export async function getFormId(form: Locator): Promise<string> {
         container?.closest('form'),
         container?.closest('[id*="FormInstance"]'),
         container?.querySelector('form'),
-        container?.querySelector('[id*="FormInstance"]')
+        container?.querySelector('[id*="FormInstance"]'),
       ].filter(Boolean) as HTMLElement[];
 
       for (const candidate of candidates) {
@@ -454,7 +534,7 @@ export async function fillLeadFormByFormId(
   form: Locator,
   data: LeadFieldData,
   options: FillLeadOptions = {},
-  attempt?: number
+  attempt?: number,
 ): Promise<ExtraLeadFields> {
   await fillLeadFormFields(form, data, options);
 
@@ -469,7 +549,10 @@ export async function fillLeadFormByFormId(
  * custom, field-level fill method (i.e. where {@link fillLeadFormByFormId} can't be used directly).
  * Pass an attempt number to alternate First Time Home Buyer by iteration (odd -> Yes, even -> No).
  */
-export async function fillExtraLeadFieldsIfPresent(form: Locator, attempt?: number): Promise<ExtraLeadFields> {
+export async function fillExtraLeadFieldsIfPresent(
+  form: Locator,
+  attempt?: number,
+): Promise<ExtraLeadFields> {
   return fillExtraLeadFields(form, attempt);
 }
 
@@ -478,20 +561,22 @@ async function fillExtraLeadFields(form: Locator, attempt?: number): Promise<Ext
   return {
     bedroomCount: await selectRandomOptionIfPresent(findSelectByLabel(form, /bedroom/i, 'bedroom')),
     desiredMoveDate: await selectRandomOptionIfPresent(
-      findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move')
+      findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move'),
     ),
     newBudget: await selectRandomOptionIfPresent(findSelectByLabel(form, /budget/i, 'budget')),
-    firstTimeHomeBuyer: await selectFirstTimeHomeBuyerIfPresent(form, attempt)
+    firstTimeHomeBuyer: await selectFirstTimeHomeBuyerIfPresent(form, attempt),
   };
 }
 
 /** Locate a dropdown by accessible name, falling back to its name/id/aria-label attribute token. */
 function findSelectByLabel(form: Locator, name: RegExp, attributeToken: string): Locator {
-  return form.getByRole('combobox', { name }).or(
-    form.locator(
-      `select[name*="${attributeToken}" i], select[id*="${attributeToken}" i], select[aria-label*="${attributeToken}" i]`
-    )
-  );
+  return form
+    .getByRole('combobox', { name })
+    .or(
+      form.locator(
+        `select[name*="${attributeToken}" i], select[id*="${attributeToken}" i], select[aria-label*="${attributeToken}" i]`,
+      ),
+    );
 }
 
 /** Select a random non-placeholder option in the first visible matching dropdown; returns the option text, or '' when absent. */
@@ -510,7 +595,12 @@ async function selectRandomOptionIfPresent(select: Locator): Promise<string> {
   }
 
   const optionIndex = 1 + Math.floor(Math.random() * (optionCount - 1)); // Skip the placeholder at index 0.
-  const optionText = ((await options.nth(optionIndex).textContent().catch(() => '')) ?? '').trim();
+  const optionText = (
+    (await options
+      .nth(optionIndex)
+      .textContent()
+      .catch(() => '')) ?? ''
+  ).trim();
 
   await target.selectOption({ index: optionIndex }).catch(() => undefined);
 
@@ -552,7 +642,12 @@ async function selectYesNoOptionByLabel(select: Locator, desired: string): Promi
   const optionCount = await options.count();
 
   for (let index = 0; index < optionCount; index++) {
-    const optionText = ((await options.nth(index).textContent().catch(() => '')) ?? '').trim();
+    const optionText = (
+      (await options
+        .nth(index)
+        .textContent()
+        .catch(() => '')) ?? ''
+    ).trim();
 
     if (normalizeYesNoValue(optionText) === desired) {
       await target.selectOption({ index }).catch(() => undefined);

@@ -6,6 +6,7 @@ import process from 'node:process';
 import nodemailer from 'nodemailer';
 import { DESKTOP_ALLURE_REPORT_DIR, DESKTOP_ALLURE_RESULTS_DIR } from './allurePaths';
 import { loadEnv } from '../config/env';
+import { getEnvConfig } from '../config/environments/envConfig';
 
 loadEnv();
 
@@ -275,7 +276,7 @@ function buildSummaryFromCounts(
     failed,
     skipped: counts.skipped,
     passPercentage,
-    environment: getEnv('TEST_ENV', getEnv('ENV', 'Not configured')),
+    environment: getEnvConfig().envName,
     browser: getEnv('BROWSER', 'Chrome'),
     executionDateTime: new Date().toLocaleString('en-US'),
     reportUrl: getEnv('ALLURE_REPORT_URL', ''),

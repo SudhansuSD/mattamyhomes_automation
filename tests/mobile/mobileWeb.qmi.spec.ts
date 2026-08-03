@@ -22,7 +22,7 @@ describe('Mattamy Homes mobile web - QMI detail page on mobile (Android/iOS)', f
       await qmiPage.verifyHeroSection(location.qmiAddress);
       await qmiPage.verifyHeroHomeFacts();
       await qmiPage.verifyPriceOrCTA();
-      await qmiPage.verifyGetInformationScrollsToForm();
+      await qmiPage.verifyGetInformationCtaOpensLeadForm();
     });
   });
 

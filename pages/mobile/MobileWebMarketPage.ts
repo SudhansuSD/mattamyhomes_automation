@@ -5,8 +5,6 @@ import { getLocationConfig } from '../../config/locations/locationConfig';
 import { getMobilePlatformLabel } from '../../utils/mobilePlatform';
 import testData from '../../data/test_data.json';
 import {
-  assertLeadFormSubmissionSuccess,
-  getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
 } from '../../utils/mobileLeadFormHelper';
@@ -31,7 +29,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
       market.name
         .split('||')
         .map((name) => name.trim())
-        .includes(location.market)
+        .includes(location.market),
     );
 
     return configured || location.markets[0];
@@ -58,7 +56,10 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     try {
       return new URL(value, 'https://placeholder.local').pathname.toLowerCase().replace(/\/+$/, '');
     } catch {
-      return String(value || '').toLowerCase().replace(/[?#].*$/, '').replace(/\/+$/, '');
+      return String(value || '')
+        .toLowerCase()
+        .replace(/[?#].*$/, '')
+        .replace(/\/+$/, '');
     }
   }
 
@@ -114,14 +115,14 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     await this.waitForBodyText(
       namePattern,
       `Expected market page to include ${market.name}`,
-      45000
+      45000,
     );
 
     const snapshot = await this.getSnapshot();
 
     assert.ok(
       this.matchesMarketUrl(snapshot.currentUrl, market.url),
-      `Expected market URL to match ${market.url}, landed on ${snapshot.currentUrl}`
+      `Expected market URL to match ${market.url}, landed on ${snapshot.currentUrl}`,
     );
     assert.match(`${snapshot.title}\n${snapshot.bodyText}`, /Mattamy Homes/i);
     assert.match(`${snapshot.title}\n${snapshot.bodyText}`, namePattern);
@@ -137,11 +138,16 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     this.expectMobileUserAgent(snapshot.userAgent);
     assert.ok(
       this.matchesMarketUrl(snapshot.currentUrl, market.url),
-      `Expected market URL to match ${market.url}, landed on ${snapshot.currentUrl}`
+      `Expected market URL to match ${market.url}, landed on ${snapshot.currentUrl}`,
     );
-    assert.ok(viewport.width > 0 && viewport.height > 0, 'Expected mobile browser viewport dimensions');
+    assert.ok(
+      viewport.width > 0 && viewport.height > 0,
+      'Expected mobile browser viewport dimensions',
+    );
     this.assertNoErrorPage(snapshot);
-    this.logResult(`Market page rendered on ${getMobilePlatformLabel()} ${viewport.width}x${viewport.height}`);
+    this.logResult(
+      `Market page rendered on ${getMobilePlatformLabel()} ${viewport.width}x${viewport.height}`,
+    );
   }
 
   /** Validates the market hero content, media, autoplay safety, and search CTAs. */
@@ -150,56 +156,82 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     await this.closeCookiePreferencesIfVisible();
 
     const namePattern = this.getMarketNamePattern(market.name);
-    const hero = await this.driver.execute(({ source, flags }) => {
-      const regex = new RegExp(source, flags);
-      const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
-      const isVisible = (element) => {
-        if (!(element instanceof HTMLElement)) {
-          return false;
-        }
+    const hero = await this.driver.execute(
+      ({ source, flags }) => {
+        const regex = new RegExp(source, flags);
+        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
+        const isVisible = (element) => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
 
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
-      };
-      const heroSection =
-        document.querySelector('#HeaderPlanPage') ||
-        Array.from(document.querySelectorAll('header, section, main > *')).find((element) =>
-          isVisible(element) && regex.test(element.textContent || '')
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        };
+        const heroSection =
+          document.querySelector('#HeaderPlanPage') ||
+          Array.from(document.querySelectorAll('header, section, main > *')).find(
+            (element) => isVisible(element) && regex.test(element.textContent || ''),
+          );
+
+        heroSection?.scrollIntoView({ block: 'center', inline: 'center' });
+
+        const heading = (heroSection || document).querySelector('h1, h2');
+        const video = heroSection?.querySelector('video');
+        const image = heroSection?.querySelector(
+          'img, picture source, [style*="background-image"]',
         );
+        const backgroundImage = heroSection
+          ? window.getComputedStyle(heroSection).backgroundImage
+          : '';
+        const searchLinks = document.querySelectorAll('a[href*="/search"][href*="productType="]');
 
-      heroSection?.scrollIntoView({ block: 'center', inline: 'center' });
-
-      const heading = (heroSection || document).querySelector('h1, h2');
-      const video = heroSection?.querySelector('video');
-      const image = heroSection?.querySelector('img, picture source, [style*="background-image"]');
-      const backgroundImage = heroSection ? window.getComputedStyle(heroSection).backgroundImage : '';
-      const searchLinks = document.querySelectorAll('a[href*="/search"][href*="productType="]');
-
-      return {
-        hasHero: Boolean(heroSection),
-        headingText: normalize(heading?.textContent || ''),
-        heroText: normalize(heroSection?.textContent || ''),
-        hasMedia: Boolean(video || image || (backgroundImage && backgroundImage !== 'none')),
-        hasVideo: Boolean(video),
-        autoplay: Boolean(video?.autoplay || video?.hasAttribute('autoplay')),
-        muted: Boolean(video?.muted || video?.defaultMuted),
-        playsInline: Boolean(video?.hasAttribute('playsinline') || video?.hasAttribute('webkit-playsinline')),
-        searchLinkCount: searchLinks.length,
-      };
-    }, { source: namePattern.source, flags: namePattern.flags });
+        return {
+          hasHero: Boolean(heroSection),
+          headingText: normalize(heading?.textContent || ''),
+          heroText: normalize(heroSection?.textContent || ''),
+          hasMedia: Boolean(video || image || (backgroundImage && backgroundImage !== 'none')),
+          hasVideo: Boolean(video),
+          autoplay: Boolean(video?.autoplay || video?.hasAttribute('autoplay')),
+          muted: Boolean(video?.muted || video?.defaultMuted),
+          playsInline: Boolean(
+            video?.hasAttribute('playsinline') || video?.hasAttribute('webkit-playsinline'),
+          ),
+          searchLinkCount: searchLinks.length,
+        };
+      },
+      { source: namePattern.source, flags: namePattern.flags },
+    );
 
     assert.equal(hero.hasHero, true, `Expected market hero section on mobile for ${market.name}`);
-    assert.match(`${hero.headingText}\n${hero.heroText}`, namePattern, `Expected market hero heading to include ${market.name}`);
+    assert.match(
+      `${hero.headingText}\n${hero.heroText}`,
+      namePattern,
+      `Expected market hero heading to include ${market.name}`,
+    );
     assert.equal(hero.hasMedia, true, `Expected market hero media on mobile for ${market.name}`);
     assert.ok(hero.heroText.length > 0, 'Expected market hero to include visible copy');
     assert.ok(hero.searchLinkCount > 0, 'Expected market page to expose search CTAs');
 
     if (hero.hasVideo) {
-      assert.equal(hero.autoplay, true, 'Market hero video should keep desktop autoplay behavior on mobile');
+      assert.equal(
+        hero.autoplay,
+        true,
+        'Market hero video should keep desktop autoplay behavior on mobile',
+      );
       assert.equal(hero.muted, true, 'Market hero autoplay video should be muted on mobile');
-      assert.equal(hero.playsInline, true, 'Market hero video should include playsinline for mobile browsers');
+      assert.equal(
+        hero.playsInline,
+        true,
+        'Market hero video should include playsinline for mobile browsers',
+      );
     }
   }
 
@@ -209,11 +241,16 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     const cards = await this.getCommunityCardsSnapshot();
 
     if (!cards.found) {
-      this.logSkip(`Community cards section not present for ${market.name} - skipping card listing validation`);
+      this.logSkip(
+        `Community cards section not present for ${market.name} - skipping card listing validation`,
+      );
       return;
     }
 
-    assert.ok(cards.cards.length > 0, `Expected market page to list community cards for ${market.name}`);
+    assert.ok(
+      cards.cards.length > 0,
+      `Expected market page to list community cards for ${market.name}`,
+    );
     this.logResult(`Found ${cards.cards.length} community card(s) for ${market.name}`);
   }
 
@@ -223,7 +260,9 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     const cards = await this.getCommunityCardsSnapshot();
 
     if (!cards.found) {
-      this.logSkip(`Community cards section not present for ${market.name} - skipping card detail validation`);
+      this.logSkip(
+        `Community cards section not present for ${market.name} - skipping card detail validation`,
+      );
       return;
     }
 
@@ -254,7 +293,11 @@ export class MobileWebMarketPage extends MobileWebHomePage {
       this.logResult(`${index + 1}. ${card.title || '(no title)'} | ${card.href}`);
     }
 
-    assert.deepEqual(invalidCards, [], `Community card detail failures for ${market.name}:\n${invalidCards.join('\n')}`);
+    assert.deepEqual(
+      invalidCards,
+      [],
+      `Community card detail failures for ${market.name}:\n${invalidCards.join('\n')}`,
+    );
   }
 
   /** Validates the first community card navigates to its community page (mobile script-driven click). */
@@ -270,14 +313,20 @@ export class MobileWebMarketPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
       const section =
         document.querySelector('#CommunityCards') ||
-        Array.from(document.querySelectorAll('section, div')).find((element) =>
-          isVisible(element) &&
-          /explore (our )?communities/i.test(element.textContent || '') &&
-          element.querySelector('li a[href]')
+        Array.from(document.querySelectorAll('section, div')).find(
+          (element) =>
+            isVisible(element) &&
+            /explore (our )?communities/i.test(element.textContent || '') &&
+            element.querySelector('li a[href]'),
         );
 
       if (!section) {
@@ -301,7 +350,9 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     });
 
     if (!result.clicked) {
-      this.logSkip(`${result.reason} - skipping first community card navigation for ${market.name}`);
+      this.logSkip(
+        `${result.reason} - skipping first community card navigation for ${market.name}`,
+      );
       return;
     }
 
@@ -326,10 +377,15 @@ export class MobileWebMarketPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
-      const heading = Array.from(document.querySelectorAll('h2, h3')).find((element) =>
-        isVisible(element) && /discover our homes/i.test(element.textContent || '')
+      const heading = Array.from(document.querySelectorAll('h2, h3')).find(
+        (element) => isVisible(element) && /discover our homes/i.test(element.textContent || ''),
       );
       const root = heading?.closest('section') || heading?.parentElement;
 
@@ -347,7 +403,9 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     });
 
     if (!section.found) {
-      this.logSkip(`Discover Our Homes section not present for ${market.name} - skipping validation`);
+      this.logSkip(
+        `Discover Our Homes section not present for ${market.name} - skipping validation`,
+      );
       return;
     }
 
@@ -362,17 +420,25 @@ export class MobileWebMarketPage extends MobileWebHomePage {
       const normalizedHref = link.href.toLowerCase();
 
       if (normalizedText.includes('floorplan') && !normalizedHref.includes('producttype=plan')) {
-        invalidLinks.push(`Floorplan link ${index + 1} should target productType=plan: ${link.href}`);
+        invalidLinks.push(
+          `Floorplan link ${index + 1} should target productType=plan: ${link.href}`,
+        );
       }
 
       if (normalizedText.includes('quick move-in') && !normalizedHref.includes('producttype=qmi')) {
-        invalidLinks.push(`Quick move-in link ${index + 1} should target productType=qmi: ${link.href}`);
+        invalidLinks.push(
+          `Quick move-in link ${index + 1} should target productType=qmi: ${link.href}`,
+        );
       }
 
       this.logResult(`Discover link ${index + 1}: ${link.text || '(no text)'} | ${link.href}`);
     }
 
-    assert.deepEqual(invalidLinks, [], `Discover Our Homes link failures for ${market.name}:\n${invalidLinks.join('\n')}`);
+    assert.deepEqual(
+      invalidLinks,
+      [],
+      `Discover Our Homes link failures for ${market.name}:\n${invalidLinks.join('\n')}`,
+    );
   }
 
   /** Validates the market page links to both plan and QMI search results. */
@@ -380,7 +446,9 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     await this.openMarket(market);
 
     const result = await this.driver.execute(() => {
-      const links = Array.from(document.querySelectorAll('a[href*="/search"][href*="productType="]'))
+      const links = Array.from(
+        document.querySelectorAll('a[href*="/search"][href*="productType="]'),
+      )
         .map((link) => link.getAttribute('href') || '')
         .filter(Boolean);
 
@@ -393,7 +461,9 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     });
 
     assert.ok(result.count > 0, `Expected market search links for ${market.name}`);
-    result.links.forEach((href, index) => this.logResult(`Market search link ${index + 1}: ${href}`));
+    result.links.forEach((href, index) =>
+      this.logResult(`Market search link ${index + 1}: ${href}`),
+    );
     assert.equal(result.hasPlanLink, true, 'Expected market page to link to plan search results');
     assert.equal(result.hasQmiLink, true, 'Expected market page to link to QMI search results');
   }
@@ -413,14 +483,23 @@ export class MobileWebMarketPage extends MobileWebHomePage {
 
     const navigation = await this.driver.execute(() => {
       const text = document.body?.innerText || '';
-      const visibleLinks = Array.from(document.querySelectorAll('header a, nav a, [role="dialog"] a, a, button'))
+      const visibleLinks = Array.from(
+        document.querySelectorAll('header a, nav a, [role="dialog"] a, a, button'),
+      )
         .filter((element) => {
           const style = window.getComputedStyle(element);
           const rect = element.getBoundingClientRect();
 
-          return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
         })
-        .map((element) => `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`.trim());
+        .map((element) =>
+          `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`.trim(),
+        );
 
       return {
         hasHeader: Boolean(document.querySelector('header')),
@@ -431,7 +510,11 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     });
 
     assert.equal(navigation.hasHeader, true, 'Expected header to render on mobile market page');
-    assert.equal(navigation.hasExpectedNavigation, true, 'Expected key mobile header navigation links to be reachable');
+    assert.equal(
+      navigation.hasExpectedNavigation,
+      true,
+      'Expected key mobile header navigation links to be reachable',
+    );
   }
 
   /** Clicks the mobile hamburger/menu button when present; returns whether it was clicked. */
@@ -445,7 +528,12 @@ export class MobileWebMarketPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
       const selectors = [
         'header button[aria-label*="menu" i]',
@@ -505,7 +593,11 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     await this.getMarketLeadForm();
     const result = await this.fillMarketLeadForm({ invalidEmail: true, submit: true });
 
-    assert.equal(result.filled, true, 'Expected market lead form to accept invalid email test data');
+    assert.equal(
+      result.filled,
+      true,
+      'Expected market lead form to accept invalid email test data',
+    );
     await this.assertEmailError('Expected invalid email validation in market lead form');
   }
 
@@ -574,17 +666,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
   async getLeadFormSnapshotByIndex(formIndex = 0) {
     await this.installLeadFormFinder();
 
-    return this.driver.execute((index) => {
-      const form = window.__getVisibleMarketLeadForms?.()[index] || window.__getVisibleMarketLeadForms?.()[0];
-
-      form?.scrollIntoView({ block: 'center', inline: 'center' });
-
-      return {
-        found: Boolean(form),
-        hasSubmit: Boolean(form?.querySelector('button[type="submit"], input[type="submit"], button')),
-        text: (form?.textContent || '').replace(/\s+/g, ' ').trim(),
-      };
-    }, formIndex);
+    return this.getVisibleLeadFormSnapshot(MARKET_FORM_GLOBAL, formIndex);
   }
 
   /** Submits the visible market lead form at the given index. */
@@ -607,8 +689,12 @@ export class MobileWebMarketPage extends MobileWebHomePage {
       ? LEAD_DATA.invalidEmail
       : `ssdas_market_mobile_${Date.now()}@${LEAD_DATA.emailDomain}`;
     const config = {
-      firstName: options.invalidEmail ? LEAD_DATA.invalidName.firstName : MOBILE_LEAD_DATA.validName.firstName,
-      lastName: options.invalidEmail ? LEAD_DATA.invalidName.lastName : MOBILE_LEAD_DATA.validName.lastName,
+      firstName: options.invalidEmail
+        ? LEAD_DATA.invalidName.firstName
+        : MOBILE_LEAD_DATA.validName.firstName,
+      lastName: options.invalidEmail
+        ? LEAD_DATA.invalidName.lastName
+        : MOBILE_LEAD_DATA.validName.lastName,
       email,
       phone: MOBILE_LEAD_DATA.phone,
       zip: MOBILE_LEAD_DATA.zip,
@@ -640,7 +726,8 @@ export class MobileWebMarketPage extends MobileWebHomePage {
 
         if (!text && element.id) {
           try {
-            text = document.querySelector(`label[for="${CSS.escape(element.id)}"]`)?.textContent || '';
+            text =
+              document.querySelector(`label[for="${CSS.escape(element.id)}"]`)?.textContent || '';
           } catch {
             text = '';
           }
@@ -651,7 +738,8 @@ export class MobileWebMarketPage extends MobileWebHomePage {
         }
 
         if (!text) {
-          text = element.getAttribute('placeholder') || element.getAttribute('name') || element.id || '';
+          text =
+            element.getAttribute('placeholder') || element.getAttribute('name') || element.id || '';
         }
 
         return normalize(text);
@@ -659,14 +747,17 @@ export class MobileWebMarketPage extends MobileWebHomePage {
       const fields = Array.from(form.querySelectorAll('input, select, textarea'));
       const selects = fields.filter((field) => field.tagName.toLowerCase() === 'select');
       const findInput = (regex) =>
-        fields.find((field) => field.tagName.toLowerCase() !== 'select' && regex.test(labelText(field)));
+        fields.find(
+          (field) => field.tagName.toLowerCase() !== 'select' && regex.test(labelText(field)),
+        );
       const findSelect = (regex) => selects.find((field) => regex.test(labelText(field)));
       const setInput = (element, value) => {
         if (!element) {
           return;
         }
 
-        const proto = element instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+        const proto =
+          element instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
         const setter = Object.getOwnPropertyDescriptor(proto.prototype, 'value')?.set;
 
         element.focus();
@@ -681,9 +772,11 @@ export class MobileWebMarketPage extends MobileWebHomePage {
 
         const pattern = new RegExp(patternSource, 'i');
         const preferred = Array.from(element.options).find(
-          (option) => option.value && pattern.test(option.textContent || option.value)
+          (option) => option.value && pattern.test(option.textContent || option.value),
         );
-        const fallback = Array.from(element.options).find((option) => option.value && option.index > 0);
+        const fallback = Array.from(element.options).find(
+          (option) => option.value && option.index > 0,
+        );
         const chosen = preferred || fallback;
 
         if (chosen) {
@@ -705,7 +798,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
       setInput(findInput(/phone/i), cfg.phone);
 
       const consent = Array.from(form.querySelectorAll('input[type="checkbox"]')).find(
-        (checkbox) => !/real estate agent/i.test(labelText(checkbox))
+        (checkbox) => !/real estate agent/i.test(labelText(checkbox)),
       ) as HTMLInputElement | undefined;
 
       if (consent) {
@@ -718,7 +811,8 @@ export class MobileWebMarketPage extends MobileWebHomePage {
 
       if (cfg.submit) {
         const submit =
-          form.querySelector('button[type="submit"], input[type="submit"]') || form.querySelector('button');
+          form.querySelector('button[type="submit"], input[type="submit"]') ||
+          form.querySelector('button');
 
         if (submit) {
           (submit as HTMLElement).click();
@@ -733,46 +827,26 @@ export class MobileWebMarketPage extends MobileWebHomePage {
         tag: field.tagName.toLowerCase(),
         type: field.getAttribute('type') || '',
         label: labelText(field),
-        options: field.tagName.toLowerCase() === 'select' ? field.querySelectorAll('option').length : undefined,
+        options:
+          field.tagName.toLowerCase() === 'select'
+            ? field.querySelectorAll('option').length
+            : undefined,
       }));
       const invalidFields = fields
-        .filter((field) => typeof (field as HTMLInputElement).checkValidity === 'function' && !(field as HTMLInputElement).checkValidity())
+        .filter(
+          (field) =>
+            typeof (field as HTMLInputElement).checkValidity === 'function' &&
+            !(field as HTMLInputElement).checkValidity(),
+        )
         .map((field) => labelText(field));
 
       return { filled: true, submitted, invalidFields, descriptors };
     }, config);
   }
 
-  /** Returns a snapshot of lead-form validation state (errors, invalid fields). */
-  async getFormErrorSnapshot() {
-    return getLeadFormErrorSnapshot(this.driver);
-  }
-
-  /** Asserts required/validation errors are present in the market lead form. */
-  async assertFormErrors(message) {
-    const snapshot = await this.getFormErrorSnapshot();
-
-    assert.ok(
-      /required|invalid|error|please enter|field is required/i.test(snapshot.text) || snapshot.invalidFieldCount > 0,
-      message
-    );
-  }
-
-  /** Asserts an email-format validation message is present in the market lead form. */
-  async assertEmailError(message) {
-    const snapshot = await this.getFormErrorSnapshot();
-
-    assert.ok(
-      /email|valid domain|invalid|please enter/i.test(
-        `${snapshot.text} ${snapshot.emailValidationMessage} ${snapshot.emailAriaInvalid}`
-      ),
-      message
-    );
-  }
-
   /** Asserts the market lead form submission success confirmation is shown (allows for slow emulators). */
-  async assertSubmissionSuccess(message) {
-    await assertLeadFormSubmissionSuccess(this.driver, message, 60000);
+  async assertSubmissionSuccess(message, timeout = 60000) {
+    await super.assertSubmissionSuccess(message, timeout);
   }
 
   /* ==========================================================
@@ -791,14 +865,20 @@ export class MobileWebMarketPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
       const section =
         document.querySelector('#CommunityCards') ||
-        Array.from(document.querySelectorAll('section, div')).find((element) =>
-          isVisible(element) &&
-          /explore (our )?communities/i.test(element.textContent || '') &&
-          element.querySelector('li a[href]')
+        Array.from(document.querySelectorAll('section, div')).find(
+          (element) =>
+            isVisible(element) &&
+            /explore (our )?communities/i.test(element.textContent || '') &&
+            element.querySelector('li a[href]'),
         );
 
       if (!section) {
@@ -856,146 +936,11 @@ export class MobileWebMarketPage extends MobileWebHomePage {
   ========================================================== */
 
   /** Validates every market image/video URL returns HTTP 200. */
-  async validateImageAndVideoUrlsReturn200(pageName = 'Market page', market = this.getConfiguredMarket()) {
+  async validateImageAndVideoUrlsReturn200(
+    pageName = 'Market page',
+    market = this.getConfiguredMarket(),
+  ) {
     await this.openMarket(market);
-    await this.loadLazyMedia();
-
-    const mediaUrls = await this.collectImageAndVideoUrls();
-
-    assert.ok(mediaUrls.length > 0, `${pageName} should expose image or video URLs`);
-
-    const failures = [];
-
-    for (const media of mediaUrls) {
-      const status = await this.getMediaUrlStatus(media.url);
-      this.logResult(`${pageName} media check | ${media.type} | ${status} | ${media.label} | ${media.url}`);
-
-      if (status !== 200) {
-        failures.push(`${media.type} returned ${status} for ${media.label}: ${media.url}`);
-      }
-    }
-
-    assert.deepEqual(failures, [], `${pageName} image/video URL status failures:\n${failures.join('\n')}`);
-  }
-
-  /** Scrolls the full page to trigger lazy-loaded media, then returns to the top. */
-  async loadLazyMedia() {
-    await this.driver.execute(async () => {
-      const delay = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
-      const viewportStep = Math.max(window.innerHeight || 800, 600);
-      const pageHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-
-      for (let y = 0; y <= pageHeight; y += viewportStep) {
-        window.scrollTo(0, y);
-        await delay(250);
-      }
-
-      window.scrollTo(0, 0);
-    });
-
-    await this.waitForPageReady();
-  }
-
-  /** Collects deduplicated image/video URLs (with labels) from the page. */
-  async collectImageAndVideoUrls() {
-    const rawUrls = await this.driver.execute(() => {
-      const media = [];
-      const cleanText = (value) => (value || '').replace(/\s+/g, ' ').trim();
-      const addUrl = (type, rawUrl, element) => {
-        if (!rawUrl) {
-          return;
-        }
-
-        const trimmed = rawUrl.trim();
-
-        if (!trimmed || /^(data|blob|javascript|about):/i.test(trimmed)) {
-          return;
-        }
-
-        try {
-          const section = element.closest('section, article, main, header, footer, [role="region"], [aria-label]');
-          const heading = section?.querySelector('h1, h2, h3, h4, h5, h6');
-          const label =
-            cleanText(element.getAttribute('alt')) ||
-            cleanText(element.getAttribute('aria-label')) ||
-            cleanText(element.getAttribute('title')) ||
-            cleanText(section?.getAttribute('aria-label')) ||
-            cleanText(heading?.textContent) ||
-            'No alt/section label';
-
-          media.push({
-            label,
-            type,
-            url: new URL(trimmed, window.location.href).href,
-          });
-        } catch {
-          // Ignore malformed media URLs.
-        }
-      };
-      const addSrcset = (type, srcset, element) => {
-        if (!srcset) {
-          return;
-        }
-
-        for (const candidate of srcset.split(',')) {
-          addUrl(type, candidate.trim().split(/\s+/)[0], element);
-        }
-      };
-
-      document.querySelectorAll('img').forEach((image) => {
-        addUrl('image', image.currentSrc || image.src || image.getAttribute('src'), image);
-        addSrcset('image', image.getAttribute('srcset'), image);
-      });
-
-      document.querySelectorAll('picture source').forEach((source) => {
-        addUrl('image-source', source.getAttribute('src'), source);
-        addSrcset('image-source', source.getAttribute('srcset'), source);
-      });
-
-      document.querySelectorAll('video').forEach((video) => {
-        addUrl('video', video.currentSrc || video.src || video.getAttribute('src'), video);
-        addUrl('video-poster', video.poster || video.getAttribute('poster'), video);
-      });
-
-      document.querySelectorAll('video source').forEach((source) => {
-        addUrl('video-source', source.getAttribute('src'), source);
-        addSrcset('video-source', source.getAttribute('srcset'), source);
-      });
-
-      return media;
-    });
-
-    const unique = new Map();
-
-    for (const item of rawUrls) {
-      if (/\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(item.url)) {
-        continue;
-      }
-
-      if (!unique.has(item.url)) {
-        unique.set(item.url, item);
-      }
-    }
-
-    return [...unique.values()];
-  }
-
-  /** Returns the HTTP status for a media URL (HEAD, falling back to GET). */
-  async getMediaUrlStatus(url) {
-    const tryRequest = async (method) => {
-      try {
-        const response = await fetch(url, { method });
-        return response.status;
-      } catch (error) {
-        return `request failed: ${error.message}`;
-      }
-    };
-    const headStatus = await tryRequest('HEAD');
-
-    if (![403, 405, 501].includes(headStatus as number) && typeof headStatus === 'number') {
-      return headStatus;
-    }
-
-    return tryRequest('GET');
+    await this.assertMediaUrlsReturn200(pageName);
   }
 }

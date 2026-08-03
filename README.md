@@ -184,9 +184,8 @@ come from GitHub **secrets**, not a file.
 
 | Variable | Used by | Required for | Default |
 | --- | --- | --- | --- |
-| `ENV` | `envConfig.ts` | selecting STAGE/PROD base URL | `PROD` |
+| `ENV` | `envConfig.ts`, reports | selecting STAGE/PROD base URL and report label | `STAGE` |
 | `LOCATION` | `locationConfig.ts` | selecting USA/CAN data | `USA` |
-| `TEST_ENV` | email report | report label | `STAGE` |
 | `BROWSER` | email report | report label | `Chrome` |
 | `ALLURE_REPORT_URL` | email report | report link | — |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_SECURE` | email report | sending email | `587` / `false` |
@@ -255,9 +254,6 @@ docs/             How-to docs
 
 ## 11. Known issues / notes
 
-- **`ENV` vs `TEST_ENV`.** The base-URL selector (`envConfig.ts`) reads `ENV`,
-  while the email report reads `TEST_ENV`. Set both to the same value until they
-  are unified. `.env.example` documents both.
 - **`.venv/`** is a leftover Python virtualenv; nothing in the repo uses Python.
   It is ignored and safe to delete.
 - Several evidence/one-off specs (`*Evidence.spec.ts`, `sitemapXml.spec.ts`) are

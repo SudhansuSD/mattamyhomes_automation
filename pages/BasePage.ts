@@ -8,7 +8,7 @@ import {
   escapeRegex,
   formatPrice as formatCurrencyPrice,
   formatPriceToUiLabel as formatPriceLabel,
-  normalizeComparableText
+  normalizeComparableText,
 } from '../utils/pageObjectUtils';
 
 /* ==========================================================
@@ -16,7 +16,6 @@ import {
 ========================================================== */
 
 export class BasePage {
-
   protected readonly page: Page;
   private consentHandlersRegistered = false;
 
@@ -31,51 +30,51 @@ export class BasePage {
 
   /** Navigates to the configured page URL. */
   async navigate(overrideLocation?: LocationKey): Promise<void> {
-
     const { baseURL, envName } = getEnvConfig();
     const location = getLocationConfig(overrideLocation);
 
     const targetUrl = `${baseURL}/?${location.queryParam}`;
 
     await test.step(`Open Mattamy Homes home page for ${location.country} in ${envName}`, async () => {
-    await this.registerConsentDialogHandlers();
-    try {
-      await this.page.goto(targetUrl, {
-        waitUntil: 'domcontentloaded',
-        timeout: 90_000
-      });
-    } catch (error) {
-      const currentUrl = this.page.url();
-      const current = new URL(currentUrl);
-      const target = new URL(targetUrl);
-      const sameHost = current.hostname.replace(/^www\./i, '') === target.hostname.replace(/^www\./i, '');
-      const reachedTarget =
-        sameHost &&
-        current.pathname === target.pathname &&
-        current.searchParams.get('country') === target.searchParams.get('country');
-      const domIsUsable = await this.page
-        .evaluate(() => document.readyState !== 'loading')
-        .catch(() => false);
-
-      if (!reachedTarget || !domIsUsable) {
-        await this.reportValue('Page not usable after navigation; retrying', targetUrl);
+      await this.registerConsentDialogHandlers();
+      try {
         await this.page.goto(targetUrl, {
           waitUntil: 'domcontentloaded',
-          timeout: 90_000
+          timeout: 90_000,
         });
-      } else {
-        await this.reportValue('Navigation timed out after render; continuing from', currentUrl);
+      } catch (_error) {
+        const currentUrl = this.page.url();
+        const current = new URL(currentUrl);
+        const target = new URL(targetUrl);
+        const sameHost =
+          current.hostname.replace(/^www\./i, '') === target.hostname.replace(/^www\./i, '');
+        const reachedTarget =
+          sameHost &&
+          current.pathname === target.pathname &&
+          current.searchParams.get('country') === target.searchParams.get('country');
+        const domIsUsable = await this.page
+          .evaluate(() => document.readyState !== 'loading')
+          .catch(() => false);
+
+        if (!reachedTarget || !domIsUsable) {
+          await this.reportValue('Page not usable after navigation; retrying', targetUrl);
+          await this.page.goto(targetUrl, {
+            waitUntil: 'domcontentloaded',
+            timeout: 90_000,
+          });
+        } else {
+          await this.reportValue('Navigation timed out after render; continuing from', currentUrl);
+        }
       }
-    }
 
-    await this.acceptCookiesIfPresent();
+      await this.acceptCookiesIfPresent();
 
-    // 🔹 Use common load handler instead of inline wait
-    await this.waitForPageReady();
+      // 🔹 Use common load handler instead of inline wait
+      await this.waitForPageReady();
 
-    // Recover from the intermittent blank/unhydrated render (empty page where
-    // the shell loaded but the SPA never painted) before handing control back.
-    await this.ensurePageRendered();
+      // Recover from the intermittent blank/unhydrated render (empty page where
+      // the shell loaded but the SPA never painted) before handing control back.
+      await this.ensurePageRendered();
     });
   }
 
@@ -103,7 +102,10 @@ export class BasePage {
       }
 
       if (attempt < maxAttempts) {
-        await this.reportValue(`Page rendered blank (attempt ${attempt}); reloading`, this.page.url());
+        await this.reportValue(
+          `Page rendered blank (attempt ${attempt}); reloading`,
+          this.page.url(),
+        );
         // reload can abort ("net::ERR_ABORTED; maybe frame was detached?") when
         // the SPA kicks off its own navigation mid-reload - swallow it and let
         // the next attempt re-check, rather than failing the whole test.
@@ -124,6 +126,21 @@ export class BasePage {
   protected async waitForPageReady(): Promise<void> {
     await this.page.waitForLoadState('domcontentloaded');
     await this.page.waitForTimeout(3000); // same behavior as before
+  }
+
+  /** Waits until the page footer is visible, useful before validating footer-area content. */
+  protected async waitForFooterSectionVisible(
+    label = 'page footer',
+    timeout = 15_000,
+  ): Promise<void> {
+    const footer = this.page.locator('footer').first();
+
+    await this.waitForPageReady();
+    await footer.scrollIntoViewIfNeeded({ timeout });
+    await expect(footer, `Footer should be visible before validating ${label}`).toBeVisible({
+      timeout,
+    });
+    await this.waitForPageReady();
   }
 
   /**
@@ -196,7 +213,7 @@ export class BasePage {
 
       expect(
         failures,
-        `${pageName} image/video URL status failures:\n${failures.join('\n')}`
+        `${pageName} image/video URL status failures:\n${failures.join('\n')}`,
       ).toHaveLength(0);
     });
   }
@@ -208,7 +225,7 @@ export class BasePage {
       const viewportStep = Math.max(window.innerHeight || 800, 600);
       const pageHeight = Math.max(
         document.body.scrollHeight,
-        document.documentElement.scrollHeight
+        document.documentElement.scrollHeight,
       );
 
       for (let y = 0; y <= pageHeight; y += viewportStep) {
@@ -223,7 +240,9 @@ export class BasePage {
   }
 
   /** Collects image and video urls. */
-  private async collectImageAndVideoUrls(): Promise<Array<{ type: string; label: string; url: string }>> {
+  private async collectImageAndVideoUrls(): Promise<
+    Array<{ type: string; label: string; url: string }>
+  > {
     const rawUrls = await this.page.evaluate(() => {
       const media: Array<{ type: string; label: string; url: string }> = [];
       const cleanText = (value: string | null | undefined) =>
@@ -242,7 +261,9 @@ export class BasePage {
 
         if (captionText) return captionText;
 
-        const section = element.closest('section, article, main, header, footer, [role="region"], [aria-label]');
+        const section = element.closest(
+          'section, article, main, header, footer, [role="region"], [aria-label]',
+        );
         const sectionAria = cleanText(section?.getAttribute('aria-label'));
 
         if (sectionAria) return sectionAria;
@@ -253,7 +274,8 @@ export class BasePage {
         if (headingText) return headingText;
 
         const link = element.closest('a');
-        const linkLabel = cleanText(link?.getAttribute('aria-label')) || cleanText(link?.textContent);
+        const linkLabel =
+          cleanText(link?.getAttribute('aria-label')) || cleanText(link?.textContent);
 
         return linkLabel || 'No alt/section label';
       };
@@ -265,7 +287,9 @@ export class BasePage {
         if (
           !trimmed ||
           /^(data|blob|javascript|about):/i.test(trimmed) ||
-          /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(trimmed)
+          /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(
+            trimmed,
+          )
         ) {
           return;
         }
@@ -274,7 +298,7 @@ export class BasePage {
           media.push({
             type,
             label: getSectionLabel(element),
-            url: new URL(trimmed, window.location.href).href
+            url: new URL(trimmed, window.location.href).href,
           });
         } catch {
           // Ignore malformed media attributes.
@@ -302,8 +326,16 @@ export class BasePage {
 
       document.querySelectorAll('video').forEach((video) => {
         const mediaElement = video as HTMLVideoElement;
-        addUrl('video', mediaElement.currentSrc || mediaElement.src || mediaElement.getAttribute('src'), mediaElement);
-        addUrl('video-poster', mediaElement.poster || mediaElement.getAttribute('poster'), mediaElement);
+        addUrl(
+          'video',
+          mediaElement.currentSrc || mediaElement.src || mediaElement.getAttribute('src'),
+          mediaElement,
+        );
+        addUrl(
+          'video-poster',
+          mediaElement.poster || mediaElement.getAttribute('poster'),
+          mediaElement,
+        );
       });
 
       document.querySelectorAll('video source').forEach((source) => {
@@ -331,27 +363,33 @@ export class BasePage {
 
   /** Checks whether ignorable media URL. */
   private isIgnorableMediaUrl(url: string): boolean {
-    return /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(url);
+    return /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(
+      url,
+    );
   }
 
   /** Returns media URL status. */
   private async getMediaUrlStatus(url: string): Promise<number | string> {
-    const headResponse = await this.page.request.head(url, {
-      failOnStatusCode: false,
-      timeout: 30_000
-    }).catch(() => null);
+    const headResponse = await this.page.request
+      .head(url, {
+        failOnStatusCode: false,
+        timeout: 30_000,
+      })
+      .catch(() => null);
 
     if (headResponse && ![403, 405, 501].includes(headResponse.status())) {
       return headResponse.status();
     }
 
-    const getResponse = await this.page.request.get(url, {
-      failOnStatusCode: false,
-      timeout: 30_000
-    }).catch((error) => {
-      const message = error instanceof Error ? error.message : String(error);
-      return { status: () => `request failed: ${message}` };
-    });
+    const getResponse = await this.page.request
+      .get(url, {
+        failOnStatusCode: false,
+        timeout: 30_000,
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        return { status: () => `request failed: ${message}` };
+      });
 
     return getResponse.status();
   }
@@ -390,18 +428,18 @@ export class BasePage {
   /** Asserts page loaded. */
   protected async assertPageLoaded(label = 'Page should be loaded'): Promise<void> {
     await test.step(label, async () => {
-    await this.waitForPageReady();
-    await expect(this.page, label).not.toHaveURL(/about:blank/i);
+      await this.waitForPageReady();
+      await expect(this.page, label).not.toHaveURL(/about:blank/i);
     });
   }
 
   /** Asserts page title. */
   protected async assertPageTitle(
     expectedTitle: string | RegExp,
-    label = 'Page title should match expected value'
+    label = 'Page title should match expected value',
   ): Promise<void> {
     await test.step(label, async () => {
-    await expect(this.page, label).toHaveTitle(expectedTitle);
+      await expect(this.page, label).toHaveTitle(expectedTitle);
     });
   }
 
@@ -409,10 +447,10 @@ export class BasePage {
   protected async assertPageUrl(
     expectedUrl: string | RegExp,
     label = 'Page URL should match expected value',
-    timeout = 60_000
+    timeout = 60_000,
   ): Promise<void> {
     await test.step(label, async () => {
-    await expect(this.page, label).toHaveURL(expectedUrl, { timeout });
+      await expect(this.page, label).toHaveURL(expectedUrl, { timeout });
     });
   }
 
@@ -420,7 +458,7 @@ export class BasePage {
   protected async assertPageUrlContains(
     expectedUrlPart: string,
     label = `Page URL should contain: ${expectedUrlPart}`,
-    timeout = 60_000
+    timeout = 60_000,
   ): Promise<void> {
     await this.assertPageUrl(new RegExp(escapeRegex(expectedUrlPart), 'i'), label, timeout);
   }
@@ -428,10 +466,10 @@ export class BasePage {
   /** Asserts page URL does not match. */
   protected async assertPageUrlDoesNotMatch(
     unexpectedUrl: string | RegExp,
-    label = 'Page URL should not match unexpected value'
+    label = 'Page URL should not match unexpected value',
   ): Promise<void> {
     await test.step(label, async () => {
-    await expect(this.page, label).not.toHaveURL(unexpectedUrl);
+      await expect(this.page, label).not.toHaveURL(unexpectedUrl);
     });
   }
 
@@ -439,10 +477,10 @@ export class BasePage {
   protected async assertVisible(
     locator: Locator,
     label = 'Element should be visible',
-    timeout = 10_000
+    timeout = 10_000,
   ): Promise<void> {
     await test.step(label, async () => {
-    await expect(locator, label).toBeVisible({ timeout });
+      await expect(locator, label).toBeVisible({ timeout });
     });
   }
 
@@ -450,10 +488,10 @@ export class BasePage {
   protected async assertAttached(
     locator: Locator,
     label = 'Element should be attached',
-    timeout = 10_000
+    timeout = 10_000,
   ): Promise<void> {
     await test.step(label, async () => {
-    await expect(locator, label).toBeAttached({ timeout });
+      await expect(locator, label).toBeAttached({ timeout });
     });
   }
 
@@ -462,10 +500,10 @@ export class BasePage {
     locator: Locator,
     expectedText: string | RegExp,
     label = 'Element should contain expected text',
-    timeout = 10_000
+    timeout = 10_000,
   ): Promise<void> {
     await test.step(label, async () => {
-    await expect(locator, label).toContainText(expectedText, { timeout });
+      await expect(locator, label).toContainText(expectedText, { timeout });
     });
   }
 
@@ -474,10 +512,10 @@ export class BasePage {
     locator: Locator,
     expectedText: string | RegExp,
     label = 'Element text should match expected value',
-    timeout = 10_000
+    timeout = 10_000,
   ): Promise<void> {
     await test.step(label, async () => {
-    await expect(locator, label).toHaveText(expectedText, { timeout });
+      await expect(locator, label).toHaveText(expectedText, { timeout });
     });
   }
 
@@ -485,7 +523,7 @@ export class BasePage {
   protected async assertBodyContains(
     expectedText: string | RegExp,
     label = 'Page body should contain expected text',
-    timeout = 10_000
+    timeout = 10_000,
   ): Promise<void> {
     await this.assertTextContains(this.page.locator('body'), expectedText, label, timeout);
   }
@@ -494,7 +532,7 @@ export class BasePage {
   protected async assertHeadingVisible(
     expectedName?: string | RegExp,
     label = 'Page heading should be visible',
-    timeout = 20_000
+    timeout = 20_000,
   ): Promise<void> {
     const heading = expectedName
       ? this.page.getByRole('heading', { level: 1, name: expectedName }).first()
@@ -507,7 +545,7 @@ export class BasePage {
   protected async assertHeadingContains(
     expectedText: string | RegExp,
     label = 'Page heading should contain expected text',
-    timeout = 20_000
+    timeout = 20_000,
   ): Promise<void> {
     await this.assertTextContains(this.page.locator('h1').first(), expectedText, label, timeout);
   }
@@ -518,10 +556,10 @@ export class BasePage {
     attributeName: string,
     expectedValue: string | RegExp,
     label = `${attributeName} attribute should match expected value`,
-    timeout = 10_000
+    timeout = 10_000,
   ): Promise<void> {
     await test.step(label, async () => {
-    await expect(locator, label).toHaveAttribute(attributeName, expectedValue, { timeout });
+      await expect(locator, label).toHaveAttribute(attributeName, expectedValue, { timeout });
     });
   }
 
@@ -530,16 +568,16 @@ export class BasePage {
     locator: Locator,
     expectedCount: number,
     label = `Element count should be ${expectedCount}`,
-    timeout = 10_000
+    timeout = 10_000,
   ): Promise<void> {
     await test.step(label, async () => {
-    await expect(locator, label).toHaveCount(expectedCount, { timeout });
+      await expect(locator, label).toHaveCount(expectedCount, { timeout });
     });
   }
 
   protected assertTruthy<T>(
     value: T,
-    label = 'Expected value should be present'
+    label = 'Expected value should be present',
   ): asserts value is NonNullable<T> {
     expect(value, label).toBeTruthy();
   }
@@ -548,7 +586,7 @@ export class BasePage {
   protected assertGreaterThan(
     actual: number,
     minimum: number,
-    label = `Expected value should be greater than ${minimum}`
+    label = `Expected value should be greater than ${minimum}`,
   ): void {
     expect(actual, label).toBeGreaterThan(minimum);
   }
@@ -590,12 +628,9 @@ export class BasePage {
 
   /** Accepts the cookie banner when it is visible. */
   async acceptCookiesIfPresent(): Promise<void> {
-
     const acceptBtn = this.page.locator('#onetrust-accept-btn-handler');
 
-    const isVisible = await acceptBtn
-      .isVisible({ timeout: 5000 })
-      .catch(() => false);
+    const isVisible = await acceptBtn.isVisible({ timeout: 5000 }).catch(() => false);
 
     if (isVisible) {
       await acceptBtn.click({ force: true, timeout: 5000 }).catch(() => undefined);
@@ -609,7 +644,8 @@ export class BasePage {
       await closeBtn.dispatchEvent('click').catch(async () => {
         await closeBtn.click({ force: true, timeout: 5000 }).catch(() => undefined);
       });
-      await this.page.locator('#onetrust-banner-sdk, .ot-sdk-container')
+      await this.page
+        .locator('#onetrust-banner-sdk, .ot-sdk-container')
         .first()
         .waitFor({ state: 'hidden', timeout: 5000 })
         .catch(() => undefined);
@@ -635,11 +671,15 @@ export class BasePage {
     // Case-insensitive / contains match: the aria-label varies across pages
     // ("National promotion", "National Promotion popup", ...).
     const nationalPromotionDialog = this.page
-      .locator('[role="dialog"][aria-label*="promotion" i]:visible, [aria-label="National promotion"]:visible')
+      .locator(
+        '[role="dialog"][aria-label*="promotion" i]:visible, [aria-label="National promotion"]:visible',
+      )
       .first();
 
     if (appearTimeout > 0) {
-      await nationalPromotionDialog.waitFor({ state: 'visible', timeout: appearTimeout }).catch(() => undefined);
+      await nationalPromotionDialog
+        .waitFor({ state: 'visible', timeout: appearTimeout })
+        .catch(() => undefined);
     }
 
     if (await nationalPromotionDialog.isVisible().catch(() => false)) {
@@ -655,12 +695,12 @@ export class BasePage {
           '[role="dialog"]:visible',
           '[aria-modal="true"]:visible',
           '.ReactModalPortal [class*="modal" i]:visible',
-          '.ReactModalPortal [class*="content" i]:visible'
-        ].join(', ')
+          '.ReactModalPortal [class*="content" i]:visible',
+        ].join(', '),
       )
       .filter({
         hasNot: this.page.locator('form, input, select, textarea'),
-        has: this.page.locator('button, a, img')
+        has: this.page.locator('button, a, img'),
       });
     const dialogCount = await dialogs.count();
 
@@ -673,13 +713,18 @@ export class BasePage {
 
       const dialogText = await dialog.innerText().catch(() => '');
 
-      const hasPromoMedia = await dialog.locator('img, picture, video').count() > 0;
-      const hasPromoCta = await dialog
-        .locator('button, a')
-        .filter({ hasText: /going on now|learn more|view offer|promo|promotion/i })
-        .count() > 0;
+      const hasPromoMedia = (await dialog.locator('img, picture, video').count()) > 0;
+      const hasPromoCta =
+        (await dialog
+          .locator('button, a')
+          .filter({ hasText: /going on now|learn more|view offer|promo|promotion/i })
+          .count()) > 0;
 
-      if (!/promo|promotion|banner|going on now|special|offer|incentive/i.test(dialogText) && !hasPromoMedia && !hasPromoCta) {
+      if (
+        !/promo|promotion|banner|going on now|special|offer|incentive/i.test(dialogText) &&
+        !hasPromoMedia &&
+        !hasPromoCta
+      ) {
         continue;
       }
 
@@ -693,8 +738,8 @@ export class BasePage {
             'button:has(svg)',
             'svg[aria-label*="close" i]',
             '[aria-label*="close" i]',
-            '[class*="close" i]'
-          ].join(', ')
+            '[class*="close" i]',
+          ].join(', '),
         )
         .first();
 
@@ -718,8 +763,14 @@ export class BasePage {
    */
   private async closeNationalPromotion(dialog: Locator): Promise<void> {
     const closeButton = this.page
-      .getByRole('button', { name: /close national promotion popup|close national promotion|^close$/i })
-      .or(dialog.locator('button[aria-label*="close" i], button[class*="close" i], button:has-text("×"), button:has-text("✕")'))
+      .getByRole('button', {
+        name: /close national promotion popup|close national promotion|^close$/i,
+      })
+      .or(
+        dialog.locator(
+          'button[aria-label*="close" i], button[class*="close" i], button:has-text("×"), button:has-text("✕")',
+        ),
+      )
       .first();
 
     for (let attempt = 0; attempt < 3 && (await dialog.isVisible().catch(() => false)); attempt++) {
@@ -731,19 +782,21 @@ export class BasePage {
     }
 
     if (await dialog.isVisible().catch(() => false)) {
-      await dialog.evaluate((element) => {
-        const overlay = element.closest('[class*="overlay" i], [class*="ReactModal__Overlay" i], [class*="backdrop" i]');
-        (overlay ?? element).remove();
-      }).catch(() => undefined);
+      await dialog
+        .evaluate((element) => {
+          const overlay = element.closest(
+            '[class*="overlay" i], [class*="ReactModal__Overlay" i], [class*="backdrop" i]',
+          );
+          (overlay ?? element).remove();
+        })
+        .catch(() => undefined);
     }
   }
 
   /** Ensures the configured header country is selected when the selector is visible. */
   protected async ensureConfiguredCountrySelected(): Promise<void> {
     const expectedCountry = getLocationConfig().country === 'USA' ? 'USA' : 'CANADA';
-    const countrySelector = this.page
-      .locator('button[aria-label^="Select your country."]')
-      .first();
+    const countrySelector = this.page.locator('button[aria-label^="Select your country."]').first();
 
     if (!(await countrySelector.isVisible({ timeout: 5000 }).catch(() => false))) {
       return;
@@ -780,8 +833,8 @@ export class BasePage {
         },
         {
           message: `Header country selector should show ${expectedCountry}`,
-          timeout: 10000
-        }
+          timeout: 10000,
+        },
       )
       .toMatch(new RegExp(`${expectedCountry}(?: country is selected)?`, 'i'));
   }
@@ -792,14 +845,13 @@ export class BasePage {
 
   /** Scrolls to the requested page position. */
   protected async scrollTo(locator: Locator): Promise<void> {
-
     await locator.waitFor({ state: 'attached', timeout: 10000 });
 
     await locator.evaluate((el) => {
       el.scrollIntoView({
         behavior: 'auto',
         block: 'center',
-        inline: 'nearest'
+        inline: 'nearest',
       });
     });
 
@@ -829,7 +881,7 @@ export class BasePage {
 
     await Promise.all([
       this.waitForPageReady(), // SPA-safe wait
-      locator.click()
+      locator.click(),
     ]);
   }
 
@@ -853,6 +905,136 @@ export class BasePage {
     return formatPriceLabel(price);
   }
 
+  /* ==========================================================
+     Get Information Side Modal Lead Form
+
+     The "Get Information / Stay Updated" CTA opens the same
+     sidebar/modal lead form on the condo plan, plan detail and
+     QMI pages. The flow is identical on all three - only the
+     page label, the container locator and the timeouts differ -
+     so it lives here instead of being copied per page object.
+  ========================================================== */
+
+  /** Returns the first visible Get Information / Stay Updated CTA. */
+  protected async getVisibleGetInformationCta(pageLabel: string): Promise<Locator> {
+    const allCtas = this.page.locator('a:visible, button:visible').filter({
+      hasText: /Get Information|Stay Updated/i,
+    });
+    const count = await allCtas.count();
+
+    for (let i = 0; i < count; i++) {
+      const candidate = allCtas.nth(i);
+
+      if (await candidate.isVisible().catch(() => false)) {
+        return candidate;
+      }
+    }
+
+    throw new Error(`No visible Get Information CTA found on ${pageLabel}`);
+  }
+
+  /** Reveals a Get Information CTA by scrolling down until one becomes visible. */
+  protected async revealGetInformationCta(pageLabel: string): Promise<void> {
+    const initialCta = await this.getVisibleGetInformationCta(pageLabel).catch(() => null);
+
+    if (initialCta && (await initialCta.isVisible({ timeout: 1500 }).catch(() => false))) {
+      return;
+    }
+
+    for (const position of [450, 900, 1400]) {
+      await this.page.evaluate((scrollTop) => window.scrollTo(0, scrollTop), position);
+      await this.waitForPageReady();
+      await this.settle(400);
+
+      const cta = await this.getVisibleGetInformationCta(pageLabel).catch(() => null);
+
+      if (cta && (await cta.isVisible({ timeout: 1000 }).catch(() => false))) {
+        return;
+      }
+    }
+  }
+
+  /** Fails fast when a lead-form flow navigates to Contact instead of showing in-page success. */
+  protected async expectNoContactRedirect(previousUrl: string, pageLabel: string): Promise<void> {
+    await this.settle(1000);
+
+    const currentUrl = this.page.url();
+
+    expect(
+      currentUrl,
+      `Expected the ${pageLabel} form flow to stay on page and show success modal, but it navigated from ${previousUrl} to ${currentUrl}`,
+    ).not.toMatch(/\/contact\/?($|[?#])/i);
+  }
+
+  /** Clicks the Get Information CTA when the sidebar/modal lead form is not already open. */
+  protected async openLeadFormFromGetInformationCta(options: {
+    leadForms: Locator;
+    pageLabel: string;
+    ctaTimeout?: number;
+    beforeReveal?: () => Promise<void>;
+  }): Promise<void> {
+    if (await options.leadForms.count()) {
+      return;
+    }
+
+    await options.beforeReveal?.();
+    await this.revealGetInformationCta(options.pageLabel);
+
+    const cta = await this.getVisibleGetInformationCta(options.pageLabel);
+
+    await expect(cta, 'Get Information or Stay Updated CTA should be visible').toBeVisible({
+      timeout: options.ctaTimeout ?? 15_000,
+    });
+
+    const previousUrl = this.page.url();
+
+    await cta.scrollIntoViewIfNeeded();
+    await cta.click({ force: true });
+    await this.waitForPageReady();
+    await this.settle(1000);
+    await this.expectNoContactRedirect(previousUrl, options.pageLabel);
+  }
+
+  /** Opens the Get Information side modal form and returns the container at the given index. */
+  protected async openSideModalFormByIndex(options: {
+    leadForms: Locator;
+    formName: string;
+    pageLabel: string;
+    formIndex?: number;
+    openTimeout?: number;
+    ctaTimeout?: number;
+    beforeReveal?: () => Promise<void>;
+  }): Promise<Locator> {
+    const formIndex = options.formIndex ?? 0;
+
+    await this.openLeadFormFromGetInformationCta({
+      leadForms: options.leadForms,
+      pageLabel: options.pageLabel,
+      ctaTimeout: options.ctaTimeout,
+      beforeReveal: options.beforeReveal,
+    });
+
+    const formCount = await expect
+      .poll(() => options.leadForms.count(), {
+        message: `${options.formName} sidebar/modal should open after Get Information CTA`,
+        timeout: options.openTimeout ?? 15_000,
+      })
+      .toBeGreaterThan(formIndex)
+      .then(() => options.leadForms.count())
+      .catch(() => 0);
+
+    if (formCount <= formIndex) {
+      throw new Error(`${options.formName} sidebar/modal form did not open`);
+    }
+
+    const form = options.leadForms.nth(formIndex);
+
+    await form.scrollIntoViewIfNeeded();
+    await this.waitForPageReady();
+
+    return form;
+  }
+
   /** Submits lead form and capture api. */
   protected async submitLeadFormAndCaptureApi(options: {
     formName: string;
@@ -867,31 +1049,35 @@ export class BasePage {
     const apiResponsePromise = this.waitForLeadApiResponse(timeout);
 
     await options.submitButton.scrollIntoViewIfNeeded();
-    await expect(options.submitButton, `${options.formName} submit button should be visible before submit`)
-      .toBeVisible({ timeout: 10_000 });
+    await expect(
+      options.submitButton,
+      `${options.formName} submit button should be visible before submit`,
+    ).toBeVisible({ timeout: 10_000 });
 
     await options.submitButton.click({
       force: true,
       noWaitAfter: true,
-      timeout: 5_000
+      timeout: 5_000,
     });
 
     await this.page.waitForLoadState('domcontentloaded', { timeout }).catch(() => undefined);
 
-    if (options.successModal && await options.successModal.count()) {
-      await expect(options.successModal.last(), `${options.formName} success modal should be displayed`)
-        .toBeVisible({ timeout });
+    if (options.successModal && (await options.successModal.count())) {
+      await expect(
+        options.successModal.last(),
+        `${options.formName} success modal should be displayed`,
+      ).toBeVisible({ timeout });
     }
 
-    await expect(options.successMessage, `${options.formName} success message should be displayed`)
-      .toBeVisible({ timeout });
+    await expect(
+      options.successMessage,
+      `${options.formName} success message should be displayed`,
+    ).toBeVisible({ timeout });
 
     await this.page.waitForLoadState('domcontentloaded', { timeout }).catch(() => undefined);
 
     const apiResponse = await apiResponsePromise;
-    const responseData = apiResponse
-      ? await this.readResponseData(apiResponse)
-      : '';
+    const responseData = apiResponse ? await this.readResponseData(apiResponse) : '';
     const outputFile = await appendLeadApiCapture({
       capturedAt: new Date().toISOString(),
       pageUrl: this.page.url(),
@@ -900,19 +1086,28 @@ export class BasePage {
       requestUrl: apiResponse?.url() ?? '',
       responseStatus: apiResponse?.status() ?? '',
       responseData,
-      notes: apiResponse ? options.notes : 'No matching lead API response captured'
+      notes: apiResponse ? options.notes : 'No matching lead API response captured',
     });
 
     if (!apiResponse && process.env.REQUIRE_LEAD_API_CAPTURE === 'true') {
-      throw new Error(`${options.formName} succeeded, but no matching lead API response was captured.`);
+      throw new Error(
+        `${options.formName} succeeded, but no matching lead API response was captured.`,
+      );
     }
 
     if (options.validateApiResponse) {
-      expect(apiResponse, `${options.formName} should capture a matching lead API response`).toBeTruthy();
-      expect(apiResponse!.status(), `${options.formName} lead API response should be successful`)
-        .toBeGreaterThanOrEqual(200);
-      expect(apiResponse!.status(), `${options.formName} lead API response should be successful`)
-        .toBeLessThan(400);
+      expect(
+        apiResponse,
+        `${options.formName} should capture a matching lead API response`,
+      ).toBeTruthy();
+      expect(
+        apiResponse!.status(),
+        `${options.formName} lead API response should be successful`,
+      ).toBeGreaterThanOrEqual(200);
+      expect(
+        apiResponse!.status(),
+        `${options.formName} lead API response should be successful`,
+      ).toBeLessThan(400);
     }
 
     await this.reportValue(`${options.formName} lead API data saved to`, outputFile);
@@ -920,10 +1115,9 @@ export class BasePage {
 
   /** Waits for lead api response. */
   private async waitForLeadApiResponse(timeout: number): Promise<Response | null> {
-    return this.page.waitForResponse(
-      (response) => this.isLeadApiResponse(response),
-      { timeout }
-    ).catch(() => null);
+    return this.page
+      .waitForResponse((response) => this.isLeadApiResponse(response), { timeout })
+      .catch(() => null);
   }
 
   /** Checks whether lead api response. */
@@ -946,7 +1140,9 @@ export class BasePage {
       return false;
     }
 
-    return /api|lead|form|contact|schedule|sitecore|submit|visitor|salesforce|eloqua|marketo/i.test(url);
+    return /api|lead|form|contact|schedule|sitecore|submit|visitor|salesforce|eloqua|marketo/i.test(
+      url,
+    );
   }
 
   /** Reads response data for API validation. */
@@ -963,5 +1159,4 @@ export class BasePage {
       return `Unable to read response body: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
-
 }

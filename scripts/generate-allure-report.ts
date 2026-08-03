@@ -55,7 +55,7 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
   const env = getEnvConfig();
   const properties: Record<string, string> = {
     Suite: label,
-    TEST_ENV: getEnv('TEST_ENV', env.envName),
+    TEST_ENV: env.envName,
     Environment: env.envName,
     BaseURL: env.baseURL,
     Browser: getEnv(

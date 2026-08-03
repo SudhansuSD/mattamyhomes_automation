@@ -49,10 +49,6 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
       await test.step('Verify price and Get Information CTA', async () => {
         await qmiPage.verifyPriceOrCTA();
       });
-
-      await test.step('Verify Get Information CTA scrolls to the footer form section', async () => {
-        await qmiPage.verifyGetInformationScrollsToForm();
-      });
     });
   });
 
@@ -101,7 +97,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Lead Form', () => {
-    test('TC-01 | @regression | Validate floating bar Get Information CTA opens QMI side modal form', async () => {
+    test('TC-01 | @regression | Validate Get Information CTA opens QMI side modal form', async () => {
       await test.step('Verify Get Information CTA opens the side modal form', async () => {
         await qmiPage.verifyGetInformationCtaOpensLeadForm();
       });

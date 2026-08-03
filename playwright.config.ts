@@ -3,7 +3,7 @@ import process from 'node:process';
 import { DESKTOP_ALLURE_RESULTS_DIR } from './scripts/allurePaths';
 import { loadEnv } from './config/env';
 
-// Load .env (repo-root anchored) so TEST_ENV / BROWSER / CI-related vars are
+// Load .env (repo-root anchored) so ENV / BROWSER / CI-related vars are
 // available regardless of the directory the command was launched from.
 loadEnv();
 

@@ -3,10 +3,8 @@ import { MobileWebHomePage } from './MobileWebHomePage';
 import { getEnvConfig } from '../../config/environments/envConfig';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 import {
-  assertLeadFormSubmissionSuccess,
   fillInvalidEmailLeadFormByIndex,
   fillValidLeadFormByIndex,
-  getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
 } from '../../utils/mobileLeadFormHelper';
@@ -25,9 +23,8 @@ export class MobileWebMPCPage extends MobileWebHomePage {
   /** Returns configured MPC. */
   getConfiguredMpc() {
     const location = getLocationConfig() as any;
-    const mpc = location.country === 'USA' && Array.isArray(location.mpc)
-      ? location.mpc[0]
-      : undefined;
+    const mpc =
+      location.country === 'USA' && Array.isArray(location.mpc) ? location.mpc[0] : undefined;
 
     assert.ok(mpc, 'Expected USA MPC configuration to be available for mobile MPC tests');
     return mpc;
@@ -59,11 +56,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
 
     const namePattern = new RegExp(this.escapeRegExp(mpc.name), 'i');
 
-    await this.waitForBodyText(
-      namePattern,
-      `Expected MPC page to include ${mpc.name}`,
-      45000
-    );
+    await this.waitForBodyText(namePattern, `Expected MPC page to include ${mpc.name}`, 45000);
 
     const snapshot = await this.getSnapshot();
 
@@ -88,13 +81,28 @@ export class MobileWebMPCPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
-      const heading = Array.from(document.querySelectorAll('h1, h2')).find((element) =>
-        isVisible(element) && new RegExp(expectedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(element.textContent || '')
+      const heading = Array.from(document.querySelectorAll('h1, h2')).find(
+        (element) =>
+          isVisible(element) &&
+          new RegExp(expectedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i').test(
+            element.textContent || '',
+          ),
       );
-      const hasMedia = (element: Element) => Array.from(element.querySelectorAll('img, picture source, video, [style*="background-image"]'))
-        .some((mediaElement) => mediaElement instanceof HTMLElement ? isVisible(mediaElement) : Boolean(mediaElement.closest('picture')));
+      const hasMedia = (element: Element) =>
+        Array.from(
+          element.querySelectorAll('img, picture source, video, [style*="background-image"]'),
+        ).some((mediaElement) =>
+          mediaElement instanceof HTMLElement
+            ? isVisible(mediaElement)
+            : Boolean(mediaElement.closest('picture')),
+        );
       const ancestors: Element[] = [];
       let current = heading;
 
@@ -103,28 +111,47 @@ export class MobileWebMPCPage extends MobileWebHomePage {
         ancestors.push(current);
       }
 
-      const hero = ancestors.find((element) =>
-        /^(SECTION|ARTICLE|MAIN|HEADER)$/i.test(element.tagName) &&
-        hasMedia(element)
-      ) || ancestors.find((element) =>
-        /^(SECTION|ARTICLE|MAIN|HEADER)$/i.test(element.tagName) &&
-        normalize(element.textContent || '').length > expectedName.length
-      ) || document.querySelector('main') || document.body;
+      const hero =
+        ancestors.find(
+          (element) =>
+            /^(SECTION|ARTICLE|MAIN|HEADER)$/i.test(element.tagName) && hasMedia(element),
+        ) ||
+        ancestors.find(
+          (element) =>
+            /^(SECTION|ARTICLE|MAIN|HEADER)$/i.test(element.tagName) &&
+            normalize(element.textContent || '').length > expectedName.length,
+        ) ||
+        document.querySelector('main') ||
+        document.body;
       const heroText = normalize(hero.textContent || '');
-      const descriptiveSection = Array.from(document.querySelectorAll('main section, section, article')).find((element) => {
+      const descriptiveSection = Array.from(
+        document.querySelectorAll('main section, section, article'),
+      ).find((element) => {
         const text = normalize(element.textContent || '');
 
-        return isVisible(element) &&
+        return (
+          isVisible(element) &&
           text.length > expectedName.length &&
-          /community|homes|neighborhood|location|amenit|park|village|city|downtown|beach|shopping|dining/i.test(text);
+          /community|homes|neighborhood|location|amenit|park|village|city|downtown|beach|shopping|dining/i.test(
+            text,
+          )
+        );
       });
-      const descriptiveText = heroText.length > expectedName.length
-        ? heroText
-        : normalize(descriptiveSection?.textContent || document.body?.innerText || '');
-      const media = Array.from(hero.querySelectorAll('img, picture source, video, [style*="background-image"]'))
-        .filter((element) => element instanceof HTMLElement ? isVisible(element) : Boolean(element.closest('picture')));
-      const favoriteButton = Array.from(document.querySelectorAll('button, [role="button"]')).find((element) =>
-        isVisible(element) && /mark as favorite|favorite/i.test(`${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`)
+      const descriptiveText =
+        heroText.length > expectedName.length
+          ? heroText
+          : normalize(descriptiveSection?.textContent || document.body?.innerText || '');
+      const media = Array.from(
+        hero.querySelectorAll('img, picture source, video, [style*="background-image"]'),
+      ).filter((element) =>
+        element instanceof HTMLElement ? isVisible(element) : Boolean(element.closest('picture')),
+      );
+      const favoriteButton = Array.from(document.querySelectorAll('button, [role="button"]')).find(
+        (element) =>
+          isVisible(element) &&
+          /mark as favorite|favorite/i.test(
+            `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`,
+          ),
       );
 
       hero.scrollIntoView({ block: 'center', inline: 'center' });
@@ -141,8 +168,14 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     }, mpcName);
 
     assert.equal(snapshot.hasHero, true, 'Expected MPC hero section on mobile');
-    assert.match(`${snapshot.headingText}\n${snapshot.heroText}\n${snapshot.bodyText}`, new RegExp(this.escapeRegExp(mpcName), 'i'));
-    assert.ok(snapshot.descriptiveText.length > mpcName.length, 'Expected MPC hero to include descriptive content');
+    assert.match(
+      `${snapshot.headingText}\n${snapshot.heroText}\n${snapshot.bodyText}`,
+      new RegExp(this.escapeRegExp(mpcName), 'i'),
+    );
+    assert.ok(
+      snapshot.descriptiveText.length > mpcName.length,
+      'Expected MPC hero to include descriptive content',
+    );
     assert.equal(snapshot.hasMedia, true, 'Expected MPC hero media on mobile');
 
     if (snapshot.hasFavoriteButton) {
@@ -157,12 +190,18 @@ export class MobileWebMPCPage extends MobileWebHomePage {
 
   /** Validates home details tab. */
   async validateHomeDetailsTab() {
-    await this.validateMpcTab('Home Details', /home types|bedrooms|full bathrooms|sq\.?\s*ft\.?|stories|garages/i);
+    await this.validateMpcTab(
+      'Home Details',
+      /home types|bedrooms|full bathrooms|sq\.?\s*ft\.?|stories|garages/i,
+    );
   }
 
   /** Validates contact hours tab. */
   async validateContactHoursTab() {
-    await this.validateMpcTab('Contact & Hours', /sales office|new home gallery|contact|hours|open|closed|\d{3}-\d{3}-\d{4}/i);
+    await this.validateMpcTab(
+      'Contact & Hours',
+      /sales office|new home gallery|contact|hours|open|closed|\d{3}-\d{3}-\d{4}/i,
+    );
   }
 
   /** Validates MPC tab. */
@@ -181,10 +220,19 @@ export class MobileWebMPCPage extends MobileWebHomePage {
           const style = window.getComputedStyle(element);
           const rect = element.getBoundingClientRect();
 
-          return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
         };
-        const tab = Array.from(document.querySelectorAll('button, [role="tab"], [aria-label]')).find((element) => {
-          const label = `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`.replace(/\s+/g, ' ').trim();
+        const tab = Array.from(
+          document.querySelectorAll('button, [role="tab"], [aria-label]'),
+        ).find((element) => {
+          const label = `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`
+            .replace(/\s+/g, ' ')
+            .trim();
 
           return isVisible(element) && new RegExp(`^\\s*${tabName}\\s*$`, 'i').test(label);
         });
@@ -201,14 +249,16 @@ export class MobileWebMPCPage extends MobileWebHomePage {
           valid: regex.test(document.body?.innerText || ''),
         };
       },
-      { tabName, source: expectedPattern.source, flags: expectedPattern.flags }
+      { tabName, source: expectedPattern.source, flags: expectedPattern.flags },
     );
 
     if (result.clicked) {
       this.logScriptClick(`${tabName} tab`);
       await this.driver.pause(1000);
     } else {
-      this.logSkip(`${tabName} tab is not present in the mobile MPC layout - validating page content instead`);
+      this.logSkip(
+        `${tabName} tab is not present in the mobile MPC layout - validating page content instead`,
+      );
     }
 
     const bodyText = result.valid ? result.text : await this.getBodyText();
@@ -218,7 +268,9 @@ export class MobileWebMPCPage extends MobileWebHomePage {
   /** Validates amenity and location sections. */
   async validateAmenityAndLocationSections() {
     await this.openMpc();
-    const result = await this.getSectionByPattern(/amenit|location|convenient|destination|lifestyle|nearby|explore/i);
+    const result = await this.getSectionByPattern(
+      /amenit|location|convenient|destination|lifestyle|nearby|explore/i,
+    );
 
     assert.equal(result.found, true, 'Expected MPC amenity or location section on mobile');
     assert.match(result.text, /amenit|location|convenient|destination|lifestyle|nearby|explore/i);
@@ -237,16 +289,29 @@ export class MobileWebMPCPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
       const controls = Array.from(document.querySelectorAll('a[href], button'));
-      const promotion = controls.find((element) =>
-        isVisible(element) && /view promotions|promotion|offer|incentive/i.test(`${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`)
+      const promotion = controls.find(
+        (element) =>
+          isVisible(element) &&
+          /view promotions|promotion|offer|incentive/i.test(
+            `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`,
+          ),
       );
       const communityLink = controls.find((element) => {
         const href = element.getAttribute('href') || '';
 
-        return isVisible(element) && href && new URL(href, window.location.href).pathname.includes(mpcUrl);
+        return (
+          isVisible(element) &&
+          href &&
+          new URL(href, window.location.href).pathname.includes(mpcUrl)
+        );
       });
       const match = promotion || communityLink;
 
@@ -255,11 +320,17 @@ export class MobileWebMPCPage extends MobileWebHomePage {
       return {
         found: Boolean(match),
         href: match?.getAttribute('href') || '',
-        text: (match?.textContent || match?.getAttribute('aria-label') || '').replace(/\s+/g, ' ').trim(),
+        text: (match?.textContent || match?.getAttribute('aria-label') || '')
+          .replace(/\s+/g, ' ')
+          .trim(),
       };
     }, mpcUrl);
 
-    assert.equal(result.found, true, `Expected a visible promotion CTA or community link under ${mpcUrl}`);
+    assert.equal(
+      result.found,
+      true,
+      `Expected a visible promotion CTA or community link under ${mpcUrl}`,
+    );
 
     if (result.href) {
       assert.match(result.href, new RegExp(this.escapeRegExp(mpcUrl), 'i'));
@@ -279,14 +350,21 @@ export class MobileWebMPCPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
       const galleryPattern = /gallery|photos|images|videos|new home gallery|community gallery/i;
-      const root = document.querySelector('[role="region"][aria-label*="Images" i], #gallery') ||
-        Array.from(document.querySelectorAll('section, article, div')).find((element) =>
-          isVisible(element) &&
-          galleryPattern.test(element.textContent || '') &&
-          element.querySelector('img, picture, video, iframe, button')
+      const root =
+        document.querySelector('[role="region"][aria-label*="Images" i], #gallery') ||
+        Array.from(document.querySelectorAll('section, article, div')).find(
+          (element) =>
+            isVisible(element) &&
+            galleryPattern.test(element.textContent || '') &&
+            element.querySelector('img, picture, video, iframe, button'),
         );
 
       if (!root) {
@@ -294,12 +372,19 @@ export class MobileWebMPCPage extends MobileWebHomePage {
       }
 
       root.scrollIntoView({ block: 'center', inline: 'center' });
-      const photosControl = Array.from(root.querySelectorAll('button, [role="button"], [aria-label]')).find((element) =>
-        isVisible(element) && /photos/i.test(`${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`)
+      const photosControl = Array.from(
+        root.querySelectorAll('button, [role="button"], [aria-label]'),
+      ).find(
+        (element) =>
+          isVisible(element) &&
+          /photos/i.test(
+            `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`,
+          ),
       );
       (photosControl as HTMLElement | undefined)?.click();
-      const media = Array.from(root.querySelectorAll('img, picture, video, iframe')).filter((element) =>
-        element instanceof HTMLElement ? isVisible(element) : Boolean(element.closest('picture'))
+      const media = Array.from(root.querySelectorAll('img, picture, video, iframe')).filter(
+        (element) =>
+          element instanceof HTMLElement ? isVisible(element) : Boolean(element.closest('picture')),
       );
       const firstMedia = media[0];
 
@@ -308,8 +393,10 @@ export class MobileWebMPCPage extends MobileWebHomePage {
         firstMedia.click();
       }
 
-      const modal = Array.from(document.querySelectorAll('.ReactModal__Content, [role="dialog"]')).find((element) =>
-        isVisible(element) && element.querySelector('img, picture, video, iframe')
+      const modal = Array.from(
+        document.querySelectorAll('.ReactModal__Content, [role="dialog"]'),
+      ).find(
+        (element) => isVisible(element) && element.querySelector('img, picture, video, iframe'),
       );
 
       return {
@@ -327,21 +414,30 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     assert.ok(gallery.mediaCount > 0, 'Expected MPC image gallery media on mobile');
 
     if (!gallery.modalOpened) {
-      this.logSkip('MPC gallery media did not open a modal on mobile - media visibility was validated');
+      this.logSkip(
+        'MPC gallery media did not open a modal on mobile - media visibility was validated',
+      );
     }
 
     await this.dismissPromoPopupIfPresent();
   }
 
   /** Validates neighborhood cards. */
-  async validateNeighborhoodCards(mpcName = this.getConfiguredMpc().name, mpcUrl = this.getConfiguredMpc().url) {
+  async validateNeighborhoodCards(
+    mpcName = this.getConfiguredMpc().name,
+    mpcUrl = this.getConfiguredMpc().url,
+  ) {
     await this.openMpc();
 
     const cards = await this.getNeighborhoodCardsSnapshot(mpcUrl);
 
     assert.equal(cards.found, true, `Expected neighborhood section for ${mpcName} on mobile`);
     assert.ok(cards.links.length > 0, 'Expected MPC neighborhood cards on mobile');
-    assert.deepEqual(cards.invalidLinks, [], `Expected neighborhood card hrefs to include current MPC URL segment: ${cards.currentMpcSegment}`);
+    assert.deepEqual(
+      cards.invalidLinks,
+      [],
+      `Expected neighborhood card hrefs to include current MPC URL segment: ${cards.currentMpcSegment}`,
+    );
   }
 
   /** Validates first neighborhood navigation. */
@@ -357,33 +453,50 @@ export class MobileWebMPCPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
       const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
       const currentMpcSegment = window.location.pathname.split('/').filter(Boolean).pop() || '';
       const expectedMpcPath = mpcUrl.toLowerCase().replace(/^\/+|\/+$/g, '');
       const isNeighborhoodLink = (element) => {
         const href = element.getAttribute('href') || '';
-        const segments = new URL(href, window.location.href).pathname.toLowerCase().split('/').filter(Boolean);
+        const segments = new URL(href, window.location.href).pathname
+          .toLowerCase()
+          .split('/')
+          .filter(Boolean);
 
-        return isVisible(element) &&
+        return (
+          isVisible(element) &&
           segments.includes(currentMpcSegment) &&
           segments.join('/') !== expectedMpcPath &&
-          normalize(element.textContent || element.getAttribute('aria-label') || '').length > 0;
+          normalize(element.textContent || element.getAttribute('aria-label') || '').length > 0
+        );
       };
-      const section = Array.from(document.querySelectorAll('main section, section, article, [role="region"]'))
-        .filter((element) =>
-          isVisible(element) &&
-          /explore neighborhoods in this community|neighborhood/i.test(element.textContent || '') &&
-          Array.from(element.querySelectorAll('a[href]')).some(isNeighborhoodLink)
+      const section = Array.from(
+        document.querySelectorAll('main section, section, article, [role="region"]'),
+      )
+        .filter(
+          (element) =>
+            isVisible(element) &&
+            /explore neighborhoods in this community|neighborhood/i.test(
+              element.textContent || '',
+            ) &&
+            Array.from(element.querySelectorAll('a[href]')).some(isNeighborhoodLink),
         )
         .sort((first, second) => {
           const firstRect = first.getBoundingClientRect();
           const secondRect = second.getBoundingClientRect();
 
-          return (firstRect.width * firstRect.height) - (secondRect.width * secondRect.height);
+          return firstRect.width * firstRect.height - secondRect.width * secondRect.height;
         })[0];
-      const link = Array.from((section || document).querySelectorAll('a[href]')).find(isNeighborhoodLink);
+      const link = Array.from((section || document).querySelectorAll('a[href]')).find(
+        isNeighborhoodLink,
+      );
 
       if (!(link instanceof HTMLElement)) {
         return { clicked: false, reason: 'No neighborhood card link found' };
@@ -449,7 +562,9 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     const submitted = await this.fillValidLeadFormByIndex(0);
 
     assert.equal(submitted, true, 'Expected Get Information form to submit valid data on mobile');
-    await this.assertSubmissionSuccess('Expected Get Information form success confirmation on mobile');
+    await this.assertSubmissionSuccess(
+      'Expected Get Information form success confirmation on mobile',
+    );
   }
 
   /** Validates community update form fields. */
@@ -464,7 +579,11 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     assert.match(form.text, /email/i);
     assert.match(form.text, /country of residence|country/i);
     assert.match(form.text, /zip|postal/i);
-    assert.equal(form.hasSubmit, true, 'Expected MPC community update form submit button on mobile');
+    assert.equal(
+      form.hasSubmit,
+      true,
+      'Expected MPC community update form submit button on mobile',
+    );
   }
 
   /** Validates community update required errors. */
@@ -483,31 +602,18 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     await this.getCommunityUpdateForm();
     const filled = await this.fillInvalidEmailLeadFormByIndex(0);
 
-    assert.equal(filled, true, 'Expected MPC community update form to accept invalid email test data');
+    assert.equal(
+      filled,
+      true,
+      'Expected MPC community update form to accept invalid email test data',
+    );
     await this.assertEmailError('Expected invalid email validation in MPC community update form');
   }
 
-  /** Validates image and video urls return200. */
+  /** Validates every MPC image/video URL returns HTTP 200. */
   async validateImageAndVideoUrlsReturn200(pageName = 'MPC page') {
     await this.openMpc();
-    await this.loadLazyMedia();
-
-    const mediaUrls = await this.collectImageAndVideoUrls();
-
-    assert.ok(mediaUrls.length > 0, `${pageName} should expose image or video URLs`);
-
-    const failures = [];
-
-    for (const media of mediaUrls) {
-      const status = await this.getMediaUrlStatus(media.url);
-      this.logResult(`${pageName} media check | ${media.type} | ${status} | ${media.label} | ${media.url}`);
-
-      if (status !== 200) {
-        failures.push(`${media.type} returned ${status} for ${media.label}: ${media.url}`);
-      }
-    }
-
-    assert.deepEqual(failures, [], `${pageName} image/video URL status failures:\n${failures.join('\n')}`);
+    await this.assertMediaUrlsReturn200(pageName);
   }
 
   /** Returns section by pattern. */
@@ -526,10 +632,15 @@ export class MobileWebMPCPage extends MobileWebHomePage {
           const style = window.getComputedStyle(element);
           const rect = element.getBoundingClientRect();
 
-          return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
         };
-        const section = Array.from(document.querySelectorAll('section, article, div')).find((element) =>
-          isVisible(element) && regex.test(element.textContent || '')
+        const section = Array.from(document.querySelectorAll('section, article, div')).find(
+          (element) => isVisible(element) && regex.test(element.textContent || ''),
         );
 
         section?.scrollIntoView({ block: 'center', inline: 'center' });
@@ -539,7 +650,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
           text: normalize(section?.textContent || ''),
         };
       },
-      { source: pattern.source, flags: pattern.flags }
+      { source: pattern.source, flags: pattern.flags },
     );
   }
 
@@ -555,30 +666,43 @@ export class MobileWebMPCPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
       const currentMpcSegment = window.location.pathname.split('/').filter(Boolean).pop() || '';
-      const getPathSegments = (href) => new URL(href, window.location.href).pathname.toLowerCase().split('/').filter(Boolean);
+      const getPathSegments = (href) =>
+        new URL(href, window.location.href).pathname.toLowerCase().split('/').filter(Boolean);
       const isNeighborhoodLink = (element) => {
         const href = element.getAttribute('href') || '';
         const segments = getPathSegments(href);
 
-        return isVisible(element) &&
+        return (
+          isVisible(element) &&
           segments.includes(currentMpcSegment) &&
           segments.join('/') !== mpcUrl.toLowerCase().replace(/^\/+|\/+$/g, '') &&
-          normalize(element.textContent || element.getAttribute('aria-label') || '').length > 0;
+          normalize(element.textContent || element.getAttribute('aria-label') || '').length > 0
+        );
       };
-      const sections = Array.from(document.querySelectorAll('main section, section, article, [role="region"]'))
-        .filter((element) =>
-          isVisible(element) &&
-          /explore neighborhoods in this community|neighborhood/i.test(element.textContent || '') &&
-          Array.from(element.querySelectorAll('a[href]')).some(isNeighborhoodLink)
+      const sections = Array.from(
+        document.querySelectorAll('main section, section, article, [role="region"]'),
+      )
+        .filter(
+          (element) =>
+            isVisible(element) &&
+            /explore neighborhoods in this community|neighborhood/i.test(
+              element.textContent || '',
+            ) &&
+            Array.from(element.querySelectorAll('a[href]')).some(isNeighborhoodLink),
         )
         .sort((first, second) => {
           const firstRect = first.getBoundingClientRect();
           const secondRect = second.getBoundingClientRect();
 
-          return (firstRect.width * firstRect.height) - (secondRect.width * secondRect.height);
+          return firstRect.width * firstRect.height - secondRect.width * secondRect.height;
         });
       const section = sections[0];
 
@@ -592,7 +716,10 @@ export class MobileWebMPCPage extends MobileWebHomePage {
         }))
         .filter((link) => link.href);
       const invalidLinks = links.filter((link) => {
-        const segments = new URL(link.href, window.location.href).pathname.toLowerCase().split('/').filter(Boolean);
+        const segments = new URL(link.href, window.location.href).pathname
+          .toLowerCase()
+          .split('/')
+          .filter(Boolean);
 
         return !segments.includes(currentMpcSegment);
       });
@@ -625,13 +752,22 @@ export class MobileWebMPCPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
-      const cta = Array.from(document.querySelectorAll('button, a[href], [role="button"]')).find((element) => {
-        const label = `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`.replace(/\s+/g, ' ').trim();
+      const cta = Array.from(document.querySelectorAll('button, a[href], [role="button"]')).find(
+        (element) => {
+          const label = `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`
+            .replace(/\s+/g, ' ')
+            .trim();
 
-        return isVisible(element) && /^get information$/i.test(label);
-      });
+          return isVisible(element) && /^get information$/i.test(label);
+        },
+      );
 
       if (!(cta instanceof HTMLElement)) {
         return false;
@@ -671,17 +807,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
   async getLeadFormSnapshotByIndex(formIndex = 0) {
     await this.installLeadFormFinder();
 
-    return this.driver.execute((index) => {
-      const form = window.__getVisibleMpcLeadForms?.()[index] || window.__getVisibleMpcLeadForms?.()[0];
-
-      form?.scrollIntoView({ block: 'center', inline: 'center' });
-
-      return {
-        found: Boolean(form),
-        hasSubmit: Boolean(form?.querySelector('button[type="submit"], input[type="submit"], button')),
-        text: (form?.textContent || '').replace(/\s+/g, ' ').trim(),
-      };
-    }, formIndex);
+    return this.getVisibleLeadFormSnapshot(MPC_FORM_GLOBAL, formIndex);
   }
 
   /** Submits visible lead form by index. */
@@ -703,158 +829,5 @@ export class MobileWebMPCPage extends MobileWebHomePage {
       communityPattern: 'wellen|sunstone|community|park',
       emailPrefix: 'ssdas_mpc_mobile',
     });
-  }
-
-  /** Returns form error snapshot. */
-  async getFormErrorSnapshot() {
-    return getLeadFormErrorSnapshot(this.driver);
-  }
-
-  /** Asserts form errors. */
-  async assertFormErrors(message) {
-    const snapshot = await this.getFormErrorSnapshot();
-
-    assert.ok(
-      /required|invalid|error|please enter|field is required/i.test(snapshot.text) || snapshot.invalidFieldCount > 0,
-      message
-    );
-  }
-
-  /** Asserts email error. */
-  async assertEmailError(message) {
-    const snapshot = await this.getFormErrorSnapshot();
-
-    assert.ok(
-      /email|valid domain|invalid|please enter/i.test(
-        `${snapshot.text} ${snapshot.emailValidationMessage} ${snapshot.emailAriaInvalid}`
-      ),
-      message
-    );
-  }
-
-  /** Asserts submission success. */
-  async assertSubmissionSuccess(message) {
-    await assertLeadFormSubmissionSuccess(this.driver, message);
-  }
-
-  /** Loads lazy media. */
-  async loadLazyMedia() {
-    await this.driver.execute(async () => {
-      const delay = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
-      const viewportStep = Math.max(window.innerHeight || 800, 600);
-      const pageHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
-
-      for (let y = 0; y <= pageHeight; y += viewportStep) {
-        window.scrollTo(0, y);
-        await delay(250);
-      }
-
-      window.scrollTo(0, 0);
-    });
-
-    await this.waitForPageReady();
-  }
-
-  /** Collects image and video urls. */
-  async collectImageAndVideoUrls() {
-    const rawUrls = await this.driver.execute(() => {
-      const media = [];
-      const cleanText = (value) => (value || '').replace(/\s+/g, ' ').trim();
-      const addUrl = (type, rawUrl, element) => {
-        if (!rawUrl) {
-          return;
-        }
-
-        const trimmed = rawUrl.trim();
-
-        if (!trimmed || /^(data|blob|javascript|about):/i.test(trimmed)) {
-          return;
-        }
-
-        try {
-          const section = element.closest('section, article, main, header, footer, [role="region"], [aria-label]');
-          const heading = section?.querySelector('h1, h2, h3, h4, h5, h6');
-          const label =
-            cleanText(element.getAttribute('alt')) ||
-            cleanText(element.getAttribute('aria-label')) ||
-            cleanText(element.getAttribute('title')) ||
-            cleanText(section?.getAttribute('aria-label')) ||
-            cleanText(heading?.textContent) ||
-            'No alt/section label';
-
-          media.push({
-            label,
-            type,
-            url: new URL(trimmed, window.location.href).href,
-          });
-        } catch {
-          // Ignore malformed media URLs.
-        }
-      };
-      const addSrcset = (type, srcset, element) => {
-        if (!srcset) {
-          return;
-        }
-
-        for (const candidate of srcset.split(',')) {
-          addUrl(type, candidate.trim().split(/\s+/)[0], element);
-        }
-      };
-
-      document.querySelectorAll('img').forEach((image) => {
-        addUrl('image', image.currentSrc || image.src || image.getAttribute('src'), image);
-        addSrcset('image', image.getAttribute('srcset'), image);
-      });
-
-      document.querySelectorAll('picture source').forEach((source) => {
-        addUrl('image-source', source.getAttribute('src'), source);
-        addSrcset('image-source', source.getAttribute('srcset'), source);
-      });
-
-      document.querySelectorAll('video').forEach((video) => {
-        addUrl('video', video.currentSrc || video.src || video.getAttribute('src'), video);
-        addUrl('video-poster', video.poster || video.getAttribute('poster'), video);
-      });
-
-      document.querySelectorAll('video source').forEach((source) => {
-        addUrl('video-source', source.getAttribute('src'), source);
-        addSrcset('video-source', source.getAttribute('srcset'), source);
-      });
-
-      return media;
-    });
-
-    const unique = new Map();
-
-    for (const item of rawUrls) {
-      if (/\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(item.url)) {
-        continue;
-      }
-
-      if (!unique.has(item.url)) {
-        unique.set(item.url, item);
-      }
-    }
-
-    return [...unique.values()];
-  }
-
-  /** Returns media URL status. */
-  async getMediaUrlStatus(url) {
-    const tryRequest = async (method) => {
-      try {
-        const response = await fetch(url, { method });
-        return response.status;
-      } catch (error) {
-        return `request failed: ${error.message}`;
-      }
-    };
-    const headStatus = await tryRequest('HEAD');
-
-    if (![403, 405, 501].includes(headStatus as number) && typeof headStatus === 'number') {
-      return headStatus;
-    }
-
-    return tryRequest('GET');
   }
 }

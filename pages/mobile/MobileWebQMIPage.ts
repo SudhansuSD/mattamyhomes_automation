@@ -3,10 +3,8 @@ import { MobileWebHomePage } from './MobileWebHomePage';
 import { getEnvConfig } from '../../config/environments/envConfig';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 import {
-  assertLeadFormSubmissionSuccess,
   fillInvalidEmailLeadFormByIndex,
   fillValidLeadFormByIndex,
-  getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
 } from '../../utils/mobileLeadFormHelper';
@@ -50,30 +48,32 @@ export class MobileWebQMIPage extends MobileWebHomePage {
           return (
             pathPattern.test(lastSnapshot.currentUrl) &&
             addressPattern.test(
-              `${lastSnapshot.title}\n${lastSnapshot.bodyText}\n${lastSnapshot.currentUrl}`
+              `${lastSnapshot.title}\n${lastSnapshot.bodyText}\n${lastSnapshot.currentUrl}`,
             )
           );
         },
         {
           timeout: 30000,
-          timeoutMsg: `Expected mobile QMI detail page for ${address}. Last snapshot: ${JSON.stringify({
-            currentUrl: lastSnapshot.currentUrl,
-            title: lastSnapshot.title,
-            readyState: lastSnapshot.readyState,
-            bodyText: lastSnapshot.bodyText.slice(0, 300),
-          })}`,
-        }
+          timeoutMsg: `Expected mobile QMI detail page for ${address}. Last snapshot: ${JSON.stringify(
+            {
+              currentUrl: lastSnapshot.currentUrl,
+              title: lastSnapshot.title,
+              readyState: lastSnapshot.readyState,
+              bodyText: lastSnapshot.bodyText.slice(0, 300),
+            },
+          )}`,
+        },
       );
     } catch (error) {
       if (
         /invalid session id|browser has closed the connection|disconnected/i.test(
-          String(error?.message || error)
+          String(error?.message || error),
         )
       ) {
         throw new Error(
           `Mobile Chrome session was lost while waiting for QMI page. Last URL: ${
             lastSnapshot.currentUrl || '(unavailable)'
-          }. Restart the emulator/Chrome if this repeats.`
+          }. Restart the emulator/Chrome if this repeats.`,
         );
       }
 
@@ -90,11 +90,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     const location = getLocationConfig();
     const currentPath = new URL(await this.driver.getUrl()).pathname;
 
-    assert.equal(
-      currentPath,
-      location.qmiPath,
-      `Expected QMI URL path to be ${location.qmiPath}`
-    );
+    assert.equal(currentPath, location.qmiPath, `Expected QMI URL path to be ${location.qmiPath}`);
   }
 
   /** Verifies hero section. */
@@ -118,19 +114,15 @@ export class MobileWebQMIPage extends MobileWebHomePage {
         );
       };
 
-      const heading = Array.from(document.querySelectorAll('h1, h2, h3')).find(
-        isVisible
-      );
+      const heading = Array.from(document.querySelectorAll('h1, h2, h3')).find(isVisible);
 
       const hero =
-        heading?.closest('section, div, main') ||
-        document.querySelector('main') ||
-        document.body;
+        heading?.closest('section, div, main') || document.querySelector('main') || document.body;
 
       const media = Array.from(
         document.querySelectorAll(
-          'main img[src], main picture source[srcset], main video, img[src], picture source[srcset], video'
-        )
+          'main img[src], main picture source[srcset], main video, img[src], picture source[srcset], video',
+        ),
       );
 
       const visibleMedia = media.filter((element) => {
@@ -143,7 +135,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
         } ${element.getAttribute('srcset') || ''}`;
 
         return !/logo|icon|favorite|share|copyright|facebook|instagram|youtube|linkedin/i.test(
-          text
+          text,
         );
       });
 
@@ -163,10 +155,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     assert.match(
       `${snapshot.headingText}\n${snapshot.bodyText}\n${snapshot.currentUrl}`,
-      new RegExp(
-        `${this.escapeRegExp(address)}|${this.escapeRegExp(location.qmiPath)}`,
-        'i'
-      )
+      new RegExp(`${this.escapeRegExp(address)}|${this.escapeRegExp(location.qmiPath)}`, 'i'),
     );
 
     assert.equal(snapshot.hasMedia, true, 'Expected QMI hero media on mobile');
@@ -178,9 +167,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     const bodyText = await this.getBodyText();
     const hasClassicFacts =
-      /bed/i.test(bodyText) &&
-      /bath/i.test(bodyText) &&
-      /sq\.?\s*ft\.?/i.test(bodyText);
+      /bed/i.test(bodyText) && /bath/i.test(bodyText) && /sq\.?\s*ft\.?/i.test(bodyText);
 
     if (hasClassicFacts) {
       return;
@@ -189,7 +176,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.match(
       bodyText,
       /interactive floorplan|floor ?plan|home features|curated home features/i,
-      'Expected QMI page to include home facts or mobile home-detail content'
+      'Expected QMI page to include home facts or mobile home-detail content',
     );
   }
 
@@ -201,61 +188,31 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     assert.ok(
       /\$[\d,]+|get information|contact|request info/i.test(bodyText),
-      'Expected QMI price or conversion CTA on mobile'
+      'Expected QMI price or conversion CTA on mobile',
     );
   }
 
-  /** Verifies get information scrolls to form. */
-  async verifyGetInformationScrollsToForm() {
+  /** Verifies get information opens a lead form. */
+  async verifyGetInformationCtaOpensLeadForm() {
     await this.waitForQmiPage();
 
-    const initialUrl = await this.driver.getUrl();
-    const clicked = await this.clickVisibleByText(
-      /get information|request info|contact/i,
-      ['a', 'button']
-    );
+    const clicked = await this.clickVisibleByText(/get information|request info|contact/i, [
+      'a',
+      'button',
+    ]);
 
     if (!clicked) {
       this.logSkip(
-        'Get Information CTA not present on mobile QMI page - skipping scroll validation'
+        'Get Information CTA not present on mobile QMI page - skipping lead form validation',
       );
       return;
     }
 
     await this.driver.pause(1000);
+    const form = await this.getVisibleQmiForm();
 
-    const ctaResult = await this.driver.execute(() => {
-      const text = document.body?.innerText || '';
-
-      const formSection = Array.from(
-        document.querySelectorAll('form, section, div, [role="group"]')
-      ).find((element) =>
-        /sign up for community updates|required fields|first name|last name|email/i.test(
-          element.textContent || ''
-        )
-      );
-
-      formSection?.scrollIntoView({ block: 'center', inline: 'center' });
-
-      return {
-        currentUrl: window.location.href,
-        hasFormContext:
-          /sign up for community updates|required fields|first name|last name|email/i.test(
-            text
-          ),
-        hasLeadActionContext: /get information|request info|contact|submit/i.test(
-          text
-        ),
-      };
-    });
-
-    assert.ok(
-      ctaResult.hasFormContext ||
-        ctaResult.hasLeadActionContext ||
-        ctaResult.currentUrl !== initialUrl ||
-        /#|contact|form|schedule/i.test(ctaResult.currentUrl),
-      'Expected Get Information CTA to expose lead form context or navigate to a lead action'
-    );
+    assert.equal(form.found, true, 'Expected Get Information CTA to open QMI lead form');
+    assert.equal(form.hasSubmit, true, 'Expected opened QMI lead form to include a submit button');
   }
 
   /** Verifies gallery. */
@@ -267,80 +224,73 @@ export class MobileWebQMIPage extends MobileWebHomePage {
       mediaCount: 0,
     };
 
-    await this.driver.waitUntil(async () => {
-      gallery = await this.driver.execute(() => {
-      const isVisible = (element) => {
-        if (!element) {
-          return false;
-        }
+    await this.driver.waitUntil(
+      async () => {
+        gallery = await this.driver.execute(() => {
+          const isVisible = (element) => {
+            if (!element) {
+              return false;
+            }
 
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
 
-        return (
-          style.visibility !== 'hidden' &&
-          style.display !== 'none' &&
-          rect.width > 0 &&
-          rect.height > 0
-        );
-      };
+            return (
+              style.visibility !== 'hidden' &&
+              style.display !== 'none' &&
+              rect.width > 0 &&
+              rect.height > 0
+            );
+          };
 
-      const images = Array.from(document.querySelectorAll('img')).filter(
-        (element) =>
-          isVisible(element) &&
-          Boolean(element.currentSrc || element.getAttribute('src'))
-      );
+          const images = Array.from(document.querySelectorAll('img')).filter(
+            (element) =>
+              isVisible(element) && Boolean(element.currentSrc || element.getAttribute('src')),
+          );
 
-      const pictureSources = Array.from(
-        document.querySelectorAll('picture source[srcset]')
-      ).filter((element) =>
-        isVisible(element.closest('picture') || element.parentElement)
-      );
+          const pictureSources = Array.from(
+            document.querySelectorAll('picture source[srcset]'),
+          ).filter((element) => isVisible(element.closest('picture') || element.parentElement));
 
-      const backgroundMedia = Array.from(
-        document.querySelectorAll('main *, section *, [style*="background-image"]')
-      ).filter((element) => {
-        if (!isVisible(element)) {
-          return false;
-        }
+          const backgroundMedia = Array.from(
+            document.querySelectorAll('main *, section *, [style*="background-image"]'),
+          ).filter((element) => {
+            if (!isVisible(element)) {
+              return false;
+            }
 
-        const backgroundImage = window.getComputedStyle(element).backgroundImage;
+            const backgroundImage = window.getComputedStyle(element).backgroundImage;
 
-        return backgroundImage && backgroundImage !== 'none';
-      });
+            return backgroundImage && backgroundImage !== 'none';
+          });
 
-      const controls = Array.from(
-        document.querySelectorAll('button, [role="button"]')
-      ).filter(
-        (element) =>
-          isVisible(element) &&
-          /next|previous|prev|slide|gallery|image/i.test(
-            `${element.textContent || ''} ${
-              element.getAttribute('aria-label') || ''
-            }`
-          )
-      );
+          const controls = Array.from(document.querySelectorAll('button, [role="button"]')).filter(
+            (element) =>
+              isVisible(element) &&
+              /next|previous|prev|slide|gallery|image/i.test(
+                `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`,
+              ),
+          );
 
-      if (controls[0] instanceof HTMLElement) {
-        controls[0].click();
-      }
+          if (controls[0] instanceof HTMLElement) {
+            controls[0].click();
+          }
 
-      return {
-        controlCount: controls.length,
-        mediaCount: images.length + pictureSources.length + backgroundMedia.length,
-      };
-    });
+          return {
+            controlCount: controls.length,
+            mediaCount: images.length + pictureSources.length + backgroundMedia.length,
+          };
+        });
 
-      return gallery.mediaCount > 0;
-    }, {
-      timeout: 15000,
-      timeoutMsg: 'Expected QMI gallery or hero images on mobile',
-    });
-
-    assert.ok(
-      gallery.mediaCount > 0,
-      'Expected QMI gallery or hero images on mobile'
+        return gallery.mediaCount > 0;
+      },
+      {
+        timeout: 15000,
+        timeoutMsg: 'Expected QMI gallery or hero images on mobile',
+      },
     );
+
+    assert.ok(gallery.mediaCount > 0, 'Expected QMI gallery or hero images on mobile');
   }
 
   /** Verifies floor plan. */
@@ -348,7 +298,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     await this.verifyOptionalSection(
       /floor ?plan/i,
       'Floor plan section not present on mobile QMI page - skipping validation',
-      /floor ?plan|sq\.?\s*ft|bed|bath/i
+      /floor ?plan|sq\.?\s*ft|bed|bath/i,
     );
   }
 
@@ -357,7 +307,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     await this.verifyOptionalSection(
       /interactive floorplan/i,
       'Interactive floorplan section not present on mobile QMI page - skipping validation',
-      /interactive floorplan|view floorplan|iframe|floor ?plan/i
+      /interactive floorplan|view floorplan|iframe|floor ?plan/i,
     );
   }
 
@@ -366,7 +316,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     await this.verifyOptionalSection(
       /explore the community|site ?map|community map/i,
       'Community sitemap section not present on mobile QMI page - skipping validation',
-      /explore the community|site ?map|map|lot|community/i
+      /explore the community|site ?map|map|lot|community/i,
     );
   }
 
@@ -375,7 +325,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     await this.verifyOptionalSection(
       /home design details|design details/i,
       'Home Design Details section not present on mobile QMI page - skipping validation',
-      /home design details|beds|baths|garage|sq\.?\s*ft|stories/i
+      /home design details|beds|baths|garage|sq\.?\s*ft|stories/i,
     );
   }
 
@@ -384,7 +334,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     await this.verifyOptionalSection(
       /home features|features/i,
       'Home Features section not present on mobile QMI page - skipping validation',
-      /features|included|design|flooring|kitchen|bath|garage/i
+      /features|included|design|flooring|kitchen|bath|garage/i,
     );
   }
 
@@ -397,25 +347,22 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
       return {
         hasContactContext:
-          /sales office|new home gallery|hours|directions|call|phone|contact/i.test(
-            text
-          ),
-        hasFormContext:
-          /sign up for community updates|first name|last name|email|submit/i.test(
-            text
-          ),
+          /sales office|new home gallery|hours|directions|call|phone|contact/i.test(text),
+        hasFormContext: /sign up for community updates|first name|last name|email|submit/i.test(
+          text,
+        ),
       };
     });
 
     assert.equal(
       snapshot.hasContactContext,
       true,
-      'Expected QMI sales office/contact context on mobile'
+      'Expected QMI sales office/contact context on mobile',
     );
 
     if (!snapshot.hasFormContext) {
       this.logSkip(
-        'QMI community updates form not present on mobile - skipping sales office form context validation'
+        'QMI community updates form not present on mobile - skipping sales office form context validation',
       );
     }
   }
@@ -426,9 +373,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     const result = await this.getRelatedQuickMoveInHomesSnapshot();
 
     if (!result.found) {
-      this.logSkip(
-        'Related QMI section not present on mobile QMI page - skipping validation'
-      );
+      this.logSkip('Related QMI section not present on mobile QMI page - skipping validation');
       return;
     }
 
@@ -436,7 +381,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     if (result.relatedQmiLinks.length === 0) {
       this.logSkip(
-        'Related QMI section has no internal QMI links on mobile - skipping link validation'
+        'Related QMI section has no internal QMI links on mobile - skipping link validation',
       );
       return;
     }
@@ -456,7 +401,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     if (!form.found) {
       this.logSkip(
-        'QMI community updates form not present on mobile - skipping form field validation'
+        'QMI community updates form not present on mobile - skipping form field validation',
       );
       return;
     }
@@ -467,11 +412,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.match(form.text, /country of residence|country/i);
     assert.match(form.text, /zip|postal/i);
 
-    assert.equal(
-      form.hasSubmit,
-      true,
-      'Expected QMI form submit button on mobile'
-    );
+    assert.equal(form.hasSubmit, true, 'Expected QMI form submit button on mobile');
   }
 
   /** Validates QMI form required errors. */
@@ -480,7 +421,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     if (!submitted) {
       this.logSkip(
-        'QMI community updates form not present on mobile - skipping required validation'
+        'QMI community updates form not present on mobile - skipping required validation',
       );
       return;
     }
@@ -488,10 +429,9 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     const snapshot = await this.getFormErrorSnapshot();
 
     assert.ok(
-      /required|invalid|error|please enter|field is required/i.test(
-        snapshot.text
-      ) || snapshot.invalidFieldCount > 0,
-      'Expected required field validation after submitting empty QMI form'
+      /required|invalid|error|please enter|field is required/i.test(snapshot.text) ||
+        snapshot.invalidFieldCount > 0,
+      'Expected required field validation after submitting empty QMI form',
     );
   }
 
@@ -501,7 +441,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     if (!filled) {
       this.logSkip(
-        'QMI community updates form not present on mobile - skipping invalid email validation'
+        'QMI community updates form not present on mobile - skipping invalid email validation',
       );
       return;
     }
@@ -510,9 +450,9 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     assert.ok(
       /email|valid domain|invalid|please enter/i.test(
-        `${snapshot.text} ${snapshot.emailValidationMessage} ${snapshot.emailAriaInvalid}`
+        `${snapshot.text} ${snapshot.emailValidationMessage} ${snapshot.emailAriaInvalid}`,
       ),
-      'Expected invalid email validation on QMI form'
+      'Expected invalid email validation on QMI form',
     );
   }
 
@@ -526,14 +466,12 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     if (!submitted) {
       this.logSkip(
-        'QMI community updates form not present on mobile - skipping success submission'
+        'QMI community updates form not present on mobile - skipping success submission',
       );
       return;
     }
 
-    await this.assertSubmissionSuccess(
-      'Expected successful submission confirmation for QMI form'
-    );
+    await this.assertSubmissionSuccess('Expected successful submission confirmation for QMI form');
   }
 
   /** Verifies mortgage popup. */
@@ -559,33 +497,22 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
       const mortgageLink = links.find((link) => {
         const href = link.getAttribute('href') || '';
-        const text = `${link.textContent || ''} ${
-          link.getAttribute('aria-label') || ''
-        }`;
+        const text = `${link.textContent || ''} ${link.getAttribute('aria-label') || ''}`;
 
         return (
           isVisible(link) &&
-          (
-            /apply\.mattamyhf\.com/i.test(href) ||
+          (/apply\.mattamyhf\.com/i.test(href) ||
             /loanType=MORTGAGE/i.test(href) ||
-            /mortgage|financing|get started|calculator/i.test(text)
-          )
+            /mortgage|financing|get started|calculator/i.test(text))
         );
       });
 
-      const buttons = Array.from(
-        document.querySelectorAll('button, [role="button"]')
-      );
+      const buttons = Array.from(document.querySelectorAll('button, [role="button"]'));
 
       const mortgageButton = buttons.find((button) => {
-        const text = `${button.textContent || ''} ${
-          button.getAttribute('aria-label') || ''
-        }`;
+        const text = `${button.textContent || ''} ${button.getAttribute('aria-label') || ''}`;
 
-        return (
-          isVisible(button) &&
-          /mortgage|financing|get started|calculator/i.test(text)
-        );
+        return isVisible(button) && /mortgage|financing|get started|calculator/i.test(text);
       });
 
       return {
@@ -595,12 +522,10 @@ export class MobileWebQMIPage extends MobileWebHomePage {
           mortgageLink?.textContent ||
             mortgageButton?.textContent ||
             mortgageButton?.getAttribute('aria-label') ||
-            ''
+            '',
         ),
         isExternalMortgageLink: mortgageLink
-          ? /apply\.mattamyhf\.com/i.test(
-              mortgageLink.getAttribute('href') || ''
-            ) ||
+          ? /apply\.mattamyhf\.com/i.test(mortgageLink.getAttribute('href') || '') ||
             /loanType=MORTGAGE/i.test(mortgageLink.getAttribute('href') || '')
           : false,
       };
@@ -608,7 +533,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     if (!mortgageSnapshot.found) {
       this.logSkip(
-        'Mortgage CTA/link not present on mobile QMI page - skipping mortgage validation'
+        'Mortgage CTA/link not present on mobile QMI page - skipping mortgage validation',
       );
       return;
     }
@@ -616,15 +541,13 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.ok(
       mortgageSnapshot.isExternalMortgageLink ||
         /mortgage|financing|get started|calculator/i.test(
-          `${mortgageSnapshot.text} ${mortgageSnapshot.href}`
+          `${mortgageSnapshot.text} ${mortgageSnapshot.href}`,
         ),
-      `Expected mortgage CTA/link context, but got: ${JSON.stringify(
-        mortgageSnapshot
-      )}`
+      `Expected mortgage CTA/link context, but got: ${JSON.stringify(mortgageSnapshot)}`,
     );
 
     this.logResult(
-      `Mortgage CTA/link validated without opening external link. Text: "${mortgageSnapshot.text}", href: "${mortgageSnapshot.href}"`
+      `Mortgage CTA/link validated without opening external link. Text: "${mortgageSnapshot.text}", href: "${mortgageSnapshot.href}"`,
     );
   }
 
@@ -638,45 +561,44 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     const communitySlug = segments[3];
     const addressSlug = segments.slice(-1)[0];
 
-    const snapshot = await this.driver.execute(({ communitySlug, addressSlug }) => {
-      const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
-      const candidates = Array.from(
-        document.querySelectorAll(
-          '#breadcrumb, [aria-label*="breadcrumb" i], nav[aria-label*="Breadcrumb" i], .breadcrumb, [class*="breadcrumb" i]'
-        )
-      );
-      const breadcrumb = candidates.find((element) => {
-        const text = normalize(element.textContent).toLowerCase();
-        const hrefs = Array.from(element.querySelectorAll('a[href]'))
-          .map((link) => link.getAttribute('href') || '')
-          .join(' ')
-          .toLowerCase();
-        const context = `${text} ${hrefs}`;
-        const linkCount = element.querySelectorAll('a[href]').length;
+    const snapshot = await this.driver.execute(
+      ({ communitySlug, addressSlug }) => {
+        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
+        const candidates = Array.from(
+          document.querySelectorAll(
+            '#breadcrumb, [aria-label*="breadcrumb" i], nav[aria-label*="Breadcrumb" i], .breadcrumb, [class*="breadcrumb" i]',
+          ),
+        );
+        const breadcrumb = candidates.find((element) => {
+          const text = normalize(element.textContent).toLowerCase();
+          const hrefs = Array.from(element.querySelectorAll('a[href]'))
+            .map((link) => link.getAttribute('href') || '')
+            .join(' ')
+            .toLowerCase();
+          const context = `${text} ${hrefs}`;
+          const linkCount = element.querySelectorAll('a[href]').length;
 
-        return linkCount >= 2 && /home|mattamy|community|quick move|breadcrumb/i.test(context);
-      });
+          return linkCount >= 2 && /home|mattamy|community|quick move|breadcrumb/i.test(context);
+        });
 
-      return {
-        breadcrumbText: normalize(breadcrumb?.textContent || ''),
-        currentUrl: window.location.href,
-      };
-    }, { communitySlug, addressSlug });
-
-    assert.match(
-      snapshot.currentUrl,
-      new RegExp(this.escapeRegExp(communitySlug), 'i')
+        return {
+          breadcrumbText: normalize(breadcrumb?.textContent || ''),
+          currentUrl: window.location.href,
+        };
+      },
+      { communitySlug, addressSlug },
     );
 
-    assert.match(
-      snapshot.currentUrl,
-      new RegExp(this.escapeRegExp(addressSlug), 'i')
-    );
+    assert.match(snapshot.currentUrl, new RegExp(this.escapeRegExp(communitySlug), 'i'));
+
+    assert.match(snapshot.currentUrl, new RegExp(this.escapeRegExp(addressSlug), 'i'));
 
     if (snapshot.breadcrumbText) {
       assert.match(snapshot.breadcrumbText, /home|mattamy|community|quick move/i);
     } else {
-      this.logValidate('Breadcrumb trail not rendered on mobile QMI page; validated URL context only');
+      this.logValidate(
+        'Breadcrumb trail not rendered on mobile QMI page; validated URL context only',
+      );
     }
   }
 
@@ -690,46 +612,50 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     const communityPath = `/${segments.slice(0, 4).join('/')}`;
     const planPath = `/${segments.slice(0, 5).join('/')}`;
 
-    const result = await this.driver.execute(({ communityPath, planPath }) => {
-      const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
-      const candidates = Array.from(
-        document.querySelectorAll(
-          '#breadcrumb, [aria-label*="breadcrumb" i], nav[aria-label*="Breadcrumb" i], .breadcrumb, [class*="breadcrumb" i]'
-        )
-      );
-      const root = candidates.find((element) => {
-        const text = normalize(element.textContent).toLowerCase();
-        const links = Array.from(element.querySelectorAll('a[href]')).map(
-          (link) => link.getAttribute('href') || ''
+    const result = await this.driver.execute(
+      ({ communityPath, planPath }) => {
+        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
+        const candidates = Array.from(
+          document.querySelectorAll(
+            '#breadcrumb, [aria-label*="breadcrumb" i], nav[aria-label*="Breadcrumb" i], .breadcrumb, [class*="breadcrumb" i]',
+          ),
         );
-        const hrefs = links.join(' ').toLowerCase();
-        const context = `${text} ${hrefs}`;
+        const root = candidates.find((element) => {
+          const text = normalize(element.textContent).toLowerCase();
+          const links = Array.from(element.querySelectorAll('a[href]')).map(
+            (link) => link.getAttribute('href') || '',
+          );
+          const hrefs = links.join(' ').toLowerCase();
+          const context = `${text} ${hrefs}`;
 
-        return (
-          links.length >= 2 &&
-          /home|mattamy|community|quick move|breadcrumb/i.test(context) &&
-          (context.includes(communityPath.toLowerCase()) || context.includes(planPath.toLowerCase()))
+          return (
+            links.length >= 2 &&
+            /home|mattamy|community|quick move|breadcrumb/i.test(context) &&
+            (context.includes(communityPath.toLowerCase()) ||
+              context.includes(planPath.toLowerCase()))
+          );
+        });
+
+        const links = Array.from(root?.querySelectorAll('a[href]') || []).map(
+          (link) => link.getAttribute('href') || '',
         );
-      });
 
-      const links = Array.from(root?.querySelectorAll('a[href]') || []).map(
-        (link) => link.getAttribute('href') || ''
-      );
-
-      return {
-        links,
-        text: normalize(root?.textContent || ''),
-      };
-    }, { communityPath, planPath });
+        return {
+          links,
+          text: normalize(root?.textContent || ''),
+        };
+      },
+      { communityPath, planPath },
+    );
 
     if (!result.links.length) {
       this.logSkip(
-        'Breadcrumb links not present on mobile QMI page - validating breadcrumb text/URL context only'
+        'Breadcrumb links not present on mobile QMI page - validating breadcrumb text/URL context only',
       );
 
       assert.match(
         await this.driver.getUrl(),
-        new RegExp(this.escapeRegExp(location.qmiPath), 'i')
+        new RegExp(this.escapeRegExp(location.qmiPath), 'i'),
       );
 
       return;
@@ -737,18 +663,15 @@ export class MobileWebQMIPage extends MobileWebHomePage {
 
     assert.ok(
       result.links.some((href) => href.includes(communityPath)),
-      `Expected breadcrumb links to include community path ${communityPath}`
+      `Expected breadcrumb links to include community path ${communityPath}`,
     );
 
     assert.ok(
       result.links.some((href) => href.includes(planPath)),
-      `Expected breadcrumb links to include plan path ${planPath}`
+      `Expected breadcrumb links to include plan path ${planPath}`,
     );
 
-    assert.match(
-      result.text,
-      new RegExp(this.escapeRegExp(location.qmiAddress), 'i')
-    );
+    assert.match(result.text, new RegExp(this.escapeRegExp(location.qmiAddress), 'i'));
   }
 
   /** Verifies plan name link navigation. */
@@ -780,9 +703,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
           );
         };
 
-        const links = Array.from(document.querySelectorAll('a[href]')).filter(
-          isVisible
-        );
+        const links = Array.from(document.querySelectorAll('a[href]')).filter(isVisible);
 
         const link = links.find((element) => {
           const text = normalize(element.textContent);
@@ -803,19 +724,19 @@ export class MobileWebQMIPage extends MobileWebHomePage {
         };
       },
       qmiPlanName,
-      planPath
+      planPath,
     );
 
     assert.equal(
       planLink.found,
       true,
-      `Expected mobile QMI page to show linked QMI plan ${qmiPlanName}`
+      `Expected mobile QMI page to show linked QMI plan ${qmiPlanName}`,
     );
 
     assert.match(
       planLink.href,
       new RegExp(this.escapeRegExp(planPath), 'i'),
-      `Expected mobile plan name link to point to ${planPath}`
+      `Expected mobile plan name link to point to ${planPath}`,
     );
 
     this.logOpen(`QMI plan link ${qmiPlanName}`, planLink.href);
@@ -839,7 +760,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
         (link as HTMLElement | undefined)?.click();
       },
       qmiPlanName,
-      planPath
+      planPath,
     );
 
     await this.driver.waitUntil(
@@ -851,7 +772,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
       {
         timeout: 15000,
         timeoutMsg: `Expected mobile plan name link to navigate to ${planPath}`,
-      }
+      },
     );
   }
 
@@ -875,8 +796,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
       ({ source, flags }) => {
         const regex = new RegExp(source, flags);
 
-        const normalize = (value) =>
-          (value || '').replace(/\s+/g, ' ').trim();
+        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
 
         const isVisible = (element) => {
           const style = window.getComputedStyle(element);
@@ -890,10 +810,8 @@ export class MobileWebQMIPage extends MobileWebHomePage {
           );
         };
 
-        const section = Array.from(
-          document.querySelectorAll('section, article, div')
-        ).find(
-          (element) => isVisible(element) && regex.test(element.textContent || '')
+        const section = Array.from(document.querySelectorAll('section, article, div')).find(
+          (element) => isVisible(element) && regex.test(element.textContent || ''),
         );
 
         section?.scrollIntoView({ block: 'center', inline: 'center' });
@@ -901,13 +819,13 @@ export class MobileWebQMIPage extends MobileWebHomePage {
         return {
           found: Boolean(section),
           hrefs: Array.from(section?.querySelectorAll('a[href]') || []).map(
-            (link) => link.getAttribute('href') || ''
+            (link) => link.getAttribute('href') || '',
           ),
           linkCount: section?.querySelectorAll('a[href]').length || 0,
           text: normalize(section?.textContent || ''),
         };
       },
-      { source: pattern.source, flags: pattern.flags }
+      { source: pattern.source, flags: pattern.flags },
     );
   }
 
@@ -953,14 +871,15 @@ export class MobileWebQMIPage extends MobileWebHomePage {
         };
         const community = communityPath.replace(/\/+$/, '').toLowerCase();
         const currentPath = currentQmiPath.replace(/\/+$/, '').toLowerCase();
-        const headingPattern = /quick move-in homes ready when you are|related homes|quick move-ins|available homes/i;
+        const headingPattern =
+          /quick move-in homes ready when you are|related homes|quick move-ins|available homes/i;
         const heading = Array.from(document.querySelectorAll('h1, h2, h3, h4')).find(
-          (element) => isVisible(element) && headingPattern.test(element.textContent || '')
+          (element) => isVisible(element) && headingPattern.test(element.textContent || ''),
         );
         const section =
           heading?.closest('section, article, [class*="related" i], [class*="qmi" i]') ||
           Array.from(document.querySelectorAll('section, article')).find(
-            (element) => isVisible(element) && headingPattern.test(element.textContent || '')
+            (element) => isVisible(element) && headingPattern.test(element.textContent || ''),
           );
 
         section?.scrollIntoView({ block: 'center', inline: 'center' });
@@ -995,7 +914,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
       {
         communityPath: location.communityPath || this.getCommunityPath(location),
         currentQmiPath: location.qmiPath,
-      }
+      },
     );
   }
 
@@ -1010,7 +929,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
       return {
         found: Boolean(form),
         hasSubmit: Boolean(
-          form?.querySelector('button[type="submit"], input[type="submit"], button')
+          form?.querySelector('button[type="submit"], input[type="submit"], button'),
         ),
         text: (form?.textContent || '').replace(/\s+/g, ' ').trim(),
       };
@@ -1043,15 +962,5 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     return fillValidLeadFormByIndex(this.driver, QMI_FORM_GLOBAL, formIndex, {
       emailPrefix: 'ssdas_qmi_mobile',
     });
-  }
-
-  /** Returns form error snapshot. */
-  async getFormErrorSnapshot() {
-    return getLeadFormErrorSnapshot(this.driver);
-  }
-
-  /** Asserts submission success. */
-  async assertSubmissionSuccess(message) {
-    await assertLeadFormSubmissionSuccess(this.driver, message);
   }
 }

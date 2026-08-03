@@ -1,11 +1,9 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { getLocationConfig } from '../config/locations/locationConfig';
 import { escapeRegex } from '../utils/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
 
 type ResultsTab = 'Communities' | 'Plans' | 'Quick Move-Ins';
-type SortOrder = 'asc' | 'desc';
 type SortCriterion = 'price' | 'sqft' | 'title';
 
 type SortValidationConfig = {
@@ -15,6 +13,10 @@ type SortValidationConfig = {
 };
 
 export class SearchPage extends SearchablePage {
+  // Shared by card-detail and sort-title extraction so both read the same node.
+  private static readonly CARD_TITLE_SELECTOR =
+    'h1, h2, h3, h4, [data-testid*="title"], [class*="title"]';
+
   readonly sortButton: Locator;
   readonly sortMenuItems: Locator;
   readonly resetFiltersButton: Locator;
@@ -232,24 +234,7 @@ export class SearchPage extends SearchablePage {
 
   /** Recovers search results. */
   private async recoverSearchResults(tabName: ResultsTab): Promise<void> {
-    const { baseURL } = getEnvConfig();
-    const location = getLocationConfig();
-    const currentUrl = new URL(this.page.url());
-    const metro = currentUrl.searchParams.get('metro') || location.market;
-    const country = currentUrl.searchParams.get('country') || location.country;
-    const community = currentUrl.searchParams.get('community') || metro;
-    const searchParams = new URLSearchParams({
-      productType: this.getProductTypeForTab(tabName),
-      metro,
-      country,
-      community,
-      hideMap: 'false',
-    });
-
-    // await this.page.goto(`${baseURL}/search?${searchParams.toString()}`, {
-    //     waitUntil: 'domcontentloaded',
-    //     timeout: 90_000
-    // });
+    await this.reportValue(`Recovering ${tabName} search results from current page state`);
     await this.waitForPageReady();
   }
 
@@ -288,9 +273,16 @@ export class SearchPage extends SearchablePage {
     return lines.find((line) => locationPattern.test(line)) ?? '';
   }
 
-  /** Returns card title locator. */
+  /**
+   * Returns the card's title element.
+   *
+   * KNOWN ISSUE: on at least one Communities card this yields the name repeated
+   * ("Waxhaw Landing Waxhaw Landing Waxhaw Landing"), which breaks A-Z sort
+   * validation. Filtering to the innermost matching element did not change the
+   * result, so the cause is not simple wrapper nesting and needs DOM inspection.
+   */
   private getCardTitleLocator(card: Locator): Locator {
-    return card.locator('h1, h2, h3, h4, [data-testid*="title"], [class*="title"]').first();
+    return card.locator(SearchPage.CARD_TITLE_SELECTOR).first();
   }
 
   /** Returns result card container. */
@@ -450,9 +442,6 @@ export class SearchPage extends SearchablePage {
 
     for (let i = 0; i < count; i++) {
       const card = cards.nth(i);
-
-      const nameLocator = card.locator('h3').first();
-      const name = (await nameLocator.textContent())?.trim() || `Card ${i + 1}`;
 
       // Find all spans inside card and pick only the first clean price like "$459,999"
       const priceSpans = card.locator('span');
@@ -629,8 +618,6 @@ export class SearchPage extends SearchablePage {
 
     const filteredUrl = this.page.url();
     const filteredCount = await this.getCardCount();
-    const filteredSignature = await this.getVisibleCardSignature();
-
     await this.step('Applied filter should refresh results and update URL', async () => {
       expect(filteredCount, 'Filtered search should still show refreshed results').toBeGreaterThan(
         0,
@@ -990,7 +977,7 @@ export class SearchPage extends SearchablePage {
   async validateSortOptions(
     tabName: ResultsTab,
     required: string[],
-    optional: string[] = [],
+    _optional: string[] = [],
   ): Promise<void> {
     await this.step(`Validate ${tabName} sort options`, async () => {
       await this.openTab(tabName);
@@ -1119,9 +1106,7 @@ export class SearchPage extends SearchablePage {
     for (let i = 0; i < count; i++) {
       const card = cards.nth(i);
 
-      const title = await card
-        .locator('h1, h2, h3, h4, [data-testid*="title"], [class*="title"]')
-        .first()
+      const title = await this.getCardTitleLocator(card)
         .innerText()
         .catch(() => '');
 

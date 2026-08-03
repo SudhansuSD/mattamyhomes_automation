@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import { getMobilePlatform, getUserAgentPatterns } from '../../utils/mobilePlatform';
+import {
+  assertLeadFormSubmissionSuccess,
+  getLeadFormErrorSnapshot,
+} from '../../utils/mobileLeadFormHelper';
 
 export class MobileWebBasePage {
   driver: MobileBrowser;
@@ -21,14 +25,14 @@ export class MobileWebBasePage {
   /** Checks whether session lost error. */
   isSessionLostError(error) {
     return /invalid session id|browser has closed the connection|disconnected|chrome not reachable/i.test(
-      String(error?.message || error)
+      String(error?.message || error),
     );
   }
 
   /** Checks whether navigation timeout error. */
   isNavigationTimeoutError(error) {
     return /timeout|timed out receiving message from renderer|unable to receive message from renderer/i.test(
-      String(error?.message || error)
+      String(error?.message || error),
     );
   }
 
@@ -135,7 +139,7 @@ export class MobileWebBasePage {
       {
         timeout,
         timeoutMsg: 'Mobile web page did not become interactive',
-      }
+      },
     );
 
     if (sessionLostError) {
@@ -169,7 +173,9 @@ export class MobileWebBasePage {
         '[aria-label*="close" i]',
         'button',
       ];
-      const elements = selectors.flatMap((selector) => Array.from(document.querySelectorAll(selector)));
+      const elements = selectors.flatMap((selector) =>
+        Array.from(document.querySelectorAll(selector)),
+      );
       const button = elements.find((element) => {
         const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
         const label = element.getAttribute('aria-label') || '';
@@ -179,7 +185,9 @@ export class MobileWebBasePage {
         const rect = element.getBoundingClientRect();
 
         return (
-          /accept|agree|allow|save|confirm|continue|close/i.test(`${text} ${label} ${id} ${className}`) &&
+          /accept|agree|allow|save|confirm|continue|close/i.test(
+            `${text} ${label} ${id} ${className}`,
+          ) &&
           style.visibility !== 'hidden' &&
           style.display !== 'none' &&
           rect.width > 0 &&
@@ -262,7 +270,12 @@ export class MobileWebBasePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
 
       const clickClose = (scope: ParentNode) => {
@@ -274,7 +287,9 @@ export class MobileWebBasePage {
           'button:has(svg)',
           'button',
         ];
-        const candidates = closeSelectors.flatMap((selector) => Array.from(scope.querySelectorAll(selector)));
+        const candidates = closeSelectors.flatMap((selector) =>
+          Array.from(scope.querySelectorAll(selector)),
+        );
         const closeButton = candidates.find((element) => {
           const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
           const label = element.getAttribute('aria-label') || '';
@@ -292,15 +307,21 @@ export class MobileWebBasePage {
       };
 
       // 1) National promotion dialog with an explicit close button.
-      const nationalClose = Array.from(document.querySelectorAll('button')).find((element) =>
-        isVisible(element) && /close national promotion/i.test(element.getAttribute('aria-label') || element.textContent || '')
+      const nationalClose = Array.from(document.querySelectorAll('button')).find(
+        (element) =>
+          isVisible(element) &&
+          /close national promotion/i.test(
+            element.getAttribute('aria-label') || element.textContent || '',
+          ),
       );
       if (nationalClose instanceof HTMLElement) {
         nationalClose.click();
         return true;
       }
 
-      const nationalDialog = document.querySelector('[role="dialog"][aria-label*="National promotion" i]');
+      const nationalDialog = document.querySelector(
+        '[role="dialog"][aria-label*="National promotion" i]',
+      );
       if (nationalDialog && isVisible(nationalDialog) && clickClose(nationalDialog)) {
         return true;
       }
@@ -313,7 +334,9 @@ export class MobileWebBasePage {
         '.ReactModalPortal [class*="modal" i]',
         '.ReactModalPortal [class*="content" i]',
       ];
-      const dialogs = dialogSelectors.flatMap((selector) => Array.from(document.querySelectorAll(selector)));
+      const dialogs = dialogSelectors.flatMap((selector) =>
+        Array.from(document.querySelectorAll(selector)),
+      );
 
       for (const dialog of dialogs) {
         if (!isVisible(dialog)) {
@@ -332,7 +355,7 @@ export class MobileWebBasePage {
         const dialogText = (dialog.textContent || '').replace(/\s+/g, ' ').trim();
         const hasPromoMedia = Boolean(dialog.querySelector('img, picture, video'));
         const hasPromoCta = Array.from(dialog.querySelectorAll('button, a')).some((element) =>
-          /going on now|learn more|view offer|promo|promotion/i.test(element.textContent || '')
+          /going on now|learn more|view offer|promo|promotion/i.test(element.textContent || ''),
         );
 
         if (
@@ -357,7 +380,9 @@ export class MobileWebBasePage {
     const clicked = await this.driver.execute(
       ({ source, flags, selectors }) => {
         const regex = new RegExp(source, flags);
-        const elements = selectors.flatMap((selector) => Array.from(document.querySelectorAll(selector)));
+        const elements = selectors.flatMap((selector) =>
+          Array.from(document.querySelectorAll(selector)),
+        );
         const match = elements.find((element) => {
           const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
           const label = element.getAttribute('aria-label') || '';
@@ -381,7 +406,7 @@ export class MobileWebBasePage {
         (match as HTMLElement).click();
         return true;
       },
-      { source: pattern.source, flags: pattern.flags, selectors }
+      { source: pattern.source, flags: pattern.flags, selectors },
     );
 
     if (clicked) {
@@ -393,10 +418,10 @@ export class MobileWebBasePage {
 
   /** Waits for body text. */
   async waitForBodyText(pattern, timeoutMsg, timeout = 20000) {
-    await this.driver.waitUntil(
-      async () => pattern.test(await this.getBodyText()),
-      { timeout, timeoutMsg }
-    );
+    await this.driver.waitUntil(async () => pattern.test(await this.getBodyText()), {
+      timeout,
+      timeoutMsg,
+    });
   }
 
   /** Returns body text. */
@@ -407,7 +432,10 @@ export class MobileWebBasePage {
   /** Returns snapshot. */
   async getSnapshot() {
     return this.driver.execute(() => ({
-      bodyText: (document.body?.innerText || document.documentElement?.textContent || '').slice(0, 20000),
+      bodyText: (document.body?.innerText || document.documentElement?.textContent || '').slice(
+        0,
+        20000,
+      ),
       currentUrl: window.location.href,
       isSourceOnly:
         (document.body?.innerText || '').trim().length < 20 &&
@@ -428,13 +456,246 @@ export class MobileWebBasePage {
     const platform = getMobilePlatform();
     const { device, browser } = getUserAgentPatterns();
 
-    assert.match(userAgent, device, `Expected ${platform} device user agent, received: ${userAgent}`);
-    assert.match(userAgent, browser, `Expected ${platform} browser user agent, received: ${userAgent}`);
+    assert.match(
+      userAgent,
+      device,
+      `Expected ${platform} device user agent, received: ${userAgent}`,
+    );
+    assert.match(
+      userAgent,
+      browser,
+      `Expected ${platform} browser user agent, received: ${userAgent}`,
+    );
+  }
+
+  /* ==========================================================
+     MEDIA VALIDATION
+
+     Shared by every mobile page that checks its image/video
+     URLs; the pages differ only in how they open themselves.
+  ========================================================== */
+
+  /** Scrolls the full page to trigger lazy-loaded media, then returns to the top. */
+  async loadLazyMedia() {
+    await this.driver.execute(async () => {
+      const delay = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+      const viewportStep = Math.max(window.innerHeight || 800, 600);
+      const pageHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+      );
+
+      for (let y = 0; y <= pageHeight; y += viewportStep) {
+        window.scrollTo(0, y);
+        await delay(250);
+      }
+
+      window.scrollTo(0, 0);
+    });
+
+    await this.waitForPageReady();
+  }
+
+  /** Collects deduplicated image/video URLs (with labels) from the page. */
+  async collectImageAndVideoUrls() {
+    const rawUrls = await this.driver.execute(() => {
+      const media = [];
+      const cleanText = (value) => (value || '').replace(/\s+/g, ' ').trim();
+      const addUrl = (type, rawUrl, element) => {
+        if (!rawUrl) {
+          return;
+        }
+
+        const trimmed = rawUrl.trim();
+
+        if (!trimmed || /^(data|blob|javascript|about):/i.test(trimmed)) {
+          return;
+        }
+
+        try {
+          const section = element.closest(
+            'section, article, main, header, footer, [role="region"], [aria-label]',
+          );
+          const heading = section?.querySelector('h1, h2, h3, h4, h5, h6');
+          const label =
+            cleanText(element.getAttribute('alt')) ||
+            cleanText(element.getAttribute('aria-label')) ||
+            cleanText(element.getAttribute('title')) ||
+            cleanText(section?.getAttribute('aria-label')) ||
+            cleanText(heading?.textContent) ||
+            'No alt/section label';
+
+          media.push({
+            label,
+            type,
+            url: new URL(trimmed, window.location.href).href,
+          });
+        } catch {
+          // Ignore malformed media URLs.
+        }
+      };
+      const addSrcset = (type, srcset, element) => {
+        if (!srcset) {
+          return;
+        }
+
+        for (const candidate of srcset.split(',')) {
+          addUrl(type, candidate.trim().split(/\s+/)[0], element);
+        }
+      };
+
+      document.querySelectorAll('img').forEach((image) => {
+        addUrl('image', image.currentSrc || image.src || image.getAttribute('src'), image);
+        addSrcset('image', image.getAttribute('srcset'), image);
+      });
+
+      document.querySelectorAll('picture source').forEach((source) => {
+        addUrl('image-source', source.getAttribute('src'), source);
+        addSrcset('image-source', source.getAttribute('srcset'), source);
+      });
+
+      document.querySelectorAll('video').forEach((video) => {
+        addUrl('video', video.currentSrc || video.src || video.getAttribute('src'), video);
+        addUrl('video-poster', video.poster || video.getAttribute('poster'), video);
+      });
+
+      document.querySelectorAll('video source').forEach((source) => {
+        addUrl('video-source', source.getAttribute('src'), source);
+        addSrcset('video-source', source.getAttribute('srcset'), source);
+      });
+
+      return media;
+    });
+
+    const unique = new Map();
+
+    for (const item of rawUrls) {
+      if (
+        /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(
+          item.url,
+        )
+      ) {
+        continue;
+      }
+
+      if (!unique.has(item.url)) {
+        unique.set(item.url, item);
+      }
+    }
+
+    return [...unique.values()];
+  }
+
+  /** Returns the HTTP status for a media URL (HEAD, falling back to GET). */
+  async getMediaUrlStatus(url) {
+    const tryRequest = async (method) => {
+      try {
+        const response = await fetch(url, { method });
+        return response.status;
+      } catch (error) {
+        return `request failed: ${error.message}`;
+      }
+    };
+    const headStatus = await tryRequest('HEAD');
+
+    if (![403, 405, 501].includes(headStatus as number) && typeof headStatus === 'number') {
+      return headStatus;
+    }
+
+    return tryRequest('GET');
+  }
+
+  /** Loads lazy media, then asserts every image/video URL on the current page returns HTTP 200. */
+  async assertMediaUrlsReturn200(pageName: string) {
+    await this.loadLazyMedia();
+
+    const mediaUrls = await this.collectImageAndVideoUrls();
+
+    assert.ok(mediaUrls.length > 0, `${pageName} should expose image or video URLs`);
+
+    const failures = [];
+
+    for (const media of mediaUrls) {
+      const status = await this.getMediaUrlStatus(media.url);
+      this.logResult(
+        `${pageName} media check | ${media.type} | ${status} | ${media.label} | ${media.url}`,
+      );
+
+      if (status !== 200) {
+        failures.push(`${media.type} returned ${status} for ${media.label}: ${media.url}`);
+      }
+    }
+
+    assert.deepEqual(
+      failures,
+      [],
+      `${pageName} image/video URL status failures:\n${failures.join('\n')}`,
+    );
+  }
+
+  /* ==========================================================
+     LEAD FORM SNAPSHOTS & ASSERTIONS
+  ========================================================== */
+
+  /** Returns a snapshot (found/text/hasSubmit) of the visible lead form at the given index. */
+  async getVisibleLeadFormSnapshot(globalName: string, formIndex = 0) {
+    return this.driver.execute(
+      ({ globalName, index }) => {
+        const forms = (window as any)[globalName]?.() || [];
+        const form = forms[index] || forms[0];
+
+        form?.scrollIntoView({ block: 'center', inline: 'center' });
+
+        return {
+          found: Boolean(form),
+          hasSubmit: Boolean(
+            form?.querySelector('button[type="submit"], input[type="submit"], button'),
+          ),
+          text: (form?.textContent || '').replace(/\s+/g, ' ').trim(),
+        };
+      },
+      { globalName, index: formIndex },
+    );
+  }
+
+  /** Returns a snapshot of lead-form validation state (errors, invalid fields). */
+  async getFormErrorSnapshot() {
+    return getLeadFormErrorSnapshot(this.driver);
+  }
+
+  /** Asserts required/validation errors are present in the lead form. */
+  async assertFormErrors(message) {
+    const snapshot = await this.getFormErrorSnapshot();
+
+    assert.ok(
+      /required|invalid|error|please enter|field is required/i.test(snapshot.text) ||
+        snapshot.invalidFieldCount > 0,
+      message,
+    );
+  }
+
+  /** Asserts an email-format validation message is present in the lead form. */
+  async assertEmailError(message) {
+    const snapshot = await this.getFormErrorSnapshot();
+
+    assert.ok(
+      /email|valid domain|invalid|please enter/i.test(
+        `${snapshot.text} ${snapshot.emailValidationMessage} ${snapshot.emailAriaInvalid}`,
+      ),
+      message,
+    );
+  }
+
+  /** Asserts the lead form submission success confirmation is shown. */
+  async assertSubmissionSuccess(message, timeout = 30000) {
+    await assertLeadFormSubmissionSuccess(this.driver, message, timeout);
   }
 
   /** Logs mobile step. */
   logMobileStep(kind: string, message: string, status?: unknown) {
-    const cleanMessage = String(message || '').replace(/\s+/g, ' ').trim();
+    const cleanMessage = String(message || '')
+      .replace(/\s+/g, ' ')
+      .trim();
 
     if (!cleanMessage) {
       return;

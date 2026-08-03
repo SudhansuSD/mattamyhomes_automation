@@ -3,10 +3,8 @@ import { MobileWebHomePage } from './MobileWebHomePage';
 import { getEnvConfig } from '../../config/environments/envConfig';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 import {
-  assertLeadFormSubmissionSuccess,
   fillInvalidEmailLeadFormByIndex,
   fillValidLeadFormByIndex,
-  getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
 } from '../../utils/mobileLeadFormHelper';
@@ -38,7 +36,11 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     await this.driver.waitUntil(
       async () => {
         const snapshot = await this.driver.execute(() => {
-          const text = (document.body?.innerText || document.documentElement?.textContent || '').slice(0, 12000);
+          const text = (
+            document.body?.innerText ||
+            document.documentElement?.textContent ||
+            ''
+          ).slice(0, 12000);
 
           return {
             readyState: document.readyState,
@@ -56,7 +58,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
       {
         timeout: 60000,
         timeoutMsg: `Expected mobile plan detail page to render ${planName}`,
-      }
+      },
     );
 
     await this.closeCookiePreferencesIfVisible();
@@ -77,12 +79,20 @@ export class MobileWebPlanPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return text && style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          text &&
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       });
 
       return {
         headingText: normalize(heading?.textContent || ''),
-        bodyText: normalize(document.body?.innerText || document.documentElement?.textContent || ''),
+        bodyText: normalize(
+          document.body?.innerText || document.documentElement?.textContent || '',
+        ),
         title: document.title,
         url: window.location.href,
       };
@@ -91,7 +101,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.match(
       `${hero.headingText}\n${hero.bodyText}\n${hero.title}\n${hero.url}`,
       new RegExp(this.escapeRegExp(planName), 'i'),
-      `Expected hero or body to include plan ${planName}`
+      `Expected hero or body to include plan ${planName}`,
     );
   }
 
@@ -117,7 +127,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
       {
         timeout: 30000,
         timeoutMsg: 'Expected plan detail page to include beds, baths, and square footage',
-      }
+      },
     );
 
     assert.match(specText, /bed/i, 'Expected plan detail page to include beds');
@@ -136,12 +146,15 @@ export class MobileWebPlanPage extends MobileWebHomePage {
       assert.match(
         snapshot.sourceText,
         new RegExp(this.escapeRegExp(location.community), 'i'),
-        `Expected mobile plan source to include community name ${location.community}`
+        `Expected mobile plan source to include community name ${location.community}`,
       );
       assert.match(
         snapshot.sourceText,
-        new RegExp(this.escapeRegExp(location.communityPath || this.getCommunityPath(location)), 'i'),
-        `Expected mobile plan source to include community path ${location.communityPath}`
+        new RegExp(
+          this.escapeRegExp(location.communityPath || this.getCommunityPath(location)),
+          'i',
+        ),
+        `Expected mobile plan source to include community path ${location.communityPath}`,
       );
       return;
     }
@@ -161,18 +174,16 @@ export class MobileWebPlanPage extends MobileWebHomePage {
           );
         };
 
-        const link = Array.from(document.querySelectorAll('a[href]')).find(
-          (element) => {
-            const text = normalize(element.textContent);
-            const href = element.getAttribute('href') || '';
+        const link = Array.from(document.querySelectorAll('a[href]')).find((element) => {
+          const text = normalize(element.textContent);
+          const href = element.getAttribute('href') || '';
 
-            return (
-              isVisible(element) &&
-              new RegExp(communityName, 'i').test(text) &&
-              href.includes(communityPath)
-            );
-          }
-        );
+          return (
+            isVisible(element) &&
+            new RegExp(communityName, 'i').test(text) &&
+            href.includes(communityPath)
+          );
+        });
 
         return {
           found: Boolean(link),
@@ -181,22 +192,19 @@ export class MobileWebPlanPage extends MobileWebHomePage {
         };
       },
       location.community,
-      location.communityPath || this.getCommunityPath(location)
+      location.communityPath || this.getCommunityPath(location),
     );
 
     assert.equal(
       communityLink.found,
       true,
-      `Expected mobile plan page to show linked community name ${location.community}`
+      `Expected mobile plan page to show linked community name ${location.community}`,
     );
 
     assert.match(
       communityLink.href,
-      new RegExp(
-        this.escapeRegExp(location.communityPath || this.getCommunityPath(location)),
-        'i'
-      ),
-      `Expected mobile community link to point to ${location.communityPath}`
+      new RegExp(this.escapeRegExp(location.communityPath || this.getCommunityPath(location)), 'i'),
+      `Expected mobile community link to point to ${location.communityPath}`,
     );
   }
 
@@ -209,7 +217,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
       assert.match(
         snapshot.sourceText,
         /image|legacyImage|openGraphImage|gallery|src/i,
-        'Expected plan source to include gallery or image data'
+        'Expected plan source to include gallery or image data',
       );
       return;
     }
@@ -219,11 +227,22 @@ export class MobileWebPlanPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
-      const images = Array.from(document.querySelectorAll('img[src], picture source[srcset]')).filter(isVisible);
-      const controls = Array.from(document.querySelectorAll('button, [role="button"]')).filter((element) =>
-        isVisible(element) && /next|previous|prev|slide|gallery|image/i.test(`${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`)
+      const images = Array.from(
+        document.querySelectorAll('img[src], picture source[srcset]'),
+      ).filter(isVisible);
+      const controls = Array.from(document.querySelectorAll('button, [role="button"]')).filter(
+        (element) =>
+          isVisible(element) &&
+          /next|previous|prev|slide|gallery|image/i.test(
+            `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`,
+          ),
       );
 
       return {
@@ -240,7 +259,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     await this.verifyOptionalSection(
       /interactive floorplan|floor ?plan/i,
       'Interactive floorplan section not present on mobile plan page - skipping validation',
-      /view floorplan|interactive floorplan|floor ?plan|iframe/i
+      /view floorplan|interactive floorplan|floor ?plan|iframe/i,
     );
   }
 
@@ -249,7 +268,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     await this.verifyOptionalSection(
       /exterior styles|exterior/i,
       'Exterior styles section not present on mobile plan page - skipping validation',
-      /exterior|elevation|style/i
+      /exterior|elevation|style/i,
     );
   }
 
@@ -258,13 +277,15 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     await this.verifyOptionalSection(
       /mortgage calculator/i,
       'Mortgage Calculator section not present on mobile plan page - skipping validation',
-      /get started|calculate|mortgage/i
+      /get started|calculate|mortgage/i,
     );
   }
 
   /** Verifies quick move in homes section. */
   async verifyQuickMoveInHomesSection() {
-    const result = await this.getSectionSnapshot(/quick move-in homes|quick move-ins|available homes/i);
+    const result = await this.getSectionSnapshot(
+      /quick move-in homes|quick move-ins|available homes/i,
+    );
 
     if (!result.found) {
       this.logSkip('QMI section not present on mobile plan page - skipping validation');
@@ -272,12 +293,17 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     }
 
     assert.match(result.text, /quick move|available homes|view all|ready/i);
-    assert.ok(result.linkCount > 0 || /show more|view all/i.test(result.text), 'Expected QMI section links or CTA');
+    assert.ok(
+      result.linkCount > 0 || /show more|view all/i.test(result.text),
+      'Expected QMI section links or CTA',
+    );
   }
 
   /** Verifies sales office section. */
   async verifySalesOfficeSection() {
-    const result = await this.getSectionSnapshot(/sales office|hours|directions|call|new home gallery/i);
+    const result = await this.getSectionSnapshot(
+      /sales office|hours|directions|call|new home gallery/i,
+    );
 
     if (!result.found) {
       this.logSkip('Sales office section not present on mobile plan page - skipping validation');
@@ -320,7 +346,9 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     const snapshot = await this.getPlanSourceSnapshot();
 
     if (snapshot.isSourceOnly) {
-      this.logSkip('Plan form is available only in source snapshot on mobile - skipping interactive empty-form validation');
+      this.logSkip(
+        'Plan form is available only in source snapshot on mobile - skipping interactive empty-form validation',
+      );
       return;
     }
 
@@ -328,8 +356,9 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     const errorSnapshot = await this.getFormErrorSnapshot();
 
     assert.ok(
-      /required|invalid|error|please enter|field is required/i.test(errorSnapshot.text) || errorSnapshot.invalidFieldCount > 0,
-      'Expected required field validation after submitting empty plan form'
+      /required|invalid|error|please enter|field is required/i.test(errorSnapshot.text) ||
+        errorSnapshot.invalidFieldCount > 0,
+      'Expected required field validation after submitting empty plan form',
     );
   }
 
@@ -339,7 +368,9 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     const snapshot = await this.getPlanSourceSnapshot();
 
     if (snapshot.isSourceOnly) {
-      this.logSkip('Plan form is available only in source snapshot on mobile - skipping interactive invalid-email validation');
+      this.logSkip(
+        'Plan form is available only in source snapshot on mobile - skipping interactive invalid-email validation',
+      );
       return;
     }
 
@@ -348,9 +379,9 @@ export class MobileWebPlanPage extends MobileWebHomePage {
 
     assert.ok(
       /email|valid domain|invalid|please enter/i.test(
-        `${errorSnapshot.text} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`
+        `${errorSnapshot.text} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`,
       ),
-      'Expected invalid email validation on plan form'
+      'Expected invalid email validation on plan form',
     );
   }
 
@@ -364,12 +395,16 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     const snapshot = await this.getPlanSourceSnapshot();
 
     if (snapshot.isSourceOnly) {
-      this.logSkip('Plan form is available only in source snapshot on mobile - skipping interactive success submission');
+      this.logSkip(
+        'Plan form is available only in source snapshot on mobile - skipping interactive success submission',
+      );
       return;
     }
 
     await this.fillValidPlanFormByIndex(0);
-    await this.assertSubmissionSuccess('Expected successful submission confirmation for plan detail form');
+    await this.assertSubmissionSuccess(
+      'Expected successful submission confirmation for plan detail form',
+    );
   }
 
   /** Verifies qmisection. */
@@ -405,27 +440,35 @@ export class MobileWebPlanPage extends MobileWebHomePage {
   async getSectionSnapshot(pattern) {
     await this.waitForPlanPage();
 
-    return this.driver.execute(({ source, flags }) => {
-      const regex = new RegExp(source, flags);
-      const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
-      const isVisible = (element) => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
+    return this.driver.execute(
+      ({ source, flags }) => {
+        const regex = new RegExp(source, flags);
+        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
+        const isVisible = (element) => {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
-      };
-      const section = Array.from(document.querySelectorAll('section, article, div')).find((element) =>
-        isVisible(element) && regex.test(element.textContent || '')
-      );
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        };
+        const section = Array.from(document.querySelectorAll('section, article, div')).find(
+          (element) => isVisible(element) && regex.test(element.textContent || ''),
+        );
 
-      section?.scrollIntoView({ block: 'center', inline: 'center' });
+        section?.scrollIntoView({ block: 'center', inline: 'center' });
 
-      return {
-        found: Boolean(section),
-        linkCount: section?.querySelectorAll('a[href]').length || 0,
-        text: normalize(section?.textContent || ''),
-      };
-    }, { source: pattern.source, flags: pattern.flags });
+        return {
+          found: Boolean(section),
+          linkCount: section?.querySelectorAll('a[href]').length || 0,
+          text: normalize(section?.textContent || ''),
+        };
+      },
+      { source: pattern.source, flags: pattern.flags },
+    );
   }
 
   /** Waits for plan form. */
@@ -440,7 +483,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     await this.waitForBodyText(
       /sign up for community updates|first name|last name|email|zip\/postal code|submit/i,
       'Expected plan detail lead form to render on mobile plan page',
-      45000
+      45000,
     );
     await this.closeCookiePreferencesIfVisible();
     await installVisibleLeadFormFinder(this.driver, {
@@ -457,7 +500,11 @@ export class MobileWebPlanPage extends MobileWebHomePage {
   /** Fills invalid email plan form by index. */
   async fillInvalidEmailPlanFormByIndex(formIndex = 0) {
     const filled = await fillInvalidEmailLeadFormByIndex(this.driver, PLAN_FORM_GLOBAL, formIndex);
-    assert.equal(filled, true, `Expected plan form at index ${formIndex} to validate invalid email`);
+    assert.equal(
+      filled,
+      true,
+      `Expected plan form at index ${formIndex} to validate invalid email`,
+    );
   }
 
   /** Fills valid plan form by index. */
@@ -466,15 +513,5 @@ export class MobileWebPlanPage extends MobileWebHomePage {
       emailPrefix: 'ssdas_plan_mobile',
     });
     assert.equal(submitted, true, `Expected plan form at index ${formIndex} to submit valid data`);
-  }
-
-  /** Returns form error snapshot. */
-  async getFormErrorSnapshot() {
-    return getLeadFormErrorSnapshot(this.driver);
-  }
-
-  /** Asserts submission success. */
-  async assertSubmissionSuccess(message) {
-    await assertLeadFormSubmissionSuccess(this.driver, message);
   }
 }

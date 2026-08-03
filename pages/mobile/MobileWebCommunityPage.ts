@@ -3,7 +3,6 @@ import { MobileWebHomePage } from './MobileWebHomePage';
 import { getEnvConfig } from '../../config/environments/envConfig';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 import {
-  assertLeadFormSubmissionSuccess,
   fillInvalidEmailLeadFormByIndex,
   fillValidLeadFormByIndex,
   getLeadFormErrorSnapshot,
@@ -19,7 +18,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     await this.waitForPageReady();
     await this.waitForBodyText(
       new RegExp(this.escapeRegExp(expectedCommunity), 'i'),
-      `Expected community page to include ${expectedCommunity}`
+      `Expected community page to include ${expectedCommunity}`,
     );
 
     const snapshot = await this.getSnapshot();
@@ -28,13 +27,12 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     this.assertNoErrorPage(snapshot);
   }
 
-
   /** Verifies core sections. */
   async verifyCoreSections() {
     await this.waitForBodyText(
       /available homes|quick move-in|map|contact|sales|directions|amenities|overview/i,
       'Expected community core sections to render on mobile',
-      45000
+      45000,
     );
     await this.closeCookiePreferencesIfVisible();
 
@@ -42,25 +40,33 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
       const bodyText = document.body?.innerText || '';
 
       return {
-        hasAvailableHomes: /available homes|quick move-in homes/i.test(bodyText) || Boolean(document.querySelector('#availablehomes')),
-        hasMap: /map|directions/i.test(bodyText) || Boolean(document.querySelector('#map, [id*="map" i]')),
-        hasContact: /contact|sales|schedule|call|directions/i.test(bodyText) || Boolean(document.querySelector('#contact')),
+        hasAvailableHomes:
+          /available homes|quick move-in homes/i.test(bodyText) ||
+          Boolean(document.querySelector('#availablehomes')),
+        hasMap:
+          /map|directions/i.test(bodyText) ||
+          Boolean(document.querySelector('#map, [id*="map" i]')),
+        hasContact:
+          /contact|sales|schedule|call|directions/i.test(bodyText) ||
+          Boolean(document.querySelector('#contact')),
       };
     });
 
     assert.equal(
       sections.hasAvailableHomes || sections.hasMap || sections.hasContact,
       true,
-      'Expected at least one community core section on mobile'
+      'Expected at least one community core section on mobile',
     );
   }
 
   /** Verifies overview address market and attributes. */
-  async verifyOverviewAddressMarketAndAttributes(expectedCommunity = getLocationConfig().community) {
+  async verifyOverviewAddressMarketAndAttributes(
+    expectedCommunity = getLocationConfig().community,
+  ) {
     await this.waitForBodyText(
       new RegExp(this.escapeRegExp(expectedCommunity), 'i'),
       `Expected community page to include ${expectedCommunity}`,
-      45000
+      45000,
     );
     await this.closeCookiePreferencesIfVisible();
 
@@ -68,13 +74,15 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
       const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
       const text = normalize(document.body?.innerText || '');
       const escapedCommunityName = communityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const overview = Array.from(document.querySelectorAll('#ProductOverview, section, div')).find((element) =>
-        new RegExp(`welcome to\\s+${escapedCommunityName}`, 'i').test(element.textContent || '') ||
-        /designed for the way you live|home details/i.test(element.textContent || '')
+      const overview = Array.from(document.querySelectorAll('#ProductOverview, section, div')).find(
+        (element) =>
+          new RegExp(`welcome to\\s+${escapedCommunityName}`, 'i').test(
+            element.textContent || '',
+          ) || /designed for the way you live|home details/i.test(element.textContent || ''),
       );
       const overviewText = normalize(overview?.textContent || '');
       const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4')).map((heading) =>
-        normalize(heading.textContent || '')
+        normalize(heading.textContent || ''),
       );
 
       return {
@@ -83,35 +91,46 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
         hasOverview:
           Boolean(overview) ||
           new RegExp(`welcome to\\s+${escapedCommunityName}`, 'i').test(text) ||
-          (/designed for the way you live|home details/i.test(text) && new RegExp(escapedCommunityName, 'i').test(text)),
-        hasAddress: headings.some((heading) => /\d{1,}.+,\s*.+\b[A-Z]{2}\b/i.test(heading)) ||
+          (/designed for the way you live|home details/i.test(text) &&
+            new RegExp(escapedCommunityName, 'i').test(text)),
+        hasAddress:
+          headings.some((heading) => /\d{1,}.+,\s*.+\b[A-Z]{2}\b/i.test(heading)) ||
           /\d{1,}.+,\s*.+\b[A-Z]{2}\b/i.test(text),
-        hasAttributes: /home types|bedrooms|full bathrooms|sq\.?\s*ft\.?|stories|garages/i.test(text),
+        hasAttributes: /home types|bedrooms|full bathrooms|sq\.?\s*ft\.?|stories|garages/i.test(
+          text,
+        ),
       };
     }, expectedCommunity);
 
-    assert.equal(snapshot.hasOverview, true, 'Expected overview or home details section to include current community context');
+    assert.equal(
+      snapshot.hasOverview,
+      true,
+      'Expected overview or home details section to include current community context',
+    );
     assert.match(snapshot.bodyText, new RegExp(this.escapeRegExp(expectedCommunity), 'i'));
     assert.ok(
       snapshot.overviewText.length > 100 || snapshot.bodyText.length > 500,
-      'Expected overview/community page to include meaningful content'
+      'Expected overview/community page to include meaningful content',
     );
     assert.equal(snapshot.hasAddress, true, 'Expected community address details on mobile');
     assert.equal(snapshot.hasAttributes, true, 'Expected community key attributes on mobile');
   }
 
   /** Verifies QMI card community name matches current community. */
-  async verifyQmiCardCommunityNameMatchesCurrentCommunity(expectedCommunity = getLocationConfig().community) {
+  async verifyQmiCardCommunityNameMatchesCurrentCommunity(
+    expectedCommunity = getLocationConfig().community,
+  ) {
     await this.waitForBodyText(
       new RegExp(this.escapeRegExp(expectedCommunity), 'i'),
       `Expected community page to include ${expectedCommunity}`,
-      45000
+      45000,
     );
 
     const result = await this.driver.execute(() => {
-      const section = document.querySelector('#availablehomes') ||
+      const section =
+        document.querySelector('#availablehomes') ||
         Array.from(document.querySelectorAll('section, div')).find((element) =>
-          /quick move-in homes|available homes/i.test(element.textContent || '')
+          /quick move-in homes|available homes/i.test(element.textContent || ''),
         );
 
       if (!section) {
@@ -119,7 +138,8 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
       }
 
       section.scrollIntoView({ block: 'center', inline: 'center' });
-      const currentCommunitySegment = window.location.pathname.split('/').filter(Boolean).pop() || '';
+      const currentCommunitySegment =
+        window.location.pathname.split('/').filter(Boolean).pop() || '';
       const links = Array.from(section.querySelectorAll('a[href]'))
         .filter((link) => !/view all/i.test(link.textContent || ''))
         .map((link) => link.getAttribute('href') || '')
@@ -132,8 +152,12 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
       return {
         skipped: false,
         currentCommunitySegment,
-        invalidLinks: links.filter((href) =>
-          !new URL(href, window.location.href).pathname.toLowerCase().split('/').includes(currentCommunitySegment)
+        invalidLinks: links.filter(
+          (href) =>
+            !new URL(href, window.location.href).pathname
+              .toLowerCase()
+              .split('/')
+              .includes(currentCommunitySegment),
         ),
       };
     });
@@ -146,7 +170,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     assert.deepEqual(
       result.invalidLinks,
       [],
-      `Expected QMI card hrefs to include current community segment: ${result.currentCommunitySegment}`
+      `Expected QMI card hrefs to include current community segment: ${result.currentCommunitySegment}`,
     );
   }
 
@@ -157,16 +181,29 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     const invalidLinks = await this.driver.execute(() => {
       return Array.from(document.querySelectorAll('a[href]'))
         .map((link) => link.getAttribute('href') || '')
-        .filter((href) => href && !href.startsWith('#') && !href.startsWith('mailto:') && !href.startsWith('tel:'))
+        .filter(
+          (href) =>
+            href &&
+            !href.startsWith('#') &&
+            !href.startsWith('mailto:') &&
+            !href.startsWith('tel:'),
+        )
         .filter((href) => !href.trim());
     });
 
-    assert.deepEqual(invalidLinks, [], 'Expected all community navigation links to have href values');
+    assert.deepEqual(
+      invalidLinks,
+      [],
+      'Expected all community navigation links to have href values',
+    );
   }
 
   /** Verifies available homes navigation. */
   async verifyAvailableHomesNavigation() {
-    const result = await this.clickFirstCommunityLink(/quick-move-in|available-home|\d{1,}-/i, 'available home');
+    const result = await this.clickFirstCommunityLink(
+      /quick-move-in|available-home|\d{1,}-/i,
+      'available home',
+    );
 
     if (result.skipped) {
       this.logSkip(`${result.reason} - skipping available homes navigation`);
@@ -181,7 +218,10 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
   /** Verifies plans navigation. */
   async verifyPlansNavigation() {
     const location = getLocationConfig();
-    const planPattern = new RegExp(this.escapeRegExp(location.expectedPlanUrlPart || location.planName), 'i');
+    const planPattern = new RegExp(
+      this.escapeRegExp(location.expectedPlanUrlPart || location.planName),
+      'i',
+    );
     const result = await this.clickFirstCommunityLink(planPattern, 'plan');
 
     if (result.skipped) {
@@ -203,11 +243,19 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
           const style = window.getComputedStyle(element);
           const rect = element.getBoundingClientRect();
 
-          return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
         };
-        const section = document.querySelector('#availablehomes') ||
+        const section =
+          document.querySelector('#availablehomes') ||
           Array.from(document.querySelectorAll('section, div')).find((element) =>
-            /quick move-in homes|available homes|home plans|floor plans|plans/i.test(element.textContent || '')
+            /quick move-in homes|available homes|home plans|floor plans|plans/i.test(
+              element.textContent || '',
+            ),
           );
         const links = Array.from((section || document).querySelectorAll('a[href]'));
         const link = links.find((candidate) => {
@@ -226,7 +274,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
         link.click();
         return { skipped: false, href };
       },
-      { source: pattern.source, flags: pattern.flags, label }
+      { source: pattern.source, flags: pattern.flags, label },
     );
 
     if (!clicked.skipped) {
@@ -247,7 +295,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     assert.ok(
       /required|invalid|error|please enter|field is required/i.test(errorSnapshot.text) ||
         errorSnapshot.invalidFieldCount > 0,
-      'Expected required field validation after submitting an empty community form'
+      'Expected required field validation after submitting an empty community form',
     );
   }
 
@@ -260,7 +308,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     assert.ok(
       /required|invalid|error|please enter|field is required/i.test(errorSnapshot.text) ||
         errorSnapshot.invalidFieldCount > 0,
-      'Expected required field validation after submitting footer community form'
+      'Expected required field validation after submitting footer community form',
     );
   }
 
@@ -272,9 +320,9 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
 
     assert.ok(
       /email|valid domain|invalid|please enter/i.test(
-        `${errorSnapshot.text} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`
+        `${errorSnapshot.text} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`,
       ),
-      'Expected invalid email validation on the community form'
+      'Expected invalid email validation on the community form',
     );
   }
 
@@ -286,9 +334,9 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
 
     assert.ok(
       /email|valid domain|invalid|please enter/i.test(
-        `${errorSnapshot.text} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`
+        `${errorSnapshot.text} ${errorSnapshot.emailValidationMessage} ${errorSnapshot.emailAriaInvalid}`,
       ),
-      'Expected invalid email validation on the footer community form'
+      'Expected invalid email validation on the footer community form',
     );
   }
 
@@ -310,32 +358,50 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
 
     await this.waitForCommunityForm();
     await this.fillValidFormByIndex(formIndex);
-    await this.assertSubmissionSuccess(`Expected successful submission confirmation for ${formName}`);
+    await this.assertSubmissionSuccess(
+      `Expected successful submission confirmation for ${formName}`,
+    );
   }
 
   /** Submits visible form by index. */
   async submitVisibleFormByIndex(formIndex = 0) {
-    const submitted = await submitVisibleLeadFormByIndex(this.driver, COMMUNITY_FORM_GLOBAL, formIndex);
+    const submitted = await submitVisibleLeadFormByIndex(
+      this.driver,
+      COMMUNITY_FORM_GLOBAL,
+      formIndex,
+    );
     assert.equal(submitted, true, `Expected visible community form at index ${formIndex}`);
   }
 
   /** Fills invalid email form by index. */
   async fillInvalidEmailFormByIndex(formIndex = 0) {
-    const filled = await fillInvalidEmailLeadFormByIndex(this.driver, COMMUNITY_FORM_GLOBAL, formIndex);
-    assert.equal(filled, true, `Expected community form at index ${formIndex} to validate invalid email`);
+    const filled = await fillInvalidEmailLeadFormByIndex(
+      this.driver,
+      COMMUNITY_FORM_GLOBAL,
+      formIndex,
+    );
+    assert.equal(
+      filled,
+      true,
+      `Expected community form at index ${formIndex} to validate invalid email`,
+    );
   }
 
   /** Fills valid form by index. */
   async fillValidFormByIndex(formIndex = 0) {
-    const submitted = await fillValidLeadFormByIndex(this.driver, COMMUNITY_FORM_GLOBAL, formIndex, {
-      emailPrefix: 'ssdas_community_mobile',
-    });
-    assert.equal(submitted, true, `Expected community form at index ${formIndex} to submit valid data`);
-  }
-
-  /** Asserts submission success. */
-  async assertSubmissionSuccess(message) {
-    await assertLeadFormSubmissionSuccess(this.driver, message);
+    const submitted = await fillValidLeadFormByIndex(
+      this.driver,
+      COMMUNITY_FORM_GLOBAL,
+      formIndex,
+      {
+        emailPrefix: 'ssdas_community_mobile',
+      },
+    );
+    assert.equal(
+      submitted,
+      true,
+      `Expected community form at index ${formIndex} to submit valid data`,
+    );
   }
 
   /** Waits for community form. */
@@ -343,7 +409,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     await this.waitForBodyText(
       /sign up for community updates|first name|last name|email|zip\/postal code|submit/i,
       'Expected community lead form to render on mobile community page',
-      45000
+      45000,
     );
     await this.closeCookiePreferencesIfVisible();
     await installVisibleLeadFormFinder(this.driver, {

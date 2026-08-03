@@ -58,7 +58,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       });
     });
 
-    test('TC-04 | @regression | Validate available condo floorplans section when available', async () => {
+    test('TC-04 | @smoke @regression | Validate available condo floorplans section when available', async () => {
       await test.step('Validate available condo floorplans section when available', async () => {
         await condoCommunityPage.verifyAvailableFloorplansSection(condoCommunity!);
       });
@@ -91,7 +91,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
 
   test.describe('Lead Form', () => {
     test.describe('Get Information Form Validation', () => {
-      test('TC-01 | @regression | Validate Get Information CTA opens condo community sideModalForm', async () => {
+      test('TC-01 | @smoke @regression | Validate Get Information CTA opens condo community sideModalForm', async () => {
         await test.step('Validate Get Information CTA opens condo community sideModalForm', async () => {
           await condoCommunityPage.verifyGetInformationCtaOpensLeadForm();
         });
@@ -142,7 +142,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
         });
       });
 
-      test('TC-03 | @regression | Validate primary condo form required field errors', async () => {
+      test('TC-03 | @smoke @regression | Validate primary condo form required field errors', async () => {
         await test.step('Validate primary condo form required field errors', async () => {
           await condoCommunityPage.validatePrimaryFormRequiredErrors();
         });
@@ -169,7 +169,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
         });
       });
 
-      test('TC-02 | @regression | Validate footer condo form required field errors', async () => {
+      test('TC-02 | @smoke @regression | Validate footer condo form required field errors', async () => {
         await test.step('Validate footer condo form required field errors', async () => {
           await condoCommunityPage.validateFooterFormRequiredErrors();
         });

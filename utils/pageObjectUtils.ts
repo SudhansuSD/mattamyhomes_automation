@@ -10,7 +10,9 @@ export async function getMediaSource(locator: Locator): Promise<string> {
   return locator
     .evaluate((element) => {
       if (element instanceof HTMLImageElement) {
-        return element.currentSrc || element.src || element.getAttribute('src') || element.alt || '';
+        return (
+          element.currentSrc || element.src || element.getAttribute('src') || element.alt || ''
+        );
       }
 
       if (element instanceof HTMLVideoElement) {
@@ -23,16 +25,14 @@ export async function getMediaSource(locator: Locator): Promise<string> {
 
       const image = element.querySelector('img');
 
-      return image?.currentSrc || image?.src || image?.getAttribute('src') || element.textContent || '';
+      return (
+        image?.currentSrc || image?.src || image?.getAttribute('src') || element.textContent || ''
+      );
     })
     .catch(() => '');
 }
 
-/**
- * True when the element (or any ancestor) is position:fixed or sticky, i.e. it lives on a floating /
- * sticky bar. Used to tell the sticky "floating bar" Get Information CTA (which opens the side modal)
- * apart from the in-flow hero/landing CTA (which only scrolls to the footer form).
- */
+/** True when the element (or any ancestor) is position:fixed or sticky. */
 export async function isFloatingCta(locator: Locator): Promise<boolean> {
   return locator
     .evaluate((element) => {
@@ -66,11 +66,13 @@ export async function clickIfVisible(locator: Locator, timeout?: number): Promis
 }
 
 export function isIgnorableHref(href: string | null): boolean {
-  return !href ||
+  return (
+    !href ||
     href.startsWith('#') ||
     href.startsWith('mailto:') ||
     href.startsWith('tel:') ||
-    href.startsWith('javascript:');
+    href.startsWith('javascript:')
+  );
 }
 
 export function getPathnameFromHref(href: string, baseUrl = 'http://local.test'): string {
@@ -86,19 +88,11 @@ export function buildFullUrl(relativeUrl: string | null, baseUrl: string): strin
 }
 
 export function getLastPathSegment(url: string): string | undefined {
-  return new URL(url, 'http://local.test')
-    .pathname
-    .split('/')
-    .filter(Boolean)
-    .pop()
-    ?.toLowerCase();
+  return new URL(url, 'http://local.test').pathname.split('/').filter(Boolean).pop()?.toLowerCase();
 }
 
 export function getPathSegments(url: string): string[] {
-  return new URL(url, 'http://local.test')
-    .pathname
-    .split('/')
-    .filter(Boolean);
+  return new URL(url, 'http://local.test').pathname.split('/').filter(Boolean);
 }
 
 export function toSlug(value: string): string {
@@ -146,9 +140,7 @@ export function formatPriceToUiLabel(price: number): string {
 }
 
 export function getSlugTextPattern(slug: string): RegExp {
-  const escapedWords = slug
-    .split('-')
-    .map((word) => escapeRegex(word));
+  const escapedWords = slug.split('-').map((word) => escapeRegex(word));
 
   return new RegExp(escapedWords.join('[\\s-]+'), 'i');
 }

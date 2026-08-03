@@ -345,15 +345,14 @@ export class MarketPage extends BasePage {
     await this.validateLeadFormInvalidData(marketName);
   }
 
-  /** Helper: return the visible market lead form when available. */
-  private async getAvailableLeadForm(marketName: string): Promise<Locator | null> {
-    await this.waitForPageReady();
+  /** Helper: return the visible market lead form; specs own any intentional skips. */
+  private async getAvailableLeadForm(marketName: string): Promise<Locator> {
+    await this.waitForFooterSectionVisible(`the market lead form on ${marketName}`);
 
     const form = this.leadForm.first();
 
     if (!(await form.count())) {
-      await this.reportValue(`No lead form available on ${marketName} - skipping form validation`);
-      return null;
+      throw new Error(`Expected a lead form on ${marketName}, but none was found.`);
     }
 
     await form.scrollIntoViewIfNeeded();
@@ -394,11 +393,6 @@ export class MarketPage extends BasePage {
   async validateLeadFormRequiredErrors(marketName: string): Promise<void> {
     await this.step(`Validate lead form required errors: ${marketName}`, async () => {
       const form = await this.getAvailableLeadForm(marketName);
-
-      if (!form) {
-        return;
-      }
-
       const fields = this.getLeadFormFields(form);
 
       await this.expectLeadFormFieldsVisible(fields);
@@ -414,11 +408,6 @@ export class MarketPage extends BasePage {
   async validateLeadFormInvalidData(marketName: string): Promise<void> {
     await this.step(`Validate lead form invalid data: ${marketName}`, async () => {
       const form = await this.getAvailableLeadForm(marketName);
-
-      if (!form) {
-        return;
-      }
-
       const fields = this.getLeadFormFields(form);
 
       await this.expectLeadFormFieldsVisible(fields);
@@ -436,11 +425,6 @@ export class MarketPage extends BasePage {
   async submitLeadFormSuccessfully(marketName: string): Promise<void> {
     await this.step(`Submit lead form successfully: ${marketName}`, async () => {
       const form = await this.getAvailableLeadForm(marketName);
-
-      if (!form) {
-        return;
-      }
-
       const fields = this.getLeadFormFields(form);
 
       await this.expectLeadFormFieldsVisible(fields);

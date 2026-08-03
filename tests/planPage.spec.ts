@@ -83,9 +83,11 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
       await test.step('Verify sales office details when present', async () => {
         await planPage.verifySalesOfficeSection();
       });
+    });
 
-      await test.step('Verify Get Information CTA scrolls to the footer form', async () => {
-        await planPage.verifyGetInformationCtaScrollsToForm();
+    test('TC-04 | @regression | Validate plan gallery media tabs when present', async () => {
+      await test.step('Verify plan gallery media tabs when present', async () => {
+        await planPage.verifyGalleryMediaTabsIfAvailable();
       });
     });
   });
@@ -94,7 +96,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      Form Validation
   -------------------------------------------------------- */
   test.describe('Form Validation', () => {
-    test('TC-01 | @regression | Validate floating bar Get Information CTA opens plan detail side modal form', async () => {
+    test('TC-01 | @regression | Validate Get Information CTA opens plan detail side modal form', async () => {
       await planPage.verifyGetInformationCtaOpensLeadForm();
     });
 

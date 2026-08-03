@@ -6,7 +6,7 @@ import {
   getNormalizedText,
   getPathSegments,
   toSlug,
-  toTitleCase
+  toTitleCase,
 } from '../utils/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
 import {
@@ -23,7 +23,7 @@ import {
   getInvalidLeadData,
   getSubmitButton,
   getValidLeadData,
-  LeadFieldData
+  LeadFieldData,
 } from '../utils/leadFormHelper';
 
 /* ==========================================================
@@ -31,7 +31,6 @@ import {
 ========================================================== */
 
 export class CommunityPage extends SearchablePage {
-
   /* ==========================================================
      Constructor
   ========================================================== */
@@ -73,9 +72,12 @@ export class CommunityPage extends SearchablePage {
   }
   /** Returns the sales center section locator or value. */
   private get salesCenterSection(): Locator {
-    return this.page.locator('section, div').filter({
-      hasText: /showhome|sales|directions|hours/i
-    }).first();
+    return this.page
+      .locator('section, div')
+      .filter({
+        hasText: /showhome|sales|directions|hours/i,
+      })
+      .first();
   }
   /** Returns the nav links locator or value. */
   private get navLinks(): Locator {
@@ -97,14 +99,14 @@ export class CommunityPage extends SearchablePage {
    */
   private get getInformationButtonCta(): Locator {
     return this.page.locator('button:not([role="link"]):visible').filter({
-      hasText: CommunityPage.CTA_TEXT
+      hasText: CommunityPage.CTA_TEXT,
     });
   }
 
   /** Returns all Get Information / Stay Updated CTA candidates (any element/role). */
   private get getInformationCtaCandidates(): Locator {
     return this.page.locator('button:visible, a:visible').filter({
-      hasText: CommunityPage.CTA_TEXT
+      hasText: CommunityPage.CTA_TEXT,
     });
   }
 
@@ -143,7 +145,7 @@ export class CommunityPage extends SearchablePage {
     await expect
       .poll(async () => (index = await this.firstInViewportIndex(cta)), {
         message: 'A Get Information CTA should render inside the viewport',
-        timeout: 15000
+        timeout: 15000,
       })
       .toBeGreaterThanOrEqual(0)
       .catch(() => undefined);
@@ -164,7 +166,7 @@ export class CommunityPage extends SearchablePage {
 
     const viewport = await this.page.evaluate(() => ({
       width: window.innerWidth,
-      height: window.innerHeight
+      height: window.innerHeight,
     }));
 
     for (let i = 0; i < count; i++) {
@@ -205,14 +207,18 @@ export class CommunityPage extends SearchablePage {
   }
   /** Returns the form success message locator or value. */
   private get formSuccessMessage(): Locator {
-    return this.page.getByText(
-      /Thank you for your interest in Mattamy Homes|Thanks for your interest|request has been submitted|Thank you/i
-    ).last();
+    return this.page
+      .getByText(
+        /Thank you for your interest in Mattamy Homes|Thanks for your interest|request has been submitted|Thank you/i,
+      )
+      .last();
   }
   /** Returns the lead form dialog or sidebar locator or value. */
   private get leadFormDialogOrSidebar(): Locator {
     return this.page
-      .locator('#ModalForm, [id*="ModalForm"], .ReactModal__Content, [role="dialog"], aside, [class*="drawer" i], [class*="sidebar" i]')
+      .locator(
+        '#ModalForm, [id*="ModalForm"], .ReactModal__Content, [role="dialog"], aside, [class*="drawer" i], [class*="sidebar" i]',
+      )
       .filter({ has: this.page.locator('form, input, select, textarea') });
   }
 
@@ -227,8 +233,10 @@ export class CommunityPage extends SearchablePage {
       const { communityPath } = getLocationConfig();
 
       if (communityPath) {
-        await expect(this.page, 'Community search should navigate to the configured community URL')
-          .toHaveURL(new RegExp(escapeRegex(communityPath), 'i'), { timeout: 60000 });
+        await expect(
+          this.page,
+          'Community search should navigate to the configured community URL',
+        ).toHaveURL(new RegExp(escapeRegex(communityPath), 'i'), { timeout: 60000 });
       }
 
       // The community page (reached via search, not navigate()) can also come up
@@ -258,7 +266,6 @@ export class CommunityPage extends SearchablePage {
   }
   /** Verifies section if present. */
   private async verifySectionIfPresent(locator: Locator, name: string): Promise<void> {
-
     const sectionCount = await locator.count();
 
     if (!sectionCount) {
@@ -274,10 +281,8 @@ export class CommunityPage extends SearchablePage {
     await this.waitForPageReady();
 
     // Assert visibility (with retry)
-    await expect(section, `${name} section not visible`)
-      .toBeVisible({ timeout: 5000 });
+    await expect(section, `${name} section not visible`).toBeVisible({ timeout: 5000 });
   }
-
 
   /* ==========================================================
      ALL NAV LINK VALIDATION
@@ -290,7 +295,6 @@ export class CommunityPage extends SearchablePage {
       let validatedLinks = 0;
 
       for (let i = 0; i < linkCount; i++) {
-
         const link = this.navLinks.nth(i);
         const href = await link.getAttribute('href');
 
@@ -315,21 +319,14 @@ export class CommunityPage extends SearchablePage {
   /** Verifies available homes navigation. */
   async verifyAvailableHomesNavigation(): Promise<void> {
     await this.step('Verify available homes navigation', async () => {
-      const firstHome = this.page
-        .locator('a[href*="/quick-move-in"]')
-        .first();
+      const firstHome = this.page.locator('a[href*="/quick-move-in"]').first();
 
       if (await firstHome.count()) {
-
         const href = await firstHome.getAttribute('href');
 
-        await Promise.all([
-          this.page.waitForLoadState('domcontentloaded'),
-          firstHome.click()
-        ]);
+        await Promise.all([this.page.waitForLoadState('domcontentloaded'), firstHome.click()]);
 
-        await expect(this.page)
-          .toHaveURL(new RegExp(href!, 'i'));
+        await expect(this.page).toHaveURL(new RegExp(href!, 'i'));
 
         await this.page.goBack();
         await this.waitForPageReady();
@@ -344,25 +341,117 @@ export class CommunityPage extends SearchablePage {
   /** Verifies plans navigation. */
   async verifyPlansNavigation(): Promise<void> {
     await this.step('Verify plans navigation', async () => {
-      const firstPlan = this.page
-        .locator('a[href*="/brinkley"]')
-        .first();
+      const firstPlan = this.page.locator('a[href*="/brinkley"]').first();
 
       if (await firstPlan.count()) {
-
         const href = await firstPlan.getAttribute('href');
 
-        await Promise.all([
-          this.page.waitForLoadState('domcontentloaded'),
-          firstPlan.click()
-        ]);
+        await Promise.all([this.page.waitForLoadState('domcontentloaded'), firstPlan.click()]);
 
-        await expect(this.page)
-          .toHaveURL(new RegExp(href!, 'i'));
+        await expect(this.page).toHaveURL(new RegExp(href!, 'i'));
 
         await this.page.goBack();
         await this.waitForPageReady();
       }
+    });
+  }
+
+  /** Verifies contact action CTAs when the community renders them. */
+  async verifyContactActionCtasIfAvailable(): Promise<void> {
+    await this.step('Verify community contact action CTAs when available', async () => {
+      await this.verifyHoursCtaIfAvailable();
+      await this.verifyDirectionsCtaIfAvailable();
+      await this.verifyScheduleAppointmentCtaIfAvailable();
+    });
+  }
+
+  /** Verifies the Hours CTA exposes an open/closed or day/time schedule. */
+  private async verifyHoursCtaIfAvailable(): Promise<void> {
+    const hoursCta = this.page.getByRole('button', { name: /^Hours$/i }).first();
+
+    if (!(await hoursCta.isVisible({ timeout: 3000 }).catch(() => false))) {
+      await this.reportValue('Hours CTA not present - skipping validation');
+      return;
+    }
+
+    await hoursCta.scrollIntoViewIfNeeded();
+    await hoursCta.click({ force: true });
+    await this.waitForPageReady();
+
+    const scheduleContext = this.page.locator('body');
+    await expect(
+      scheduleContext,
+      'Hours CTA should expose open/closed status or a weekly schedule',
+    ).toContainText(/Open|Closed|Mon|Tue|Wed|Thu|Fri|Sat|Sun|\d{1,2}:\d{2}/i, {
+      timeout: 10000,
+    });
+  }
+
+  /** Verifies the Directions CTA links to a maps/directions destination. */
+  private async verifyDirectionsCtaIfAvailable(): Promise<void> {
+    const directionsCta = this.page
+      .locator('a:visible, button:visible')
+      .filter({ hasText: /^Directions$/i })
+      .first();
+
+    if (!(await directionsCta.isVisible({ timeout: 3000 }).catch(() => false))) {
+      await this.reportValue('Directions CTA not present - skipping validation');
+      return;
+    }
+
+    const href = await directionsCta.getAttribute('href');
+
+    if (href) {
+      expect(href, 'Directions CTA should link to a map or directions destination').toMatch(
+        /maps|google|directions|bing|apple/i,
+      );
+      await this.reportValue('Directions CTA URL', href);
+      return;
+    }
+
+    await directionsCta.scrollIntoViewIfNeeded();
+    await directionsCta.click({ force: true });
+    await this.waitForPageReady();
+    await expect(
+      this.page.locator('body'),
+      'Directions CTA should expose map/directions context',
+    ).toContainText(/directions|maps|google|address/i, { timeout: 10000 });
+  }
+
+  /** Verifies the Schedule an Appointment CTA opens or links to scheduling context. */
+  private async verifyScheduleAppointmentCtaIfAvailable(): Promise<void> {
+    const scheduleCta = this.page
+      .locator('a:visible, button:visible')
+      .filter({ hasText: /Schedule an Appointment/i })
+      .first();
+
+    if (!(await scheduleCta.isVisible({ timeout: 3000 }).catch(() => false))) {
+      await this.reportValue('Schedule an Appointment CTA not present - skipping validation');
+      return;
+    }
+
+    const href = await scheduleCta.getAttribute('href');
+
+    if (href && !href.startsWith('#')) {
+      expect(
+        href,
+        'Schedule an Appointment CTA should link to scheduling or contact context',
+      ).toMatch(/schedule|appointment|contact|visit|tour|calendar/i);
+      await this.reportValue('Schedule an Appointment CTA URL', href);
+      return;
+    }
+
+    await scheduleCta.scrollIntoViewIfNeeded();
+    await scheduleCta.click({ force: true });
+    await this.waitForPageReady();
+
+    await expect(
+      this.page.locator(
+        '#ModalForm, [id*="ModalForm"], .ReactModal__Content, [role="dialog"], form, body',
+      ),
+      'Schedule an Appointment CTA should expose scheduling form/context',
+    ).toContainText(/Schedule|Appointment|Visit|Tour|First Name|Last Name|Email/i, {
+      timeout: 10000,
     });
   }
 
@@ -372,7 +461,8 @@ export class CommunityPage extends SearchablePage {
 
   /** Returns the community forms locator or value. */
   private get communityForms(): Locator {
-    return this.page.locator('form')
+    return this.page
+      .locator('form')
       .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
       .filter({ has: this.page.locator('input, select, textarea') });
   }
@@ -380,20 +470,29 @@ export class CommunityPage extends SearchablePage {
   /** Verifies overview address market and attributes. */
   async verifyOverviewAddressMarketAndAttributes(expectedCommunity: string): Promise<void> {
     await this.step('Verify overview, address, market and key attributes', async () => {
-      await expect(this.productOverviewSection, 'Community overview section should be visible')
-        .toBeVisible({ timeout: 15000 });
+      await expect(
+        this.productOverviewSection,
+        'Community overview section should be visible',
+      ).toBeVisible({ timeout: 15000 });
 
-      await expect(this.productOverviewSection.getByRole('heading', {
-        name: /Designed For the Way You Live|Welcome/i
-      }).first(), 'Overview heading should render current community overview content')
-        .toBeVisible({ timeout: 15000 });
+      await expect(
+        this.productOverviewSection
+          .getByRole('heading', {
+            name: /Designed For the Way You Live|Welcome/i,
+          })
+          .first(),
+        'Overview heading should render current community overview content',
+      ).toBeVisible({ timeout: 15000 });
 
       const overviewText = await getNormalizedText(this.productOverviewSection);
 
-      await expect(this.heading, 'Main heading should include the current community name')
-        .toContainText(new RegExp(escapeRegex(expectedCommunity), 'i'));
-      expect(overviewText.length, 'Overview copy should render meaningful content')
-        .toBeGreaterThan(150);
+      await expect(
+        this.heading,
+        'Main heading should include the current community name',
+      ).toContainText(new RegExp(escapeRegex(expectedCommunity), 'i'));
+      expect(overviewText.length, 'Overview copy should render meaningful content').toBeGreaterThan(
+        150,
+      );
 
       await this.verifyAddressAndMarketDetails(expectedCommunity);
       await this.verifyKeyAttributes();
@@ -401,12 +500,16 @@ export class CommunityPage extends SearchablePage {
   }
 
   /** Verifies QMI card community name matches current community. */
-  async verifyQmiCardCommunityNameMatchesCurrentCommunity(expectedCommunity: string): Promise<void> {
+  async verifyQmiCardCommunityNameMatchesCurrentCommunity(
+    expectedCommunity: string,
+  ): Promise<void> {
     await this.step('Verify QMI cards match current community', async () => {
       const availableHomesSection = await this.getAvailableHomesSection();
 
       if (!availableHomesSection) {
-        await this.reportValue('Available homes section not present - skipping QMI community-name validation');
+        await this.reportValue(
+          'Available homes section not present - skipping QMI community-name validation',
+        );
         return;
       }
 
@@ -414,7 +517,9 @@ export class CommunityPage extends SearchablePage {
       await this.waitForPageReady();
 
       if (!(await availableHomesSection.isVisible({ timeout: 5000 }).catch(() => false))) {
-        await this.reportValue('Available homes section not visible - skipping QMI community-name validation');
+        await this.reportValue(
+          'Available homes section not visible - skipping QMI community-name validation',
+        );
         return;
       }
 
@@ -422,7 +527,10 @@ export class CommunityPage extends SearchablePage {
         .locator('a[href]:visible')
         .filter({ hasNotText: /view all/i });
 
-      await qmiCards.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => undefined);
+      await qmiCards
+        .first()
+        .waitFor({ state: 'visible', timeout: 10000 })
+        .catch(() => undefined);
 
       const qmiCardCount = await qmiCards.count();
 
@@ -435,7 +543,7 @@ export class CommunityPage extends SearchablePage {
 
       expect(
         currentCommunitySegment,
-        `Current community URL segment should be available for ${expectedCommunity}`
+        `Current community URL segment should be available for ${expectedCommunity}`,
       ).toBeTruthy();
 
       for (let i = 0; i < qmiCardCount; i++) {
@@ -447,13 +555,15 @@ export class CommunityPage extends SearchablePage {
 
         expect(
           hrefSegments,
-          `QMI card ${i + 1} href should include the exact current community URL segment`
+          `QMI card ${i + 1} href should include the exact current community URL segment`,
         ).toContain(currentCommunitySegment);
 
         await this.reportValue(`QMI card ${i + 1}`, this.buildFullUrl(href));
       }
 
-      await this.reportValue(`Validated ${qmiCardCount} QMI card(s) against community segment '${currentCommunitySegment}'`);
+      await this.reportValue(
+        `Validated ${qmiCardCount} QMI card(s) against community segment '${currentCommunitySegment}'`,
+      );
     });
   }
 
@@ -484,33 +594,37 @@ export class CommunityPage extends SearchablePage {
     // The address is not always rendered in a heading tag - on the community
     // page it lives in the "Sales center" strip as a plain text element - so
     // match by text content regardless of tag rather than restricting to h1-h4.
-    const addressHeading = this.page
-      .getByText(/\d{1,}.+,\s*.+\b[A-Z]{2}\b/i)
-      .first();
+    const addressHeading = this.page.getByText(/\d{1,}.+,\s*.+\b[A-Z]{2}\b/i).first();
     const currentPath = new URL(this.page.url()).pathname;
     const marketFromUrl = this.getMarketFromCurrentUrl();
 
-    await expect(addressHeading, 'Community address should render in the page')
-      .toBeAttached({ timeout: 15000 });
+    await expect(addressHeading, 'Community address should render in the page').toBeAttached({
+      timeout: 15000,
+    });
 
     const addressText = await getNormalizedText(addressHeading);
 
-    expect(addressText, 'Community address should include a street number')
-      .toMatch(/\d{1,}/);
-    expect(addressText, 'Community address should include province/state and postal/ZIP details')
-      .toMatch(/\b[A-Z]{2}\b/);
+    expect(addressText, 'Community address should include a street number').toMatch(/\d{1,}/);
+    expect(
+      addressText,
+      'Community address should include province/state and postal/ZIP details',
+    ).toMatch(/\b[A-Z]{2}\b/);
 
     if (marketFromUrl) {
       expect(
         currentPath.toLowerCase(),
-        'Community URL should include the current market/city context'
+        'Community URL should include the current market/city context',
       ).toContain(toSlug(marketFromUrl));
-      await expect(this.page.locator('body'), 'Community page should include visible market/city context')
-        .toContainText(new RegExp(escapeRegex(marketFromUrl), 'i'), { timeout: 15000 });
+      await expect(
+        this.page.locator('body'),
+        'Community page should include visible market/city context',
+      ).toContainText(new RegExp(escapeRegex(marketFromUrl), 'i'), { timeout: 15000 });
     }
 
-    await expect(this.heading, 'Main heading should still show the current community')
-      .toContainText(new RegExp(escapeRegex(expectedCommunity), 'i'));
+    await expect(
+      this.heading,
+      'Main heading should still show the current community',
+    ).toContainText(new RegExp(escapeRegex(expectedCommunity), 'i'));
   }
 
   /** Verifies key attributes. */
@@ -521,41 +635,45 @@ export class CommunityPage extends SearchablePage {
       /Full Bathrooms/i,
       /Sq\.?\s*Ft\./i,
       /Stories/i,
-      /Garages/i
+      /Garages/i,
     ];
 
     for (const attribute of requiredAttributes) {
-      await expect(this.productOverviewSection, `Key attribute ${attribute} should render`)
-        .toContainText(attribute, { timeout: 10000 });
+      await expect(
+        this.productOverviewSection,
+        `Key attribute ${attribute} should render`,
+      ).toContainText(attribute, { timeout: 10000 });
     }
   }
 
   /** Returns the community form containers locator or value. */
   private get communityFormContainers(): Locator {
-    return this.page.locator(
-      [
-        '[id^="Sitecore-ScheduleAVisit-FormInstance"]',
-        '[id^="ScheduleAVisit-FormInstance"]',
-        '#contact',
-        'section',
-        '[role="group"]'
-      ].join(', ')
-    )
+    return this.page
+      .locator(
+        [
+          '[id^="Sitecore-ScheduleAVisit-FormInstance"]',
+          '[id^="ScheduleAVisit-FormInstance"]',
+          '#contact',
+          'section',
+          '[role="group"]',
+        ].join(', '),
+      )
       .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
   /** Returns form by index. */
   private async getFormByIndex(formIndex: number): Promise<Locator | null> {
-    const formGroups = (await this.communityForms.count()) > 0
-      ? [this.communityForms]
-      : [
-        this.leadFormDialogOrSidebar,
-        this.sitecoreCommunityForms,
-        this.contactForms,
-        this.scheduleVisitContainers,
-        this.communityFormContainers
-      ];
+    const formGroups =
+      (await this.communityForms.count()) > 0
+        ? [this.communityForms]
+        : [
+            this.leadFormDialogOrSidebar,
+            this.sitecoreCommunityForms,
+            this.contactForms,
+            this.scheduleVisitContainers,
+            this.communityFormContainers,
+          ];
 
     let remainingIndex = formIndex;
 
@@ -589,12 +707,15 @@ export class CommunityPage extends SearchablePage {
     await this.settle(1000);
     expect(
       this.page.url(),
-      `Community lead-form CTA should keep the flow on page, not redirect from ${previousUrl}`
+      `Community lead-form CTA should keep the flow on page, not redirect from ${previousUrl}`,
     ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
   /** Returns available form. */
-  private async getAvailableForm(formIndex = 0, formName = 'Community form'): Promise<Locator | null> {
+  private async getAvailableForm(
+    formIndex = 0,
+    formName = 'Community form',
+  ): Promise<Locator | null> {
     let form = await this.getFormByIndex(formIndex);
 
     if (!form) {
@@ -608,7 +729,7 @@ export class CommunityPage extends SearchablePage {
 
     const submitButton = form.getByRole('button', { name: /submit/i }).first();
 
-    if (!await submitButton.count()) {
+    if (!(await submitButton.count())) {
       throw new Error(`${formName} submit button not present`);
     }
 
@@ -616,8 +737,8 @@ export class CommunityPage extends SearchablePage {
     await this.waitForPageReady();
 
     if (
-      await form.isVisible().catch(() => false) ||
-      await submitButton.isVisible().catch(() => false)
+      (await form.isVisible().catch(() => false)) ||
+      (await submitButton.isVisible().catch(() => false))
     ) {
       return form;
     }
@@ -627,18 +748,15 @@ export class CommunityPage extends SearchablePage {
 
   /** Returns available get information form. */
   private async getAvailableGetInformationForm(
-    formName = 'Get Information community form'
+    formName = 'Get Information community form',
   ): Promise<Locator | null> {
     await this.openLeadFormFromGetInformationCtaIfPresent();
 
     const modalFormCount = await expect
-      .poll(
-        () => this.leadFormDialogOrSidebar.count(),
-        {
-          message: `${formName} sidebar/modal should open after Get Information CTA`,
-          timeout: 15000
-        }
-      )
+      .poll(() => this.leadFormDialogOrSidebar.count(), {
+        message: `${formName} sidebar/modal should open after Get Information CTA`,
+        timeout: 15000,
+      })
       .toBeGreaterThan(0)
       .then(() => this.leadFormDialogOrSidebar.count())
       .catch(() => 0);
@@ -653,8 +771,10 @@ export class CommunityPage extends SearchablePage {
     await modalForm.scrollIntoViewIfNeeded();
     await this.waitForPageReady();
 
-    await expect(submitButton, `${formName} submit button should be visible inside sidebar/modal`)
-      .toBeVisible({ timeout: 10000 });
+    await expect(
+      submitButton,
+      `${formName} submit button should be visible inside sidebar/modal`,
+    ).toBeVisible({ timeout: 10000 });
 
     return modalForm;
   }
@@ -666,17 +786,17 @@ export class CommunityPage extends SearchablePage {
 
   /** Selects country of residence if present. */
   private async selectCountryOfResidenceIfPresent(form: Locator): Promise<void> {
-    const countryOfResidence = form.getByRole('combobox', {
-      name: /country of residence/i
-    }).first();
+    const countryOfResidence = form
+      .getByRole('combobox', {
+        name: /country of residence/i,
+      })
+      .first();
 
     if (!(await countryOfResidence.count())) {
       return;
     }
 
-    const preferredCountry = getLocationConfig().country === 'USA'
-      ? 'United States'
-      : 'Canada';
+    const preferredCountry = getLocationConfig().country === 'USA' ? 'United States' : 'Canada';
 
     const selectedPreferred = await countryOfResidence
       .selectOption({ label: preferredCountry })
@@ -694,10 +814,7 @@ export class CommunityPage extends SearchablePage {
   }
 
   /** Fills community lead form. */
-  private async fillCommunityLeadForm(
-    form: Locator,
-    leadData: LeadFieldData
-  ): Promise<void> {
+  private async fillCommunityLeadForm(form: Locator, leadData: LeadFieldData): Promise<void> {
     await fillIfPresent(form.getByRole('textbox', { name: /first name/i }), leadData.firstName);
     await fillIfPresent(form.getByRole('textbox', { name: /last name/i }), leadData.lastName);
     await fillIfPresent(form.getByRole('textbox', { name: /^email/i }), leadData.email);
@@ -710,27 +827,14 @@ export class CommunityPage extends SearchablePage {
     await this.checkConsentIfPresent(form);
   }
 
-  /** Clicks submit. */
-  private async clickSubmit(form: Locator): Promise<void> {
-    await clickSubmit(this.page, form);
-  }
-
-  /** Expects required-field errors inside the form. */
-  private async expectRequiredErrorsInForm(form: Locator): Promise<void> {
-    await expectRequiredErrorsInForm(form);
-  }
-
-  /** Expects an invalid-email error inside the form. */
-  private async expectInvalidEmailErrorInForm(form: Locator): Promise<void> {
-    await expectInvalidEmailErrorInForm(form);
-  }
-
   /** Verifies get information CTA opens lead form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
-      const cta = (await this.resolveGetInformationCta()) ?? this.getInformationCtaCandidates.first();
-      await expect(cta, 'Get Information or Stay Updated CTA should be visible')
-        .toBeVisible({ timeout: 15000 });
+      const cta =
+        (await this.resolveGetInformationCta()) ?? this.getInformationCtaCandidates.first();
+      await expect(cta, 'Get Information or Stay Updated CTA should be visible').toBeVisible({
+        timeout: 15000,
+      });
 
       const form = await this.getAvailableGetInformationForm();
 
@@ -738,8 +842,9 @@ export class CommunityPage extends SearchablePage {
         return;
       }
 
-      await expect(form, 'Get Information community sideModalForm should be visible')
-        .toBeVisible({ timeout: 10000 });
+      await expect(form, 'Get Information community sideModalForm should be visible').toBeVisible({
+        timeout: 10000,
+      });
     });
   }
 
@@ -754,42 +859,35 @@ export class CommunityPage extends SearchablePage {
   }
 
   /** Validates empty form errors by index. */
-  private async validateEmptyFormErrorsByIndex(
-    formIndex: number,
-    formName: string
-  ): Promise<void> {
+  private async validateEmptyFormErrorsByIndex(formIndex: number, formName: string): Promise<void> {
     const form = await this.getAvailableForm(formIndex, formName);
 
     if (!form) {
       return;
     }
 
-    await this.clickSubmit(form);
+    await clickSubmit(this.page, form);
 
-    await expect(form.locator('text=/Required|Please complete|Invalid|Error/i').first())
-      .toBeVisible({ timeout: 10000 });
+    await expect(
+      form.locator('text=/Required|Please complete|Invalid|Error/i').first(),
+    ).toBeVisible({ timeout: 10000 });
   }
 
   /** Validates sideModalForm empty form errors. */
-  private async validateSideModalFormEmptyErrors(
-    formName: string
-  ): Promise<void> {
+  private async validateSideModalFormEmptyErrors(formName: string): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
 
     if (!form) {
       return;
     }
 
-    await this.clickSubmit(form);
+    await clickSubmit(this.page, form);
 
-    await this.expectRequiredErrorsInForm(form);
+    await expectRequiredErrorsInForm(form);
   }
 
   /** Validates invalid email by index. */
-  private async validateInvalidEmailByIndex(
-    formIndex: number,
-    formName: string
-  ): Promise<void> {
+  private async validateInvalidEmailByIndex(formIndex: number, formName: string): Promise<void> {
     const form = await this.getAvailableForm(formIndex, formName);
 
     if (!form) {
@@ -800,16 +898,13 @@ export class CommunityPage extends SearchablePage {
 
     await this.fillCommunityLeadForm(form, invalid);
 
-    await this.clickSubmit(form);
+    await clickSubmit(this.page, form);
 
-    await expect(form.locator('text=/valid domain name/i').first())
-      .toBeVisible({ timeout: 10000 });
+    await expect(form.locator('text=/valid domain name/i').first()).toBeVisible({ timeout: 10000 });
   }
 
   /** Validates sideModalForm invalid email by name. */
-  private async validateSideModalFormInvalidEmailByName(
-    formName: string
-  ): Promise<void> {
+  private async validateSideModalFormInvalidEmailByName(formName: string): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
 
     if (!form) {
@@ -818,16 +913,13 @@ export class CommunityPage extends SearchablePage {
 
     await fillInvalidSideModalForm(form, 'community');
 
-    await this.clickSubmit(form);
+    await clickSubmit(this.page, form);
 
-    await this.expectInvalidEmailErrorInForm(form);
+    await expectInvalidEmailErrorInForm(form);
   }
 
   /** Submits successful form by index. */
-  private async submitSuccessfulFormByIndex(
-    formIndex: number,
-    formName: string
-  ): Promise<void> {
+  private async submitSuccessfulFormByIndex(formIndex: number, formName: string): Promise<void> {
     const form = await this.getAvailableForm(formIndex, formName);
 
     if (!form) {
@@ -842,14 +934,12 @@ export class CommunityPage extends SearchablePage {
       formName,
       submitButton: form.getByRole('button', { name: /submit/i }).first(),
       successModal: this.successDialogModal,
-      successMessage: this.formSuccessMessage
+      successMessage: this.formSuccessMessage,
     });
   }
 
   /** Submits successful sideModalForm. */
-  private async submitSuccessfulSideModalForm(
-    formName: string
-  ): Promise<void> {
+  private async submitSuccessfulSideModalForm(formName: string): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
 
     if (!form) {
@@ -862,7 +952,7 @@ export class CommunityPage extends SearchablePage {
       formName,
       submitButton: getSubmitButton(form),
       successModal: this.successDialogModal,
-      successMessage: this.formSuccessMessage
+      successMessage: this.formSuccessMessage,
     });
   }
 
@@ -914,7 +1004,9 @@ export class CommunityPage extends SearchablePage {
   /** Validates sideModalForm fields. */
   async verifySideModalFormFields(): Promise<void> {
     await this.step('Verify Get Information sideModalForm fields', async () => {
-      const form = await this.getAvailableGetInformationForm('Get Information community sideModalForm');
+      const form = await this.getAvailableGetInformationForm(
+        'Get Information community sideModalForm',
+      );
 
       if (!form) {
         return;
@@ -988,5 +1080,4 @@ export class CommunityPage extends SearchablePage {
 
     return toTitleCase(segments[1]);
   }
-
 }

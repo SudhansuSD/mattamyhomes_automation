@@ -62,15 +62,21 @@ test.describe(`Community Detail - ${location.community}`, () => {
       });
     });
 
-    test('TC-02 | @regression | Validate available homes navigation', async () => {
+    test('TC-02 | @smoke @regression | Validate available homes navigation', async () => {
       await test.step('Validate available homes navigation', async () => {
         await communityPage.verifyAvailableHomesNavigation();
       });
     });
 
-    test('TC-03 | @regression | Validate plans navigation', async () => {
+    test('TC-03 | @smoke @regression | Validate plans navigation', async () => {
       await test.step('Validate plans navigation', async () => {
         await communityPage.verifyPlansNavigation();
+      });
+    });
+
+    test('TC-04 | @regression | Validate contact action CTAs when available', async () => {
+      await test.step('Validate Hours, Directions, and Schedule Appointment CTAs when available', async () => {
+        await communityPage.verifyContactActionCtasIfAvailable();
       });
     });
   });
@@ -81,7 +87,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
 
   test.describe('Lead Form', () => {
     test.describe('Get Information Form Validation', () => {
-      test('TC-01 | @regression | Validate Get Information CTA opens community sideModalForm', async () => {
+      test('TC-01 | @smoke @regression | Validate Get Information CTA opens community sideModalForm', async () => {
         await test.step('Validate Get Information CTA opens community sideModalForm', async () => {
           await communityPage.verifyGetInformationCtaOpensLeadForm();
         });
@@ -120,7 +126,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
     });
 
     test.describe('Primary Form Validation', () => {
-      test('TC-01 | @regression | Validate primary form required field errors', async () => {
+      test('TC-01 | @smoke @regression | Validate primary form required field errors', async () => {
         await test.step('Validate primary form required field errors', async () => {
           await communityPage.validatePrimaryFormEmptyErrors();
         });
@@ -144,7 +150,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
     });
 
     test.describe('Footer Form Validation', () => {
-      test('TC-01 | @regression | Validate footer form required field errors', async () => {
+      test('TC-01 | @smoke @regression | Validate footer form required field errors', async () => {
         await test.step('Validate footer form required field errors', async () => {
           await communityPage.validateFooterFormEmptyErrors();
         });
