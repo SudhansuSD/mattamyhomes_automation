@@ -70,11 +70,6 @@ jobs:
           node-version-file: '.nvmrc'
           cache: npm
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-
       - name: Install dependencies
         run: npm ci --no-audit --prefer-offline
 
@@ -110,7 +105,9 @@ jobs:
         if: always()
         uses: actions/cache/restore@v4
         with:
-          path: allure-report/desktop/history
+          path: |
+            .allure-history/
+            allure-report/desktop/history
           key: allure-history-${{ github.ref_name }}-${{ github.run_id }}
           restore-keys: |
             allure-history-${{ github.ref_name }}-
@@ -137,7 +134,7 @@ jobs:
         id: allure-site
         shell: bash
         run: |
-          if [ -f "allure-report/desktop/index.html" ]; then
+          if [ -f "allure-report/desktop/awesome/index.html" ]; then
             echo "has_report=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_report=false" >> "$GITHUB_OUTPUT"
@@ -147,7 +144,7 @@ jobs:
         if: always() && steps.allure-site.outputs.has_report == 'true'
         uses: actions/cache/save@v4
         with:
-          path: allure-report/desktop/history
+          path: .allure-history/
           key: allure-history-${{ github.ref_name }}-${{ github.run_id }}
 
       - name: Configure GitHub Pages

@@ -33,7 +33,7 @@ type AllureResult = {
 
 type AllureReportSummary = {
   statistic?: Partial<Record<TestStatus | 'total', number>>;
-};
+} & Partial<Record<TestStatus | 'total', number>>;
 
 type AllureReportTestCase = {
   name?: string;
@@ -41,6 +41,10 @@ type AllureReportTestCase = {
   status?: TestStatus;
   statusMessage?: string;
   statusTrace?: string;
+  labels?: Array<{
+    name?: string;
+    value?: string;
+  }>;
   testStage?: {
     statusMessage?: string;
     statusTrace?: string;
@@ -57,6 +61,7 @@ type ExecutionSummary = {
   browser: string;
   executionDateTime: string;
   reportUrl: string;
+  runType: string;
   failedTests: Array<{
     name: string;
     message: string;
@@ -65,6 +70,13 @@ type ExecutionSummary = {
 
 const chartPath = path.resolve(os.tmpdir(), 'test-summary-chart.png');
 const chartCid = 'test-summary-chart';
+const RUN_TYPE_LABEL = 'runType';
+const RUN_TYPE_BY_KEY: Record<string, string> = {
+  ci: 'CI',
+  smoke: 'Smoke',
+  regression: 'Regression',
+  full: 'Full',
+};
 
 function getEnv(name: string, fallback = ''): string {
   return process.env[name]?.trim() || fallback;
@@ -185,7 +197,7 @@ function readAllureResults(): AllureResult[] {
 }
 
 function readAllureReportSummary(): AllureReportSummary | null {
-  const summaryPath = path.join(DESKTOP_ALLURE_REPORT_DIR, 'widgets', 'summary.json');
+  const summaryPath = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
 
   if (!fs.existsSync(summaryPath)) {
     return null;
@@ -200,7 +212,7 @@ function readAllureReportSummary(): AllureReportSummary | null {
 }
 
 function readAllureReportFailedTests(): ExecutionSummary['failedTests'] {
-  const testCaseDir = path.join(DESKTOP_ALLURE_REPORT_DIR, 'data', 'test-cases');
+  const testCaseDir = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'data', 'test-results');
   const failedTests: ExecutionSummary['failedTests'] = [];
 
   for (const testCasePath of collectJsonFiles(testCaseDir)) {
@@ -226,6 +238,48 @@ function readAllureReportFailedTests(): ExecutionSummary['failedTests'] {
   }
 
   return failedTests;
+}
+
+function getRunTypeFromEnv(): string {
+  const candidates = [
+    process.env.TEST_SUITE,
+    process.env.npm_lifecycle_event?.replace(/^test:/, ''),
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const key = candidate?.toLowerCase() ?? '';
+    if (RUN_TYPE_BY_KEY[key]) {
+      return RUN_TYPE_BY_KEY[key];
+    }
+  }
+
+  return 'Full';
+}
+
+function getRunTypeFromLabels(results: Array<Pick<AllureResult, 'labels'>>): string {
+  for (const result of results) {
+    const runType = result.labels?.find((label) => label.name === RUN_TYPE_LABEL)?.value;
+    if (runType) {
+      return runType;
+    }
+  }
+
+  return getRunTypeFromEnv();
+}
+
+function readAllureReportRunType(): string {
+  const testCaseDir = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'data', 'test-results');
+  const testCases: AllureReportTestCase[] = [];
+
+  for (const testCasePath of collectJsonFiles(testCaseDir)) {
+    try {
+      testCases.push(JSON.parse(fs.readFileSync(testCasePath, 'utf8')) as AllureReportTestCase);
+    } catch (error) {
+      console.warn(`Unable to read Allure report test case ${testCasePath}:`, error);
+    }
+  }
+
+  return getRunTypeFromLabels(testCases);
 }
 
 function getPassPercentage(passed: number, failed: number, broken: number): number {
@@ -266,6 +320,7 @@ function dedupeRetries(results: AllureResult[]): AllureResult[] {
 function buildSummaryFromCounts(
   counts: { passed: number; failed: number; broken: number; skipped: number; total: number },
   failedTests: ExecutionSummary['failedTests'],
+  runType: string,
 ): ExecutionSummary {
   const failed = counts.failed + counts.broken;
   const passPercentage = getPassPercentage(counts.passed, counts.failed, counts.broken);
@@ -280,13 +335,14 @@ function buildSummaryFromCounts(
     browser: getEnv('BROWSER', 'Chrome'),
     executionDateTime: new Date().toLocaleString('en-US'),
     reportUrl: getEnv('ALLURE_REPORT_URL', ''),
+    runType,
     failedTests,
   };
 }
 
 function buildSummaryFromReport(): ExecutionSummary | null {
   const reportSummary = readAllureReportSummary();
-  const statistic = reportSummary?.statistic;
+  const statistic = reportSummary?.statistic ?? reportSummary;
 
   if (!statistic || typeof statistic.total !== 'number') {
     return null;
@@ -301,6 +357,7 @@ function buildSummaryFromReport(): ExecutionSummary | null {
       total: statistic.total,
     },
     readAllureReportFailedTests(),
+    readAllureReportRunType(),
   );
 }
 
@@ -327,6 +384,7 @@ function buildSummaryFromResults(results: AllureResult[]): ExecutionSummary {
       total,
     },
     failedTests,
+    getRunTypeFromLabels(finalResults),
   );
 }
 
@@ -398,6 +456,7 @@ function renderSummaryRows(summary: ExecutionSummary): string {
     ['Pass Percentage', `${summary.passPercentage}%`],
     ['Environment', summary.environment],
     ['Browser', summary.browser],
+    ['Run Type', summary.runType],
     ['Execution Date/Time', summary.executionDateTime],
   ];
 
@@ -672,6 +731,7 @@ export async function sendAllureEmailReport(): Promise<void> {
     passPercentage: summary.passPercentage,
     environment: summary.environment,
     browser: summary.browser,
+    runType: summary.runType,
     reportUrl: summary.reportUrl || 'Report link not configured',
   });
 

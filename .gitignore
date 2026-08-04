@@ -33,6 +33,7 @@ playwright/.auth/
 # ---- Allure (results + generated report, desktop/mobile/merged) -------------
 allure-results/
 allure-report/
+.allure-history/
 */allure-results/
 */allure-report/
 

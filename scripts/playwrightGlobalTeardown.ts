@@ -29,11 +29,11 @@ export default async function globalTeardown(_config: FullConfig): Promise<void>
 
   await generateAllureReport('desktop');
 
-  const indexPath = path.join(DESKTOP_ALLURE_REPORT_DIR, 'index.html');
+  const indexPath = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'index.html');
   console.log(`\n[allure] Desktop HTML report generated:\n         ${indexPath}`);
 
   if (getBoolEnv('ALLURE_OPEN')) {
-    console.log('[allure] ALLURE_OPEN=1 → opening report (Ctrl+C to stop)...\n');
+    console.log('[allure] ALLURE_OPEN=1 -> opening report (Ctrl+C to stop)...\n');
     const allureBin = path.resolve(
       REPO_ROOT,
       'node_modules',
@@ -45,6 +45,6 @@ export default async function globalTeardown(_config: FullConfig): Promise<void>
       stdio: 'inherit',
     });
   } else {
-    console.log('[allure] Open it with:  npm run allure:open   (or: npm run allure:serve)\n');
+    console.log('[allure] Open it with:  npm run allure:open   (or: npm run allure:watch)\n');
   }
 }

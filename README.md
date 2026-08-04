@@ -18,7 +18,6 @@ terminal, and CI — no hidden IDE setup.
 | --- | --- | --- |
 | Node.js | **20 LTS or newer** (repo is pinned to **24** via `.nvmrc`) | `nvm use` picks it up automatically |
 | npm | 10+ (ships with Node) | |
-| Java (JRE/JDK) | 17+ (21 recommended) | Required by `allure-commandline` to generate HTML reports |
 | Git | any recent | |
 
 Mobile only (optional): Android SDK + emulator (or a real device) and Appium
@@ -176,15 +175,19 @@ npm run test:smoke            # (test scripts already clean+run+generate for des
 npm run allure:generate       # desktop (also :mobile, and allure:merge for both)
 npm run allure:open           # opens allure-report/desktop
 
-# Quick serve (temp server, no persisted report)
-npm run allure:serve
+# Live local report updates while results change
+npm run allure:watch
 
 # Merged desktop + mobile
 npm run allure:merge && npm run allure:open:merged
 ```
 
-Trend graphs persist across runs because each generation copies the previous
-report's `history/` back into the results before regenerating.
+Allure 3 generates the Awesome report at `allure-report/<mode>/awesome/` and a
+charts-only dashboard at `allure-report/<mode>/dashboard/`. A small root
+`index.html` redirects to Awesome so existing report links keep working. Trend
+graphs, including Status dynamics, persist across runs through `.allure-history/`.
+The report and email summary also show the overall run type (`CI`, `Smoke`,
+`Regression`, or `Full`) from `TEST_SUITE`/the npm script that generated the run.
 
 Email summary (needs `EMAIL_*` vars; skipped cleanly if unset):
 

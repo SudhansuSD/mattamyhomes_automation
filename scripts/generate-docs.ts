@@ -45,11 +45,9 @@ type KnownTag = (typeof KNOWN_TAGS)[number];
  * only lists page test cases. Matched by file basename, case-insensitively.
  */
 const NON_PAGE_SPECS = new Set<string>(
-  [
-    'MTTMY-2091.spec.ts',
-    'pasadenaRidge404.spec.ts',
-    'sitemapXml.spec.ts',
-  ].map((n) => n.toLowerCase())
+  ['MTTMY-2091.spec.ts', 'pasadenaRidge404.spec.ts', 'sitemapXml.spec.ts'].map((n) =>
+    n.toLowerCase(),
+  ),
 );
 
 /** Any `*Evidence.spec.ts` is a form-evidence export, not a page test — also
@@ -79,27 +77,27 @@ const PLAYWRIGHT_JSON_CANDIDATES = [
 ========================================================== */
 
 interface TestCase {
-  id: string;             // page-specific id, e.g. HOME-001
-  title: string;          // cleaned, tag-stripped title
-  rawTitle: string;       // original title as written in source
-  tags: string[];         // known tags (own + inherited from describe)
-  describe?: string;      // nearest enclosing describe title (cleaned)
+  id: string; // page-specific id, e.g. HOME-001
+  title: string; // cleaned, tag-stripped title
+  rawTitle: string; // original title as written in source
+  tags: string[]; // known tags (own + inherited from describe)
+  describe?: string; // nearest enclosing describe title (cleaned)
   modifier?: 'skip' | 'only' | 'fixme';
-  steps: string[];        // test.step names
-  added: boolean;         // true = active code; false = commented-out / planned
+  steps: string[]; // test.step names
+  added: boolean; // true = active code; false = commented-out / planned
   titleContentStart: number; // index in source just after the opening quote
-  titleContentEnd: number;   // index in source of the closing quote
+  titleContentEnd: number; // index in source of the closing quote
 }
 
 interface SpecModule {
-  module: string;         // friendly module name derived from file name
-  specFile: string;       // path relative to repo root (posix-ish)
-  absPath: string;        // absolute path on disk
-  source: string;         // original file contents (for id injection)
-  describes: string[];    // all describe titles discovered
+  module: string; // friendly module name derived from file name
+  specFile: string; // path relative to repo root (posix-ish)
+  absPath: string; // absolute path on disk
+  source: string; // original file contents (for id injection)
+  describes: string[]; // all describe titles discovered
   tests: TestCase[];
-  pageObjects: string[];  // page objects imported by this spec
-  configRefs: string[];   // config/data references imported by this spec
+  pageObjects: string[]; // page objects imported by this spec
+  configRefs: string[]; // config/data references imported by this spec
 }
 
 type ExecStatus = 'passed' | 'failed' | 'broken' | 'skipped' | 'flaky' | 'Not Executed';
@@ -177,9 +175,7 @@ function collectResultFiles(dir: string): string[] {
 
 /** Turn a camelCase / PascalCase spec file name into "Title Case Words". */
 function fileToModuleName(fileBase: string): string {
-  const name = fileBase
-    .replace(/\.spec\.(ts|js)$/i, '')
-    .replace(/[-_]+/g, ' ');
+  const name = fileBase.replace(/\.spec\.(ts|js)$/i, '').replace(/[-_]+/g, ' ');
   // Split camelCase / PascalCase and acronym boundaries.
   const spaced = name
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
@@ -206,7 +202,10 @@ function extractTags(title: string): string[] {
 
 /** Remove all @tags from a title, returning the clean descriptive text. */
 function stripTags(title: string): string {
-  return title.replace(/@[\w-]+/g, '').replace(/\s+/g, ' ').trim();
+  return title
+    .replace(/@[\w-]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Pattern for an injected `PREFIX-001 | ` id at the start of a test title. */
@@ -342,9 +341,9 @@ function computeCommentMask(src: string): boolean[] {
  * Returns the unescaped raw contents and the index just after the literal.
  */
 interface StringArg {
-  value: string;        // unescaped contents
+  value: string; // unescaped contents
   contentStart: number; // index of first content char (just after opening quote)
-  end: number;          // index just after the closing quote
+  end: number; // index just after the closing quote
 }
 
 function readFirstStringArg(src: string, from: number): StringArg | null {
@@ -582,7 +581,9 @@ function tryReadAllure(): ExecutionResult | null {
     }
   }
 
-  log(`Read ${files.length} Allure result file(s) from allure-results/desktop + allure-results/mobile`);
+  log(
+    `Read ${files.length} Allure result file(s) from allure-results/desktop + allure-results/mobile`,
+  );
   return { source: 'allure', byTitle, totals, flaky, failed, skipped };
 }
 
@@ -609,7 +610,7 @@ function loadExecutionResults(): ExecutionResult {
 ========================================================== */
 
 /** Markers used in the test-plan tables. */
-const ADDED_MARK = '✅';      // code already added (active)
+const ADDED_MARK = '✅'; // code already added (active)
 const NOT_ADDED_MARK = '⬜'; // not yet added (commented-out / planned)
 
 /**
@@ -706,8 +707,7 @@ function injectIdsIntoSpecs(modules: SpecModule[]): { file: string; changed: num
 /** Tag counts consider only *added* (active) tests — real coverage. */
 function tagCount(modules: SpecModule[], tag: KnownTag): number {
   let n = 0;
-  for (const mod of modules)
-    for (const t of mod.tests) if (t.added && t.tags.includes(tag)) n++;
+  for (const mod of modules) for (const t of mod.tests) if (t.added && t.tags.includes(tag)) n++;
   return n;
 }
 
@@ -724,14 +724,17 @@ function loadJiraAnalyses(): JiraAnalysis[] {
     return [];
   }
 
-  return fs.readdirSync(JIRA_DATA_DIR)
+  return fs
+    .readdirSync(JIRA_DATA_DIR)
     .filter((file) => /\.analysis\.json$/i.test(file))
     .map((file) => path.resolve(JIRA_DATA_DIR, file))
     .map((file) => {
       try {
         return JSON.parse(fs.readFileSync(file, 'utf-8')) as JiraAnalysis;
       } catch (err) {
-        warn(`Failed to parse Jira analysis ${toPosix(path.relative(REPO_ROOT, file))}: ${(err as Error).message}`);
+        warn(
+          `Failed to parse Jira analysis ${toPosix(path.relative(REPO_ROOT, file))}: ${(err as Error).message}`,
+        );
         return null;
       }
     })
@@ -759,21 +762,31 @@ function appendJiraRequirementScenarios(lines: string[]): void {
     lines.push(`### ${analysis.ticket} - ${analysis.summary}`);
     lines.push('');
     lines.push(`**Spec file:** \`tests/${analysis.ticket}.spec.ts\`  `);
-    lines.push(`**Requirement data:** \`data/jira/${analysis.ticket}.json\`, \`data/jira/${analysis.ticket}.analysis.json\`  `);
+    lines.push(
+      `**Requirement data:** \`data/jira/${analysis.ticket}.json\`, \`data/jira/${analysis.ticket}.analysis.json\`  `,
+    );
     lines.push('');
-    lines.push('| Ticket ID | Scenario Title | Preconditions | Test Steps | Expected Result | Priority | Test Type |');
+    lines.push(
+      '| Ticket ID | Scenario Title | Preconditions | Test Steps | Expected Result | Priority | Test Type |',
+    );
     lines.push('|---|---|---|---|---|---|---|');
 
     for (const scenario of groupedScenarios) {
-      lines.push([
-        analysis.ticket,
-        scenario.title,
-        scenario.preconditions.join('<br>'),
-        scenario.steps.join('<br>'),
-        scenario.expectedResult,
-        scenario.priority,
-        scenario.testType
-      ].map(escapeMarkdownTableCell).join(' | ').replace(/^/, '| ').replace(/$/, ' |'));
+      lines.push(
+        [
+          analysis.ticket,
+          scenario.title,
+          scenario.preconditions.join('<br>'),
+          scenario.steps.join('<br>'),
+          scenario.expectedResult,
+          scenario.priority,
+          scenario.testType,
+        ]
+          .map(escapeMarkdownTableCell)
+          .join(' | ')
+          .replace(/^/, '| ')
+          .replace(/$/, ' |'),
+      );
     }
 
     if (analysis.openQuestions?.length) {
@@ -799,7 +812,9 @@ function buildJiraScenarioGroups(analysis: JiraAnalysis): Array<{
 }> {
   const scenarios = analysis.positiveScenarios;
   const priority = scenarios[0]?.priority ?? 'Medium';
-  const preconditions = scenarios[0]?.preconditions ?? ['Jira requirement is deployed in the selected environment.'];
+  const preconditions = scenarios[0]?.preconditions ?? [
+    'Jira requirement is deployed in the selected environment.',
+  ];
 
   return [
     {
@@ -808,11 +823,12 @@ function buildJiraScenarioGroups(analysis: JiraAnalysis): Array<{
       steps: [
         'Open each promo URL listed in the Jira description.',
         'Follow redirects to the final destination.',
-        'Verify the final URL uses the updated Sarasota path and does not return a 4xx/5xx response.'
+        'Verify the final URL uses the updated Sarasota path and does not return a 4xx/5xx response.',
       ],
-      expectedResult: 'Promo URLs under Sarasota-Bradenton redirect to reachable Sarasota promo URLs.',
+      expectedResult:
+        'Promo URLs under Sarasota-Bradenton redirect to reachable Sarasota promo URLs.',
       priority,
-      testType: 'Smoke / Regression'
+      testType: 'Smoke / Regression',
     },
     {
       title: 'Validate Sarasota-Bradenton redirects to Sarasota',
@@ -820,11 +836,11 @@ function buildJiraScenarioGroups(analysis: JiraAnalysis): Array<{
       steps: [
         'Open each legacy Sarasota-Bradenton URL from the Jira attachment.',
         'Follow redirects to the final destination.',
-        'Verify the final path contains /florida/sarasota.'
+        'Verify the final path contains /florida/sarasota.',
       ],
       expectedResult: 'Legacy Sarasota-Bradenton URLs redirect to reachable Sarasota URLs.',
       priority,
-      testType: 'Regression'
+      testType: 'Regression',
     },
     {
       title: 'Validate Tampa redirects to Bradenton',
@@ -832,11 +848,12 @@ function buildJiraScenarioGroups(analysis: JiraAnalysis): Array<{
       steps: [
         'Open each legacy Tampa URL for Crosswind Ranch, Sanderling, and Windwater from the Jira attachment.',
         'Follow redirects to the final destination.',
-        'Verify the final path contains /florida/bradenton.'
+        'Verify the final path contains /florida/bradenton.',
       ],
-      expectedResult: 'Legacy Tampa URLs for moved communities redirect to reachable Bradenton URLs.',
+      expectedResult:
+        'Legacy Tampa URLs for moved communities redirect to reachable Bradenton URLs.',
       priority,
-      testType: 'Regression'
+      testType: 'Regression',
     },
     {
       title: 'Validate legacy search redirect URLs',
@@ -844,12 +861,12 @@ function buildJiraScenarioGroups(analysis: JiraAnalysis): Array<{
       steps: [
         'Open each legacy search URL containing Sarasota-Bradenton or Tampa metro parameters.',
         'Follow redirects or resolution to the final destination.',
-        'Verify the final response is not a 4xx/5xx response.'
+        'Verify the final response is not a 4xx/5xx response.',
       ],
       expectedResult: 'Legacy search URLs remain reachable after the market redirect changes.',
       priority,
-      testType: 'Regression'
-    }
+      testType: 'Regression',
+    },
   ];
 }
 
@@ -916,16 +933,22 @@ function buildTestPlan(modules: SpecModule[]): string {
   /* ---- Test Environment ---- */
   lines.push('## Test Environment');
   lines.push('');
-  lines.push('- **Browser project:** Chrome (Chromium). Firefox/WebKit available but disabled in `playwright.config.ts`.');
+  lines.push(
+    '- **Browser project:** Chrome (Chromium). Firefox/WebKit available but disabled in `playwright.config.ts`.',
+  );
   lines.push('- **Execution mode:** Serial (`workers: 1`, `fullyParallel: false`).');
   lines.push('- **Headed locally / headless in CI** (driven by the `CI` env var).');
-  lines.push('- **Environment & locale** selected via `ENV` and `COUNTRY` env vars (see `config/`).');
+  lines.push(
+    '- **Environment & locale** selected via `ENV` and `COUNTRY` env vars (see `config/`).',
+  );
   lines.push('');
 
   /* ---- Test Modules ---- */
   lines.push('## Test Modules');
   lines.push('');
-  lines.push(`**Legend:** ${ADDED_MARK} automated (code added) · ${NOT_ADDED_MARK} planned / not yet added (commented-out)`);
+  lines.push(
+    `**Legend:** ${ADDED_MARK} automated (code added) · ${NOT_ADDED_MARK} planned / not yet added (commented-out)`,
+  );
   lines.push('');
   for (const mod of modules) {
     lines.push(`### ${mod.module}`);
@@ -982,7 +1005,7 @@ function buildTestPlan(modules: SpecModule[]): string {
   lines.push('- **Allure report:**');
   lines.push('  - Generate: `npm run allure:generate` (outputs to `allure-report/`)');
   lines.push('  - Open: `npm run allure:open`');
-  lines.push('  - Live serve: `npm run allure:serve`');
+  lines.push('  - Live watch: `npm run allure:watch`');
   lines.push('- **Email summary:** `npm run report:email` / `npm run test:allure:email`');
   lines.push('');
 
@@ -992,7 +1015,9 @@ function buildTestPlan(modules: SpecModule[]): string {
   const ciFile = path.resolve(REPO_ROOT, '.github', 'workflows', 'playwright.yml');
   if (fs.existsSync(ciFile)) {
     lines.push('- **GitHub Actions workflow:** `.github/workflows/playwright.yml`');
-    lines.push('- CI runs headless on the Chrome project; `@ci`-tagged tests target the CI smoke path.');
+    lines.push(
+      '- CI runs headless on the Chrome project; `@ci`-tagged tests target the CI smoke path.',
+    );
   } else {
     lines.push('- No GitHub Actions workflow detected at `.github/workflows/`.');
   }
@@ -1003,7 +1028,9 @@ function buildTestPlan(modules: SpecModule[]): string {
   lines.push('');
   lines.push('- Target environment & country are configured via `ENV` / `COUNTRY` env vars.');
   lines.push('- The site under test is reachable from the execution host.');
-  lines.push('- Location-specific data (markets, communities, plans) comes from `config/locations`.');
+  lines.push(
+    '- Location-specific data (markets, communities, plans) comes from `config/locations`.',
+  );
   lines.push('');
 
   /* ---- Out of Scope ---- */
@@ -1060,7 +1087,7 @@ function buildProgress(modules: SpecModule[], exec: ExecutionResult): string {
     lines.push(
       `| ${mod.module} | \`${mod.specFile}\` | ${moduleAdded(mod)} | ${modulePlanned(mod)} | ${
         tags.length ? tags.join(' ') : '—'
-      } |`
+      } |`,
     );
   }
   lines.push('');
@@ -1086,9 +1113,10 @@ function buildProgress(modules: SpecModule[], exec: ExecutionResult): string {
   if (pending.length) {
     for (const m of pending) {
       const p = modulePlanned(m);
-      const note = p > 0
-        ? `${p} planned test${p === 1 ? '' : 's'} present but commented-out`
-        : 'spec present but no `test()` blocks';
+      const note =
+        p > 0
+          ? `${p} planned test${p === 1 ? '' : 's'} present but commented-out`
+          : 'spec present but no `test()` blocks';
       lines.push(`- ${m.module} (\`${m.specFile}\`) — ${note}`);
     }
   } else {
@@ -1101,9 +1129,13 @@ function buildProgress(modules: SpecModule[], exec: ExecutionResult): string {
   lines.push('');
   if (!exec.source) {
     lines.push('No Playwright JSON report or Allure results were found at generation time.');
-    lines.push('Run the suite (e.g. `npm run test:allure`) and regenerate to populate this section.');
+    lines.push(
+      'Run the suite (e.g. `npm run test:allure`) and regenerate to populate this section.',
+    );
   } else {
-    lines.push(`Source: **${exec.source === 'playwright-json' ? 'Playwright JSON report' : 'Allure results'}**`);
+    lines.push(
+      `Source: **${exec.source === 'playwright-json' ? 'Playwright JSON report' : 'Allure results'}**`,
+    );
     lines.push('');
     lines.push('| Result | Count |');
     lines.push('|---|---:|');
@@ -1131,7 +1163,7 @@ function buildProgress(modules: SpecModule[], exec: ExecutionResult): string {
   if (!exec.source) {
     // Fall back to statically-detected skips.
     const staticSkips = modules.flatMap((m) =>
-      m.tests.filter((t) => t.modifier === 'skip' || t.modifier === 'fixme').map((t) => t.title)
+      m.tests.filter((t) => t.modifier === 'skip' || t.modifier === 'fixme').map((t) => t.title),
     );
     if (staticSkips.length) {
       lines.push('_Statically detected `test.skip` / `test.fixme` blocks:_');
@@ -1169,10 +1201,15 @@ function buildProgress(modules: SpecModule[], exec: ExecutionResult): string {
     lines.push('- Consider tagging a core subset as `@sanity` for fast pre-merge checks.');
   }
   if (!exec.source) {
-    lines.push('- Run `npm run test:allure` then `npm run docs:generate` to capture execution results.');
-    lines.push('- (Optional) Add a Playwright `json` reporter to `playwright.config.ts` for richer status data.');
+    lines.push(
+      '- Run `npm run test:allure` then `npm run docs:generate` to capture execution results.',
+    );
+    lines.push(
+      '- (Optional) Add a Playwright `json` reporter to `playwright.config.ts` for richer status data.',
+    );
   } else {
-    if (exec.failed.length) lines.push(`- Triage ${exec.failed.length} failing test(s) listed above.`);
+    if (exec.failed.length)
+      lines.push(`- Triage ${exec.failed.length} failing test(s) listed above.`);
     if (exec.flaky.length) lines.push(`- Stabilise ${exec.flaky.length} flaky test(s).`);
   }
   lines.push('- Keep this file in sync by running `npm run docs:generate` after spec changes.');
@@ -1194,7 +1231,9 @@ function main(): void {
   }
 
   const specFiles = findSpecFiles(TESTS_DIR);
-  log(`Discovered ${specFiles.length} spec file(s) under ${toPosix(path.relative(REPO_ROOT, TESTS_DIR))}/`);
+  log(
+    `Discovered ${specFiles.length} spec file(s) under ${toPosix(path.relative(REPO_ROOT, TESTS_DIR))}/`,
+  );
 
   if (specFiles.length === 0) {
     warn('No *.spec.ts files found. Documents will still be generated (empty).');
@@ -1229,7 +1268,9 @@ function main(): void {
     for (const s of summary) {
       if (s.changed > 0) log(`  • ${s.file}: ${s.changed} title(s) updated`);
     }
-    log(`Injected/updated IDs in ${totalChanged} test title(s) across ${summary.filter((s) => s.changed > 0).length} file(s).`);
+    log(
+      `Injected/updated IDs in ${totalChanged} test title(s) across ${summary.filter((s) => s.changed > 0).length} file(s).`,
+    );
   }
 
   const exec = loadExecutionResults();
@@ -1250,7 +1291,7 @@ function main(): void {
   log(
     `Done. ${modules.length} module(s), ${addedCount(modules)} automated + ` +
       `${plannedCount(modules)} planned test(s). ` +
-      `Execution source: ${exec.source ?? 'none (Not Executed)'}.`
+      `Execution source: ${exec.source ?? 'none (Not Executed)'}.`,
   );
 }
 
