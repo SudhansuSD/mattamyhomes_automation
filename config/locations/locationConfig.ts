@@ -6,171 +6,175 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       country: 'USA',
       queryParam: 'country=USA',
       market: 'Charlotte',
-      mpc: [{
-        name: 'RiverTown - Master-Planned Community',
-        market: 'Jacksonville-St. Augustine',
-        url: '/florida/jacksonville-st-augustine/st-johns/rivertown'
-      }],
-    community: 'Landmarke',
-    communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
-    qmiAddress: '294 W FLAX DR',
-    qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/crimson/294-w-flax-dr',
-    planName: 'Aqua',
-    expectedPlanPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/aqua',
-    aboutUsLinks: [
-      {
-        name: 'About Us',
-        url: '/about/about-mattamy'
-      },
-      {
-        name: 'Community Involvement',
-        url: '/about/community-involvement'
-      },
-      {
-        name: 'Sustainability',
-        url: '/about/sustainability'
-      },
-      {
-        name: 'Media and Investor Relations',
-        url: '/about/media-and-investor-relations'
-      },
-      {
-        name: 'Careers',
-        url: '/about/careers'
-      }
-    ],
-    markets: [
-      {
-        name: 'Charlotte',
-        url: '/north-carolina/charlotte'
-      },
-      {
-        name: 'Dallas-Fort Worth',
-        url: '/texas/dallas-fort-worth'
-      },
-      {
-        name: 'Fort Lauderdale',
-        url: '/florida/fort-lauderdale'
-      },
-      {
-        name: 'Jacksonville-St. Augustine',
-        url: '/florida/jacksonville-st-augustine'
-      },
-      {
-        name: 'Naples-Fort Myers',
-        url: '/florida/naples-fort-myers'
-      },
-      {
-        name: 'Orlando',
-        url: '/florida/orlando'
-      },
-      {
-        name: 'Palm Beach',
-        url: '/florida/palm-beach'
-      },
-      {
-        name: 'Palm City-Stuart',
-        url: '/florida/palm-city-stuart'
-      },
-      {
-        name: 'Phoenix',
-        url: '/arizona/phoenix'
-      },
-      {
-        name: 'Port St. Lucie',
-        url: '/florida/port-st-lucie'
-      },
-      {
-        name: 'Raleigh',
-        url: '/north-carolina/raleigh'
-      },
-      {
-        name: 'Sarasota and Bradenton || Sarasota-Bradenton',
-        url: '/florida/sarasota-bradenton'
-      },
-      {
-        name: 'Tampa',
-        url: '/florida/tampa'
-      },
-      {
-        name: 'Tucson',
-        url: '/arizona/tucson'
-      }
-    ]
-  },
-  CAN: {
-    country: 'CAN',
-    queryParam: 'country=CAN',
-    market: 'Calgary',
-    community: 'Yorkville',
-    communityPath: '/alberta/calgary/calgary/yorkville',
-    condoCommunity: 'Martha James Condominiums',
-    condoPlan: {
-      name: 'M2ad',
-      url: '/ontario/gta/burlington/martha-james-condominiums/m2ad',
-      community: 'Martha James Condominiums',
-      market: 'Greater Toronto Area',
+      mpc: [
+        {
+          name: 'RiverTown - Master-Planned Community',
+          market: 'Jacksonville-St. Augustine',
+          url: '/florida/jacksonville-st-augustine/st-johns/rivertown',
+        },
+      ],
+      community: 'Landmarke',
+      communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
+      qmiAddress: '294 W FLAX DR',
+      qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/crimson/294-w-flax-dr',
+      planName: 'Aqua',
+      expectedPlanPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/aqua',
+      aboutUsLinks: [
+        {
+          name: 'About Us',
+          url: '/about/about-mattamy',
+        },
+        {
+          name: 'Community Involvement',
+          url: '/about/community-involvement',
+        },
+        {
+          name: 'Sustainability',
+          url: '/about/sustainability',
+        },
+        {
+          name: 'Media and Investor Relations',
+          url: '/about/media-and-investor-relations',
+        },
+        {
+          name: 'Careers',
+          url: '/about/careers',
+        },
+      ],
+      markets: [
+        {
+          name: 'Charlotte',
+          url: '/north-carolina/charlotte',
+        },
+        {
+          name: 'Dallas-Fort Worth',
+          url: '/texas/dallas-fort-worth',
+        },
+        {
+          name: 'Fort Lauderdale',
+          url: '/florida/fort-lauderdale',
+        },
+        {
+          name: 'Jacksonville-St. Augustine',
+          url: '/florida/jacksonville-st-augustine',
+        },
+        {
+          name: 'Naples-Fort Myers',
+          url: '/florida/naples-fort-myers',
+        },
+        {
+          name: 'Orlando',
+          url: '/florida/orlando',
+        },
+        {
+          name: 'Palm Beach',
+          url: '/florida/palm-beach',
+        },
+        {
+          name: 'Palm City-Stuart',
+          url: '/florida/palm-city-stuart',
+        },
+        {
+          name: 'Phoenix',
+          url: '/arizona/phoenix',
+        },
+        {
+          name: 'Port St. Lucie',
+          url: '/florida/port-st-lucie',
+        },
+        {
+          name: 'Raleigh',
+          url: '/north-carolina/raleigh',
+        },
+        {
+          name: 'Sarasota and Bradenton || Sarasota-Bradenton',
+          url: '/florida/sarasota-bradenton',
+        },
+        {
+          name: 'Tampa',
+          url: '/florida/tampa',
+        },
+        {
+          name: 'Tucson',
+          url: '/arizona/tucson',
+        },
+      ],
     },
-    qmiAddress: '48 YORKSTONE CRESCENT SW',
-    qmiPath: '/alberta/calgary/calgary/yorkville/fullerton/48-yorkstone-crescent-sw',
-    planName: 'Fullerton',
-    expectedPlanPath: '/alberta/calgary/calgary/yorkville/fullerton',
-    aboutUsLinks: [
-      {
-        name: 'About Us',
-        url: '/about/about-mattamy'
+    CAN: {
+      country: 'CAN',
+      queryParam: 'country=CAN',
+      market: 'Calgary',
+      community: 'Yorkville',
+      communityPath: '/alberta/calgary/calgary/yorkville',
+      condoCommunity: 'Martha James Condominiums',
+      condoPlan: {
+        name: 'M2ad',
+        url: '/ontario/gta/burlington/martha-james-condominiums/m2ad',
+        community: 'Martha James Condominiums',
+        market: 'Greater Toronto Area',
       },
-      {
-        name: 'Community Involvement',
-        url: '/about/community-involvement'
-      },
-      {
-        name: 'Media and Investor Relations',
-        url: '/about/media-and-investor-relations'
-      },
-      {
-        name: 'Careers',
-        url: '/about/careers'
-      }
-    ],
-    markets: [
-      {
-        name: 'Greater Toronto Area || GTA',
-        url: '/ontario/gta'
-      },
-      {
-        name: 'Calgary',
-        url: '/alberta/calgary'
-      },
-      {
-        name: 'Edmonton',
-        url: '/alberta/edmonton'
-      },
-      {
-        name: 'Ottawa',
-        url: '/ontario/ottawa'
-      },
-      {
-        name: 'Simcoe',
-        url: '/ontario/simcoe'
-      },
-      {
-        name: 'Kitchener-Waterloo-Guelph',
-        url: '/ontario/kitchener-waterloo-guelph'
-      }
-    ]
+      qmiAddress: '48 YORKSTONE CRESCENT SW',
+      qmiPath: '/alberta/calgary/calgary/yorkville/fullerton/48-yorkstone-crescent-sw',
+      planName: 'Fullerton',
+      expectedPlanPath: '/alberta/calgary/calgary/yorkville/fullerton',
+      aboutUsLinks: [
+        {
+          name: 'About Us',
+          url: '/about/about-mattamy',
+        },
+        {
+          name: 'Community Involvement',
+          url: '/about/community-involvement',
+        },
+        {
+          name: 'Media and Investor Relations',
+          url: '/about/media-and-investor-relations',
+        },
+        {
+          name: 'Careers',
+          url: '/about/careers',
+        },
+      ],
+      markets: [
+        {
+          name: 'Greater Toronto Area || GTA',
+          url: '/ontario/gta',
+        },
+        {
+          name: 'Calgary',
+          url: '/alberta/calgary',
+        },
+        {
+          name: 'Edmonton',
+          url: '/alberta/edmonton',
+        },
+        {
+          name: 'Ottawa',
+          url: '/ontario/ottawa',
+        },
+        {
+          name: 'Simcoe',
+          url: '/ontario/simcoe',
+        },
+        {
+          name: 'Kitchener-Waterloo-Guelph',
+          url: '/ontario/kitchener-waterloo-guelph',
+        },
+      ],
+    },
   },
-},
   PROD: {
     USA: {
       country: 'USA',
       queryParam: 'country=USA',
       market: 'Phoenix',
-      mpc: [{
-        name: 'RiverTown - Master-Planned Community',
-        market: 'Jacksonville-St. Augustine',
-        url: '/florida/jacksonville-st-augustine/st-johns/rivertown'
-      }],
+      mpc: [
+        {
+          name: 'RiverTown - Master-Planned Community',
+          market: 'Jacksonville-St. Augustine',
+          url: '/florida/jacksonville-st-augustine/st-johns/rivertown',
+        },
+      ],
       community: 'Landmarke',
       communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
       qmiAddress: '356 W FLOYD DR',
@@ -180,83 +184,83 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       aboutUsLinks: [
         {
           name: 'About Us',
-          url: '/about/about-mattamy'
+          url: '/about/about-mattamy',
         },
         {
           name: 'Community Involvement',
-          url: '/about/community-involvement'
+          url: '/about/community-involvement',
         },
         {
           name: 'Sustainability',
-          url: '/about/sustainability'
+          url: '/about/sustainability',
         },
         {
           name: 'Media and Investor Relations',
-          url: '/about/media-and-investor-relations'
+          url: '/about/media-and-investor-relations',
         },
         {
           name: 'Careers',
-          url: '/about/careers'
-        }
+          url: '/about/careers',
+        },
       ],
       markets: [
         {
           name: 'Charlotte',
-          url: '/north-carolina/charlotte'
+          url: '/north-carolina/charlotte',
         },
         {
           name: 'Dallas-Fort Worth',
-          url: '/texas/dallas-fort-worth'
+          url: '/texas/dallas-fort-worth',
         },
         {
           name: 'Fort Lauderdale',
-          url: '/florida/fort-lauderdale'
+          url: '/florida/fort-lauderdale',
         },
         {
           name: 'Jacksonville-St. Augustine',
-          url: '/florida/jacksonville-st-augustine'
+          url: '/florida/jacksonville-st-augustine',
         },
         {
           name: 'Naples-Fort Myers',
-          url: '/florida/naples-fort-myers'
+          url: '/florida/naples-fort-myers',
         },
         {
           name: 'Orlando',
-          url: '/florida/orlando'
+          url: '/florida/orlando',
         },
         {
           name: 'Palm Beach',
-          url: '/florida/palm-beach'
+          url: '/florida/palm-beach',
         },
         {
           name: 'Palm City-Stuart',
-          url: '/florida/palm-city-stuart'
+          url: '/florida/palm-city-stuart',
         },
         {
           name: 'Phoenix',
-          url: '/arizona/phoenix'
+          url: '/arizona/phoenix',
         },
         {
           name: 'Port St. Lucie',
-          url: '/florida/port-st-lucie'
+          url: '/florida/port-st-lucie',
         },
         {
           name: 'Raleigh',
-          url: '/north-carolina/raleigh'
+          url: '/north-carolina/raleigh',
         },
         {
           name: 'Sarasota and Bradenton || Sarasota-Bradenton',
-          url: '/florida/sarasota-bradenton'
+          url: '/florida/sarasota-bradenton',
         },
         {
           name: 'Tampa',
-          url: '/florida/tampa'
+          url: '/florida/tampa',
         },
         {
           name: 'Tucson',
-          url: '/arizona/tucson'
-        }
-      ]
+          url: '/arizona/tucson',
+        },
+      ],
     },
     CAN: {
       country: 'CAN',
@@ -278,64 +282,64 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       aboutUsLinks: [
         {
           name: 'About Us',
-          url: '/about/about-mattamy'
+          url: '/about/about-mattamy',
         },
         {
           name: 'Community Involvement',
-          url: '/about/community-involvement'
+          url: '/about/community-involvement',
         },
         {
           name: 'Media and Investor Relations',
-          url: '/about/media-and-investor-relations'
+          url: '/about/media-and-investor-relations',
         },
         {
           name: 'Careers',
-          url: '/about/careers'
-        }
+          url: '/about/careers',
+        },
       ],
       markets: [
         {
           name: 'Greater Toronto Area || GTA',
-          url: '/ontario/gta'
+          url: '/ontario/gta',
         },
         {
           name: 'Calgary',
-          url: '/alberta/calgary'
+          url: '/alberta/calgary',
         },
         {
           name: 'Edmonton',
-          url: '/alberta/edmonton'
+          url: '/alberta/edmonton',
         },
         {
           name: 'Ottawa',
-          url: '/ontario/ottawa'
+          url: '/ontario/ottawa',
         },
         {
           name: 'Simcoe',
-          url: '/ontario/simcoe'
+          url: '/ontario/simcoe',
         },
         {
           name: 'Kitchener-Waterloo-Guelph',
-          url: '/ontario/kitchener-waterloo-guelph'
-        }
-      ]
+          url: '/ontario/kitchener-waterloo-guelph',
+        },
+      ],
     },
-  }
-} as const ;
+  },
+} as const;
 
 export const LOCATIONS = ENVIRONMENT_LOCATION_OVERRIDES.STAGE;
 
 type EnvName = keyof typeof ENVIRONMENT_LOCATION_OVERRIDES;
-export type LocationKey = keyof typeof ENVIRONMENT_LOCATION_OVERRIDES[EnvName];
+export type LocationKey = keyof (typeof ENVIRONMENT_LOCATION_OVERRIDES)[EnvName];
 type WidenLocationValue<T> = T extends string
   ? string
   : T extends readonly (infer U)[]
-  ? WidenLocationValue<U>[]
-  : T extends object
-  ? { -readonly [K in keyof T]: WidenLocationValue<T[K]> }
-  : T;
+    ? WidenLocationValue<U>[]
+    : T extends object
+      ? { -readonly [K in keyof T]: WidenLocationValue<T[K]> }
+      : T;
 type RawLocationConfig = WidenLocationValue<
-  typeof ENVIRONMENT_LOCATION_OVERRIDES[EnvName][LocationKey]
+  (typeof ENVIRONMENT_LOCATION_OVERRIDES)[EnvName][LocationKey]
 >;
 export type LocationConfig = RawLocationConfig & {
   expectedPlanUrlPart: string;
@@ -343,13 +347,31 @@ export type LocationConfig = RawLocationConfig & {
 
 declare const process: { env: { LOCATION?: string } };
 
-export function getLocationKey(
-  overrideLocation?: LocationKey
-): LocationKey {
-  const rawKey =
-    overrideLocation ??
-    (process?.env?.LOCATION as string | undefined) ??
-    'USA'; // Default location if not specified
+/** Every location the framework knows about, in execution order. */
+export const ALL_LOCATION_KEYS = ['USA', 'CAN'] as const satisfies readonly LocationKey[];
+
+/** Values of LOCATION that mean "no specific location — run them all". */
+const RUN_ALL_TOKENS = ['', 'ALL', 'BOTH'];
+
+/**
+ * Locations a single `npm test` invocation should cover.
+ *
+ * LOCATION unset (or ALL/BOTH) => every location, run as one pass each, so the
+ * report covers USA *and* Canada. LOCATION=CAN => that location only. An
+ * unknown value still throws — a typo must fail fast, not silently run both.
+ */
+export function getLocationsToRun(): LocationKey[] {
+  const raw = (process?.env?.LOCATION ?? '').trim().toUpperCase();
+
+  if (RUN_ALL_TOKENS.includes(raw)) {
+    return [...ALL_LOCATION_KEYS];
+  }
+
+  return [getLocationKey(raw as LocationKey)];
+}
+
+export function getLocationKey(overrideLocation?: LocationKey): LocationKey {
+  const rawKey = overrideLocation ?? (process?.env?.LOCATION as string | undefined) ?? 'USA'; // Default location if not specified
   const key = rawKey.toUpperCase() as LocationKey;
   const envName = getEnvConfig().envName as EnvName;
 
@@ -360,9 +382,7 @@ export function getLocationKey(
   return key;
 }
 
-export function getLocationConfig(
-  overrideLocation?: LocationKey
-): LocationConfig {
+export function getLocationConfig(overrideLocation?: LocationKey): LocationConfig {
   const envName = getEnvConfig().envName as EnvName;
   const key = getLocationKey(overrideLocation);
   const location = ENVIRONMENT_LOCATION_OVERRIDES[envName][key];

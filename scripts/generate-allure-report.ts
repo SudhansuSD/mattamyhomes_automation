@@ -12,6 +12,7 @@ import {
 } from './allurePaths';
 import { loadEnv, getEnv } from '../config/env';
 import { getEnvConfig } from '../config/environments/envConfig';
+import { getLocationsToRun } from '../config/locations/locationConfig';
 
 loadEnv();
 
@@ -58,6 +59,9 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
     TEST_ENV: env.envName,
     Environment: env.envName,
     BaseURL: env.baseURL,
+    // Every location the run covered — a single value when LOCATION was given,
+    // "USA, CAN" when it was not and run-locations.ts ran a pass for each.
+    Location: getLocationsToRun().join(', '),
     Browser: getEnv(
       'BROWSER',
       label === 'mobile' ? getEnv('MOBILE_BROWSER_NAME', 'Chrome') : 'Chrome',

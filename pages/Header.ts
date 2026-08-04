@@ -300,7 +300,9 @@ export class Header extends BasePage {
           this.buildFullUrl(expectedLink.url),
         );
 
-        await menuLink.click();
+        // noWaitAfter: the link navigates and detaches, so post-click checks would
+        // time out against a gone element; waitForURL is the real assertion.
+        await menuLink.click({ noWaitAfter: true });
         await this.page.waitForURL((url) => url.pathname === expectedLink.url, { timeout: 30000 });
         await this.waitForPageReady();
 
@@ -327,7 +329,13 @@ export class Header extends BasePage {
       const menuLink = this.getAboutUsMenuLink(expectedLink);
 
       await this.assertAttached(menuLink, `${expectedLink.name} should be visible before clicking`);
-      await menuLink.click({ timeout: 10000 });
+
+      // noWaitAfter: this link navigates, so the element detaches mid-click. Without
+      // it, Playwright keeps running its post-click checks against the gone element
+      // and times out even though the navigation succeeded (seen on the heavier
+      // About pages such as Sustainability). The waitForURL below is the real
+      // assertion that the click worked.
+      await menuLink.click({ timeout: 10000, noWaitAfter: true });
       await this.page.waitForURL((url) => url.pathname === expectedLink.url, { timeout: 30000 });
 
       await this.waitForPageReady();

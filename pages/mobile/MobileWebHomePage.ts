@@ -15,7 +15,8 @@ export class MobileWebHomePage extends MobileWebBasePage {
 
   /** Opens open. */
   async open(path = this.homePath) {
-    const targetPath = path === this.homePath ? `${this.homePath}?${getLocationConfig().queryParam}` : path;
+    const targetPath =
+      path === this.homePath ? `${this.homePath}?${getLocationConfig().queryParam}` : path;
     const currentUrl = await this.driver.getUrl().catch(() => '');
 
     if (path === this.homePath && this.isConfiguredHomePage(currentUrl)) {
@@ -36,16 +37,19 @@ export class MobileWebHomePage extends MobileWebBasePage {
     assert.match(
       `${snapshot.title}\n${snapshot.bodyText}`,
       this.expectedTitle,
-      `Expected Mattamy title/source, received title: ${snapshot.title}`
+      `Expected Mattamy title/source, received title: ${snapshot.title}`,
     );
     this.expectMobileUserAgent(snapshot.userAgent);
     assert.match(snapshot.readyState, /complete|interactive|loading/);
     assert.equal(
       snapshot.hasHomeContent || snapshot.hasSearchEntryPoint,
       true,
-      'Expected mobile home page content or Find Your Home entry point'
+      'Expected mobile home page content or Find Your Home entry point',
     );
-    assert.ok(viewport.width > 0 && viewport.height > 0, 'Expected mobile browser viewport dimensions');
+    assert.ok(
+      viewport.width > 0 && viewport.height > 0,
+      'Expected mobile browser viewport dimensions',
+    );
     this.assertNoErrorPage(snapshot);
   }
 
@@ -57,19 +61,28 @@ export class MobileWebHomePage extends MobileWebBasePage {
       assert.match(
         snapshot.bodyText,
         /home\. where moments matter most|designed with you in mind|explore our locations|find your dream home|find your home/i,
-        'Expected home page source snapshot to include hero or home-buying content'
+        'Expected home page source snapshot to include hero or home-buying content',
       );
       return;
     }
 
     await this.closeCookiePreferencesIfVisible();
     const hero = await this.driver.execute(() => {
-      const sections = Array.from(document.querySelectorAll('main section, section, header + *')) as HTMLElement[];
-      const section = sections.find((candidate) => {
-        const text = (candidate.innerText || '').replace(/\s+/g, ' ').trim();
+      const sections = Array.from(
+        document.querySelectorAll('main section, section, header + *'),
+      ) as HTMLElement[];
+      const section =
+        sections.find((candidate) => {
+          const text = (candidate.innerText || '').replace(/\s+/g, ' ').trim();
 
-        return /home|moments|designed|mattamy|find/i.test(text) && !/cookie preferences|strictly necessary/i.test(text);
-      }) || sections.find((candidate) => !/cookie preferences|strictly necessary/i.test(candidate.innerText || ''));
+          return (
+            /home|moments|designed|mattamy|find/i.test(text) &&
+            !/cookie preferences|strictly necessary/i.test(text)
+          );
+        }) ||
+        sections.find(
+          (candidate) => !/cookie preferences|strictly necessary/i.test(candidate.innerText || ''),
+        );
       const video = section?.querySelector('video');
       const image = section?.querySelector('img, picture source, [style*="background-image"]');
       const backgroundImage = section ? window.getComputedStyle(section).backgroundImage : '';
@@ -81,18 +94,32 @@ export class MobileWebHomePage extends MobileWebBasePage {
         hasVideo: Boolean(video),
         autoplay: Boolean(video?.autoplay || video?.hasAttribute('autoplay')),
         muted: Boolean(video?.muted || video?.defaultMuted),
-        playsInline: Boolean(video?.hasAttribute('playsinline') || video?.hasAttribute('webkit-playsinline')),
+        playsInline: Boolean(
+          video?.hasAttribute('playsinline') || video?.hasAttribute('webkit-playsinline'),
+        ),
         text,
       };
     });
 
     assert.equal(hero.hasHero, true, 'Expected a hero section to render on mobile home page');
-    assert.match(hero.text, /find|home|community|mattamy/i, 'Expected hero copy to include home-buying context');
+    assert.match(
+      hero.text,
+      /find|home|community|mattamy/i,
+      'Expected hero copy to include home-buying context',
+    );
 
     if (hero.hasVideo) {
-      assert.equal(hero.autoplay, true, 'Hero video should keep the desktop autoplay behavior on mobile');
+      assert.equal(
+        hero.autoplay,
+        true,
+        'Hero video should keep the desktop autoplay behavior on mobile',
+      );
       assert.equal(hero.muted, true, 'Hero autoplay video should be muted on mobile');
-      assert.equal(hero.playsInline, true, 'Hero video should include playsinline for mobile browsers');
+      assert.equal(
+        hero.playsInline,
+        true,
+        'Hero video should include playsinline for mobile browsers',
+      );
     }
   }
 
@@ -104,7 +131,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
       assert.match(
         snapshot.bodyText,
         /Find Your Dream Home|Find Your Home|Contact Us|Customer Care|About/i,
-        'Expected home source snapshot to include header navigation links'
+        'Expected home source snapshot to include header navigation links',
       );
       return;
     }
@@ -113,25 +140,44 @@ export class MobileWebHomePage extends MobileWebBasePage {
 
     const headerSnapshot = await this.driver.execute(() => {
       const text = document.body?.innerText || '';
-      const visibleLinks = Array.from(document.querySelectorAll('header a, nav a, [role="dialog"] a, a, button'))
+      const visibleLinks = Array.from(
+        document.querySelectorAll('header a, nav a, [role="dialog"] a, a, button'),
+      )
         .filter((element) => {
           const style = window.getComputedStyle(element);
           const rect = element.getBoundingClientRect();
 
-          return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
         })
-        .map((element) => `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`.trim());
+        .map((element) =>
+          `${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`.trim(),
+        );
 
       return {
         hasHeader: Boolean(document.querySelector('header')),
         hasFindYourHome: /find (your|my)|find home/i.test(text),
-        hasExpectedNavigation: visibleLinks.some((link) => /about|contact|care|communities|find/i.test(link)),
+        hasExpectedNavigation: visibleLinks.some((link) =>
+          /about|contact|care|communities|find/i.test(link),
+        ),
       };
     });
 
     assert.equal(headerSnapshot.hasHeader, true, 'Expected header to render on mobile home page');
-    assert.equal(headerSnapshot.hasFindYourHome, true, 'Expected Find Your Home link in mobile header navigation');
-    assert.equal(headerSnapshot.hasExpectedNavigation, true, 'Expected key mobile header navigation links to be visible');
+    assert.equal(
+      headerSnapshot.hasFindYourHome,
+      true,
+      'Expected Find Your Home link in mobile header navigation',
+    );
+    assert.equal(
+      headerSnapshot.hasExpectedNavigation,
+      true,
+      'Expected key mobile header navigation links to be visible',
+    );
   }
 
   /** Verifies footer loaded. */
@@ -142,7 +188,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
       assert.match(
         snapshot.bodyText,
         /privacy|terms|contact|careers|copyright|mattamy/i,
-        'Expected home source snapshot to include footer links or legal copy'
+        'Expected home source snapshot to include footer links or legal copy',
       );
       return;
     }
@@ -153,7 +199,9 @@ export class MobileWebHomePage extends MobileWebBasePage {
 
     const footer = await this.driver.execute(() => {
       const element = document.querySelector('footer');
-      const text = (element?.innerText || document.body?.innerText || '').replace(/\s+/g, ' ').trim();
+      const text = (element?.innerText || document.body?.innerText || '')
+        .replace(/\s+/g, ' ')
+        .trim();
       const links = Array.from((element || document).querySelectorAll('a')).map((link) => ({
         text: (link.textContent || '').replace(/\s+/g, ' ').trim(),
         href: link.getAttribute('href') || '',
@@ -169,7 +217,11 @@ export class MobileWebHomePage extends MobileWebBasePage {
 
     assert.equal(footer.hasFooter, true, 'Expected footer to render on mobile home page');
     assert.equal(footer.hasPrivacyPolicy, true, 'Expected footer to include Privacy Policy link');
-    assert.equal(footer.hasFooterContext, true, 'Expected footer to include standard Mattamy links or copy');
+    assert.equal(
+      footer.hasFooterContext,
+      true,
+      'Expected footer to include standard Mattamy links or copy',
+    );
   }
 
   /** Searches by market. */
@@ -184,11 +236,13 @@ export class MobileWebHomePage extends MobileWebBasePage {
         return true;
       }
 
-      this.logStep(`Market autocomplete did not open on mobile; opening search URL directly for: ${market}`);
+      this.logStep(
+        `Market autocomplete did not open on mobile; opening search URL directly for: ${market}`,
+      );
     }
 
     await this.navigateTo(
-      `/search?productType=community&metro=${encodeURIComponent(market)}&country=${location.country}&hideMap=true`
+      `/search?productType=community&metro=${encodeURIComponent(market)}&country=${location.country}&hideMap=true`,
     );
     await this.waitForPageReady();
     return true;
@@ -202,20 +256,19 @@ export class MobileWebHomePage extends MobileWebBasePage {
     const metro = params.get('metro') || params.get('community') || '';
 
     assert.ok(
-      /\/search/i.test(currentUrl) ||
-      normalizedUrl.includes(this.normalizeText(expectedMarket)),
-      'Expected location autocomplete selection to land on search results or the selected market page'
+      /\/search/i.test(currentUrl) || normalizedUrl.includes(this.normalizeText(expectedMarket)),
+      'Expected location autocomplete selection to land on search results or the selected market page',
     );
 
     if (/\/search/i.test(currentUrl)) {
       assert.ok(
         this.normalizeText(metro).includes(this.normalizeText(expectedMarket)),
-        `Expected search URL to include selected market ${expectedMarket}`
+        `Expected search URL to include selected market ${expectedMarket}`,
       );
     } else {
       assert.ok(
         normalizedUrl.includes(this.normalizeText(expectedMarket)),
-        `Expected market URL to include selected market ${expectedMarket}`
+        `Expected market URL to include selected market ${expectedMarket}`,
       );
     }
   }
@@ -231,7 +284,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     assert.equal(
       didSearch,
       true,
-      `Expected home page search bar autocomplete to find and open community: ${community}`
+      `Expected home page search bar autocomplete to find and open community: ${community}`,
     );
     return true;
   }
@@ -242,7 +295,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     await this.waitForBodyText(
       new RegExp(this.escapeRegExp(expectedCommunity), 'i'),
       `Expected community page to include ${expectedCommunity}`,
-      45000
+      45000,
     );
     const snapshot = await this.getSnapshot();
 
@@ -261,7 +314,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     assert.equal(
       didSearch,
       true,
-      `Expected home page search bar autocomplete to find and open QMI address: ${address}`
+      `Expected home page search bar autocomplete to find and open QMI address: ${address}`,
     );
     return true;
   }
@@ -273,23 +326,22 @@ export class MobileWebHomePage extends MobileWebBasePage {
     const expectedPathPattern = new RegExp(this.escapeRegExp(location.qmiPath), 'i');
     const expectedAddressPattern = new RegExp(this.escapeRegExp(expectedAddress), 'i');
 
-    await this.driver.waitUntil(
-      async () => expectedPathPattern.test(await this.driver.getUrl()),
-      {
-        timeout: 30000,
-        timeoutMsg: `Expected QMI search to navigate to ${location.qmiPath}`,
-      }
-    );
+    await this.driver.waitUntil(async () => expectedPathPattern.test(await this.driver.getUrl()), {
+      timeout: 30000,
+      timeoutMsg: `Expected QMI search to navigate to ${location.qmiPath}`,
+    });
 
     await this.waitForBodyText(
       expectedAddressPattern,
       `Expected QMI detail page to include ${expectedAddress}`,
-      45000
+      45000,
     ).catch(() => undefined);
 
     const snapshot = await this.getSnapshot();
     const isExpectedQmiPath = expectedPathPattern.test(snapshot.currentUrl);
-    const hasExpectedAddress = expectedAddressPattern.test(`${snapshot.title}\n${snapshot.bodyText}`);
+    const hasExpectedAddress = expectedAddressPattern.test(
+      `${snapshot.title}\n${snapshot.bodyText}`,
+    );
     const isCookieOnlyContent =
       /By using our website, you agree to the use of all cookies/i.test(snapshot.bodyText) &&
       snapshot.bodyText.trim().length < 250;
@@ -316,7 +368,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     assert.equal(
       didSearch,
       true,
-      `Expected home page search bar autocomplete to find and open plan: ${planName}`
+      `Expected home page search bar autocomplete to find and open plan: ${planName}`,
     );
     return true;
   }
@@ -335,7 +387,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
       }
 
       this.logStep(
-        `Mobile Chrome session was lost during ${searchType} search-from-home; reloading session and retrying once.`
+        `Mobile Chrome session was lost during ${searchType} search-from-home; reloading session and retrying once.`,
       );
       await this.reloadSessionAfterLoss();
       await this.runSearchAndValidate(searchType, searchValue);
@@ -432,18 +484,22 @@ export class MobileWebHomePage extends MobileWebBasePage {
       const missingMarkets = location.markets.filter((expectedMarket) => {
         const names = expectedMarket.name.split('||');
 
-        return !names.some((name) => new RegExp(this.escapeRegExp(name), 'i').test(snapshot.bodyText));
+        return !names.some((name) =>
+          new RegExp(this.escapeRegExp(name), 'i').test(snapshot.bodyText),
+        );
       });
 
       if (missingMarkets.length === location.markets.length) {
-        this.logSkip('Market cards are not present in the mobile source snapshot - skipping rendered card validation');
+        this.logSkip(
+          'Market cards are not present in the mobile source snapshot - skipping rendered card validation',
+        );
         return;
       }
 
       assert.deepEqual(
         missingMarkets.map((market) => market.name),
         [],
-        `Expected configured markets in mobile home source snapshot: ${missingMarkets.map((market) => market.name).join(', ')}`
+        `Expected configured markets in mobile home source snapshot: ${missingMarkets.map((market) => market.name).join(', ')}`,
       );
       return;
     }
@@ -453,12 +509,16 @@ export class MobileWebHomePage extends MobileWebBasePage {
     const location = getLocationConfig();
     const cardSnapshot = await this.driver.execute(() => {
       const section = Array.from(document.querySelectorAll('section, div')).find((element) =>
-        /explore our locations near you|explore our locations/i.test(element.textContent || '')
+        /explore our locations near you|explore our locations/i.test(element.textContent || ''),
       );
 
       section?.scrollIntoView({ block: 'center', inline: 'center' });
 
-      const slides = Array.from(document.querySelectorAll('#cards .slick-slide, a[href*="/arizona/"], a[href*="/florida/"], a[href*="/ontario/"], a[href*="/alberta/"], a[href*="/texas/"], a[href*="/north-carolina/"], a[href*="/south-carolina/"]'))
+      const slides = Array.from(
+        document.querySelectorAll(
+          '#cards .slick-slide, a[href*="/arizona/"], a[href*="/florida/"], a[href*="/ontario/"], a[href*="/alberta/"], a[href*="/texas/"], a[href*="/north-carolina/"], a[href*="/south-carolina/"]',
+        ),
+      )
         .map((element) => {
           const link = element.matches('a') ? element : element.querySelector('a[href]');
           const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
@@ -472,8 +532,9 @@ export class MobileWebHomePage extends MobileWebBasePage {
         })
         .filter((slide) => !slide.isCloned && slide.marketName && slide.href);
 
-      return slides.filter((slide, index, all) =>
-        all.findIndex((candidate) => candidate.href === slide.href) === index
+      return slides.filter(
+        (slide, index, all) =>
+          all.findIndex((candidate) => candidate.href === slide.href) === index,
       );
     });
 
@@ -487,7 +548,10 @@ export class MobileWebHomePage extends MobileWebBasePage {
         const normalizedName = this.normalizeText(card.marketName);
         const normalizedHref = card.href.toLowerCase().trim();
 
-        return acceptedNames.includes(normalizedName) && normalizedHref === expectedMarket.url.toLowerCase().trim();
+        return (
+          acceptedNames.includes(normalizedName) &&
+          normalizedHref === expectedMarket.url.toLowerCase().trim()
+        );
       });
 
       if (!matchedCard) {
@@ -495,7 +559,11 @@ export class MobileWebHomePage extends MobileWebBasePage {
       }
     }
 
-    assert.deepEqual(unmatchedMarkets, [], `Expected all configured markets on mobile home page: ${unmatchedMarkets.join(', ')}`);
+    assert.deepEqual(
+      unmatchedMarkets,
+      [],
+      `Expected all configured markets on mobile home page: ${unmatchedMarkets.join(', ')}`,
+    );
   }
 
   /** Opens find your home. */
@@ -503,7 +571,11 @@ export class MobileWebHomePage extends MobileWebBasePage {
     await this.openHamburgerMenu();
 
     const clicked = await this.clickVisibleByText(/find (your|my)|find your dream home|find home/i);
-    assert.equal(clicked, true, 'Expected Find Your Home menu item to be clickable from mobile navigation');
+    assert.equal(
+      clicked,
+      true,
+      'Expected Find Your Home menu item to be clickable from mobile navigation',
+    );
     await this.driver.pause(1000);
   }
 
@@ -519,16 +591,27 @@ export class MobileWebHomePage extends MobileWebBasePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
-      const input = Array.from(document.querySelectorAll('input[placeholder*="Search" i]:not(#vendor-search-handler), input[type="search"]'))
-        .find(isVisible);
+      const input = Array.from(
+        document.querySelectorAll(
+          'input[placeholder*="Search" i]:not(#vendor-search-handler), input[type="search"]',
+        ),
+      ).find(isVisible);
 
       if (!(input instanceof HTMLInputElement)) {
         return false;
       }
 
-      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        'value',
+      )?.set;
 
       input.scrollIntoView({ block: 'center', inline: 'center' });
       input.focus();
@@ -542,71 +625,86 @@ export class MobileWebHomePage extends MobileWebBasePage {
       return false;
     }
 
-    const clickAutocompleteResult = async (searchValueForMatch = value) => this.driver.execute(
-      ({ preferredHrefPart, searchValue, slug, finalSlug }) => {
-        const normalize = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-        const normalizeHref = (href) => decodeURIComponent(href || '').toLowerCase();
-        const isVisible = (element) => {
-          const style = window.getComputedStyle(element);
-          const rect = element.getBoundingClientRect();
+    const clickAutocompleteResult = async (searchValueForMatch = value) =>
+      this.driver.execute(
+        ({ preferredHrefPart, searchValue, slug, finalSlug }) => {
+          const normalize = (text) =>
+            text
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, ' ')
+              .trim();
+          const normalizeHref = (href) => decodeURIComponent(href || '').toLowerCase();
+          const isVisible = (element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
 
-          return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
-        };
-        const expected = normalize(searchValue);
-        const preferredHref = normalizeHref(preferredHrefPart);
-        const selectors = [
-          '[data-aos="fade-down"] a[aria-label]',
-          '[data-aos="fade-down"] a[href]',
-          '[role="listbox"] a[href]',
-          '[role="listbox"] [role="option"]',
-          '[role="option"] a[href]',
-          '[role="option"]',
-          '[aria-live] a[href]',
-          '[class*="search" i] a[href]',
-          '[class*="Search"] a[href]',
-          '[class*="suggest" i] a[href]',
-          '[class*="Suggest" i] a[href]',
-          '[class*="autocomplete" i] a[href]',
-          '[class*="Autocomplete"] a[href]',
-          '[class*="result" i] a[href]',
-          '[class*="Result"] a[href]',
-        ];
-        const candidates = selectors
-          .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
-          .filter((element, index, all) => all.indexOf(element) === index)
-          .filter(isVisible);
-        const candidateLabels = candidates.map((element) =>
-          `${(element.textContent || '').replace(/\s+/g, ' ').trim()} ${element.getAttribute('href') || ''}`.trim()
-        ).slice(0, 10);
-        const matchesValue = (element) => {
-          const text = normalize(element.textContent || '');
-          const href = normalizeHref(element.getAttribute('href') || '');
+            return (
+              style.visibility !== 'hidden' &&
+              style.display !== 'none' &&
+              rect.width > 0 &&
+              rect.height > 0
+            );
+          };
+          const expected = normalize(searchValue);
+          const preferredHref = normalizeHref(preferredHrefPart);
+          const selectors = [
+            '[data-aos="fade-down"] a[aria-label]',
+            '[data-aos="fade-down"] a[href]',
+            '[role="listbox"] a[href]',
+            '[role="listbox"] [role="option"]',
+            '[role="option"] a[href]',
+            '[role="option"]',
+            '[aria-live] a[href]',
+            '[class*="search" i] a[href]',
+            '[class*="Search"] a[href]',
+            '[class*="suggest" i] a[href]',
+            '[class*="Suggest" i] a[href]',
+            '[class*="autocomplete" i] a[href]',
+            '[class*="Autocomplete"] a[href]',
+            '[class*="result" i] a[href]',
+            '[class*="Result"] a[href]',
+          ];
+          const candidates = selectors
+            .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+            .filter((element, index, all) => all.indexOf(element) === index)
+            .filter(isVisible);
+          const candidateLabels = candidates
+            .map((element) =>
+              `${(element.textContent || '').replace(/\s+/g, ' ').trim()} ${element.getAttribute('href') || ''}`.trim(),
+            )
+            .slice(0, 10);
+          const matchesValue = (element) => {
+            const text = normalize(element.textContent || '');
+            const href = normalizeHref(element.getAttribute('href') || '');
 
-          return isVisible(element) && (text.includes(expected) || href.includes(slug) || href.includes(finalSlug));
-        };
-        const matchesPreferredHref = (element) => {
-          const href = normalizeHref(element.getAttribute('href') || '');
+            return (
+              isVisible(element) &&
+              (text.includes(expected) || href.includes(slug) || href.includes(finalSlug))
+            );
+          };
+          const matchesPreferredHref = (element) => {
+            const href = normalizeHref(element.getAttribute('href') || '');
 
-          return preferredHref && href.includes(preferredHref);
-        };
-        const match = candidates.find(matchesPreferredHref) || candidates.find(matchesValue);
+            return preferredHref && href.includes(preferredHref);
+          };
+          const match = candidates.find(matchesPreferredHref) || candidates.find(matchesValue);
 
-        if (match instanceof HTMLElement) {
-          match.scrollIntoView({ block: 'center', inline: 'center' });
-          match.click();
-          return { clicked: true, hasDropdown: candidates.length > 0, candidateLabels };
-        }
+          if (match instanceof HTMLElement) {
+            match.scrollIntoView({ block: 'center', inline: 'center' });
+            match.click();
+            return { clicked: true, hasDropdown: candidates.length > 0, candidateLabels };
+          }
 
-        return { clicked: false, hasDropdown: candidates.length > 0, candidateLabels };
-      },
-      {
-        preferredHrefPart: options.preferredHrefPart || '',
-        searchValue: searchValueForMatch,
-        searchType,
-        slug: this.toSlug(searchValueForMatch),
-        finalSlug: this.toSlug(value),
-      }
-    );
+          return { clicked: false, hasDropdown: candidates.length > 0, candidateLabels };
+        },
+        {
+          preferredHrefPart: options.preferredHrefPart || '',
+          searchValue: searchValueForMatch,
+          searchType,
+          slug: this.toSlug(searchValueForMatch),
+          finalSlug: this.toSlug(value),
+        },
+      );
 
     let typedValue = '';
     for (const character of Array.from(value)) {
@@ -626,71 +724,91 @@ export class MobileWebHomePage extends MobileWebBasePage {
 
     await this.driver.pause(500);
 
-    const getAutocompleteSnapshot = async () => this.driver.execute(
-      ({ searchValue }) => {
-        const normalize = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-        const isVisible = (element) => {
-          const style = window.getComputedStyle(element);
-          const rect = element.getBoundingClientRect();
+    const getAutocompleteSnapshot = async () =>
+      this.driver.execute(
+        ({ searchValue }) => {
+          const normalize = (text) =>
+            text
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, ' ')
+              .trim();
+          const isVisible = (element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
 
-          return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
-        };
-        const expected = normalize(searchValue);
-        const selectors = [
-          '[data-aos="fade-down"] a[aria-label]',
-          '[data-aos="fade-down"] a[href]',
-          '[role="listbox"] a[href]',
-          '[role="listbox"] [role="option"]',
-          '[role="option"] a[href]',
-          '[role="option"]',
-          '[aria-live] a[href]',
-          '[class*="search" i] a[href]',
-          '[class*="Search"] a[href]',
-          '[class*="suggest" i] a[href]',
-          '[class*="Suggest" i] a[href]',
-          '[class*="autocomplete" i] a[href]',
-          '[class*="Autocomplete"] a[href]',
-          '[class*="result" i] a[href]',
-          '[class*="Result"] a[href]',
-        ];
-        const candidates = selectors
-          .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
-          .filter((element, index, all) => all.indexOf(element) === index)
-          .filter((element) => {
-            const text = normalize(element.textContent || '');
-            const href = (element.getAttribute('href') || '').toLowerCase();
+            return (
+              style.visibility !== 'hidden' &&
+              style.display !== 'none' &&
+              rect.width > 0 &&
+              rect.height > 0
+            );
+          };
+          const expected = normalize(searchValue);
+          const selectors = [
+            '[data-aos="fade-down"] a[aria-label]',
+            '[data-aos="fade-down"] a[href]',
+            '[role="listbox"] a[href]',
+            '[role="listbox"] [role="option"]',
+            '[role="option"] a[href]',
+            '[role="option"]',
+            '[aria-live] a[href]',
+            '[class*="search" i] a[href]',
+            '[class*="Search"] a[href]',
+            '[class*="suggest" i] a[href]',
+            '[class*="Suggest" i] a[href]',
+            '[class*="autocomplete" i] a[href]',
+            '[class*="Autocomplete"] a[href]',
+            '[class*="result" i] a[href]',
+            '[class*="Result"] a[href]',
+          ];
+          const candidates = selectors
+            .flatMap((selector) => Array.from(document.querySelectorAll(selector)))
+            .filter((element, index, all) => all.indexOf(element) === index)
+            .filter((element) => {
+              const text = normalize(element.textContent || '');
+              const href = (element.getAttribute('href') || '').toLowerCase();
 
-            return isVisible(element) && (text.includes(expected) || href.includes(expected.replace(/\s+/g, '-')));
-          });
-        const candidateLabels = candidates.map((element) =>
-          `${(element.textContent || '').replace(/\s+/g, ' ').trim()} ${element.getAttribute('href') || ''}`.trim()
-        ).slice(0, 10);
-        const input = Array.from(document.querySelectorAll('input[placeholder*="Search" i]:not(#vendor-search-handler), input[type="search"]'))
-          .find(isVisible);
+              return (
+                isVisible(element) &&
+                (text.includes(expected) || href.includes(expected.replace(/\s+/g, '-')))
+              );
+            });
+          const candidateLabels = candidates
+            .map((element) =>
+              `${(element.textContent || '').replace(/\s+/g, ' ').trim()} ${element.getAttribute('href') || ''}`.trim(),
+            )
+            .slice(0, 10);
+          const input = Array.from(
+            document.querySelectorAll(
+              'input[placeholder*="Search" i]:not(#vendor-search-handler), input[type="search"]',
+            ),
+          ).find(isVisible);
 
-        return {
-          candidateLabels,
-          count: candidates.length,
-          inputValue: input instanceof HTMLInputElement ? input.value : '',
-          isInputActive: document.activeElement === input,
-        };
-      },
-      { searchValue: value }
-    );
+          return {
+            candidateLabels,
+            count: candidates.length,
+            inputValue: input instanceof HTMLInputElement ? input.value : '',
+            isInputActive: document.activeElement === input,
+          };
+        },
+        { searchValue: value },
+      );
 
     let autocompleteSnapshot = await getAutocompleteSnapshot();
 
-    await this.driver.waitUntil(
-      async () => {
-        autocompleteSnapshot = await getAutocompleteSnapshot();
+    await this.driver
+      .waitUntil(
+        async () => {
+          autocompleteSnapshot = await getAutocompleteSnapshot();
 
-        return autocompleteSnapshot.count > 0;
-      },
-      {
-        timeout: options.dropdownTimeout || 10000,
-        timeoutMsg: `Expected mobile search autocomplete dropdown data for ${searchType || 'search'} "${value}"`,
-      }
-    ).catch(() => undefined);
+          return autocompleteSnapshot.count > 0;
+        },
+        {
+          timeout: options.dropdownTimeout || 10000,
+          timeoutMsg: `Expected mobile search autocomplete dropdown data for ${searchType || 'search'} "${value}"`,
+        },
+      )
+      .catch(() => undefined);
 
     const result = await clickAutocompleteResult();
 
@@ -701,8 +819,8 @@ export class MobileWebHomePage extends MobileWebBasePage {
     if (!result.clicked) {
       this.logStep(
         `Search autocomplete did not find ${searchType || 'result'} "${value}". ` +
-        `Dropdown visible: ${result.hasDropdown}. Input value: "${autocompleteSnapshot.inputValue}". ` +
-        `Input active: ${autocompleteSnapshot.isInputActive}. Candidates: ${result.candidateLabels.join(' | ')}`
+          `Dropdown visible: ${result.hasDropdown}. Input value: "${autocompleteSnapshot.inputValue}". ` +
+          `Input active: ${autocompleteSnapshot.isInputActive}. Candidates: ${result.candidateLabels.join(' | ')}`,
       );
     }
 
@@ -714,7 +832,9 @@ export class MobileWebHomePage extends MobileWebBasePage {
     const maxAttempts = Number(options.maxAttempts || process.env.APPIUM_SEARCH_MAX_ATTEMPTS || 2);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      this.logStep(`Home autocomplete attempt ${attempt}/${maxAttempts} for ${searchType}: ${value}`);
+      this.logStep(
+        `Home autocomplete attempt ${attempt}/${maxAttempts} for ${searchType}: ${value}`,
+      );
 
       if (attempt > 1) {
         this.logStep(`Retry home autocomplete from fresh home page for: ${value}`);
@@ -733,7 +853,10 @@ export class MobileWebHomePage extends MobileWebBasePage {
 
   /** Returns community path. */
   getCommunityPath(location = getLocationConfig()) {
-    return location.communityPath || `/${location.qmiPath.split('/').filter(Boolean).slice(0, -2).join('/')}`;
+    return (
+      location.communityPath ||
+      `/${location.qmiPath.split('/').filter(Boolean).slice(0, -2).join('/')}`
+    );
   }
 
   /** Determines whether the home autocomplete flow should be used. */
@@ -755,12 +878,14 @@ export class MobileWebHomePage extends MobileWebBasePage {
             bodyText: document.body?.innerText || document.documentElement?.textContent || '',
             hasHeader: Boolean(document.querySelector('header')),
             hasNavigation: Boolean(document.querySelector('nav, header a, header button')),
-            hasSearchEntryPoint: /find your home|find my home|search|quick move[- ]?in|communities/i.test(
-              `${document.body?.innerText || ''}\n${document.documentElement?.textContent || ''}`
-            ),
-            hasHomeContent: /home\. where moments matter most|designed with you in mind|explore our locations/i.test(
-              `${document.body?.innerText || ''}\n${document.documentElement?.textContent || ''}`
-            ),
+            hasSearchEntryPoint:
+              /find your home|find my home|search|quick move[- ]?in|communities/i.test(
+                `${document.body?.innerText || ''}\n${document.documentElement?.textContent || ''}`,
+              ),
+            hasHomeContent:
+              /home\. where moments matter most|designed with you in mind|explore our locations/i.test(
+                `${document.body?.innerText || ''}\n${document.documentElement?.textContent || ''}`,
+              ),
             isSourceOnly:
               (document.body?.innerText || '').trim().length < 20 &&
               (document.documentElement?.textContent || '').trim().length > 1000,
@@ -792,7 +917,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
       {
         timeout: 30000,
         timeoutMsg: 'Mattamy home page content did not render after accepting cookies',
-      }
+      },
     );
 
     if (sessionLostError) {
@@ -829,7 +954,12 @@ export class MobileWebHomePage extends MobileWebBasePage {
           const style = window.getComputedStyle(element);
           const rect = element.getBoundingClientRect();
 
-          return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
         });
 
       if (button instanceof HTMLElement) {
@@ -837,14 +967,20 @@ export class MobileWebHomePage extends MobileWebBasePage {
         return { opened: true, diagnostics: '' };
       }
 
-      const headerButtons = Array.from(document.querySelectorAll('header button, header a, header [role="button"]'));
+      const headerButtons = Array.from(
+        document.querySelectorAll('header button, header a, header [role="button"]'),
+      );
       const fallback = headerButtons.find((element) => {
         const rect = element.getBoundingClientRect();
         const text = (element.textContent || '').replace(/\s+/g, ' ').trim();
         const label = element.getAttribute('aria-label') || '';
         const className = element.getAttribute('class') || '';
 
-        return rect.width > 0 && rect.height > 0 && /menu|nav|open|☰|find|home/i.test(`${text} ${label} ${className}`);
+        return (
+          rect.width > 0 &&
+          rect.height > 0 &&
+          /menu|nav|open|☰|find|home/i.test(`${text} ${label} ${className}`)
+        );
       });
 
       if (fallback instanceof HTMLElement) {
@@ -853,7 +989,9 @@ export class MobileWebHomePage extends MobileWebBasePage {
       }
 
       const header = document.querySelector('header');
-      const diagnostics = Array.from(document.querySelectorAll('header button, header a, header [role="button"]'))
+      const diagnostics = Array.from(
+        document.querySelectorAll('header button, header a, header [role="button"]'),
+      )
         .map((element) => ({
           text: (element.textContent || '').replace(/\s+/g, ' ').trim(),
           label: element.getAttribute('aria-label') || '',
@@ -872,13 +1010,15 @@ export class MobileWebHomePage extends MobileWebBasePage {
 
     if (!result.opened) {
       const hasNavigationFallback = await this.driver.execute(() =>
-        /find my home|find your home|design studio|customer care|about us|contact us/i.test(document.body?.innerText || '')
+        /find my home|find your home|design studio|customer care|about us|contact us/i.test(
+          document.body?.innerText || '',
+        ),
       );
 
       assert.equal(
         hasNavigationFallback,
         true,
-        `Expected a mobile hamburger/menu button or visible mobile navigation links. ${result.diagnostics}`
+        `Expected a mobile hamburger/menu button or visible mobile navigation links. ${result.diagnostics}`,
       );
       return;
     }
@@ -888,7 +1028,10 @@ export class MobileWebHomePage extends MobileWebBasePage {
 
   /** Normalizes text. */
   normalizeText(value) {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
   }
 
   /** Converts text to a URL slug. */

@@ -17,8 +17,16 @@ import { getBoolEnv } from '../config/env';
  * Allure HTML must be served (file:// won't render), so we print the open
  * command. Set ALLURE_OPEN=1 to launch the Allure server automatically after
  * the run (this blocks until you stop it — handy for "run and show me").
+ *
+ * ALLURE_SKIP_REPORT=1 (set by scripts/run-locations.ts) suppresses this: a
+ * multi-location run builds the report once, after the last location pass,
+ * instead of rebuilding it from partial results after every pass.
  */
 export default async function globalTeardown(_config: FullConfig): Promise<void> {
+  if (getBoolEnv('ALLURE_SKIP_REPORT')) {
+    return;
+  }
+
   await generateAllureReport('desktop');
 
   const indexPath = path.join(DESKTOP_ALLURE_REPORT_DIR, 'index.html');

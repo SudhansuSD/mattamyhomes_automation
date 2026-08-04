@@ -1,5 +1,4 @@
 import { Locator, Page, expect } from '@playwright/test';
-import { getLocationConfig } from '../config/locations/locationConfig';
 import {
   escapeRegex,
   getLastPathSegment,
@@ -12,7 +11,6 @@ import { SearchablePage } from './SearchablePage';
 import {
   checkConsentIfPresent,
   clickSubmit,
-  expectFieldVisibleIfPresent,
   expectInvalidEmailErrorInForm,
   expectRequiredErrorsInForm,
   expectSideModalFormFields,
@@ -189,18 +187,6 @@ export class CommunityPage extends SearchablePage {
 
   // ----- Register Form -----
 
-  /** Returns the sitecore community forms locator or value. */
-  private get sitecoreCommunityForms(): Locator {
-    return this.page.locator('[id^="Sitecore-ScheduleAVisit-FormInstance"]');
-  }
-  /** Returns the contact forms locator or value. */
-  private get contactForms(): Locator {
-    return this.page.locator('#contact form');
-  }
-  /** Returns the schedule visit containers locator or value. */
-  private get scheduleVisitContainers(): Locator {
-    return this.page.locator('[id^="ScheduleAVisit-FormInstance"]');
-  }
   /** Returns the success dialog modal locator or value. */
   private get successDialogModal(): Locator {
     return this.page.locator('.ReactModal__Content');
@@ -213,13 +199,34 @@ export class CommunityPage extends SearchablePage {
       )
       .last();
   }
-  /** Returns the lead form dialog or sidebar locator or value. */
+  /**
+   * Returns the lead form dialog or sidebar locator or value.
+   *
+   * Three filters, each earning its place:
+   * - visible: the page pre-renders hidden ModalForm/drawer shells that also
+   *   contain inputs, so an unfiltered set makes the "did the modal open?" count
+   *   check pass instantly and hands back a hidden container.
+   * - has a Submit button: what actually distinguishes a lead form from the
+   *   other dialogs on the page (the National-promotion overlay is a
+   *   full-screen role="dialog" with inputs, and used to match here).
+   * - not a promotion/notification overlay: belt and braces on the above.
+   */
   private get leadFormDialogOrSidebar(): Locator {
-    return this.page
-      .locator(
-        '#ModalForm, [id*="ModalForm"], .ReactModal__Content, [role="dialog"], aside, [class*="drawer" i], [class*="sidebar" i]',
-      )
-      .filter({ has: this.page.locator('form, input, select, textarea') });
+    return (
+      this.page
+        .locator(
+          '#ModalForm, [id*="ModalForm"], .ReactModal__Content, [role="dialog"], aside, [class*="drawer" i], [class*="sidebar" i]',
+        )
+        .filter({ visible: true })
+        .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+        // and(), not filter({ hasNot }): the aria-label sits on the overlay itself,
+        // and hasNot only inspects descendants.
+        .and(
+          this.page.locator(
+            ':not([aria-label*="promotion" i]):not([aria-label*="notification" i])',
+          ),
+        )
+    );
   }
 
   /* ==========================================================
@@ -230,7 +237,7 @@ export class CommunityPage extends SearchablePage {
   async verifySearchByCommunity(expectedCommunity: string): Promise<void> {
     await this.step(`Verify community search navigates to ${expectedCommunity}`, async () => {
       await this.waitForPageReady();
-      const { communityPath } = getLocationConfig();
+      const { communityPath } = this.location;
 
       if (communityPath) {
         await expect(
@@ -374,8 +381,8 @@ export class CommunityPage extends SearchablePage {
       return;
     }
 
-    await hoursCta.scrollIntoViewIfNeeded();
-    await hoursCta.click({ force: true });
+    await this.scrollIntoCenter(hoursCta);
+    await hoursCta.click();
     await this.waitForPageReady();
 
     const scheduleContext = this.page.locator('body');
@@ -385,6 +392,36 @@ export class CommunityPage extends SearchablePage {
     ).toContainText(/Open|Closed|Mon|Tue|Wed|Thu|Fri|Sat|Sun|\d{1,2}:\d{2}/i, {
       timeout: 10000,
     });
+
+    // Leave the page clean: the Hours panel stays open otherwise and covers the
+    // Directions / Schedule an Appointment CTAs validated next, so their clicks
+    // land on this dialog instead.
+    await this.closeOpenDialogIfPresent('Sales center hours');
+  }
+
+  /**
+   * Closes an open dialog so the next CTA validation starts from a clean page.
+   *
+   * Best-effort by design - a dialog that has already closed itself is fine.
+   */
+  private async closeOpenDialogIfPresent(label: string): Promise<void> {
+    const dialog = this.page.locator(`[role="dialog"][aria-label="${label}"]:visible`).first();
+
+    if (!(await dialog.count())) {
+      return;
+    }
+
+    const closeButton = dialog
+      .locator('button[aria-label*="close" i], button[class*="close" i]')
+      .first();
+
+    if (await closeButton.count()) {
+      await closeButton.click().catch(() => undefined);
+    } else {
+      await this.page.keyboard.press('Escape').catch(() => undefined);
+    }
+
+    await dialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => undefined);
   }
 
   /** Verifies the Directions CTA links to a maps/directions destination. */
@@ -409,8 +446,8 @@ export class CommunityPage extends SearchablePage {
       return;
     }
 
-    await directionsCta.scrollIntoViewIfNeeded();
-    await directionsCta.click({ force: true });
+    await this.scrollIntoCenter(directionsCta);
+    await directionsCta.click();
     await this.waitForPageReady();
     await expect(
       this.page.locator('body'),
@@ -441,14 +478,38 @@ export class CommunityPage extends SearchablePage {
       return;
     }
 
-    await scheduleCta.scrollIntoViewIfNeeded();
-    await scheduleCta.click({ force: true });
-    await this.waitForPageReady();
+    // Scoped to VISIBLE dialogs: the page keeps hidden dialogs in the DOM (the
+    // "Sales center hours" panel and the privacy dialogs), and an unfiltered
+    // locator resolves to the hidden hours panel - whose text is just opening
+    // times - so the assertion failed even though the scheduling modal did open.
+    const schedulingModal = this.page
+      .locator(
+        '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible',
+      )
+      .filter({ hasText: /Schedule|Appointment|Visit|Tour|First Name|Last Name|Email/i })
+      .first();
+
+    // The first click intermittently does not open the modal (nothing happens, no
+    // navigation, no error), so clicking once and asserting is flaky by
+    // construction. Re-click while the modal has not appeared; opening it twice is
+    // harmless, and a CTA that never opens it still fails below.
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await this.scrollIntoCenter(scheduleCta);
+      await scheduleCta.click();
+      await this.waitForPageReady();
+
+      if (await schedulingModal.isVisible({ timeout: 5000 }).catch(() => false)) {
+        break;
+      }
+
+      await this.reportValue(
+        `Schedule an Appointment modal did not open (attempt ${attempt}) - retrying`,
+        this.page.url(),
+      );
+    }
 
     await expect(
-      this.page.locator(
-        '#ModalForm, [id*="ModalForm"], .ReactModal__Content, [role="dialog"], form, body',
-      ),
+      schedulingModal,
       'Schedule an Appointment CTA should expose scheduling form/context',
     ).toContainText(/Schedule|Appointment|Visit|Tour|First Name|Last Name|Email/i, {
       timeout: 10000,
@@ -459,10 +520,18 @@ export class CommunityPage extends SearchablePage {
      FORM VALIDATION
   ========================================================== */
 
-  /** Returns the community forms locator or value. */
+  /**
+   * Selector fragment excluding anything rendered inside the side modal/dialog,
+   * so in-page form lookups cannot pick up the Get Information modal (or the
+   * National-promotion overlay) and shift what "primary"/"footer" mean.
+   */
+  private static readonly NOT_IN_DIALOG =
+    ':not([role="dialog"] *):not(.ReactModal__Content *):not([id*="ModalForm"] *)';
+
+  /** Returns the in-page community forms (never the side modal). */
   private get communityForms(): Locator {
     return this.page
-      .locator('form')
+      .locator(`form${CommunityPage.NOT_IN_DIALOG}`)
       .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
       .filter({ has: this.page.locator('input, select, textarea') });
   }
@@ -646,7 +715,10 @@ export class CommunityPage extends SearchablePage {
     }
   }
 
-  /** Returns the community form containers locator or value. */
+  /**
+   * Fallback in-page form containers for pages that render a lead form without a
+   * <form> tag. Same dialog exclusion as communityForms.
+   */
   private get communityFormContainers(): Locator {
     return this.page
       .locator(
@@ -656,38 +728,57 @@ export class CommunityPage extends SearchablePage {
           '#contact',
           'section',
           '[role="group"]',
-        ].join(', '),
+        ]
+          .map((selector) => `${selector}${CommunityPage.NOT_IN_DIALOG}`)
+          .join(', '),
       )
       .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
-  /** Returns form by index. */
-  private async getFormByIndex(formIndex: number): Promise<Locator | null> {
-    const formGroups =
-      (await this.communityForms.count()) > 0
-        ? [this.communityForms]
-        : [
-            this.leadFormDialogOrSidebar,
-            this.sitecoreCommunityForms,
-            this.contactForms,
-            this.scheduleVisitContainers,
-            this.communityFormContainers,
-          ];
+  /**
+   * The in-page lead forms, in DOM order.
+   *
+   * Deliberately excludes anything inside the side modal / dialog: the primary
+   * and footer forms are page content, and letting a dialog into this set is
+   * what used to make "the primary form" mean different elements on different
+   * runs. Prefers real <form> elements and falls back to the Sitecore /
+   * ScheduleAVisit / #contact wrappers for the pages that render a lead form
+   * without a <form> tag.
+   */
+  private async inPageForms(): Promise<Locator> {
+    const forms = this.communityForms;
 
-    let remainingIndex = formIndex;
+    return (await forms.count()) ? forms : this.communityFormContainers;
+  }
 
-    for (const forms of formGroups) {
-      const formCount = await forms.count();
+  /**
+   * The primary (top-most) in-page community form.
+   *
+   * Resolved by position within the in-page forms rather than by a global index,
+   * so a newly rendered dialog cannot shift what this refers to.
+   */
+  private async primaryForm(): Promise<Locator> {
+    return (await this.inPageForms()).first();
+  }
 
-      if (remainingIndex < formCount) {
-        return forms.nth(remainingIndex);
-      }
+  /**
+   * The footer community form: the second in-page lead form.
+   *
+   * Positional, but within a single homogeneous set (in-page lead forms, never
+   * dialogs) rather than counted across unrelated locator groups - the page can
+   * render further forms below it (newsletter-style, no validation), so `.last()`
+   * is not the same thing. Throws when the page has no second form rather than
+   * quietly re-validating the primary one.
+   */
+  private async footerForm(): Promise<Locator> {
+    const forms = await this.inPageForms();
 
-      remainingIndex -= formCount;
+    if ((await forms.count()) < 2) {
+      throw new Error('Footer community form not present - page rendered only one in-page form');
     }
 
-    return null;
+    return forms.nth(1);
   }
 
   /** Opens lead form from get information CTA if present. */
@@ -701,7 +792,7 @@ export class CommunityPage extends SearchablePage {
     const previousUrl = this.page.url();
 
     await cta.scrollIntoViewIfNeeded();
-    await cta.click({ force: true });
+    await cta.click();
     await this.waitForPageReady();
 
     await this.settle(1000);
@@ -711,50 +802,99 @@ export class CommunityPage extends SearchablePage {
     ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
-  /** Returns available form. */
+  /**
+   * Resolves a named in-page form and asserts it is usable.
+   *
+   * Always returns a form or throws - callers do not need a null check.
+   */
   private async getAvailableForm(
-    formIndex = 0,
-    formName = 'Community form',
-  ): Promise<Locator | null> {
-    let form = await this.getFormByIndex(formIndex);
+    resolveForm: () => Promise<Locator>,
+    formName: string,
+  ): Promise<Locator> {
+    await this.dismissPromoPopupIfPresent({ appearTimeout: 3000 });
 
-    if (!form) {
+    let form = await resolveForm();
+
+    if (!(await form.count())) {
+      // Some layouts only render the in-page form after the lead-form CTA runs.
       await this.openLeadFormFromGetInformationCtaIfPresent();
-      form = await this.getFormByIndex(formIndex);
+      form = await resolveForm();
     }
 
-    if (!form) {
-      throw new Error(`${formName} not present - expected form index ${formIndex} to be available`);
+    if (!(await form.count())) {
+      throw new Error(`${formName} not present on the community page`);
     }
 
-    const submitButton = form.getByRole('button', { name: /submit/i }).first();
+    // This scroll has a purpose (unlike the cosmetic ones removed elsewhere): the
+    // footer form sits ~10,000px down and only hydrates once it enters the
+    // viewport, so submitting without scrolling clicks a button whose React
+    // handler is not attached yet and silently does nothing.
+    await form.scrollIntoViewIfNeeded({ timeout: 10_000 });
+    await this.settle(1000);
 
-    if (!(await submitButton.count())) {
-      throw new Error(`${formName} submit button not present`);
+    await expect(
+      form.getByRole('button', { name: /submit/i }).first(),
+      `${formName} submit button should be visible`,
+    ).toBeVisible({ timeout: 10000 });
+
+    return form;
+  }
+
+  /**
+   * Clicks the Get Information / Stay Updated CTA that opens the side modal form.
+   *
+   * The side modal is only rendered as a result of that click, so a missing or
+   * unclickable CTA is a hard failure here rather than something the caller
+   * later reports as a form that "did not open". Skipped only when a side modal
+   * is already open (the locator is visible-filtered, so that is real).
+   */
+  private async openSideModalFromGetInformationCta(formName: string): Promise<void> {
+    if (await this.leadFormDialogOrSidebar.count()) {
+      return;
     }
 
-    await form.scrollIntoViewIfNeeded();
+    // The National-promotion overlay is a full-screen dialog that sits on top of
+    // the CTA and swallows the click. Dismiss it rather than clicking through it
+    // with force, so a genuinely unreachable CTA still fails.
+    await this.dismissPromoPopupIfPresent({ appearTimeout: 3000 });
+
+    const cta = await this.resolveGetInformationCta();
+
+    if (!cta) {
+      throw new Error(
+        `No Get Information / Stay Updated CTA found on the community page to open ${formName}`,
+      );
+    }
+
+    await expect(
+      cta,
+      `Get Information CTA should be visible before opening ${formName}`,
+    ).toBeVisible({ timeout: 15000 });
+
+    const previousUrl = this.page.url();
+
+    // No manual scroll and no force: click() auto-scrolls and runs the
+    // actionability checks, so a CTA covered by an overlay/banner fails here
+    // with a call log instead of silently "clicking" and breaking downstream.
+    await cta.click();
     await this.waitForPageReady();
+    await this.settle(1000);
 
-    if (
-      (await form.isVisible().catch(() => false)) ||
-      (await submitButton.isVisible().catch(() => false))
-    ) {
-      return form;
-    }
-
-    throw new Error(`${formName} not visible`);
+    expect(
+      this.page.url(),
+      `Community lead-form CTA should keep the flow on page, not redirect from ${previousUrl}`,
+    ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
   /** Returns available get information form. */
   private async getAvailableGetInformationForm(
     formName = 'Get Information community form',
   ): Promise<Locator | null> {
-    await this.openLeadFormFromGetInformationCtaIfPresent();
+    await this.openSideModalFromGetInformationCta(formName);
 
     const modalFormCount = await expect
       .poll(() => this.leadFormDialogOrSidebar.count(), {
-        message: `${formName} sidebar/modal should open after Get Information CTA`,
+        message: `${formName} sidebar/modal should be open after clicking the Get Information CTA`,
         timeout: 15000,
       })
       .toBeGreaterThan(0)
@@ -768,7 +908,6 @@ export class CommunityPage extends SearchablePage {
     const modalForm = this.leadFormDialogOrSidebar.first();
     const submitButton = modalForm.getByRole('button', { name: /submit/i }).first();
 
-    await modalForm.scrollIntoViewIfNeeded();
     await this.waitForPageReady();
 
     await expect(
@@ -777,11 +916,6 @@ export class CommunityPage extends SearchablePage {
     ).toBeVisible({ timeout: 10000 });
 
     return modalForm;
-  }
-
-  /** Expects a form field to be visible when present. */
-  private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
-    await expectFieldVisibleIfPresent(field, label);
   }
 
   /** Selects country of residence if present. */
@@ -796,7 +930,7 @@ export class CommunityPage extends SearchablePage {
       return;
     }
 
-    const preferredCountry = getLocationConfig().country === 'USA' ? 'United States' : 'Canada';
+    const preferredCountry = this.location.country === 'USA' ? 'United States' : 'Canada';
 
     const selectedPreferred = await countryOfResidence
       .selectOption({ label: preferredCountry })
@@ -830,13 +964,12 @@ export class CommunityPage extends SearchablePage {
   /** Verifies get information CTA opens lead form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
-      const cta =
-        (await this.resolveGetInformationCta()) ?? this.getInformationCtaCandidates.first();
-      await expect(cta, 'Get Information or Stay Updated CTA should be visible').toBeVisible({
-        timeout: 15000,
-      });
-
-      const form = await this.getAvailableGetInformationForm();
+      // The CTA visibility check and the click both live in
+      // getAvailableGetInformationForm - the side modal exists only after that
+      // click, so resolving the CTA twice here would just double the 15s poll.
+      const form = await this.getAvailableGetInformationForm(
+        'Get Information community sideModalForm',
+      );
 
       if (!form) {
         return;
@@ -848,9 +981,12 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Returns a visible form by index. */
-  private async viewFormByIndex(formIndex: number, formName: string): Promise<void> {
-    await this.getAvailableForm(formIndex, formName);
+  /** Resolves and asserts a named in-page form. */
+  private async viewNamedForm(
+    resolveForm: () => Promise<Locator>,
+    formName: string,
+  ): Promise<void> {
+    await this.getAvailableForm(resolveForm, formName);
   }
 
   /** Returns the visible sideModalForm by name. */
@@ -858,13 +994,12 @@ export class CommunityPage extends SearchablePage {
     await this.getAvailableGetInformationForm(formName);
   }
 
-  /** Validates empty form errors by index. */
-  private async validateEmptyFormErrorsByIndex(formIndex: number, formName: string): Promise<void> {
-    const form = await this.getAvailableForm(formIndex, formName);
-
-    if (!form) {
-      return;
-    }
+  /** Validates empty-form errors for a named in-page form. */
+  private async validateEmptyFormErrorsFor(
+    resolveForm: () => Promise<Locator>,
+    formName: string,
+  ): Promise<void> {
+    const form = await this.getAvailableForm(resolveForm, formName);
 
     await clickSubmit(this.page, form);
 
@@ -886,13 +1021,12 @@ export class CommunityPage extends SearchablePage {
     await expectRequiredErrorsInForm(form);
   }
 
-  /** Validates invalid email by index. */
-  private async validateInvalidEmailByIndex(formIndex: number, formName: string): Promise<void> {
-    const form = await this.getAvailableForm(formIndex, formName);
-
-    if (!form) {
-      return;
-    }
+  /** Validates the invalid-email error for a named in-page form. */
+  private async validateInvalidEmailFor(
+    resolveForm: () => Promise<Locator>,
+    formName: string,
+  ): Promise<void> {
+    const form = await this.getAvailableForm(resolveForm, formName);
 
     const invalid = getInvalidLeadData('community');
 
@@ -918,13 +1052,12 @@ export class CommunityPage extends SearchablePage {
     await expectInvalidEmailErrorInForm(form);
   }
 
-  /** Submits successful form by index. */
-  private async submitSuccessfulFormByIndex(formIndex: number, formName: string): Promise<void> {
-    const form = await this.getAvailableForm(formIndex, formName);
-
-    if (!form) {
-      return;
-    }
+  /** Submits a named in-page form successfully. */
+  private async submitSuccessfulFormFor(
+    resolveForm: () => Promise<Locator>,
+    formName: string,
+  ): Promise<void> {
+    const form = await this.getAvailableForm(resolveForm, formName);
 
     const valid = getValidLeadData('community');
 
@@ -964,14 +1097,14 @@ export class CommunityPage extends SearchablePage {
   /** Returns the visible primary form. */
   async viewPrimaryForm(): Promise<void> {
     await this.step('View primary community form', async () => {
-      await this.viewFormByIndex(0, 'Primary community form');
+      await this.viewNamedForm(() => this.primaryForm(), 'Primary community form');
     });
   }
 
   /** Returns the visible footer form. */
   async viewFooterForm(): Promise<void> {
     await this.step('View footer community form', async () => {
-      await this.viewFormByIndex(1, 'Footer community form');
+      await this.viewNamedForm(() => this.footerForm(), 'Footer community form');
     });
   }
 
@@ -990,14 +1123,14 @@ export class CommunityPage extends SearchablePage {
   /** Validates primary form empty errors. */
   async validatePrimaryFormEmptyErrors(): Promise<void> {
     await this.step('Validate primary form empty errors', async () => {
-      await this.validateEmptyFormErrorsByIndex(0, 'Primary community form');
+      await this.validateEmptyFormErrorsFor(() => this.primaryForm(), 'Primary community form');
     });
   }
 
   /** Validates footer form empty errors. */
   async validateFooterFormEmptyErrors(): Promise<void> {
     await this.step('Validate footer form empty errors', async () => {
-      await this.validateEmptyFormErrorsByIndex(1, 'Footer community form');
+      await this.validateEmptyFormErrorsFor(() => this.footerForm(), 'Footer community form');
     });
   }
 
@@ -1031,14 +1164,14 @@ export class CommunityPage extends SearchablePage {
   /** Validates primary form invalid email. */
   async validatePrimaryFormInvalidEmail(): Promise<void> {
     await this.step('Validate primary form invalid email', async () => {
-      await this.validateInvalidEmailByIndex(0, 'Primary community form');
+      await this.validateInvalidEmailFor(() => this.primaryForm(), 'Primary community form');
     });
   }
 
   /** Validates footer form invalid email. */
   async validateFooterFormInvalidEmail(): Promise<void> {
     await this.step('Validate footer form invalid email', async () => {
-      await this.validateInvalidEmailByIndex(1, 'Footer community form');
+      await this.validateInvalidEmailFor(() => this.footerForm(), 'Footer community form');
     });
   }
 
@@ -1052,14 +1185,14 @@ export class CommunityPage extends SearchablePage {
   /** Verifies primary form success submission. */
   async verifyPrimaryFormSuccessSubmission(): Promise<void> {
     await this.step('Submit primary community form successfully', async () => {
-      await this.submitSuccessfulFormByIndex(0, 'Primary community form');
+      await this.submitSuccessfulFormFor(() => this.primaryForm(), 'Primary community form');
     });
   }
 
   /** Verifies footer form success submission. */
   async verifyFooterFormSuccessSubmission(): Promise<void> {
     await this.step('Submit footer community form successfully', async () => {
-      await this.submitSuccessfulFormByIndex(1, 'Footer community form');
+      await this.submitSuccessfulFormFor(() => this.footerForm(), 'Footer community form');
     });
   }
 

@@ -17,7 +17,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
     communityPage = new CommunityPage(page);
 
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: location.country,
       feature: 'Community Detail Page',
       owner: 'QA Automation',
       severity: Severity.CRITICAL,
@@ -33,19 +33,19 @@ test.describe(`Community Detail - ${location.community}`, () => {
        UI VALIDATION
     ========================================================== */
   test.describe('UI Validation', () => {
-    test('TC-01 | @smoke @regression | Validate community core sections', async () => {
+    test(`@smoke @regression | ${location.country} | Validate community core sections`, async () => {
       await test.step('Validate community core sections', async () => {
         await communityPage.verifyCoreSections();
       });
     });
 
-    test('TC-02 | @regression | Validate overview copy, address, market details, and key attributes', async () => {
+    test(`@regression | ${location.country} | Validate overview copy, address, market details, and key attributes`, async () => {
       await test.step('Validate overview copy, address, market details, and key attributes', async () => {
         await communityPage.verifyOverviewAddressMarketAndAttributes(location.community);
       });
     });
 
-    test('TC-03 | @regression | Validate QMI card community name matches current community', async () => {
+    test(`@regression | ${location.country} | Validate QMI card community name matches current community`, async () => {
       await test.step('Validate QMI card community name matches current community', async () => {
         await communityPage.verifyQmiCardCommunityNameMatchesCurrentCommunity(location.community);
       });
@@ -56,25 +56,25 @@ test.describe(`Community Detail - ${location.community}`, () => {
        NAVIGATION VALIDATION
     ========================================================== */
   test.describe('Navigation Validation', () => {
-    test('TC-01 | @regression | Validate all navigation links', async () => {
+    test(`@regression | ${location.country} | Validate all navigation links`, async () => {
       await test.step('Validate all navigation links', async () => {
         await communityPage.verifyAllNavigationLinks();
       });
     });
 
-    test('TC-02 | @smoke @regression | Validate available homes navigation', async () => {
+    test(`@smoke @regression | ${location.country} | Validate available homes navigation`, async () => {
       await test.step('Validate available homes navigation', async () => {
         await communityPage.verifyAvailableHomesNavigation();
       });
     });
 
-    test('TC-03 | @smoke @regression | Validate plans navigation', async () => {
+    test(`@smoke @regression | ${location.country} | Validate plans navigation`, async () => {
       await test.step('Validate plans navigation', async () => {
         await communityPage.verifyPlansNavigation();
       });
     });
 
-    test('TC-04 | @regression | Validate contact action CTAs when available', async () => {
+    test(`@regression | ${location.country} | Validate contact action CTAs when available`, async () => {
       await test.step('Validate Hours, Directions, and Schedule Appointment CTAs when available', async () => {
         await communityPage.verifyContactActionCtasIfAvailable();
       });
@@ -87,25 +87,25 @@ test.describe(`Community Detail - ${location.community}`, () => {
 
   test.describe('Lead Form', () => {
     test.describe('Get Information Form Validation', () => {
-      test('TC-01 | @smoke @regression | Validate Get Information CTA opens community sideModalForm', async () => {
+      test(`@smoke @regression | ${location.country} | Validate Get Information CTA opens community sideModalForm`, async () => {
         await test.step('Validate Get Information CTA opens community sideModalForm', async () => {
           await communityPage.verifyGetInformationCtaOpensLeadForm();
         });
       });
 
-      test('TC-02 | @smoke @regression | Validate community sideModalForm fields', async () => {
+      test(`@smoke @regression | ${location.country} | Validate community sideModalForm fields`, async () => {
         await test.step('Validate community sideModalForm fields', async () => {
           await communityPage.verifySideModalFormFields();
         });
       });
 
-      test('TC-03 | @regression | Validate community sideModalForm required field errors', async () => {
+      test(`@regression | ${location.country} | Validate community sideModalForm required field errors`, async () => {
         await test.step('Validate community sideModalForm required field errors', async () => {
           await communityPage.validateSideModalFormRequiredErrors();
         });
       });
 
-      test('TC-04 | @regression | Validate community sideModalForm invalid email format', async () => {
+      test(`@regression | ${location.country} | Validate community sideModalForm invalid email format`, async () => {
         await test.step('Validate community sideModalForm invalid email format', async () => {
           await communityPage.validateSideModalFormInvalidEmail();
         });
@@ -117,7 +117,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
           'Skipping Get Information form lead submission on PROD environment.',
         );
 
-        test('TC-01 | @regression @STAGE | Validate community sideModalForm successful submission', async () => {
+        test(`@regression @STAGE | ${location.country} | Validate community sideModalForm successful submission`, async () => {
           await test.step('Validate community sideModalForm successful submission', async () => {
             await communityPage.verifySideModalFormSuccessSubmission();
           });
@@ -126,13 +126,13 @@ test.describe(`Community Detail - ${location.community}`, () => {
     });
 
     test.describe('Primary Form Validation', () => {
-      test('TC-01 | @smoke @regression | Validate primary form required field errors', async () => {
+      test(`@smoke @regression | ${location.country} | Validate primary form required field errors`, async () => {
         await test.step('Validate primary form required field errors', async () => {
           await communityPage.validatePrimaryFormEmptyErrors();
         });
       });
 
-      test('TC-02 | @regression | Validate primary form invalid email format', async () => {
+      test(`@regression | ${location.country} | Validate primary form invalid email format`, async () => {
         await test.step('Validate primary form invalid email format', async () => {
           await communityPage.validatePrimaryFormInvalidEmail();
         });
@@ -141,7 +141,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
       test.describe('Primary form submission', () => {
         test.skip(envName === 'PROD', 'Skipping primary form lead submission on PROD environment.');
 
-        test('TC-01 | @regression @STAGE | Validate primary form successful submission', async () => {
+        test(`@regression @STAGE | ${location.country} | Validate primary form successful submission`, async () => {
           await test.step('Validate primary form successful submission', async () => {
             await communityPage.verifyPrimaryFormSuccessSubmission();
           });
@@ -150,13 +150,13 @@ test.describe(`Community Detail - ${location.community}`, () => {
     });
 
     test.describe('Footer Form Validation', () => {
-      test('TC-01 | @smoke @regression | Validate footer form required field errors', async () => {
+      test(`@smoke @regression | ${location.country} | Validate footer form required field errors`, async () => {
         await test.step('Validate footer form required field errors', async () => {
           await communityPage.validateFooterFormEmptyErrors();
         });
       });
 
-      test('TC-02 | @regression | Validate footer form invalid email format', async () => {
+      test(`@regression | ${location.country} | Validate footer form invalid email format`, async () => {
         await test.step('Validate footer form invalid email format', async () => {
           await communityPage.validateFooterFormInvalidEmail();
         });
@@ -165,7 +165,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
       test.describe('Footer form submission', () => {
         test.skip(envName === 'PROD', 'Skipping footer form lead submission on PROD environment.');
 
-        test('TC-01 | @regression @STAGE | Validate footer form successful submission', async () => {
+        test(`@regression @STAGE | ${location.country} | Validate footer form successful submission`, async () => {
           await test.step('Validate footer form successful submission', async () => {
             await communityPage.verifyFooterFormSuccessSubmission();
           });
@@ -175,7 +175,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
   });
 
   test.describe('Media Validation', () => {
-    test('TC-01 | @regression | Validate community page image and video URLs return 200', async () => {
+    test(`@regression | ${location.country} | Validate community page image and video URLs return 200`, async () => {
       await test.step('Validate community page image and video URLs return 200', async () => {
         await communityPage.validateImageAndVideoUrlsReturn200('Community page');
       });

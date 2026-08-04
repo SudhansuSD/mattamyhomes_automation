@@ -4,7 +4,7 @@
  * cross-page save -> view -> remove workflow.
  */
 
-import { test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { getLocationConfig, getLocationKey } from '../config/locations/locationConfig';
 import { FavoritesPage } from '../pages/FavoritesPage';
 import { SearchPage } from '../pages/SearchPage';
@@ -19,7 +19,7 @@ test.describe(`Favorites Page - ${location.country}`, () => {
   test.beforeEach(async ({ page }) => {
     favoritesPage = new FavoritesPage(page);
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: location.country,
       feature: 'Favorites',
       owner: 'QA Automation',
       severity: Severity.NORMAL,
@@ -27,7 +27,7 @@ test.describe(`Favorites Page - ${location.country}`, () => {
     });
   });
 
-  test('TC-01 | @smoke @regression | Favorites page should load with a valid shell', async () => {
+  test(`@smoke @regression | ${location.country} | Favorites page should load with a valid shell`, async () => {
     await test.step('Navigate to Favorites', async () => {
       await favoritesPage.navigateToFavorites(locationKey);
     });
@@ -39,7 +39,7 @@ test.describe(`Favorites Page - ${location.country}`, () => {
     });
   });
 
-  test('TC-02 | @regression | Favorites page should show an empty state with no saved homes', async ({
+  test(`@regression | ${location.country} | Favorites page should show an empty state with no saved homes`, async ({
     page,
   }) => {
     await test.step('Clear any previously saved favorites', async () => {
@@ -64,7 +64,7 @@ test.describe(`Favorites Page - ${location.country}`, () => {
     });
   });
 
-  test('TC-03 | @regression | Saving a home from search should surface it on Favorites', async ({
+  test(`@regression | ${location.country} | Saving a home from search should surface it on Favorites`, async ({
     page,
   }) => {
     const searchPage = new SearchPage(page);
@@ -78,7 +78,10 @@ test.describe(`Favorites Page - ${location.country}`, () => {
       saved = await favoritesPage.saveFirstVisibleHome();
     });
 
-    test.skip(!saved, 'No favorite/heart control was found on the search result cards.');
+    // Assert rather than skip: search cards DO expose a "Mark as favorite" control,
+    // so its absence is a real regression. Skipping here turned that into a silent
+    // pass and hid the fact that nothing was ever being saved.
+    expect(saved, 'Search result cards should expose a favorite control to save a home').toBe(true);
 
     await test.step('Open the Favorites page', async () => {
       await favoritesPage.navigateToFavorites(locationKey);

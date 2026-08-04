@@ -1,4 +1,4 @@
-import { Locator, expect } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
 import {
   escapeRegex,
   getMediaSource,
@@ -50,6 +50,13 @@ const FORM_CONTAINER_SELECTOR = [
 ].join(', ');
 
 export class CondoCommunityPage extends SearchablePage {
+  /** Initializes this page object, pinned to the Canada-only condo experience. */
+  constructor(page: Page) {
+    // Condo communities exist only in Canada, so this page always runs against
+    // the Canadian site regardless of the LOCATION the run started with.
+    super(page, 'CAN');
+  }
+
   /* ==========================================================
      Page Locators
   ========================================================== */
@@ -343,7 +350,7 @@ export class CondoCommunityPage extends SearchablePage {
         return;
       }
 
-      await this.galleryModalOpenButton.click({ force: true });
+      await this.galleryModalOpenButton.click();
 
       if (!(await isLocatorVisible(this.galleryModal, 5000))) {
         await this.reportValue(
@@ -597,7 +604,7 @@ export class CondoCommunityPage extends SearchablePage {
 
       await cta.scrollIntoViewIfNeeded();
       let didClick = await cta
-        .click({ force: true })
+        .click()
         .then(() => true)
         .catch(() => false);
 
@@ -669,7 +676,7 @@ export class CondoCommunityPage extends SearchablePage {
     const initialMediaKey = await this.getVisibleGalleryModalMediaKey();
 
     if (await isLocatorVisible(nextButton, 3000)) {
-      await nextButton.click({ force: true });
+      await nextButton.click();
       await expect(
         this.galleryModal.locator('img, video, iframe, picture').first(),
         'Gallery modal media should remain visible after next',
@@ -683,7 +690,7 @@ export class CondoCommunityPage extends SearchablePage {
     }
 
     if (await isLocatorVisible(previousButton, 3000)) {
-      await previousButton.click({ force: true });
+      await previousButton.click();
       await expect(
         this.galleryModal.locator('img, video, iframe, picture').first(),
         'Gallery modal media should remain visible after previous',
@@ -701,7 +708,7 @@ export class CondoCommunityPage extends SearchablePage {
     const initialMediaKey = await this.getVisibleInPageGalleryMediaKey();
 
     if (await isLocatorVisible(this.galleryNextButton, 3000)) {
-      await this.galleryNextButton.click({ force: true });
+      await this.galleryNextButton.click();
       await expect(
         this.gallerySection.locator('img').first(),
         'Gallery media should remain visible after next',
@@ -709,7 +716,7 @@ export class CondoCommunityPage extends SearchablePage {
     }
 
     if (await isLocatorVisible(this.galleryPreviousButton, 3000)) {
-      await this.galleryPreviousButton.click({ force: true });
+      await this.galleryPreviousButton.click();
       await expect(
         this.gallerySection.locator('img').first(),
         'Gallery media should remain visible after previous',
@@ -725,7 +732,7 @@ export class CondoCommunityPage extends SearchablePage {
   /** Helper: close the gallery modal with its close button or Escape fallback. */
   private async closeGalleryModal(): Promise<void> {
     if (await isLocatorVisible(this.galleryModalCloseButton, 3000)) {
-      await this.galleryModalCloseButton.click({ force: true });
+      await this.galleryModalCloseButton.click();
     } else {
       await this.page.keyboard.press('Escape');
     }

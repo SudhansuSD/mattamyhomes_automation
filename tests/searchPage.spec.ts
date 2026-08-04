@@ -22,7 +22,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
   test.beforeEach(async ({ page }) => {
     searchPage = new SearchPage(page);
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: location.country,
       feature: 'Search Page',
       owner: 'QA Automation',
       severity: Severity.CRITICAL,
@@ -37,31 +37,31 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
      Default Search Tests
   -------------------------------------------------------- */
   test.describe('Default Search Tests', () => {
-    test('TC-01 | @smoke @regression | Verify community results functionality', async () => {
+    test(`@smoke @regression | ${location.country} | Verify community results functionality`, async () => {
       await test.step('Verify community results functionality', async () => {
         await searchPage.verifyResults('Communities');
       });
     });
 
-    test('TC-02 | @regression | Verify plan results functionality', async () => {
+    test(`@regression | ${location.country} | Verify plan results functionality`, async () => {
       await test.step('Verify plan results functionality', async () => {
         await searchPage.verifyResults('Plans');
       });
     });
 
-    test('TC-03 | @regression | Verify QMI results functionality', async () => {
+    test(`@regression | ${location.country} | Verify QMI results functionality`, async () => {
       await test.step('Verify QMI results functionality', async () => {
         await searchPage.verifyResults('Quick Move-Ins');
       });
     });
 
-    test('TC-04 | @regression | Verify search result cards display required details', async () => {
+    test(`@regression | ${location.country} | Verify search result cards display required details`, async () => {
       await test.step('Verify search result cards display required details', async () => {
         await searchPage.validateAllResultCardsRequiredDetails();
       });
     });
 
-    test('TC-05 | @regression | Verify result card CTAs navigate to correct detail pages', async () => {
+    test(`@regression | ${location.country} | Verify result card CTAs navigate to correct detail pages`, async () => {
       await test.step('Verify result card CTAs navigate to correct detail pages', async () => {
         await searchPage.validateAllResultCardCtaNavigation();
       });
@@ -73,7 +73,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
   -------------------------------------------------------- */
 
   test.describe('Filter Tests', () => {
-    test('TC-01 | @regression | Verify filter by price functionality', async () => {
+    test(`@regression | ${location.country} | Verify filter by price functionality`, async () => {
       await test.step('Filter by price range', async () => {
         await searchPage.filterByPrice(400000, 500000);
       });
@@ -82,7 +82,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
       });
     });
 
-    test('TC-02 | @regression | Validate filter by beds and bathrooms functionality', async () => {
+    test(`@regression | ${location.country} | Validate filter by beds and bathrooms functionality`, async () => {
       await test.step('Filter by bedrooms and bathrooms', async () => {
         await searchPage.filterByBedroomsAndBathrooms(3, 3);
       });
@@ -91,25 +91,25 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
       });
     });
 
-    test('TC-03 | @regression | Verify Clear Reset filters behavior', async () => {
+    test(`@regression | ${location.country} | Verify Clear Reset filters behavior`, async () => {
       await test.step('Verify Clear Reset filters behavior', async () => {
         await searchPage.validateClearResetFiltersBehavior();
       });
     });
 
-    test('TC-04 | @regression | Verify no-results state for unavailable search criteria', async () => {
+    test(`@regression | ${location.country} | Verify no-results state for unavailable search criteria`, async () => {
       await test.step('Verify no-results state for unavailable search criteria', async () => {
         await searchPage.validateNoResultsState();
       });
     });
 
-    test('TC-05 | @regression | Verify combined filters persist in URL state after reload', async () => {
+    test(`@regression | ${location.country} | Verify combined filters persist in URL state after reload`, async () => {
       await test.step('Verify combined filters persist in URL state after reload', async () => {
         await searchPage.validateCombinedFiltersPersistInUrlState(400000, 500000, 3, 2);
       });
     });
 
-    test('TC-06 | @regression | Verify browser back and forward restore filter state', async () => {
+    test(`@regression | ${location.country} | Verify browser back and forward restore filter state`, async () => {
       await test.step('Verify browser back and forward restore filter state', async () => {
         await searchPage.validateFilterBrowserHistoryNavigation(400000, 500000);
       });
@@ -121,7 +121,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
   -------------------------------------------------------- */
 
   test.describe('Sorting Validation Tests', () => {
-    test('TC-01 | @regression | Validate community sorting options', async () => {
+    test(`@regression | ${location.country} | Validate community sorting options`, async () => {
       await test.step('Validate community sort options', async () => {
         await searchPage.validateCommunitySortOptions();
       });
@@ -129,7 +129,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
         await searchPage.validateSortingBehavior('Communities');
       });
     });
-    test('TC-02 | @regression | Validate Plan sorting options', async () => {
+    test(`@regression | ${location.country} | Validate Plan sorting options`, async () => {
       await test.step('Validate plan sort options', async () => {
         await searchPage.validatePlanSortOptions();
       });
@@ -138,7 +138,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
       });
     });
 
-    test('TC-03 | @regression | Validate QMI sorting options', async () => {
+    test(`@regression | ${location.country} | Validate QMI sorting options`, async () => {
       await test.step('Validate QMI sort options', async () => {
         await searchPage.validateQMISortOptions();
       });
@@ -153,7 +153,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
   -------------------------------------------------------- */
 
   test.describe('Savings Calculator', () => {
-    test('TC-01 | @regression | Validate savings calculator sidebar', async () => {
+    test(`@regression | ${location.country} | Validate savings calculator sidebar`, async () => {
       await test.step('Validate savings calculator sidebar', async () => {
         await searchPage.validateSavingsCalculatorSidebar();
       });

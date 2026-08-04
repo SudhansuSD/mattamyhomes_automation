@@ -19,7 +19,7 @@ test.describe(`Homebuying Pages - ${location.country}`, () => {
   test.beforeEach(async ({ page }) => {
     homebuyingPage = new HomebuyingPage(page);
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: location.country,
       feature: 'Homebuying',
       owner: 'QA Automation',
       severity: Severity.NORMAL,
@@ -37,7 +37,7 @@ test.describe(`Homebuying Pages - ${location.country}`, () => {
       );
     });
 
-    test('TC-01 | @smoke @regression | Homebuying Journey page should load with valid shell and content', async () => {
+    test(`@smoke @regression | ${location.country} | Homebuying Journey page should load with valid shell and content`, async () => {
       await test.step(`Navigate to ${expectation.name}`, async () => {
         await homebuyingPage.navigateToHomebuyingPage(expectation, locationKey);
       });
@@ -63,7 +63,7 @@ test.describe(`Homebuying Pages - ${location.country}`, () => {
       });
     });
 
-    test('TC-01 | @smoke @regression | Financing page should load with valid shell and content', async () => {
+    test(`@smoke @regression | ${location.country} | Financing page should load with valid shell and content`, async () => {
       await test.step('Validate page shell', async () => {
         await homebuyingPage.validatePageShell(expectation);
       });
@@ -72,7 +72,7 @@ test.describe(`Homebuying Pages - ${location.country}`, () => {
       });
     });
 
-    test('TC-02 | @regression | Mortgage Calculator CTA should open the ABA disclosure modal', async () => {
+    test(`@regression | ${location.country} | Mortgage Calculator CTA should open the ABA disclosure modal`, async () => {
       await test.step('Validate mortgage calculator disclosure modal', async () => {
         await homebuyingPage.validateMortgageCalculatorModal();
       });
@@ -94,7 +94,7 @@ test.describe(`Homebuying Pages - ${location.country}`, () => {
       });
     });
 
-    test('TC-01 | @smoke @regression | Shopping Tools page should load with valid shell and content', async () => {
+    test(`@smoke @regression | ${location.country} | Shopping Tools page should load with valid shell and content`, async () => {
       await test.step('Validate page shell', async () => {
         await homebuyingPage.validatePageShell(expectation);
       });
@@ -103,13 +103,13 @@ test.describe(`Homebuying Pages - ${location.country}`, () => {
       });
     });
 
-    test('TC-02 | @regression | Savings calculator should display a savings value', async () => {
+    test(`@regression | ${location.country} | Savings calculator should display a savings value`, async () => {
       await test.step('Validate savings calculator', async () => {
         await homebuyingPage.validateSavingsCalculator();
       });
     });
 
-    test('TC-03 | @regression | Shopping Tools form should enforce required-field validation', async () => {
+    test(`@regression | ${location.country} | Shopping Tools form should enforce required-field validation`, async () => {
       await test.step('Validate form required-field validation', async () => {
         await homebuyingPage.validateFormRequiredValidation();
       });

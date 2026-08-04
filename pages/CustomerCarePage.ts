@@ -32,26 +32,48 @@ export const CUSTOMER_CARE_COUNTRIES: readonly CustomerCareCountryConfig[] = [
     expectedHeading: /^Customer Care$/i,
     heroCopy: /Mattamy Homes strives to provide the best homeowner experience/i,
     areas: [
-      { name: 'CHARLOTTE, NC', expectedDetails: ['Customer Care for the Charlotte, NC Area', 'Charlotte Customer Care'] },
+      {
+        name: 'CHARLOTTE, NC',
+        expectedDetails: ['Customer Care for the Charlotte, NC Area', 'Charlotte Customer Care'],
+      },
       { name: 'CLOVER, SC', expectedDetails: ['Customer Care for the Clover, SC Area'] },
-      { name: 'DALLAS-FORT WORTH, TX', expectedDetails: ['Customer Care for the Dallas-Fort Worth, TX Area'] },
-      { name: 'FORT LAUDERDALE, FL', expectedDetails: ['Customer Care for the Fort Lauderdale, FL Area'] },
-      { name: 'JACKSONVILLE-ST. AUGUSTINE, FL', expectedDetails: ['Customer Care for the Jacksonville-St. Augustine, FL Area'] },
-      { name: 'NAPLES-FORT MYERS, FL', expectedDetails: ['Customer Care for the Naples-Fort Myers, FL Area'] },
+      {
+        name: 'DALLAS-FORT WORTH, TX',
+        expectedDetails: ['Customer Care for the Dallas-Fort Worth, TX Area'],
+      },
+      {
+        name: 'FORT LAUDERDALE, FL',
+        expectedDetails: ['Customer Care for the Fort Lauderdale, FL Area'],
+      },
+      {
+        name: 'JACKSONVILLE-ST. AUGUSTINE, FL',
+        expectedDetails: ['Customer Care for the Jacksonville-St. Augustine, FL Area'],
+      },
+      {
+        name: 'NAPLES-FORT MYERS, FL',
+        expectedDetails: ['Customer Care for the Naples-Fort Myers, FL Area'],
+      },
       { name: 'ORLANDO, FL', expectedDetails: ['Customer Care for the Orlando, FL Area'] },
       { name: 'PALM BEACH, FL', expectedDetails: ['Customer Care for the Palm Beach, FL Area'] },
-      { name: 'PALM CITY-STUART, FL', expectedDetails: ['Customer Care for the Palm City-Stuart, FL Area'] },
+      {
+        name: 'PALM CITY-STUART, FL',
+        expectedDetails: ['Customer Care for the Palm City-Stuart, FL Area'],
+      },
       { name: 'PHOENIX, AZ', expectedDetails: ['Customer Care for the Phoenix, AZ Area'] },
-      { name: 'PORT ST. LUCIE, FL', expectedDetails: ['Customer Care for the Port St. Lucie, FL Area'] },
+      {
+        name: 'PORT ST. LUCIE, FL',
+        expectedDetails: ['Customer Care for the Port St. Lucie, FL Area'],
+      },
       { name: 'RALEIGH, NC', expectedDetails: ['Customer Care for the Raleigh, NC Area'] },
       { name: 'ROCK HILL, SC', expectedDetails: ['Customer Care for the Rock Hill, SC Area'] },
-      { name: 'SARASOTA-BRADENTON, FL', expectedDetails: ['Customer Care for the Sarasota-Bradenton, FL Area'] },
+      {
+        name: 'SARASOTA, FL',
+        expectedDetails: ['Customer Care for the Sarasota-Bradenton, FL Area'],
+      },
       { name: 'TAMPA, FL', expectedDetails: ['Customer Care for the Tampa, FL Area'] },
-      { name: 'TUCSON, AZ', expectedDetails: ['Customer Care for the Tucson, AZ Area'] }
+      { name: 'TUCSON, AZ', expectedDetails: ['Customer Care for the Tucson, AZ Area'] },
     ],
-    resourceLinks: [
-      { name: 'Warranty Manual PDF', hrefContains: 'warranty-manual' }
-    ]
+    resourceLinks: [{ name: 'Warranty Manual PDF', hrefContains: 'warranty-manual' }],
   },
   {
     locationKey: 'CAN',
@@ -60,24 +82,49 @@ export const CUSTOMER_CARE_COUNTRIES: readonly CustomerCareCountryConfig[] = [
     expectedHeading: /^Homeowner Support$/i,
     heroCopy: /Providing you with the support you need 24\/7/i,
     areas: [
-      { name: 'CALGARY, AB', expectedDetails: ['Customer Care for the Calgary, AB Area', 'Carrington Customer Care', 'Carrington Warranty'] },
+      {
+        name: 'CALGARY, AB',
+        expectedDetails: [
+          'Customer Care for the Calgary, AB Area',
+          'Carrington Customer Care',
+          'Carrington Warranty',
+        ],
+      },
       { name: 'EDMONTON, AB', expectedDetails: ['Customer Care for the Edmonton, AB Area'] },
-      { name: 'GREATER TORONTO AREA, ON', expectedDetails: ['Customer Care for the Greater Toronto Area, ON Area'] },
-      { name: 'KITCHENER-WATERLOO-GUELPH, ON', expectedDetails: ['Customer Care for the Kitchener-Waterloo-Guelph, ON Area'] },
+      {
+        name: 'GREATER TORONTO AREA, ON',
+        expectedDetails: ['Customer Care for the Greater Toronto Area, ON Area'],
+      },
+      {
+        name: 'KITCHENER-WATERLOO-GUELPH, ON',
+        expectedDetails: ['Customer Care for the Kitchener-Waterloo-Guelph, ON Area'],
+      },
       { name: 'OTTAWA, ON', expectedDetails: ['Customer Care for the Ottawa, ON Area'] },
-      { name: 'SIMCOE, ON', expectedDetails: ['Customer Care for the Simcoe, ON Area'] }
+      { name: 'SIMCOE, ON', expectedDetails: ['Customer Care for the Simcoe, ON Area'] },
     ],
     resourceLinks: [
       { name: 'Alberta', hrefContains: '/customer-care/alberta-warranty' },
       { name: 'Ontario', hrefContains: '/customer-care/ontario-warranty' },
       { name: 'Go To After Hours Support', hrefContains: '/customer-care/after-hours-support' },
       { name: 'Watch Videos', hrefContains: '/customer-care/caring-for-your-home' },
-      { name: 'Seasonal Checklist - Spring Download PDF', hrefContains: 'seasonalchecklist-spring-pdf' },
-      { name: 'Seasonal Checklist - Summer Download PDF', hrefContains: 'seasonalchecklist-summer-pdf' },
-      { name: 'Seasonal Checklist - Fall Download PDF', hrefContains: 'seasonalchecklist-fall-pdf' },
-      { name: 'Seasonal Checklist - Winter Download PDF', hrefContains: 'seasonalchecklist-winter-pdf' }
-    ]
-  }
+      {
+        name: 'Seasonal Checklist - Spring Download PDF',
+        hrefContains: 'seasonalchecklist-spring-pdf',
+      },
+      {
+        name: 'Seasonal Checklist - Summer Download PDF',
+        hrefContains: 'seasonalchecklist-summer-pdf',
+      },
+      {
+        name: 'Seasonal Checklist - Fall Download PDF',
+        hrefContains: 'seasonalchecklist-fall-pdf',
+      },
+      {
+        name: 'Seasonal Checklist - Winter Download PDF',
+        hrefContains: 'seasonalchecklist-winter-pdf',
+      },
+    ],
+  },
 ] as const;
 
 type ServiceRequestField = {
@@ -95,7 +142,7 @@ const REQUIRED_SERVICE_REQUEST_FIELDS: readonly ServiceRequestField[] = [
   { label: 'Phone number', selector: 'input[aria-label^="Phone number*"]' },
   { label: 'Market', selector: 'select[aria-label^="Market *"]' },
   { label: 'Community', selector: 'input[aria-label^="Community *"]' },
-  { label: 'Service request', selector: 'textarea[aria-label^="Service request*"]' }
+  { label: 'Service request', selector: 'textarea[aria-label^="Service request*"]' },
 ] as const;
 
 export class CustomerCarePage extends BasePage {
@@ -116,7 +163,9 @@ export class CustomerCarePage extends BasePage {
     this.countrySelectorButton = page.locator('button[aria-label^="Select your country."]').first();
     this.areaHeading = this.main.getByRole('heading', { name: /Please Select Your Area/i }).first();
     this.serviceRequestForm = this.main.locator('form').first();
-    this.serviceRequestSection = this.serviceRequestForm.locator('xpath=ancestor::*[self::section or self::div][1]');
+    this.serviceRequestSection = this.serviceRequestForm.locator(
+      'xpath=ancestor::*[self::section or self::div][1]',
+    );
     this.submitButton = this.main.getByRole('button', { name: /^SUBMIT$/i });
   }
 
@@ -135,22 +184,40 @@ export class CustomerCarePage extends BasePage {
 
       await this.page.goto(targetUrl, {
         waitUntil: 'domcontentloaded',
-        timeout: 90_000
+        timeout: 90_000,
       });
 
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 
   /** Verifies page loaded. */
   async verifyPageLoaded(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Verify Customer Care page loaded (${config.locationKey})`, async () => {
-      await this.assertPageTitle(config.expectedTitle, `${config.locationKey} Customer Care page title should match`);
-      await this.assertPageUrl(/\/customer-care/i, `${config.locationKey} Customer Care page URL should match`);
-      await this.assertVisible(this.heading, 'Customer Care page heading should be visible', 15_000);
-      await this.assertText(this.heading, config.expectedHeading, 'Customer Care heading should match configured country');
-      await this.assertVisible(this.main.getByText(config.heroCopy), 'Customer Care hero copy should be visible');
+      await this.assertPageTitle(
+        config.expectedTitle,
+        `${config.locationKey} Customer Care page title should match`,
+      );
+      await this.assertPageUrl(
+        /\/customer-care/i,
+        `${config.locationKey} Customer Care page URL should match`,
+      );
+      await this.assertVisible(
+        this.heading,
+        'Customer Care page heading should be visible',
+        15_000,
+      );
+      await this.assertText(
+        this.heading,
+        config.expectedHeading,
+        'Customer Care heading should match configured country',
+      );
+      await this.assertVisible(
+        this.main.getByText(config.heroCopy),
+        'Customer Care hero copy should be visible',
+      );
       await this.assertVisible(this.areaHeading, 'Customer Care area heading should be visible');
 
       const selectedCountry = config.locationKey === 'USA' ? 'USA' : 'Canada';
@@ -158,7 +225,7 @@ export class CustomerCarePage extends BasePage {
         this.countrySelectorButton,
         'aria-label',
         new RegExp(`${escapeRegex(selectedCountry)} country is selected`, 'i'),
-        `${selectedCountry} should be selected in Customer Care country selector`
+        `${selectedCountry} should be selected in Customer Care country selector`,
       );
     });
   }
@@ -168,11 +235,15 @@ export class CustomerCarePage extends BasePage {
     await this.step(`Validate Customer Care area list (${config.locationKey})`, async () => {
       const areaButtons = this.getAreaButtons();
 
-      await this.assertVisible(areaButtons.first(), `${config.locationKey} customer care areas should render`, 15_000);
+      await this.assertVisible(
+        areaButtons.first(),
+        `${config.locationKey} customer care areas should render`,
+        15_000,
+      );
       await this.assertCount(
         areaButtons,
         config.areas.length,
-        `${config.locationKey} customer care area count should match configured markets`
+        `${config.locationKey} customer care area count should match configured markets`,
       );
 
       for (const [index, area] of config.areas.entries()) {
@@ -183,13 +254,13 @@ export class CustomerCarePage extends BasePage {
           button,
           'aria-label',
           /View contact details of .+ State/i,
-          `${area.name} should expose an accessible contact-details label`
+          `${area.name} should expose an accessible contact-details label`,
         );
         await this.assertAttribute(
           button,
           'aria-expanded',
           /false|true/,
-          `${area.name} should expose expanded/collapsed state`
+          `${area.name} should expose expanded/collapsed state`,
         );
 
         await this.reportValue(`Area ${index + 1}`, area.name);
@@ -203,12 +274,12 @@ export class CustomerCarePage extends BasePage {
       const button = this.getAreaButton(area.name);
 
       await this.assertVisible(button, `${area.name} customer care area should be visible`, 15_000);
-      await button.click({ force: true });
+      await button.click();
 
       for (const expectedDetail of area.expectedDetails) {
         await this.assertVisible(
           this.main.getByText(new RegExp(escapeRegex(expectedDetail), 'i')).first(),
-          `${area.name} should show customer care detail: ${expectedDetail}`
+          `${area.name} should show customer care detail: ${expectedDetail}`,
         );
       }
     });
@@ -218,17 +289,25 @@ export class CustomerCarePage extends BasePage {
   async validateResourceLinks(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Validate Customer Care resource links (${config.locationKey})`, async () => {
       for (const resourceLink of config.resourceLinks) {
+        // Resolve by accessible name first, then by href. The PDF links render
+        // their visible text as just "Download PDF" and carry the full name
+        // ("Seasonal Checklist - Spring Download PDF") in aria-label, so a
+        // hasText filter on the name matched nothing - while getByRole reads the
+        // accessible name, which is what a user of assistive tech actually gets.
         const resourceLinkLocator = this.main
-          .locator(`a[href*="${resourceLink.hrefContains}"], a[href*="warranty"], a`)
-          .filter({ hasText: new RegExp(escapeRegex(resourceLink.name.replace(/\s+PDF$/i, '')), 'i') })
+          .getByRole('link', { name: new RegExp(escapeRegex(resourceLink.name), 'i') })
+          .or(this.main.locator(`a[href*="${resourceLink.hrefContains}"]`))
           .first();
 
         await this.assertVisible(
           resourceLinkLocator,
-          `${resourceLink.name} should point to the expected resource`
+          `${resourceLink.name} should point to the expected resource`,
         );
 
-        await this.reportValue(`Resource link: ${resourceLink.name}`, this.buildFullUrl(resourceLink.hrefContains));
+        await this.reportValue(
+          `Resource link: ${resourceLink.name}`,
+          this.buildFullUrl(resourceLink.hrefContains),
+        );
       }
     });
   }
@@ -242,14 +321,16 @@ export class CustomerCarePage extends BasePage {
         'In the event of a roof leak',
         'In the event of electricity power loss',
         'In the event of total heat or A/C loss',
-        'In the event of a plumbing issue'
+        'In the event of a plumbing issue',
       ];
 
       for (const heading of emergencyHeadings) {
         await this.assertVisible(
-          this.main.getByRole('heading', { name: new RegExp(`^${escapeRegex(heading)}$`, 'i') }).first(),
+          this.main
+            .getByRole('heading', { name: new RegExp(`^${escapeRegex(heading)}$`, 'i') })
+            .first(),
           `${heading} should be present on the page`,
-          15_000
+          15_000,
         );
       }
     });
@@ -258,11 +339,20 @@ export class CustomerCarePage extends BasePage {
   /** Validates us service request form. */
   async validateUsServiceRequestForm(): Promise<void> {
     await this.step('Validate US service request form fields', async () => {
-      await this.assertVisible(this.serviceRequestSection, 'Service request section should be visible', 15_000);
+      await this.assertVisible(
+        this.serviceRequestSection,
+        'Service request section should be visible',
+        15_000,
+      );
       await this.assertVisible(this.serviceRequestForm, 'Service request form should be visible');
-      await this.assertVisible(this.submitButton, 'Service request submit button should be visible');
+      await this.assertVisible(
+        this.submitButton,
+        'Service request submit button should be visible',
+      );
 
-      const requiredFieldStates = await this.getServiceRequestFieldStates(REQUIRED_SERVICE_REQUEST_FIELDS);
+      const requiredFieldStates = await this.getServiceRequestFieldStates(
+        REQUIRED_SERVICE_REQUEST_FIELDS,
+      );
 
       for (const fieldState of requiredFieldStates) {
         expect(fieldState.exists, `${fieldState.label} should exist`).toBe(true);
@@ -272,7 +362,7 @@ export class CustomerCarePage extends BasePage {
 
       const optionalFieldStates = await this.getServiceRequestFieldStates([
         { label: 'Email', selector: 'input[aria-label="Email"]' },
-        { label: 'Closing date', selector: 'input[aria-label="Closing date"]' }
+        { label: 'Closing date', selector: 'input[aria-label="Closing date"]' },
       ]);
 
       for (const fieldState of optionalFieldStates) {
@@ -285,25 +375,31 @@ export class CustomerCarePage extends BasePage {
   /** Validates us required field validation. */
   async validateUsRequiredFieldValidation(): Promise<void> {
     await this.step('Validate US service request required-field validation', async () => {
-      const validationState = await this.serviceRequestForm.evaluate((form, fields) =>
-        ({
+      const validationState = await this.serviceRequestForm.evaluate(
+        (form, fields) => ({
           formIsValid: (form as HTMLFormElement).checkValidity(),
           fields: fields.map((field) => {
-            const element = form.querySelector(field.selector) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
+            const element = form.querySelector(field.selector) as
+              HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null;
 
             return {
               label: field.label,
-              isValid: element?.checkValidity() ?? false
+              isValid: element?.checkValidity() ?? false,
             };
-          })
+          }),
         }),
-        REQUIRED_SERVICE_REQUEST_FIELDS
+        REQUIRED_SERVICE_REQUEST_FIELDS,
       );
 
-      expect(validationState.formIsValid, 'Blank service request form should fail browser validation').toBe(false);
+      expect(
+        validationState.formIsValid,
+        'Blank service request form should fail browser validation',
+      ).toBe(false);
 
       for (const field of validationState.fields) {
-        expect(field.isValid, `${field.label} should fail required validation when blank`).toBe(false);
+        expect(field.isValid, `${field.label} should fail required validation when blank`).toBe(
+          false,
+        );
       }
     });
   }
@@ -315,13 +411,13 @@ export class CustomerCarePage extends BasePage {
         'Your Warranty Coverage Details',
         'After Hours Emergency Support',
         "We've Got You Covered:",
-        'Caring For Your Home'
+        'Caring For Your Home',
       ];
 
       for (const heading of expectedHeadings) {
         await expect(
           this.main.getByRole('heading', { name: new RegExp(escapeRegex(heading), 'i') }).first(),
-          `${heading} should be present on the page`
+          `${heading} should be present on the page`,
         ).toBeVisible({ timeout: 15000 });
       }
     });
@@ -334,9 +430,11 @@ export class CustomerCarePage extends BasePage {
 
   /** Returns area button. */
   private getAreaButton(areaName: string): Locator {
-    return this.getAreaButtons().filter({
-      hasText: new RegExp(`^\\s*${escapeRegex(areaName)}\\s*$`, 'i')
-    }).first();
+    return this.getAreaButtons()
+      .filter({
+        hasText: new RegExp(`^\\s*${escapeRegex(areaName)}\\s*$`, 'i'),
+      })
+      .first();
   }
 
   /** Prevents production form submission during validation. */
@@ -359,7 +457,7 @@ export class CustomerCarePage extends BasePage {
           event.stopImmediatePropagation();
           console.warn('[PROD GUARD] Customer care form submission blocked.');
         },
-        true
+        true,
       );
 
       const originalSubmit = HTMLFormElement.prototype.submit;
@@ -375,36 +473,42 @@ export class CustomerCarePage extends BasePage {
 
       Object.defineProperty(HTMLFormElement.prototype.submit, 'name', {
         value: originalSubmit.name,
-        configurable: true
+        configurable: true,
       });
 
       Object.defineProperty(HTMLFormElement.prototype.requestSubmit, 'name', {
         value: originalRequestSubmit.name,
-        configurable: true
+        configurable: true,
       });
     });
   }
 
   /** Returns service request field states. */
-  private async getServiceRequestFieldStates(fields: readonly ServiceRequestField[]): Promise<Array<{
-    label: string;
-    exists: boolean;
-    required: boolean;
-    visible: boolean;
-  }>> {
-    return this.serviceRequestForm.evaluate((form, targetFields) =>
-      targetFields.map((field) => {
-        const element = form.querySelector(field.selector) as HTMLElement | null;
-        const rect = element?.getBoundingClientRect();
+  private async getServiceRequestFieldStates(fields: readonly ServiceRequestField[]): Promise<
+    Array<{
+      label: string;
+      exists: boolean;
+      required: boolean;
+      visible: boolean;
+    }>
+  > {
+    return this.serviceRequestForm.evaluate(
+      (form, targetFields) =>
+        targetFields.map((field) => {
+          const element = form.querySelector(field.selector) as HTMLElement | null;
+          const rect = element?.getBoundingClientRect();
 
-        return {
-          label: field.label,
-          exists: Boolean(element),
-          required: Boolean((element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null)?.required),
-          visible: Boolean(rect && rect.width > 0 && rect.height > 0)
-        };
-      }),
-      fields
+          return {
+            label: field.label,
+            exists: Boolean(element),
+            required: Boolean(
+              (element as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null)
+                ?.required,
+            ),
+            visible: Boolean(rect && rect.width > 0 && rect.height > 0),
+          };
+        }),
+      fields,
     );
   }
 }

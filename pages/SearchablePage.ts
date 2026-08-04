@@ -1,17 +1,11 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { getLocationConfig } from '../config/locations/locationConfig';
+import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 import { escapeRegex, isLocatorVisible } from '../utils/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 export type SearchType =
-  | 'market'
-  | 'community'
-  | 'condoCommunity'
-  | 'mpc'
-  | 'plan'
-  | 'condoPlan'
-  | 'qmi';
+  'market' | 'community' | 'condoCommunity' | 'mpc' | 'plan' | 'condoPlan' | 'qmi';
 
 type SearchMatchContext = {
   href: string | null;
@@ -36,8 +30,8 @@ export class SearchablePage extends BasePage {
   readonly searchBox: Locator;
 
   // Initializes the shared search box locator used across all searchable pages.
-  constructor(page: Page) {
-    super(page);
+  constructor(page: Page, locationOverride?: LocationKey) {
+    super(page, locationOverride);
 
     this.searchBox = page
       .locator('input[placeholder*="Search"]:not(#vendor-search-handler)')
@@ -63,12 +57,12 @@ export class SearchablePage extends BasePage {
     '[role="listbox"] [role="option"]:visible',
     '[role="option"] a[href]:visible',
     '[role="option"]:visible',
-    '[aria-live] a[href]:visible'
+    '[aria-live] a[href]:visible',
   ];
 
   private readonly FALLBACK_SEARCH_SUGGESTION_SELECTORS = [
     '[class*="search"] a[href]:visible',
-    '[class*="Search"] a[href]:visible'
+    '[class*="Search"] a[href]:visible',
   ];
 
   /* ==========================================================
@@ -113,7 +107,7 @@ export class SearchablePage extends BasePage {
 
           if (searchType === 'market') {
             await this.reportValue(
-              `Search input not visible - navigating directly to market search for: ${value}`
+              `Search input not visible - navigating directly to market search for: ${value}`,
             );
             await this.navigateToMarketSearchResults(value);
             return;
@@ -161,7 +155,7 @@ export class SearchablePage extends BasePage {
 
   // Fallback when autocomplete yields nothing: navigates straight to the configured path for the search type.
   private async navigateDirectlyToConfiguredResult(searchType?: SearchType): Promise<boolean> {
-    const location = getLocationConfig() as LocationWithCondoPlan;
+    const location = this.location as LocationWithCondoPlan;
     let path: string | undefined;
 
     switch (searchType) {
@@ -188,7 +182,9 @@ export class SearchablePage extends BasePage {
       return false;
     }
 
-    await this.reportValue(`No autocomplete result found - navigating directly to configured ${searchType} path: ${path}`);
+    await this.reportValue(
+      `No autocomplete result found - navigating directly to configured ${searchType} path: ${path}`,
+    );
     await this.gotoSearchResultHref(path);
     return true;
   }
@@ -197,11 +193,11 @@ export class SearchablePage extends BasePage {
   private async openMatchedSearchResult(
     matchedResult: Locator,
     value: string,
-    searchType?: SearchType
+    searchType?: SearchType,
   ): Promise<void> {
     const context: SearchMatchContext = {
       href: await matchedResult.getAttribute('href'),
-      previousUrl: this.page.url()
+      previousUrl: this.page.url(),
     };
 
     await matchedResult.scrollIntoViewIfNeeded();
@@ -235,7 +231,7 @@ export class SearchablePage extends BasePage {
   private async gotoSearchResultHref(href: string): Promise<void> {
     await this.page.goto(this.buildFullUrl(href), {
       waitUntil: 'domcontentloaded',
-      timeout: 90_000
+      timeout: 90_000,
     });
 
     await this.waitForPageReady();
@@ -245,7 +241,7 @@ export class SearchablePage extends BasePage {
   private async didSearchResultNavigate(previousUrl: string): Promise<boolean> {
     return this.page
       .waitForURL((url) => url.toString() !== previousUrl, {
-        timeout: this.SEARCH_RESULTS_TIMEOUT
+        timeout: this.SEARCH_RESULTS_TIMEOUT,
       })
       .then(() => true)
       .catch(() => false);
@@ -272,7 +268,7 @@ export class SearchablePage extends BasePage {
       const searchToggle = this.page.getByRole('button', { name: /search/i }).first();
 
       if (await searchToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await searchToggle.click({ force: true }).catch(() => undefined);
+        await searchToggle.click().catch(() => undefined);
         await this.isSearchBoxVisible(this.visibleSearchBox);
       }
     }
@@ -287,7 +283,7 @@ export class SearchablePage extends BasePage {
     const searchToggle = this.page.getByRole('button', { name: /search/i }).first();
 
     if (await searchToggle.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await searchToggle.click({ force: true }).catch(() => undefined);
+      await searchToggle.click().catch(() => undefined);
 
       if (await this.isSearchBoxVisible(this.visibleSearchBox)) {
         return true;
@@ -297,13 +293,17 @@ export class SearchablePage extends BasePage {
     if (attempt <= this.SEARCH_MAX_ATTEMPTS) {
       await this.reportValue(`Search box hidden on attempt ${attempt}; reloading before retry`);
 
-      await this.page.reload({
-        waitUntil: 'domcontentloaded',
-        timeout: 90_000
-      }).catch(async (error) => {
-        await this.reportValue(`Search input recovery reload failed: ${error instanceof Error ? error.message : String(error)}`);
-        await this.navigate();
-      });
+      await this.page
+        .reload({
+          waitUntil: 'domcontentloaded',
+          timeout: 90_000,
+        })
+        .catch(async (error) => {
+          await this.reportValue(
+            `Search input recovery reload failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          await this.navigate();
+        });
 
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
@@ -316,7 +316,7 @@ export class SearchablePage extends BasePage {
 
   // Builds and opens the /search results URL for a market directly, bypassing autocomplete.
   private async navigateToMarketSearchResults(market: string): Promise<void> {
-    const location = getLocationConfig();
+    const location = this.location;
     const { baseURL } = getEnvConfig();
 
     const searchParams = new URLSearchParams({
@@ -325,58 +325,51 @@ export class SearchablePage extends BasePage {
       hideMap: 'false',
       homeType: 'All',
       metro: market,
-      productType: 'community'
+      productType: 'community',
     });
 
     await this.reportValue(
-      `No autocomplete market result found - navigating to search results for: ${market}`
+      `No autocomplete market result found - navigating to search results for: ${market}`,
     );
 
     await this.page.goto(`${baseURL}/search?${searchParams.toString()}`, {
       waitUntil: 'domcontentloaded',
-      timeout: 90_000
+      timeout: 90_000,
     });
 
     await this.waitForPageReady();
   }
 
   // Resolves the best matching suggestion for the typed value, trying primary then fallback selectors.
-  private async getSearchResult(
-    value: string,
-    searchType?: SearchType
-  ): Promise<Locator> {
+  private async getSearchResult(value: string, searchType?: SearchType): Promise<Locator> {
     const primaryMatch = this.getSearchResultFromLocator(
       this.primarySearchResults,
       value,
-      searchType
+      searchType,
     );
 
     if (await isLocatorVisible(primaryMatch)) {
       return primaryMatch;
     }
 
-    return this.getSearchResultFromLocator(
-      this.fallbackSearchResults,
-      value,
-      searchType
-    );
+    return this.getSearchResultFromLocator(this.fallbackSearchResults, value, searchType);
   }
 
   // Filters a suggestion locator down to the entry matching the value, with per-search-type matching rules.
   private getSearchResultFromLocator(
     searchResults: Locator,
     value: string,
-    searchType?: SearchType
+    searchType?: SearchType,
   ): Locator {
     const matchedResults = searchResults.filter({
-      hasText: new RegExp(escapeRegex(value), 'i')
+      hasText: new RegExp(escapeRegex(value), 'i'),
     });
 
     switch (searchType) {
       case 'market':
         return matchedResults
           .filter({
-            hasText: new RegExp(`^\\s*${escapeRegex(value)}\\s*$`, 'i')
+            hasText: new RegExp(`^\\s*${escapeRegex(value)}\\s*$`, 'i'),
           })
           .first()
           .or(matchedResults.first());
@@ -388,10 +381,7 @@ export class SearchablePage extends BasePage {
         return this.getCondoPlanSearchResult(value);
 
       case 'community':
-        return this.getConfiguredPathSearchResult(
-          value,
-          getLocationConfig().communityPath
-        );
+        return this.getConfiguredPathSearchResult(value, this.location.communityPath);
 
       case 'condoCommunity': {
         const condoCommunityPath = this.getCondoCommunityPath();
@@ -429,7 +419,7 @@ export class SearchablePage extends BasePage {
 
   // Locates the condo plan suggestion link, scoping to the configured condo plan URL when available.
   private getCondoPlanSearchResult(value: string): Locator {
-    const location = getLocationConfig() as LocationWithCondoPlan;
+    const location = this.location as LocationWithCondoPlan;
     const condoPlanUrl = location.condoPlan?.url;
 
     if (!condoPlanUrl) {
@@ -447,7 +437,7 @@ export class SearchablePage extends BasePage {
 
   // Locates the QMI suggestion link under the configured QMI path matching the configured address.
   private getQmiSearchResult(): Locator {
-    const location = getLocationConfig();
+    const location = this.location;
 
     return this.page
       .locator(`a[href*="${location.qmiPath}"]:visible`)
@@ -457,7 +447,7 @@ export class SearchablePage extends BasePage {
 
   // Derives the condo community path by dropping the last segment of the configured condo plan URL.
   private getCondoCommunityPath(): string | undefined {
-    const location = getLocationConfig() as LocationWithCondoPlan;
+    const location = this.location as LocationWithCondoPlan;
     const condoUrl = location.condoPlan?.url;
 
     return condoUrl ? condoUrl.split('/').slice(0, -1).join('/') : undefined;
@@ -470,11 +460,11 @@ export class SearchablePage extends BasePage {
   // Runs the standard search flow: start from home, search, dismiss promo popup, then validate.
   private async executeSearchFlow(
     searchAction: () => Promise<void>,
-    validationAction: () => Promise<void>
+    validationAction: () => Promise<void>,
   ): Promise<void> {
     await this.ensureSearchStartsFromHomePage();
     await searchAction();
-    await this.dismissPromoPopupIfPresent();
+    await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     await validationAction();
     await this.waitForPageReady();
   }
@@ -493,7 +483,7 @@ export class SearchablePage extends BasePage {
   // Returns true if the current URL matches the configured home page origin, path, and query params.
   private isCurrentConfiguredHomePage(): boolean {
     const { baseURL } = getEnvConfig();
-    const location = getLocationConfig();
+    const location = this.location;
     const currentUrl = this.page.url();
 
     if (!currentUrl || currentUrl === 'about:blank') {
@@ -518,97 +508,98 @@ export class SearchablePage extends BasePage {
 
   // Orchestrates a full search-and-validate flow for the given type; market validation lives here,
   // while every other type delegates validation to its dedicated page object.
-  async searchAndValidateByValue(
-    searchType: SearchType,
-    searchValue: string
-  ): Promise<void> {
+  async searchAndValidateByValue(searchType: SearchType, searchValue: string): Promise<void> {
     await this.step(`Search and validate ${searchType}: ${searchValue}`, async () => {
-    const location = getLocationConfig() as LocationWithCondoPlan;
+      const location = this.location as LocationWithCondoPlan;
 
-    switch (searchType) {
-      case 'community':
-        await this.executeSearchFlow(
-          () => this.searchByCommunity(searchValue),
-          async () => {
-            const { CommunityPage } = require('./CommunityPage') as typeof import('./CommunityPage');
-            await new CommunityPage(this.page).verifySearchByCommunity(searchValue);
-          }
-        );
-        break;
+      switch (searchType) {
+        case 'community':
+          await this.executeSearchFlow(
+            () => this.searchByCommunity(searchValue),
+            async () => {
+              const { CommunityPage } =
+                require('./CommunityPage') as typeof import('./CommunityPage');
+              await new CommunityPage(this.page).verifySearchByCommunity(searchValue);
+            },
+          );
+          break;
 
-      case 'condoCommunity':
-        await this.executeSearchFlow(
-          () => this.searchByCondoCommunity(searchValue),
-          async () => {
-            const { CondoCommunityPage } = require('./CondoCommunityPage') as typeof import('./CondoCommunityPage');
-            await new CondoCommunityPage(this.page).verifySearchByCondoCommunity(searchValue);
-          }
-        );
-        break;
+        case 'condoCommunity':
+          await this.executeSearchFlow(
+            () => this.searchByCondoCommunity(searchValue),
+            async () => {
+              const { CondoCommunityPage } =
+                require('./CondoCommunityPage') as typeof import('./CondoCommunityPage');
+              await new CondoCommunityPage(this.page).verifySearchByCondoCommunity(searchValue);
+            },
+          );
+          break;
 
-      case 'market':
-        await this.executeSearchFlow(
-          () => this.searchByMarket(searchValue),
-          () => this.verifySearchByMarket(searchValue)
-        );
-        break;
+        case 'market':
+          await this.executeSearchFlow(
+            () => this.searchByMarket(searchValue),
+            () => this.verifySearchByMarket(searchValue),
+          );
+          break;
 
-      case 'mpc': {
-        const mpc = this.getMpcConfig(location, searchValue);
-        const mpcParentMarket = this.getSearchableMpcMarket(mpc);
+        case 'mpc': {
+          const mpc = this.getMpcConfig(location, searchValue);
+          const mpcParentMarket = this.getSearchableMpcMarket(mpc);
 
-        await this.executeSearchFlow(
-          () => this.searchByMarket(mpcParentMarket),
-          async () => {
-            await this.verifySearchByMarket(mpcParentMarket);
+          await this.executeSearchFlow(
+            () => this.searchByMarket(mpcParentMarket),
+            async () => {
+              await this.verifySearchByMarket(mpcParentMarket);
 
-            // Tap the MPC card on the search results page to open its detail page.
-            await this.clickMpcLearnMore(mpc.name);
+              // Tap the MPC card on the search results page to open its detail page.
+              await this.clickMpcLearnMore(mpc.name);
 
-            // Validate both URL and MPC name on the MPC detail page.
-            const { MPCPage } = require('./MPCPage') as typeof import('./MPCPage');
-            await new MPCPage(this.page).verifyMPCPage({ name: mpc.name, url: mpc.url });
-          }
-        );
+              // Validate both URL and MPC name on the MPC detail page.
+              const { MPCPage } = require('./MPCPage') as typeof import('./MPCPage');
+              await new MPCPage(this.page).verifyMPCPage({ name: mpc.name, url: mpc.url });
+            },
+          );
 
-        break;
+          break;
+        }
+
+        case 'plan':
+          await this.executeSearchFlow(
+            () => this.searchByPlan(searchValue),
+            async () => {
+              const { PlanDetailPage } =
+                require('./PlanDetailPage') as typeof import('./PlanDetailPage');
+              const planPage = new PlanDetailPage(this.page);
+              await planPage.verifySearchByPlan(location.expectedPlanUrlPart);
+              await planPage.verifyPlanUrlContains(location.communityPath);
+            },
+          );
+          break;
+
+        case 'condoPlan':
+          await this.executeSearchFlow(
+            () => this.searchByCondoPlan(searchValue),
+            async () => {
+              const { CondoPlanPage } =
+                require('./CondoPlanPage') as typeof import('./CondoPlanPage');
+              await new CondoPlanPage(this.page).verifySearchByCondoPlan();
+            },
+          );
+          break;
+
+        case 'qmi':
+          await this.executeSearchFlow(
+            () => this.searchByQMI(searchValue),
+            async () => {
+              const { QMIPage } = require('./QMIPage') as typeof import('./QMIPage');
+              await new QMIPage(this.page).verifySearchByQMI(searchValue);
+            },
+          );
+          break;
+
+        default:
+          throw new Error(`Invalid home search type: ${searchType}`);
       }
-
-      case 'plan':
-        await this.executeSearchFlow(
-          () => this.searchByPlan(searchValue),
-          async () => {
-            const { PlanDetailPage } = require('./PlanDetailPage') as typeof import('./PlanDetailPage');
-            const planPage = new PlanDetailPage(this.page);
-            await planPage.verifySearchByPlan(location.expectedPlanUrlPart);
-            await planPage.verifyPlanUrlContains(location.communityPath);
-          }
-        );
-        break;
-
-      case 'condoPlan':
-        await this.executeSearchFlow(
-          () => this.searchByCondoPlan(searchValue),
-          async () => {
-            const { CondoPlanPage } = require('./CondoPlanPage') as typeof import('./CondoPlanPage');
-            await new CondoPlanPage(this.page).verifySearchByCondoPlan();
-          }
-        );
-        break;
-
-      case 'qmi':
-        await this.executeSearchFlow(
-          () => this.searchByQMI(searchValue),
-          async () => {
-            const { QMIPage } = require('./QMIPage') as typeof import('./QMIPage');
-            await new QMIPage(this.page).verifySearchByQMI(searchValue);
-          }
-        );
-        break;
-
-      default:
-        throw new Error(`Invalid home search type: ${searchType}`);
-    }
     });
   }
 
@@ -627,14 +618,14 @@ export class SearchablePage extends BasePage {
   async verifySearchByMarket(expectedMarket: string): Promise<void> {
     await this.step(`Verify market search result for: ${expectedMarket}`, async () => {
       await this.waitForPageReady();
-      await this.dismissPromoPopupIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
 
       await this.page.waitForURL(
         (url) =>
           this.normalizeText(url.searchParams.get('metro') || '').includes(
-            this.normalizeText(expectedMarket)
+            this.normalizeText(expectedMarket),
           ),
-        { timeout: this.SEARCH_RESULTS_TIMEOUT }
+        { timeout: this.SEARCH_RESULTS_TIMEOUT },
       );
 
       const params = new URL(this.page.url()).searchParams;
@@ -671,10 +662,7 @@ export class SearchablePage extends BasePage {
   ========================================================== */
 
   // Resolves the MPC config entry matching the given name (or the first one), validating required fields.
-  private getMpcConfig(
-    location: LocationWithCondoPlan,
-    mpcName?: string
-  ): MpcConfig {
+  private getMpcConfig(location: LocationWithCondoPlan, mpcName?: string): MpcConfig {
     const mpcList = location.mpc || [];
 
     if (!mpcList.length) {
@@ -684,16 +672,14 @@ export class SearchablePage extends BasePage {
     const normalizedMpcName = this.normalizeText(mpcName || '');
 
     const matchedMpc = normalizedMpcName
-      ? mpcList.find((mpc) =>
-        this.normalizeText(mpc.name).includes(normalizedMpcName)
-      )
+      ? mpcList.find((mpc) => this.normalizeText(mpc.name).includes(normalizedMpcName))
       : undefined;
 
     const mpc = matchedMpc || mpcList[0];
 
     if (!mpc?.name || !mpc?.market?.length || !mpc?.url) {
       throw new Error(
-        `Invalid MPC config. Required fields: name, market, url. Received: ${JSON.stringify(mpc)}`
+        `Invalid MPC config. Required fields: name, market, url. Received: ${JSON.stringify(mpc)}`,
       );
     }
 
@@ -719,7 +705,7 @@ export class SearchablePage extends BasePage {
       // The promo popup renders after the results page settles, so the earlier
       // dismissal in the search flow can run before it appears. Re-dismiss it here,
       // at the point of use, so it cannot be picked up as the matching "card".
-      await this.dismissPromoPopupIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
 
       const learnMoreCta = this.page
         .getByRole('link', { name: /learn more/i })
@@ -733,20 +719,18 @@ export class SearchablePage extends BasePage {
         .filter({ hasText: new RegExp(escapeRegex(mpcName), 'i') })
         .filter({ has: learnMoreCta })
         .filter({
-          hasNot: this.page.locator(
-            '.ReactModal__Content, [role="dialog"], [aria-modal="true"]'
-          )
+          hasNot: this.page.locator('.ReactModal__Content, [role="dialog"], [aria-modal="true"]'),
         })
         .last();
 
       await this.assertVisible(
         mpcCard,
         `MPC card should be visible on search result page: ${mpcName}`,
-        60_000
+        60_000,
       );
 
       await mpcCard.scrollIntoViewIfNeeded();
-      await this.dismissPromoPopupIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
 
       const cardLearnMoreCta = mpcCard
         .getByRole('link', { name: /learn more/i })
@@ -756,7 +740,7 @@ export class SearchablePage extends BasePage {
       await this.assertVisible(
         cardLearnMoreCta,
         `Learn More CTA should be visible for MPC card: ${mpcName}`,
-        30_000
+        30_000,
       );
 
       await cardLearnMoreCta.click();
@@ -778,7 +762,7 @@ export class SearchablePage extends BasePage {
 
   // Builds the expected plan URL path by combining the configured community path and plan slug.
   private getPreferredPlanPath(): string {
-    const location = getLocationConfig();
+    const location = this.location;
 
     const communityPath = location.communityPath.replace(/\/$/, '');
 
@@ -814,5 +798,4 @@ export class SearchablePage extends BasePage {
       await this.search(address, 'qmi');
     });
   }
-
 }

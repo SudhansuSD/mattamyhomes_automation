@@ -10,6 +10,8 @@ import { annotate, Severity } from '../utils/allureMeta';
 
 const { envName } = getEnvConfig();
 
+// USA-only promo. A multi-location run covers it in the USA pass, which always
+// runs first — see config/locations/locationAgnosticSpecs.ts.
 test.describe('Hometown Heroes Promo Page Tests - USA', () => {
   let promoPage: PromoPage;
 
@@ -17,7 +19,7 @@ test.describe('Hometown Heroes Promo Page Tests - USA', () => {
     promoPage = new PromoPage(page);
 
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: 'USA',
       feature: 'Promo Page',
       owner: 'QA Automation',
       severity: Severity.NORMAL,
@@ -30,7 +32,7 @@ test.describe('Hometown Heroes Promo Page Tests - USA', () => {
   });
 
   test.describe('Promo Page Validation', () => {
-    test('TC-01 | @smoke @regression @promo | Validate promo page content and form fields', async () => {
+    test(`@smoke @regression @promo | USA | Validate promo page content and form fields`, async () => {
       await test.step('Verify promo page loads with expected USA Orlando content', async () => {
         await promoPage.verifyPageLoaded();
       });
@@ -40,13 +42,13 @@ test.describe('Hometown Heroes Promo Page Tests - USA', () => {
       });
     });
 
-    test('TC-02 | @regression @promo-form-required | Validate promo form required field errors', async () => {
+    test(`@regression @promo-form-required | USA | Validate promo form required field errors`, async () => {
       await test.step('Verify required validation errors', async () => {
         await promoPage.validateRequiredFieldErrors();
       });
     });
 
-    test('TC-03 | @regression @promo-form-email | Validate promo form invalid email error', async () => {
+    test(`@regression @promo-form-email | USA | Validate promo form invalid email error`, async () => {
       await test.step('Verify invalid email validation error', async () => {
         await promoPage.validateInvalidEmailError();
       });
@@ -56,7 +58,7 @@ test.describe('Hometown Heroes Promo Page Tests - USA', () => {
   test.describe('Promo form submission', () => {
     test.skip(envName === 'PROD', 'Skipping promo form lead submission on PROD environment.');
 
-    test('TC-01 | @regression @STAGE @promo-form-submit | Validate promo form successful submission', async () => {
+    test(`@regression @STAGE @promo-form-submit | USA | Validate promo form successful submission`, async () => {
       await test.step('Submit promo form with valid data and verify success message', async () => {
         await promoPage.verifySuccessfulSubmission();
       });
