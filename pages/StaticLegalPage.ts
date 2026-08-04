@@ -26,18 +26,14 @@ export const STATIC_LEGAL_PAGES: readonly StaticLegalPageConfig[] = [
       /Mattamy Homes Privacy Policy/i,
       /Privacy Policy/i,
       /SMS Privacy Policy/i,
-      /SMS Terms of Service/i
+      /SMS Terms of Service/i,
     ],
-    contentChecks: [
-      'Mattamy Homes Privacy Policy',
-      'SMS Privacy Policy',
-      'SMS Terms of Service'
-    ],
+    contentChecks: ['Mattamy Homes Privacy Policy', 'SMS Privacy Policy', 'SMS Terms of Service'],
     requiredLinks: [
       { label: 'privacy policy detail link', href: /\/privacy-policy/i },
       { label: 'SMS privacy policy link', href: /\/sms-privacy-policy/i },
-      { label: 'SMS terms of service link', href: /\/sms-terms-of-service/i }
-    ]
+      { label: 'SMS terms of service link', href: /\/sms-terms-of-service/i },
+    ],
   },
   {
     name: 'Terms and Conditions',
@@ -47,18 +43,21 @@ export const STATIC_LEGAL_PAGES: readonly StaticLegalPageConfig[] = [
       /Mattamy Homes Terms of Use/i,
       /EQUAL HOUSING OPPORTUNITY/i,
       /OWNERSHIP \/ RESTRICTIONS ON USE/i,
-      /DISCLAIMER \/ LIMITATION OF LIABILITY/i
+      /DISCLAIMER \/ LIMITATION OF LIABILITY/i,
     ],
     contentChecks: [
       'Mattamy Homes Terms of Use',
       'EQUAL HOUSING OPPORTUNITY',
-      'DISPUTE RESOLUTION TERMS FOR U.S. VISITORS'
+      'DISPUTE RESOLUTION TERMS FOR U.S. VISITORS',
     ],
     requiredLinks: [
       { label: 'privacy email link', href: /^mailto:privacy@mattamycorp\.com/i },
-      { label: 'user generated content terms link', href: /\/terms-and-conditions\/user-generated-content/i },
-      { label: 'privacy policy link', href: /\/privacy-policy|\/sms-privacy-policy/i }
-    ]
+      {
+        label: 'user generated content terms link',
+        href: /\/terms-and-conditions\/user-generated-content/i,
+      },
+      { label: 'privacy policy link', href: /\/privacy-policy|\/sms-privacy-policy/i },
+    ],
   },
   {
     name: 'Legal Disclaimers',
@@ -68,19 +67,19 @@ export const STATIC_LEGAL_PAGES: readonly StaticLegalPageConfig[] = [
       /Mattamy Homes Legal Disclaimers/i,
       /Updated: January 15, 2021/i,
       /Amenities/i,
-      /Broker Participation/i
+      /Broker Participation/i,
     ],
     contentChecks: [
       'Mattamy Homes Legal Disclaimers',
       'These Legal Disclaimers',
       'Terms and Conditions',
-      'Privacy Policies'
+      'Privacy Policies',
     ],
     requiredLinks: [
       { label: 'terms and conditions link', href: /\/terms-and-conditions/i },
       { label: 'privacy policy link', href: /\/sms-privacy-policy/i },
-      { label: 'home financing link', href: /mattamyhf\.com/i }
-    ]
+      { label: 'home financing link', href: /mattamyhf\.com/i },
+    ],
   },
   {
     name: 'Accessibility',
@@ -91,19 +90,22 @@ export const STATIC_LEGAL_PAGES: readonly StaticLegalPageConfig[] = [
       /Associated Policies/i,
       /Accessible Customer Service/i,
       /Accessible Employment/i,
-      /Information & Communications/i
+      /Information & Communications/i,
     ],
     contentChecks: [
       'Accessibility for Ontarians with Disabilities',
       'all accessibility requirements under governing laws',
-      'Accessibility Multi-Year Plan and Policy'
+      'Accessibility Multi-Year Plan and Policy',
     ],
     requiredLinks: [
-      { label: 'accessibility contact email link', href: /^mailto:Human\.Resources@mattamycorp\.com/i },
+      {
+        label: 'accessibility contact email link',
+        href: /^mailto:Human\.Resources@mattamycorp\.com/i,
+      },
       { label: 'multi-year plan link', href: /\/accessibility\/multi-year-plan/i },
-      { label: 'AODA policy PDF link', href: /AODA.*\.pdf|accessibility.*\.pdf/i }
-    ]
-  }
+      { label: 'AODA policy PDF link', href: /AODA.*\.pdf|accessibility.*\.pdf/i },
+    ],
+  },
 ] as const;
 
 export class StaticLegalPage extends BasePage {
@@ -130,29 +132,48 @@ export class StaticLegalPage extends BasePage {
         await this.preventProdFormSubmission();
       }
 
-      await this.reportValue('Navigating to static page', `ENV=${envName} | STATIC_PAGE=${config.name} | URL=${targetUrl}`);
+      await this.reportValue(
+        'Navigating to static page',
+        `ENV=${envName} | STATIC_PAGE=${config.name} | URL=${targetUrl}`,
+      );
 
       await this.page.goto(targetUrl, {
         waitUntil: 'domcontentloaded',
-        timeout: 90_000
+        timeout: 90_000,
       });
 
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 
   /** Validates page shell. */
   async validatePageShell(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Validate page shell: ${config.name}`, async () => {
-      await this.assertPageTitle(config.expectedTitle, `${config.name} title should match expected value`);
+      await this.assertPageTitle(
+        config.expectedTitle,
+        `${config.name} title should match expected value`,
+      );
       await this.assertPageUrl(
         new RegExp(`${escapeRegex(config.path)}(?:\\?.*)?$`, 'i'),
-        `${config.name} should keep the expected route`
+        `${config.name} should keep the expected route`,
       );
-      await this.assertAttached(this.header, `${config.name} should keep the global header present`, 15_000);
-      await this.assertVisible(this.contentRoot, `${config.name} should render page content`, 15_000);
-      await this.assertAttached(this.footer, `${config.name} should keep the global footer present`, 15_000);
+      await this.assertAttached(
+        this.header,
+        `${config.name} should keep the global header present`,
+        15_000,
+      );
+      await this.assertVisible(
+        this.contentRoot,
+        `${config.name} should render page content`,
+        15_000,
+      );
+      await this.assertAttached(
+        this.footer,
+        `${config.name} should keep the global footer present`,
+        15_000,
+      );
     });
   }
 
@@ -160,20 +181,17 @@ export class StaticLegalPage extends BasePage {
   async validateStaticContent(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Validate static content: ${config.name}`, async () => {
       await expect
-        .poll(
-          async () => this.getVisibleContentLength(),
-          {
-            message: `${config.name} should render meaningful visible content`,
-            timeout: 20000
-          }
-        )
+        .poll(async () => this.getVisibleContentLength(), {
+          message: `${config.name} should render meaningful visible content`,
+          timeout: 20000,
+        })
         .toBeGreaterThan(200);
 
       for (const heading of config.headings) {
         await this.assertVisible(
           this.contentRoot.getByRole('heading', { name: heading }).first(),
           `${config.name} should show heading ${heading}`,
-          15_000
+          15_000,
         );
       }
 
@@ -192,13 +210,10 @@ export class StaticLegalPage extends BasePage {
 
       for (const requiredLink of config.requiredLinks) {
         await expect
-          .poll(
-            async () => this.hasVisibleLinkMatching(requiredLink.href),
-            {
-              message: `${config.name} should include ${requiredLink.label}`,
-              timeout: 15000
-            }
-          )
+          .poll(async () => this.hasVisibleLinkMatching(requiredLink.href), {
+            message: `${config.name} should include ${requiredLink.label}`,
+            timeout: 15000,
+          })
           .toBeTruthy();
 
         await this.reportValue(`Required link: ${requiredLink.label}`, requiredLink.href.source);
@@ -212,12 +227,12 @@ export class StaticLegalPage extends BasePage {
       await this.assertCount(
         this.contentRoot.locator('form'),
         0,
-        `${config.name} should not expose forms`
+        `${config.name} should not expose forms`,
       );
       await this.assertCount(
         this.contentRoot.getByRole('button', { name: /submit/i }),
         0,
-        `${config.name} should not expose submit buttons`
+        `${config.name} should not expose submit buttons`,
       );
     });
   }
@@ -242,7 +257,7 @@ export class StaticLegalPage extends BasePage {
           event.stopImmediatePropagation();
           console.warn('[PROD GUARD] Static legal page form submission blocked.');
         },
-        true
+        true,
       );
 
       HTMLFormElement.prototype.submit = function blockedProdSubmit() {
@@ -257,22 +272,29 @@ export class StaticLegalPage extends BasePage {
 
   /** Validates visible links have destinations. */
   private async validateVisibleLinksHaveDestinations(): Promise<void> {
-    const linksWithoutHref = await this.contentRoot.locator('a:visible').evaluateAll((links) =>
-      links
-        .filter((link) => !link.getAttribute('href'))
-        .map((link) => link.textContent?.trim() || link.outerHTML)
-    );
+    const linksWithoutHref = await this.contentRoot
+      .locator('a:visible')
+      .evaluateAll((links) =>
+        links
+          .filter((link) => !link.getAttribute('href'))
+          .map((link) => link.textContent?.trim() || link.outerHTML),
+      );
 
-    expect(linksWithoutHref, 'Visible static page links should include href destinations').toEqual([]);
+    expect(linksWithoutHref, 'Visible static page links should include href destinations').toEqual(
+      [],
+    );
   }
 
   /** Checks whether visible link matching. */
   private async hasVisibleLinkMatching(pattern: RegExp): Promise<boolean> {
-    return this.contentRoot.locator('a[href]:visible').evaluateAll((links, regexInput) => {
-      const regex = new RegExp(regexInput.source, regexInput.flags);
+    return this.contentRoot.locator('a[href]:visible').evaluateAll(
+      (links, regexInput) => {
+        const regex = new RegExp(regexInput.source, regexInput.flags);
 
-      return links.some((link) => regex.test(link.getAttribute('href') || ''));
-    }, { source: pattern.source, flags: pattern.flags });
+        return links.some((link) => regex.test(link.getAttribute('href') || ''));
+      },
+      { source: pattern.source, flags: pattern.flags },
+    );
   }
 
   /** Returns visible page text. */

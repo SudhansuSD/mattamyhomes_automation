@@ -18,7 +18,7 @@ const topLevelStaticLinks = TOP_LEVEL_STATIC_LINKS_BY_COUNTRY[locationKey];
 test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () => {
   test.beforeEach(async () => {
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: location.country,
       feature: 'About Us',
       owner: 'QA Automation',
       severity: Severity.NORMAL,
@@ -27,7 +27,7 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
   });
 
   test.describe('Header Menu Validation', () => {
-    test(`TC-01 | @smoke @regression | ${location.country} About Us header menu links should be visible`, async ({
+    test(`@smoke @regression | ${location.country} | About Us header menu links should be visible`, async ({
       page,
     }, testInfo) => {
       test.skip(
@@ -51,7 +51,7 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
 
   test.describe('About Us Page Validation', () => {
     for (const aboutLink of location.aboutUsLinks) {
-      test(`TC-01 | @regression | ${location.country} ${aboutLink.name} page should load with valid UI and functionality`, async ({
+      test(`@regression | ${location.country} | ${aboutLink.name} page should load with valid UI and functionality`, async ({
         page,
       }, testInfo) => {
         test.skip(
@@ -82,7 +82,7 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
   // those via their top-level link so coverage matches what the country displays.
   test.describe('Top-Level Static Page Validation', () => {
     for (const topLink of topLevelStaticLinks) {
-      test(`TC-01 | @regression | ${location.country} ${topLink.name} top-level page should load with valid UI`, async ({
+      test(`@regression | ${location.country} | ${topLink.name} top-level page should load with valid UI`, async ({
         page,
       }, testInfo) => {
         test.skip(

@@ -19,11 +19,12 @@ on:
           - STAGE
           - PROD
       country:
-        description: Country / region
+        description: Country / region (ALL runs USA and CAN)
         required: true
-        default: USA
+        default: ALL
         type: choice
         options:
+          - ALL
           - USA
           - CAN
       browser:
@@ -128,14 +129,14 @@ jobs:
             echo "| Country/region | ${{ inputs.country }} |"
             echo "| Browser | $BROWSER |"
             echo "| Test suite | $SUITE |"
-            echo "| Command | \`npx playwright test $PROJECT_ARG $GREP_ARG\` |"
+            echo "| Command | \`npx ts-node scripts/run-locations.ts $PROJECT_ARG $GREP_ARG\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           echo "Environment : ${{ inputs.environment }}"
           echo "Country     : ${{ inputs.country }}"
           echo "Browser     : $BROWSER"
           echo "Test suite  : $SUITE"
-          echo "Command     : npx playwright test $PROJECT_ARG $GREP_ARG"
+          echo "Command     : npx ts-node scripts/run-locations.ts $PROJECT_ARG $GREP_ARG"
 
       # 7 + 12. Run the tests. A non-zero Playwright exit code fails this step
       #         (and therefore the job) — the exit code is preserved because it
@@ -143,7 +144,9 @@ jobs:
       #         unquoted so empty values expand to nothing and "--grep @smoke"
       #         splits into two arguments.
       - name: Run Playwright tests
-        run: npx playwright test $PROJECT_ARG $GREP_ARG
+        # Routed through the location runner so country=ALL executes one pass
+        # per location; a single country behaves exactly as `playwright test`.
+        run: npx ts-node scripts/run-locations.ts $PROJECT_ARG $GREP_ARG
         env:
           # GitHub inputs are converted into the SAME environment variables the
           # framework already reads locally (ENV + LOCATION). COUNTRY is set as a

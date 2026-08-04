@@ -7,10 +7,12 @@ import { test } from '@playwright/test';
 import { STATIC_LEGAL_PAGES, StaticLegalPage } from '../pages/StaticLegalPage';
 import { annotate, Severity } from '../utils/allureMeta';
 
+// Location-agnostic pages — a multi-location run executes this once; see
+// config/locations/locationAgnosticSpecs.ts.
 test.describe('Mattamy Homes - Static Legal and Policy Pages', () => {
   test.beforeEach(async () => {
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: 'ALL',
       feature: 'Static Legal Pages',
       owner: 'QA Automation',
       severity: Severity.NORMAL,
@@ -19,7 +21,7 @@ test.describe('Mattamy Homes - Static Legal and Policy Pages', () => {
   });
 
   for (const staticPageConfig of STATIC_LEGAL_PAGES) {
-    test(`TC-01 | @smoke @regression | ${staticPageConfig.name} page should load with valid static content`, async ({
+    test(`@smoke @regression | ALL | ${staticPageConfig.name} page should load with valid static content`, async ({
       page,
     }) => {
       const staticLegalPage = new StaticLegalPage(page);

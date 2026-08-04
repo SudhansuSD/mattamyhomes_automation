@@ -28,19 +28,28 @@ export class FavoritesPage extends BasePage {
     this.footer = page.locator('#footer, section[id="footer"], footer').first();
   }
 
-  /** Returns a locator matching favorite/save toggle controls on any card. */
+  /**
+   * Returns the "Mark as favorite" controls on search result cards.
+   *
+   * The control is a DIV with aria-label="Mark as favorite" (it flips to "Mark as
+   * unfavorite" once saved), positioned over the card rather than inside
+   * #ProductInfo. The previous selector list only looked for <button> elements, so
+   * it matched nothing and every save silently did nothing - which is why the
+   * Favorites page then listed zero saved homes.
+   *
+   * "Go to Favorites Page" is excluded: it is the header link, not a toggle.
+   */
   private favoriteToggles(): Locator {
-    return this.page.locator(
-      [
-        'button[aria-label*="favorite" i]',
-        'button[aria-label*="save" i]',
-        'button[aria-label*="add to favorites" i]',
-        'button[aria-label*="wish" i]',
-        'button[title*="favorite" i]',
-        '[data-testid*="favorite" i]',
-        'button:has(svg[class*="heart" i])',
-      ].join(', '),
-    );
+    return this.page
+      .locator(
+        '[aria-label*="Mark as favorite" i]:visible, [aria-label*="Mark as unfavorite" i]:visible',
+      )
+      .filter({ hasNotText: /Go to Favorites Page/i });
+  }
+
+  /** Returns only the not-yet-saved favorite controls. */
+  private unsavedFavoriteToggles(): Locator {
+    return this.page.locator('[aria-label*="Mark as favorite" i]:visible');
   }
 
   /** Navigates to the Favorites page for the configured country. */
@@ -56,6 +65,7 @@ export class FavoritesPage extends BasePage {
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.ensurePageRendered();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 
@@ -105,21 +115,32 @@ export class FavoritesPage extends BasePage {
   }
 
   /**
-   * Validates the empty-state that renders when no homes are saved. The page
-   * should still show its "Homes I Love" heading and a CTA back into search.
+   * Validates the empty-state that renders when no homes are saved.
+   *
+   * Identity is asserted via the document title and the page's own empty-state
+   * markers, NOT an <h1>: the Favorites page renders none (its only headings are
+   * the h2/h3s of the header and footer). Asserting an h1 here failed on a page
+   * that was actually working - the missing h1 is an accessibility gap to raise
+   * with the site team, not a reason to fail the empty-state test.
    */
   async validateEmptyState(): Promise<void> {
     await this.step('Validate Favorites empty state', async () => {
-      await this.assertHeadingVisible(undefined, 'Favorites should expose a visible H1', 20_000);
+      await expect(this.page, 'Favorites page should expose its "Homes I Love" title').toHaveTitle(
+        /Homes I Love/i,
+        { timeout: 20_000 },
+      );
 
-      const bodyText = await this.page.locator('body').innerText({ timeout: 15000 });
-      const looksEmpty =
-        /no.*(saved|favorite)|haven'?t saved|start.*search|find your|explore/i.test(bodyText);
+      // The empty state shows zeroed result tabs plus a "No Results Found" /
+      // "Find My Home" call to action.
+      await expect(
+        this.page.getByText(/No Results Found/i).first(),
+        'With no saved homes the Favorites page should show a no-results state',
+      ).toBeVisible({ timeout: 20_000 });
 
       expect(
-        looksEmpty || (await this.getSavedCardCount()) === 0,
-        'With no saved homes the Favorites page should show an empty / call-to-action state',
-      ).toBeTruthy();
+        await this.getSavedCardCount(),
+        'With no saved homes the Favorites page should list no saved cards',
+      ).toBe(0);
     });
   }
 
@@ -129,7 +150,17 @@ export class FavoritesPage extends BasePage {
    */
   async saveFirstVisibleHome(): Promise<boolean> {
     return this.step('Save first visible home via favorite toggle', async () => {
-      const toggles = this.favoriteToggles();
+      // Wait for result cards first: the favorite controls are rendered per card,
+      // so looking for them before the results paint finds nothing and made this
+      // report "no toggle found" on a page that has 14 of them.
+      await expect
+        .poll(() => this.page.locator('#ProductInfo').count(), {
+          message: 'Search results should render before saving a favorite',
+          timeout: 45_000,
+        })
+        .toBeGreaterThan(0);
+
+      const toggles = this.unsavedFavoriteToggles();
 
       const found = await toggles
         .first()
@@ -138,13 +169,22 @@ export class FavoritesPage extends BasePage {
         .catch(() => false);
 
       if (!found) {
-        await this.reportValue('No favorite/heart toggle found on the current page');
+        await this.reportValue('No favorite toggle found on the current page');
         return false;
       }
 
       const toggle = toggles.first();
       await toggle.scrollIntoViewIfNeeded().catch(() => undefined);
       await toggle.click();
+
+      // Confirm the save actually registered: the control relabels itself to
+      // "Mark as unfavorite". Without this the test could "save" nothing and only
+      // discover it later on the Favorites page.
+      await expect(
+        this.page.locator('[aria-label*="Mark as unfavorite" i]').first(),
+        'Favorite toggle should switch to the saved state after clicking',
+      ).toBeVisible({ timeout: 10_000 });
+
       await this.settle(1000);
       await this.reportValue('Saved first visible home to favorites');
       return true;

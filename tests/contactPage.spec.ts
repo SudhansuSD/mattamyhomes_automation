@@ -9,10 +9,11 @@ import { Header } from '../pages/Header';
 import { HomePage } from '../pages/HomePage';
 import { annotate, Severity } from '../utils/allureMeta';
 
+// Location-agnostic: covers both countries itself, so a multi-location run
+// executes it once — see config/locations/locationAgnosticSpecs.ts.
 test.describe('Mattamy Homes - Contact Page', () => {
   test.beforeEach(async () => {
     await annotate({
-      epic: 'Mattamy Homes Website',
       feature: 'Contact Page',
       owner: 'QA Automation',
       severity: Severity.NORMAL,
@@ -25,6 +26,10 @@ test.describe('Mattamy Homes - Contact Page', () => {
       let contactPage: ContactPage;
 
       test.beforeEach(async ({ page }) => {
+        // This suite runs once and covers both countries, so each test reports
+        // under the country it actually exercises rather than a shared bucket.
+        await annotate({ location: countryConfig.locationKey });
+
         contactPage = new ContactPage(page);
 
         await test.step(`Navigate to ${countryConfig.locationKey} Home Page`, async () => {
@@ -41,25 +46,25 @@ test.describe('Mattamy Homes - Contact Page', () => {
         });
       });
 
-      test(`TC-01 | @smoke @regression | ${countryConfig.locationKey} contact page should load with country-specific content`, async () => {
+      test(`@smoke @regression | ${countryConfig.locationKey} | contact page should load with country-specific content`, async () => {
         await test.step('Verify hero, title, URL country parameter, and country selector', async () => {
           await contactPage.verifyPageLoaded(countryConfig);
         });
       });
 
-      test(`TC-02 | @regression | ${countryConfig.locationKey} contact page should list all selectable areas`, async () => {
+      test(`@regression | ${countryConfig.locationKey} | contact page should list all selectable areas`, async () => {
         await test.step('Verify area buttons and accessible labels', async () => {
           await contactPage.validateAreaList(countryConfig);
         });
       });
 
-      test(`TC-03 | @regression | ${countryConfig.locationKey} area selection should reveal contact options`, async () => {
+      test(`@regression | ${countryConfig.locationKey} | area selection should reveal contact options`, async () => {
         await test.step('Select the primary configured area and verify detail actions', async () => {
           await contactPage.validateAreaDetails(countryConfig.areas[0]);
         });
       });
 
-      test(`TC-04 | @regression | ${countryConfig.locationKey} corporate office contacts and footer links should be valid`, async () => {
+      test(`@regression | ${countryConfig.locationKey} | corporate office contacts and footer links should be valid`, async () => {
         await test.step('Verify corporate office mailto links', async () => {
           await contactPage.validateCorporateOfficeEmails();
         });

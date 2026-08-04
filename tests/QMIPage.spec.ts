@@ -20,7 +20,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
     qmiPage = new QMIPage(page);
 
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: location.country,
       feature: 'QMI Detail Page',
       owner: 'QA Automation',
       severity: Severity.CRITICAL,
@@ -33,7 +33,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Hero & Overview', () => {
-    test('TC-01 | @smoke @regression | Validate QMI hero content and URL', async () => {
+    test(`@smoke @regression | ${location.country} | Validate QMI hero content and URL`, async () => {
       await test.step('Verify exact QMI URL', async () => {
         await qmiPage.verifyExactQmiUrl();
       });
@@ -53,7 +53,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Media & Content', () => {
-    test('TC-01 | @regression | Validate QMI page media and content sections', async () => {
+    test(`@regression | ${location.country} | Validate QMI page media and content sections`, async () => {
       await test.step('Verify image gallery functionality', async () => {
         await qmiPage.verifyGallery();
       });
@@ -71,7 +71,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
       });
     });
 
-    test('TC-02 | @regression | Validate QMI home details and features', async () => {
+    test(`@regression | ${location.country} | Validate QMI home details and features`, async () => {
       await test.step('Verify home design details content', async () => {
         await qmiPage.verifyHomeDesignDetails();
       });
@@ -83,13 +83,13 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Sales Office & Related Homes', () => {
-    test('TC-01 | @regression | Validate QMI sales office and related homes', async () => {
+    test(`@regression | ${location.country} | Validate QMI sales office and related homes`, async () => {
       await test.step('Verify sales office contact and community update form', async () => {
         await qmiPage.verifySalesOfficeAndContactForm();
       });
     });
 
-    test('TC-02 | @regression @qmi-related-log | Validate QMI related homes names and URLs', async () => {
+    test(`@regression @qmi-related-log | ${location.country} | Validate QMI related homes names and URLs`, async () => {
       await test.step('Verify related quick move-in homes section and log name with URL', async () => {
         await qmiPage.verifyRelatedQuickMoveInHomes();
       });
@@ -97,25 +97,25 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Lead Form', () => {
-    test('TC-01 | @regression | Validate Get Information CTA opens QMI side modal form', async () => {
+    test(`@regression | ${location.country} | Validate Get Information CTA opens QMI side modal form`, async () => {
       await test.step('Verify Get Information CTA opens the side modal form', async () => {
         await qmiPage.verifyGetInformationCtaOpensLeadForm();
       });
     });
 
-    test('TC-02 | @smoke @regression @qmi-form-fields | Validate QMI side modal form fields', async () => {
+    test(`@smoke @regression @qmi-form-fields | ${location.country} | Validate QMI side modal form fields`, async () => {
       await test.step('Verify QMI form fields are visible', async () => {
         await qmiPage.verifySideModalFormFields();
       });
     });
 
-    test('TC-03 | @regression @qmi-form-required | Validate QMI side modal form required field errors', async () => {
+    test(`@regression @qmi-form-required | ${location.country} | Validate QMI side modal form required field errors`, async () => {
       await test.step('Verify QMI form required field validation', async () => {
         await qmiPage.validateSideModalFormRequiredErrors();
       });
     });
 
-    test('TC-04 | @regression @qmi-form-email | Validate QMI side modal form invalid email validation', async () => {
+    test(`@regression @qmi-form-email | ${location.country} | Validate QMI side modal form invalid email validation`, async () => {
       await test.step('Verify QMI form invalid email validation', async () => {
         await qmiPage.validateSideModalFormInvalidEmail();
       });
@@ -124,7 +124,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
     test.describe('QMI form submission', () => {
       test.skip(envName === 'PROD', 'Skipping QMI form lead submission on PROD environment.');
 
-      test('TC-01 | @regression @STAGE @qmi-form-submit | Validate QMI side modal form successful submission', async () => {
+      test(`@regression @STAGE @qmi-form-submit | ${location.country} | Validate QMI side modal form successful submission`, async () => {
         await test.step('Submit QMI form with valid data and verify success message', async () => {
           await qmiPage.verifySideModalFormSuccessSubmission();
         });
@@ -133,13 +133,13 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   });
 
   test.describe('Mortgage & Navigation', () => {
-    test('TC-01 | @regression | Validate QMI mortgage popup functionality', async () => {
+    test(`@regression | ${location.country} | Validate QMI mortgage popup functionality`, async () => {
       await test.step('Verify mortgage modal opens and closes', async () => {
         await qmiPage.verifyMortgagePopup();
       });
     });
 
-    test('TC-02 | @regression @qmi-breadcrumb-log | Validate QMI breadcrumb names and URLs', async () => {
+    test(`@regression @qmi-breadcrumb-log | ${location.country} | Validate QMI breadcrumb names and URLs`, async () => {
       await test.step('Verify breadcrumb state and community match QMI path', async () => {
         await qmiPage.verifyBreadcrumbNavigation();
       });
@@ -149,7 +149,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
       });
     });
 
-    test('TC-03 | @regression | Validate QMI page image and video URLs return 200', async () => {
+    test(`@regression | ${location.country} | Validate QMI page image and video URLs return 200`, async () => {
       await qmiPage.validateImageAndVideoUrlsReturn200('QMI page');
     });
   });

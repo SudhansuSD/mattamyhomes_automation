@@ -61,25 +61,6 @@ const EXPECTED_CONDO_PLAN = {
   },
 } as const;
 
-/* ==========================================================
-   Condo Plan Page - Page Object Model
-
-   Automated scenarios covered by this page object:
-   - Home page condo plan search, URL, title, H1, and breadcrumb validation
-   - Hero/spec summary validation
-   - Condo plan details content validation
-   - Floorplan image validation
-   - Mortgage calculator CTA presence validation
-   - Available floorplans cards and View All link validation
-   - Contact Us, phone, map, and Hours validation
-   - Floating Get Information CTA opens sidebar/modal form
-   - Sidebar/modal form field and validation-message checks
-   - Footer/navigation href sanity validation
-
-   Form submit scenarios are intentionally left skipped/commented in spec
-   because live lead forms must not be submitted.
-========================================================== */
-
 export class CondoPlanPage extends SearchablePage {
   readonly heading: Locator;
   readonly breadcrumb: Locator;
@@ -96,7 +77,9 @@ export class CondoPlanPage extends SearchablePage {
 
   /** Initializes this page object and its locators. */
   constructor(page: Page) {
-    super(page);
+    // Condos are a Canada-only offering, so this page always runs against the
+    // Canadian site regardless of the LOCATION the run started with.
+    super(page, 'CAN');
 
     this.heading = page.getByRole('heading', { level: 1 });
     this.breadcrumb = page.locator('#breadcrumb, nav[aria-label*="breadcrumb" i]').first();
@@ -153,11 +136,23 @@ export class CondoPlanPage extends SearchablePage {
 
   /** Locator: Get Information modal form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
-    return this.page
-      .locator(
-        '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
-      )
-      .filter({ has: this.page.locator('form, input, select, textarea') });
+    return (
+      this.page
+        .locator(
+          '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
+        )
+        // A Submit button, not just any input, is what separates a lead form from
+        // the page's other dialogs - the National-promotion overlay is a
+        // full-screen role="dialog" with inputs and used to match here. and(), not
+        // filter({ hasNot }): the aria-label sits on the overlay itself, and
+        // hasNot only inspects descendants.
+        .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+        .and(
+          this.page.locator(
+            ':not([aria-label*="promotion" i]):not([aria-label*="notification" i])',
+          ),
+        )
+    );
   }
 
   /** Locator: modal form success message. */
@@ -168,7 +163,7 @@ export class CondoPlanPage extends SearchablePage {
   /** Verify: condo plan search lands on the configured condo plan URL with a visible H1. */
   async verifySearchByCondoPlan(): Promise<void> {
     await this.step('Verify search lands on condo plan URL', async () => {
-      const location = getLocationConfig() as ReturnType<typeof getLocationConfig> & {
+      const location = this.location as ReturnType<typeof getLocationConfig> & {
         condoPlan?: { url?: string };
       };
 

@@ -33,16 +33,16 @@ export class PromoPage extends BasePage {
 
     this.heroImage = page.locator('img[alt="Lifestyle"]').first();
     this.promoHeading = page.getByRole('heading', {
-      name: /A Special Thank You to Our Hometown Heroes/i
+      name: /A Special Thank You to Our Hometown Heroes/i,
     });
     this.offerHeading = page.getByRole('heading', {
-      name: /We are honored to offer you a/i
+      name: /We are honored to offer you a/i,
     });
     this.discoverOrlandoSection = page.getByRole('heading', {
-      name: /Discover Mattamy Orlando/i
+      name: /Discover Mattamy Orlando/i,
     });
     this.formTitle = page.getByRole('heading', {
-      name: /Request more information/i
+      name: /Request more information/i,
     });
     this.promoForm = page.locator('form#Sitecore-ScheduleAVisitPromo-FormInstance0').first();
     this.submitButton = this.promoForm.getByRole('button', { name: /submit/i }).first();
@@ -55,11 +55,14 @@ export class PromoPage extends BasePage {
       const { baseURL, envName } = getEnvConfig();
       const targetUrl = `${baseURL}${PromoPage.PROMO_PATH}?country=USA`;
 
-      await this.reportValue('Navigating to promo', `ENV=${envName} | COUNTRY=USA | URL=${targetUrl}`);
+      await this.reportValue(
+        'Navigating to promo',
+        `ENV=${envName} | COUNTRY=USA | URL=${targetUrl}`,
+      );
 
       await this.page.goto(targetUrl, {
         waitUntil: 'domcontentloaded',
-        timeout: 90_000
+        timeout: 90_000,
       });
 
       await this.dismissBlockingOverlays();
@@ -73,16 +76,30 @@ export class PromoPage extends BasePage {
       await this.assertPageUrl(
         /\/florida\/orlando\/promos\/hometown-heroes/i,
         'Hometown Heroes promo URL should match expected route',
-        PromoPage.PAGE_LOAD_TIMEOUT
+        PromoPage.PAGE_LOAD_TIMEOUT,
       );
       await this.assertPageTitle(
         /Hometown Heroes.*Orlando/i,
-        'Hometown Heroes promo page title should match'
+        'Hometown Heroes promo page title should match',
       );
-      await this.assertVisible(this.heroImage, 'Hometown Heroes promo hero image should be visible', PromoPage.PAGE_LOAD_TIMEOUT);
-      await this.assertVisible(this.promoHeading, 'Hometown Heroes promo heading should be visible', PromoPage.PAGE_LOAD_TIMEOUT);
-      await this.assertVisible(this.offerHeading, 'Hometown Heroes offer heading should be visible');
-      await this.assertVisible(this.discoverOrlandoSection, 'Discover Orlando section should be visible');
+      await this.assertVisible(
+        this.heroImage,
+        'Hometown Heroes promo hero image should be visible',
+        PromoPage.PAGE_LOAD_TIMEOUT,
+      );
+      await this.assertVisible(
+        this.promoHeading,
+        'Hometown Heroes promo heading should be visible',
+        PromoPage.PAGE_LOAD_TIMEOUT,
+      );
+      await this.assertVisible(
+        this.offerHeading,
+        'Hometown Heroes offer heading should be visible',
+      );
+      await this.assertVisible(
+        this.discoverOrlandoSection,
+        'Discover Orlando section should be visible',
+      );
     });
   }
 
@@ -91,9 +108,20 @@ export class PromoPage extends BasePage {
     await this.step('Verify promo form fields', async () => {
       await this.scrollToForm();
 
-      await this.assertVisible(this.formTitle, 'Promo form title should be visible', PromoPage.PAGE_LOAD_TIMEOUT);
-      await this.assertVisible(this.promoForm, 'Promo lead form should be visible', PromoPage.PAGE_LOAD_TIMEOUT);
-      await this.assertVisible(this.communityField, 'Community of Interest field should be visible');
+      await this.assertVisible(
+        this.formTitle,
+        'Promo form title should be visible',
+        PromoPage.PAGE_LOAD_TIMEOUT,
+      );
+      await this.assertVisible(
+        this.promoForm,
+        'Promo lead form should be visible',
+        PromoPage.PAGE_LOAD_TIMEOUT,
+      );
+      await this.assertVisible(
+        this.communityField,
+        'Community of Interest field should be visible',
+      );
       await this.assertVisible(this.firstNameField, 'First name field should be visible');
       await this.assertVisible(this.lastNameField, 'Last name field should be visible');
       await this.assertVisible(this.emailField, 'Email field should be visible');
@@ -113,7 +141,7 @@ export class PromoPage extends BasePage {
       await this.submitButton.click();
 
       await expect(this.requiredError(/Community of Interest/i)).toBeVisible({
-        timeout: PromoPage.PAGE_LOAD_TIMEOUT
+        timeout: PromoPage.PAGE_LOAD_TIMEOUT,
       });
       await expect(this.requiredError(/First name/i)).toBeVisible();
       await expect(this.requiredError(/Last name/i)).toBeVisible();
@@ -129,7 +157,7 @@ export class PromoPage extends BasePage {
       await this.scrollToForm();
       await this.fillPromoForm({
         ...this.buildValidLeadData(),
-        email: 'not-an-email'
+        email: 'not-an-email',
       });
 
       await this.submitButton.click();
@@ -137,7 +165,7 @@ export class PromoPage extends BasePage {
       const emailError = this.promoForm
         .locator('div:visible, span:visible, p:visible, label:visible')
         .filter({
-          hasText: /Email addresses must contain|valid domain name|valid email|invalid email/i
+          hasText: /Email addresses must contain|valid domain name|valid email|invalid email/i,
         })
         .first();
 
@@ -153,7 +181,7 @@ export class PromoPage extends BasePage {
 
       this.assertTruthy(
         nativeValidationMessage,
-        'Promo email field should reject invalid email format'
+        'Promo email field should reject invalid email format',
       );
     });
   }
@@ -168,7 +196,7 @@ export class PromoPage extends BasePage {
         submitButton: this.submitButton,
         successModal: this.successDialogModal,
         successMessage: this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last(),
-        timeout: PromoPage.PAGE_LOAD_TIMEOUT
+        timeout: PromoPage.PAGE_LOAD_TIMEOUT,
       });
     });
   }
@@ -210,30 +238,36 @@ export class PromoPage extends BasePage {
 
   /** Returns the questions field locator or value. */
   private get questionsField(): Locator {
-    return this.promoForm.getByRole('textbox', {
-      name: /Additional questions or special requirements/i
-    }).first();
+    return this.promoForm
+      .getByRole('textbox', {
+        name: /Additional questions or special requirements/i,
+      })
+      .first();
   }
 
   /** Returns the terms checkbox locator or value. */
   private get termsCheckbox(): Locator {
-    return this.promoForm.getByRole('checkbox', {
-      name: /entering my contact information/i
-    }).first();
+    return this.promoForm
+      .getByRole('checkbox', {
+        name: /entering my contact information/i,
+      })
+      .first();
   }
 
   /** Returns the sms checkbox locator or value. */
   private get smsCheckbox(): Locator {
-    return this.promoForm.getByRole('checkbox', {
-      name: /recurring, personalized text messages/i
-    }).first();
+    return this.promoForm
+      .getByRole('checkbox', {
+        name: /recurring, personalized text messages/i,
+      })
+      .first();
   }
 
   /** Scrolls to the lead form section. */
   private async scrollToForm(): Promise<void> {
     await this.promoForm.waitFor({
       state: 'attached',
-      timeout: PromoPage.PAGE_LOAD_TIMEOUT
+      timeout: PromoPage.PAGE_LOAD_TIMEOUT,
     });
     await this.promoForm.scrollIntoViewIfNeeded();
   }
@@ -268,7 +302,7 @@ export class PromoPage extends BasePage {
       country: data.country,
       zipPostal: data.zip,
       phone: data.phone,
-      questions: profile.questions ?? ''
+      questions: profile.questions ?? '',
     };
   }
 
@@ -277,7 +311,7 @@ export class PromoPage extends BasePage {
     return this.promoForm
       .locator('div:visible, span:visible, p:visible, label:visible')
       .filter({
-        hasText: new RegExp(`Error:\\s*${fieldName.source} is Required`, 'i')
+        hasText: new RegExp(`Error:\\s*${fieldName.source} is Required`, 'i'),
       })
       .first();
   }

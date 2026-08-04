@@ -13,22 +13,23 @@ import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoPlanPage } from '../pages/CondoPlanPage';
 import { annotate, Severity } from '../utils/allureMeta';
 
-const location = getLocationConfig();
+// Condos are a Canada-only offering, so this suite always uses CAN data and
+// CondoPlanPage always drives the Canadian site — running it under LOCATION=USA
+// (or with no LOCATION) still exercises condo plans instead of skipping.
+const location = getLocationConfig('CAN');
 const { envName } = getEnvConfig();
-const condoPlan =
-  location.country === 'CAN' && 'condoPlan' in location ? location.condoPlan : undefined;
+const condoPlan = 'condoPlan' in location ? location.condoPlan : undefined;
 
 test.describe(`Condo Plan Page - ${location.country}`, () => {
   let condoPlanPage: CondoPlanPage;
 
-  test.skip(location.country === 'USA', 'Skipping condo plan tests for USA location');
-  test.skip(!condoPlan, 'Condo plan is not configured for this location');
+  test.skip(!condoPlan, 'Condo plan is not configured for this environment');
 
   test.beforeEach(async ({ page }) => {
     condoPlanPage = new CondoPlanPage(page);
 
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: location.country,
       feature: 'Condo Plan Page',
       owner: 'QA Automation',
       severity: Severity.CRITICAL,
@@ -41,7 +42,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Page Load and Hero', () => {
-    test('TC-01 | @smoke @regression | Validate condo plan page URL, title, and hero', async () => {
+    test(`@smoke @regression | ${location.country} | Validate condo plan page URL, title, and hero`, async () => {
       await test.step('Verify condo plan page URL and title', async () => {
         await condoPlanPage.verifyUrlAndTitle(condoPlan!);
       });
@@ -50,7 +51,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
       });
     });
 
-    test('TC-02 | @regression | Validate condo plan breadcrumb', async () => {
+    test(`@regression | ${location.country} | Validate condo plan breadcrumb`, async () => {
       await test.step('Validate condo plan breadcrumb', async () => {
         await condoPlanPage.verifyBreadcrumb(condoPlan!);
       });
@@ -58,19 +59,19 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Content Validation', () => {
-    test('TC-01 | @regression | Validate condo plan details content', async () => {
+    test(`@regression | ${location.country} | Validate condo plan details content`, async () => {
       await test.step('Validate condo plan details content', async () => {
         await condoPlanPage.verifyCondoPlanDetailsContent();
       });
     });
 
-    test('TC-02 | @regression | Validate floorplan image', async () => {
+    test(`@regression | ${location.country} | Validate floorplan image`, async () => {
       await test.step('Validate floorplan image', async () => {
         await condoPlanPage.verifyFloorplanImage();
       });
     });
 
-    test('TC-03 | @regression | Validate mortgage calculator CTA', async () => {
+    test(`@regression | ${location.country} | Validate mortgage calculator CTA`, async () => {
       await test.step('Validate mortgage calculator CTA', async () => {
         await condoPlanPage.verifyMortgageCalculatorCta();
       });
@@ -81,13 +82,13 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Available Floorplans', () => {
-    test('TC-01 | @regression | Validate related condo floorplans and View All CTA', async () => {
+    test(`@regression | ${location.country} | Validate related condo floorplans and View All CTA`, async () => {
       await test.step('Validate related condo floorplans and View All CTA', async () => {
         await condoPlanPage.verifyAvailableFloorplans(condoPlan!);
       });
     });
 
-    test('TC-02 | @regression | Validate Show More floorplans control when present', async () => {
+    test(`@regression | ${location.country} | Validate Show More floorplans control when present`, async () => {
       await test.step('Validate Show More floorplans control when present', async () => {
         await condoPlanPage.verifyShowMoreFloorplansIfPresent();
       });
@@ -95,7 +96,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Contact and Navigation', () => {
-    test('TC-01 | @regression | Validate contact us and hours sections', async () => {
+    test(`@regression | ${location.country} | Validate contact us and hours sections`, async () => {
       await test.step('Validate contact us section', async () => {
         await condoPlanPage.verifyContactUsSection();
       });
@@ -104,7 +105,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
       });
     });
 
-    test('TC-02 | @regression | Validate page navigation links', async () => {
+    test(`@regression | ${location.country} | Validate page navigation links`, async () => {
       await test.step('Validate page navigation links', async () => {
         await condoPlanPage.verifyNavigationLinks();
       });
@@ -112,25 +113,25 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Community Updates Form - No Submit', () => {
-    test('TC-01 | @regression | Validate Get Information CTA opens condo plan side modal form', async () => {
+    test(`@regression | ${location.country} | Validate Get Information CTA opens condo plan side modal form`, async () => {
       await test.step('Validate Get Information CTA opens condo plan side modal form', async () => {
         await condoPlanPage.verifyGetInformationCtaOpensLeadForm();
       });
     });
 
-    test('TC-02 | @smoke @regression | Validate Get Information side modal form fields', async () => {
+    test(`@smoke @regression | ${location.country} | Validate Get Information side modal form fields`, async () => {
       await test.step('Validate Get Information side modal form fields', async () => {
         await condoPlanPage.verifySideModalFormFields();
       });
     });
 
-    test('TC-03 | @regression | Validate Get Information side modal form required field errors', async () => {
+    test(`@regression | ${location.country} | Validate Get Information side modal form required field errors`, async () => {
       await test.step('Validate Get Information side modal form required field errors', async () => {
         await condoPlanPage.validateSideModalFormRequiredErrors();
       });
     });
 
-    test('TC-04 | @regression | Validate Get Information side modal form invalid email error', async () => {
+    test(`@regression | ${location.country} | Validate Get Information side modal form invalid email error`, async () => {
       await test.step('Validate Get Information side modal form invalid email error', async () => {
         await condoPlanPage.validateSideModalFormInvalidEmail();
       });
@@ -142,7 +143,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
         'Skipping condo plan form lead submission on PROD environment.',
       );
 
-      test('TC-01 | @regression @STAGE | Validate Get Information side modal form successful submission', async () => {
+      test(`@regression @STAGE | ${location.country} | Validate Get Information side modal form successful submission`, async () => {
         await test.step('Validate Get Information side modal form successful submission', async () => {
           await condoPlanPage.verifySideModalFormSuccessfulSubmission();
         });
@@ -151,7 +152,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
   });
 
   test.describe('Media Validation', () => {
-    test('TC-01 | @regression | Validate condo plan page image and video URLs return 200', async () => {
+    test(`@regression | ${location.country} | Validate condo plan page image and video URLs return 200`, async () => {
       await test.step('Validate condo plan page image and video URLs return 200', async () => {
         await condoPlanPage.validateImageAndVideoUrlsReturn200('Condo plan page');
       });

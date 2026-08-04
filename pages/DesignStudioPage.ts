@@ -17,7 +17,8 @@ export class DesignStudioPage extends BasePage {
   readonly header: Locator;
   readonly main: Locator;
   readonly footer: Locator;
-  readonly marketSelector: Locator;
+  readonly marketPanelExpander: Locator;
+  readonly marketDesignStudioLinks: Locator;
 
   /** Initializes this page object and its locators. */
   constructor(page: Page) {
@@ -26,18 +27,25 @@ export class DesignStudioPage extends BasePage {
     this.header = page.locator('header').first();
     this.main = page.locator('main').first();
     this.footer = page.locator('#footer, section[id="footer"], footer').first();
-    // Market Selector renders as a labelled combobox / dropdown control.
-    this.marketSelector = page
-      .locator(
-        [
-          'select',
-          '[role="combobox"]',
-          'button[aria-haspopup="listbox"]',
-          'button[aria-label*="market" i]',
-          '[aria-label*="select a market" i]',
-        ].join(', '),
-      )
+    // "Find your Design Studio" is NOT a dropdown - it is a collapsed panel. Until
+    // the SEARCH NOW button expands it, the whole market list sits in the DOM as
+    // aria-hidden="true" / tabindex="-1", which is why getByRole could not see it
+    // and why the old combobox locator matched an unrelated control and reported
+    // "0 market options".
+    //
+    // The expand control announces itself by aria-label; SEARCH NOW text is the
+    // fallback in case that label changes.
+    this.marketPanelExpander = page
+      .locator('button[aria-label*="Expand this section" i]')
+      .or(page.locator('a, button').filter({ hasText: /^\s*SEARCH NOW\s*$/i }))
       .first();
+
+    // Once expanded, each market links to its own design studio page. The two
+    // countries use different shapes - USA: /arizona/phoenix/market-design-studio,
+    // CAN: /alberta/calgary/calgary-design-studio - so match the common
+    // "-design-studio" suffix. That also excludes the nav link (/design-studio) and
+    // /design-studio/FAQs, neither of which is a market.
+    this.marketDesignStudioLinks = page.locator('a[href*="-design-studio"]:visible');
   }
 
   /** Navigates to the Design Studio page for the configured country. */
@@ -53,6 +61,7 @@ export class DesignStudioPage extends BasePage {
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.ensurePageRendered();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 
@@ -105,41 +114,86 @@ export class DesignStudioPage extends BasePage {
     });
   }
 
-  /** Validates the Market Selector is present and offers selectable options. */
+  /**
+   * Validates the "Find your Design Studio" market panel.
+   *
+   * SEARCH NOW expands the panel; every market then links to its own market design
+   * studio page (/<state>/<market>/market-design-studio). Each link is checked
+   * both ways: the href matches the market label it is listed under, and the URL
+   * actually resolves rather than 404ing.
+   */
   async validateMarketSelector(): Promise<void> {
-    await this.step('Validate Design Studio Market Selector', async () => {
-      await this.marketSelector.scrollIntoViewIfNeeded().catch(() => undefined);
-      await this.assertVisible(
-        this.marketSelector,
-        'Design Studio should expose a Market Selector control',
-        15_000,
+    await this.step('Validate Design Studio market panel', async () => {
+      await this.scrollIntoCenter(this.marketPanelExpander);
+      await expect(
+        this.marketPanelExpander,
+        'Design Studio should expose a SEARCH NOW control to expand the market panel',
+      ).toBeVisible({ timeout: 15_000 });
+
+      await this.marketPanelExpander.click();
+      await this.settle(1500);
+
+      await expect
+        .poll(() => this.marketDesignStudioLinks.count(), {
+          message: 'Expanding SEARCH NOW should reveal market design studio links',
+          timeout: 20_000,
+        })
+        .toBeGreaterThan(1);
+
+      const links = await this.marketDesignStudioLinks.evaluateAll((elements) =>
+        elements.map((element) => ({
+          label: (element.textContent || '').trim(),
+          href: element.getAttribute('href') || '',
+        })),
       );
 
-      const tagName = await this.marketSelector.evaluate((el) => el.tagName.toLowerCase());
+      await this.reportValue(
+        `Design Studio markets (${links.length})`,
+        links.map((link) => `${link.label} -> ${link.href}`).join(' | '),
+      );
 
-      if (tagName === 'select') {
-        const optionCount = await this.marketSelector.locator('option').count();
-        expect(
-          optionCount,
-          'Market Selector should offer selectable market options',
-        ).toBeGreaterThan(1);
-        return;
+      const failures: string[] = [];
+
+      for (const link of links) {
+        expect(link.label, 'Each market link should render a label').not.toBe('');
+
+        // Deliberately NOT asserting that the URL slug equals the market label: the
+        // site legitimately abbreviates ("Greater Toronto Area" -> /ontario/gta/
+        // gta-design-studio, "Kitchener-Waterloo-Guelph" -> kitchener-waterloo-
+        // design-studio), so a label-to-slug rule would fail on correct links.
+        expect(link.href, `Market "${link.label}" should link to a design studio page`).toMatch(
+          /-design-studio\/?$/i,
+        );
+
+        const status = await this.getUrlStatus(this.buildFullUrl(link.href));
+
+        if (status !== 200) {
+          failures.push(`${link.label} returned ${status} for ${link.href}`);
+        }
       }
 
-      // Custom dropdown: open it and confirm a list of options renders.
-      await this.marketSelector.click();
-      await this.settle(1000);
+      // Every market must have its OWN destination - duplicates mean a market is
+      // mislinked to another market's studio, which the status check alone misses.
+      const uniqueHrefs = new Set(links.map((link) => link.href));
+      expect(
+        uniqueHrefs.size,
+        `Each market should link to a distinct design studio page (got ${links.length} links, ${uniqueHrefs.size} distinct)`,
+      ).toBe(links.length);
 
-      const options = this.page.locator(
-        '[role="option"]:visible, [role="listbox"] a:visible, [role="menu"] button:visible',
-      );
-      await expect
-        .poll(async () => options.count(), {
-          message: 'Opening the Market Selector should reveal market options',
-          timeout: 10000,
-        })
-        .toBeGreaterThan(0);
+      expect(
+        failures,
+        `Market design studio links should all resolve:\n${failures.join('\n')}`,
+      ).toHaveLength(0);
     });
+  }
+
+  /** Returns the HTTP status for a link, without navigating to it. */
+  private async getUrlStatus(url: string): Promise<number | string> {
+    const response = await this.page.request
+      .get(url, { failOnStatusCode: false, timeout: 30_000 })
+      .catch((error: Error) => error.message.slice(0, 60));
+
+    return typeof response === 'string' ? response : response.status();
   }
 
   /** Validates the primary Title CTA links to a real destination. */

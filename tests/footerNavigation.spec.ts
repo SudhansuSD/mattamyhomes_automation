@@ -10,16 +10,22 @@ import { Footer } from '../pages/Footer';
 import { HomePage } from '../pages/HomePage';
 import { annotate, Severity } from '../utils/allureMeta';
 
+// The footer checks below are structural — footer visible with a Privacy Policy
+// link, social hrefs absolute, newsletter rejects a bad email — and use no
+// per-country data. The suite is therefore reported under ALL and runs once per
+// invocation instead of repeating identical assertions in every location pass
+// (see config/locations/locationAgnosticSpecs.ts). It still opens whichever
+// country LOCATION selects, so a direct `LOCATION=CAN` run checks the CAN footer.
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);
 
-test.describe(`Footer Navigation - ${location.country}`, () => {
+test.describe('Footer Navigation - ALL', () => {
   let homePage: HomePage;
 
   test.beforeEach(async ({ page }) => {
     homePage = new HomePage(page);
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: 'ALL',
       feature: 'Footer Navigation',
       owner: 'QA Automation',
       severity: Severity.NORMAL,
@@ -32,7 +38,7 @@ test.describe(`Footer Navigation - ${location.country}`, () => {
     });
   });
 
-  test('TC-01 | @smoke @regression | Footer should be visible with Privacy Policy link', async ({
+  test(`@smoke @regression | ALL | Footer should be visible with Privacy Policy link`, async ({
     page,
   }) => {
     const footer = new Footer(page);
@@ -42,9 +48,7 @@ test.describe(`Footer Navigation - ${location.country}`, () => {
     });
   });
 
-  test('TC-02 | @regression | Footer social links should be present and linked', async ({
-    page,
-  }) => {
+  test(`@regression | ALL | Footer social links should be present and linked`, async ({ page }) => {
     const footer = new Footer(page);
 
     await test.step('Verify footer social links', async () => {
@@ -52,7 +56,7 @@ test.describe(`Footer Navigation - ${location.country}`, () => {
     });
   });
 
-  test('TC-03 | @regression | Footer newsletter signup should validate email input', async ({
+  test(`@regression | ALL | Footer newsletter signup should validate email input`, async ({
     page,
   }) => {
     const footer = new Footer(page);

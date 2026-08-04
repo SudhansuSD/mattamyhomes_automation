@@ -249,12 +249,13 @@ export async function clickSubmit(
 ): Promise<void> {
   const submitButton = options.submitButton ?? getSubmitButton(form);
 
-  await submitButton.scrollIntoViewIfNeeded();
   await expect(submitButton, 'Submit button should be visible before clicking').toBeVisible({
     timeout,
   });
+  // No force: an overlay covering Submit means the form is not actually
+  // submittable, which is a finding rather than something to click through.
+  // noWaitAfter stays - the third-party submit request must not be awaited.
   await submitButton.click({
-    force: true,
     noWaitAfter: true,
     timeout: 5000,
   });
@@ -367,34 +368,27 @@ export async function expectSideModalFormFields(
 ): Promise<void> {
   const timeout = options.timeout ?? 10000;
 
-  await expectFieldVisibleIfPresent(
-    form.getByRole('textbox', { name: /first name/i }),
-    'First name',
-    timeout,
-  );
-  await expectFieldVisibleIfPresent(
-    form.getByRole('textbox', { name: /last name/i }),
-    'Last name',
-    timeout,
-  );
-  await expectFieldVisibleIfPresent(
-    form.getByRole('textbox', { name: /^email/i }),
-    'Email',
-    timeout,
-  );
+  // Asserted unconditionally: every Mattamy lead form collects these, so an
+  // "…IfPresent" check here would let a form that rendered no fields at all pass
+  // a field-validation test. Only genuinely optional fields stay conditional,
+  // and they branch on a known condition (country / form id) rather than on
+  // "did the locator happen to match".
+  const requiredFields: Array<[Locator, string]> = [
+    [form.getByRole('textbox', { name: /first name/i }).first(), 'First name'],
+    [form.getByRole('textbox', { name: /last name/i }).first(), 'Last name'],
+    [form.getByRole('textbox', { name: /^email/i }).first(), 'Email'],
+    [form.getByRole('textbox', { name: /zip|postal/i }).first(), 'Zip/Postal Code'],
+    [form.getByRole('textbox', { name: /phone/i }).first(), 'Phone number'],
+  ];
+
+  for (const [field, label] of requiredFields) {
+    await expect(field, `${label} field should be visible`).toBeVisible({ timeout });
+  }
+
+  // Country of Residence is not rendered on every form variant.
   await expectFieldVisibleIfPresent(
     form.getByRole('combobox', { name: /country of residence/i }).first(),
     'Country of Residence',
-    timeout,
-  );
-  await expectFieldVisibleIfPresent(
-    form.getByRole('textbox', { name: /zip|postal/i }),
-    'Zip/Postal Code',
-    timeout,
-  );
-  await expectFieldVisibleIfPresent(
-    form.getByRole('textbox', { name: /phone/i }),
-    'Phone number',
     timeout,
   );
 

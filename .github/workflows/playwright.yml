@@ -26,11 +26,12 @@ on:
           - STAGE
           - PROD
       location:
-        description: Test location
+        description: Test location (ALL runs USA and CAN into one report)
         required: true
-        default: USA
+        default: ALL
         type: choice
         options:
+          - ALL
           - CAN
           - USA
 
@@ -54,7 +55,9 @@ jobs:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     env:
       TEST_ENV: ${{ github.event.inputs.env || 'STAGE' }}
-      TEST_LOCATION: ${{ github.event.inputs.location || 'USA' }}
+      # ALL (the default, and what scheduled/push runs use) makes the framework
+      # run one pass per location and report on both.
+      TEST_LOCATION: ${{ github.event.inputs.location || 'ALL' }}
       TEST_SUITE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[single-test]') && 'ci' || github.event.inputs.suite || 'smoke' }}
       BROWSER: Chrome
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
@@ -115,6 +118,11 @@ jobs:
       - name: Generate Allure HTML report
         if: always()
         run: npm run allure:generate
+        env:
+          ENV: ${{ env.TEST_ENV }}
+          # Needed so the report's Environment widget names the location(s)
+          # actually covered instead of assuming every location ran.
+          LOCATION: ${{ env.TEST_LOCATION }}
 
       - name: Upload Allure Report
         if: always()

@@ -23,7 +23,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
     planPage = new PlanDetailPage(page);
 
     await annotate({
-      epic: 'Mattamy Homes Website',
+      location: location.country,
       feature: 'Plan Detail Page',
       owner: 'QA Automation',
       severity: Severity.CRITICAL,
@@ -39,7 +39,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      UI & Functional Validation
   -------------------------------------------------------- */
   test.describe('UI & Functional Validation', () => {
-    test('TC-01 | @smoke @regression | Validate Plan Detail page core content', async () => {
+    test(`@smoke @regression | ${location.country} | Validate Plan Detail page core content`, async () => {
       await test.step('Verify plan URL contains configured plan path', async () => {
         await planPage.verifyPlanUrlContains(location.expectedPlanUrlPart);
       });
@@ -61,7 +61,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
       });
     });
 
-    test('TC-02 | @regression | Validate Plan Detail page media and interactive sections', async () => {
+    test(`@regression | ${location.country} | Validate Plan Detail page media and interactive sections`, async () => {
       await test.step('Verify interactive floorplan section when present', async () => {
         await planPage.verifyInteractiveFloorPlanSection();
       });
@@ -75,7 +75,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
       });
     });
 
-    test('TC-03 | @regression | Validate Plan Detail page conversion and contact sections', async () => {
+    test(`@regression | ${location.country} | Validate Plan Detail page conversion and contact sections`, async () => {
       await test.step('Verify Quick Move-In Homes section when present', async () => {
         await planPage.verifyQuickMoveInHomesSection();
       });
@@ -85,7 +85,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
       });
     });
 
-    test('TC-04 | @regression | Validate plan gallery media tabs when present', async () => {
+    test(`@regression | ${location.country} | Validate plan gallery media tabs when present`, async () => {
       await test.step('Verify plan gallery media tabs when present', async () => {
         await planPage.verifyGalleryMediaTabsIfAvailable();
       });
@@ -96,19 +96,19 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      Form Validation
   -------------------------------------------------------- */
   test.describe('Form Validation', () => {
-    test('TC-01 | @regression | Validate Get Information CTA opens plan detail side modal form', async () => {
+    test(`@regression | ${location.country} | Validate Get Information CTA opens plan detail side modal form`, async () => {
       await planPage.verifyGetInformationCtaOpensLeadForm();
     });
 
-    test('TC-02 | @smoke @regression | Validate plan detail side modal form fields', async () => {
+    test(`@smoke @regression | ${location.country} | Validate plan detail side modal form fields`, async () => {
       await planPage.verifySideModalFormFields();
     });
 
-    test('TC-03 | @regression | Validate plan detail side modal form required field errors', async () => {
+    test(`@regression | ${location.country} | Validate plan detail side modal form required field errors`, async () => {
       await planPage.validateSideModalFormRequiredErrors();
     });
 
-    test('TC-04 | @regression | Validate plan detail side modal form invalid email format', async () => {
+    test(`@regression | ${location.country} | Validate plan detail side modal form invalid email format`, async () => {
       await planPage.validateSideModalFormInvalidEmail();
     });
 
@@ -118,7 +118,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
         'Skipping plan detail form lead submission on PROD environment.',
       );
 
-      test('TC-01 | @regression @STAGE | Validate plan detail side modal form successful submission', async () => {
+      test(`@regression @STAGE | ${location.country} | Validate plan detail side modal form successful submission`, async () => {
         await planPage.verifySideModalFormSuccessSubmission();
       });
     });
@@ -128,7 +128,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      QMI Section Validation
   -------------------------------------------------------- */
   test.describe('QMI Section Validation', () => {
-    test('TC-01 | @prod @regression | Verify QMI Section on Plan Detail page', async () => {
+    test(`@prod @regression | ${location.country} | Verify QMI Section on Plan Detail page`, async () => {
       await test.step('Verify QMI section is displayed and functional', async () => {
         await planPage.verifyQMISection();
       });
@@ -139,7 +139,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
      Media Validation
   -------------------------------------------------------- */
   test.describe('Media Validation', () => {
-    test('TC-01 | @regression | Validate plan page image and video URLs return 200', async () => {
+    test(`@regression | ${location.country} | Validate plan page image and video URLs return 200`, async () => {
       await planPage.validateImageAndVideoUrlsReturn200('Plan page');
     });
   });

@@ -375,14 +375,21 @@ export class AboutUsPage extends BasePage {
     );
   }
 
-  /** Checks whether any button matching. */
+  /**
+   * Checks whether any button-like control matches the pattern.
+   *
+   * Includes links and role="button" elements, not just <button>: these pages
+   * render their calls to action as anchors (the Sustainability page's "Read Our
+   * 2025 Sustainability Report" is an <a>), so a <button>-only search reported a
+   * missing CTA on a page that renders one.
+   */
   private async hasAnyButtonMatching(pattern: RegExp): Promise<boolean> {
-    return this.main.locator('button').evaluateAll(
-      (buttons, regexInput) => {
+    return this.main.locator('button, a, [role="button"]').evaluateAll(
+      (controls, regexInput) => {
         const regex = new RegExp(regexInput.source, regexInput.flags);
 
-        return buttons.some((button) =>
-          regex.test(button.textContent || button.getAttribute('aria-label') || ''),
+        return controls.some((control) =>
+          regex.test(control.textContent || control.getAttribute('aria-label') || ''),
         );
       },
       { source: pattern.source, flags: pattern.flags || 'i' },

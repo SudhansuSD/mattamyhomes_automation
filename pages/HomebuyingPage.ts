@@ -87,6 +87,7 @@ export class HomebuyingPage extends BasePage {
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.ensurePageRendered();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 

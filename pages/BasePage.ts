@@ -18,10 +18,28 @@ import {
 export class BasePage {
   protected readonly page: Page;
   private consentHandlersRegistered = false;
+  private loadStateWaitedForUrl?: string;
+
+  /**
+   * Country this page object is pinned to, if any.
+   *
+   * Some pages only exist for one country — MPC is USA-only, condo community
+   * and condo plan are Canada-only. Those page objects pin their country here
+   * so they navigate, select the header country, and read location data for
+   * that country no matter which LOCATION the run was launched with.
+   * Left undefined, every lookup resolves from LOCATION exactly as before.
+   */
+  protected readonly locationOverride?: LocationKey;
 
   /** Initializes this page object and its locators. */
-  constructor(page: Page) {
+  constructor(page: Page, locationOverride?: LocationKey) {
     this.page = page;
+    this.locationOverride = locationOverride;
+  }
+
+  /** Location data for this page object — its pinned country, else LOCATION. */
+  protected get location() {
+    return getLocationConfig(this.locationOverride);
   }
 
   /* ==========================================================
@@ -31,7 +49,7 @@ export class BasePage {
   /** Navigates to the configured page URL. */
   async navigate(overrideLocation?: LocationKey): Promise<void> {
     const { baseURL, envName } = getEnvConfig();
-    const location = getLocationConfig(overrideLocation);
+    const location = getLocationConfig(overrideLocation ?? this.locationOverride);
 
     const targetUrl = `${baseURL}/?${location.queryParam}`;
 
@@ -75,6 +93,13 @@ export class BasePage {
       // Recover from the intermittent blank/unhydrated render (empty page where
       // the shell loaded but the SPA never painted) before handing control back.
       await this.ensurePageRendered();
+
+      // Clear the National-promotion overlay here, centrally, rather than in each
+      // page object that happens to remember: it renders a beat AFTER navigation
+      // as a full-screen dialog and intercepts pointer events, so every flow that
+      // navigates and then clicks needs it gone. appearTimeout gives it that beat
+      // to show up; when it never appears this costs nothing beyond the wait.
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 
@@ -122,10 +147,42 @@ export class BasePage {
      Common Load Stabilization
   ========================================================== */
 
-  /** Waits for page ready. */
+  /**
+   * Waits until the page has stopped rendering.
+   *
+   * Was a blind `waitForTimeout(3000)` on every call - roughly 20x per test, so
+   * a minute of dead clock per test even on a page that settled instantly. Now
+   * waits for the DOM to go quiet, capped at the same 3s, so it returns early on
+   * a fast page and behaves exactly as before on a slow one.
+   *
+   * The quiet window is deliberately longer than `settle`'s 300ms default: this
+   * runs right after navigation, where the SPA can pause between fetching and
+   * painting, and returning inside that gap would hand control back to a page
+   * that has not rendered yet.
+   */
   protected async waitForPageReady(): Promise<void> {
+    // Arm the overlay auto-dismiss handlers here rather than only in navigate():
+    // several pages goto() directly or are reached through the search flow, and
+    // those never went through navigate(), so they ran unprotected. Guarded
+    // internally, so repeat calls cost a boolean check.
+    await this.registerConsentDialogHandlers();
+
     await this.page.waitForLoadState('domcontentloaded');
-    await this.page.waitForTimeout(3000); // same behavior as before
+
+    // Wait for 'load' ONCE per document, not on every call. The SPA attaches its
+    // handlers around 'load', so this is what stops clicks landing on an
+    // unhydrated page - but on pages whose media/analytics never fire 'load' the
+    // wait costs its full timeout, and waitForPageReady runs ~20x per test. Paying
+    // that repeatedly took the suite from 3.2h to 5.8h. Hydration only needs
+    // waiting for once per URL, so remember what we already waited on.
+    const currentUrl = this.page.url();
+
+    if (this.loadStateWaitedForUrl !== currentUrl) {
+      this.loadStateWaitedForUrl = currentUrl;
+      await this.page.waitForLoadState('load', { timeout: 5_000 }).catch(() => undefined);
+    }
+
+    await this.settle(3000, this.page, 750);
   }
 
   /** Waits until the page footer is visible, useful before validating footer-area content. */
@@ -133,10 +190,12 @@ export class BasePage {
     label = 'page footer',
     timeout = 15_000,
   ): Promise<void> {
-    const footer = this.page.locator('footer').first();
+    // Not every page renders a <footer> tag - the market pages use
+    // <div role="contentinfo">, where a tag-only locator never resolves and the
+    // scroll below just times out.
+    const footer = this.page.locator('footer, [role="contentinfo"]').first();
 
     await this.waitForPageReady();
-    await footer.scrollIntoViewIfNeeded({ timeout });
     await expect(footer, `Footer should be visible before validating ${label}`).toBeVisible({
       timeout,
     });
@@ -152,15 +211,22 @@ export class BasePage {
    * idle, which this SPA may never reach). It returns as soon as rendering
    * settles, never waits longer than the old fixed pause, and never throws —
    * so call sites behave exactly as before when the page keeps mutating (the
-   * pause simply caps out at `ms`). Intentionally NOT used by waitForPageReady,
-   * which keeps its original guaranteed pause.
+   * pause simply caps out at `ms`).
+   *
+   * `quietWindowMs` is how long the DOM must stay unchanged before this returns;
+   * `waitForPageReady` passes a longer one because it runs right after
+   * navigation, where the SPA can pause mid-render.
    */
-  protected async settle(ms: number, target: Page = this.page): Promise<void> {
+  protected async settle(
+    ms: number,
+    target: Page = this.page,
+    quietWindowMs = Math.min(300, ms),
+  ): Promise<void> {
     await target
       .evaluate(
-        (maxMs) =>
+        ([maxMs, quietMs]) =>
           new Promise<void>((resolve) => {
-            const quietWindow = Math.min(300, maxMs);
+            const quietWindow = Math.min(quietMs, maxMs);
             let quietTimer = window.setTimeout(finish, quietWindow);
             const capTimer = window.setTimeout(finish, maxMs);
             const observer = new MutationObserver(() => {
@@ -180,7 +246,7 @@ export class BasePage {
               resolve();
             }
           }),
-        ms,
+        [ms, quietWindowMs] as const,
       )
       .catch(() => undefined);
   }
@@ -624,6 +690,26 @@ export class BasePage {
         await this.page.keyboard.press('Escape').catch(() => undefined);
       }
     });
+
+    // The National-promotion overlay behaves the same way but worse: it renders a
+    // beat after navigation AND can come back later (route change, timer), so a
+    // one-shot dismissal after navigate() misses it on pages reached through the
+    // search flow. A locator handler dismisses it whenever it actually obscures
+    // an action and then retries the action, on every page, for the whole test -
+    // which is what the scattered dismissPromoPopupIfPresent() calls could not do.
+    const promotionOverlay = this.page
+      .locator('[role="dialog"][aria-label*="promotion" i], [aria-label="National promotion"]')
+      .first();
+
+    await this.page.addLocatorHandler(
+      promotionOverlay,
+      async (overlay) => {
+        await this.closeNationalPromotion(overlay);
+      },
+      // The overlay can reappear, so this must stay armed for the whole test
+      // rather than firing once.
+      { noWaitAfter: true },
+    );
   }
 
   /** Accepts the cookie banner when it is visible. */
@@ -795,7 +881,7 @@ export class BasePage {
 
   /** Ensures the configured header country is selected when the selector is visible. */
   protected async ensureConfiguredCountrySelected(): Promise<void> {
-    const expectedCountry = getLocationConfig().country === 'USA' ? 'USA' : 'CANADA';
+    const expectedCountry = this.location.country === 'USA' ? 'USA' : 'CANADA';
     const countrySelector = this.page.locator('button[aria-label^="Select your country."]').first();
 
     if (!(await countrySelector.isVisible({ timeout: 5000 }).catch(() => false))) {
@@ -812,7 +898,7 @@ export class BasePage {
       return;
     }
 
-    await countrySelector.click({ force: true });
+    await countrySelector.click();
     await this.settle(500);
 
     const expectedCountryButton = this.page
@@ -820,7 +906,7 @@ export class BasePage {
       .last();
 
     if (await expectedCountryButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await expectedCountryButton.click({ force: true });
+      await expectedCountryButton.click();
       await this.waitForPageReady();
     }
 
@@ -883,6 +969,22 @@ export class BasePage {
       this.waitForPageReady(), // SPA-safe wait
       locator.click(),
     ]);
+  }
+
+  /**
+   * Scrolls a target to the middle of the viewport before interacting with it.
+   *
+   * Playwright's own scroll puts the element just inside the viewport, which on
+   * these pages can leave it underneath the fixed quick-action bar
+   * (#detailsBlockBar) - the bar then intercepts the click. Centering the target
+   * keeps it clear of both the sticky header and any sticky footer, so the click
+   * lands on the element itself instead of needing `force` to punch through.
+   */
+  protected async scrollIntoCenter(locator: Locator): Promise<void> {
+    await locator
+      .evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }))
+      .catch(() => undefined);
+    await this.settle(300);
   }
 
   /** Checks whether section visible. */
@@ -978,6 +1080,12 @@ export class BasePage {
     }
 
     await options.beforeReveal?.();
+
+    // The National-promotion overlay is a full-screen dialog that covers the CTA
+    // and swallows the click. Dismiss it rather than clicking through it, so a
+    // genuinely unreachable CTA still fails instead of failing later elsewhere.
+    await this.dismissPromoPopupIfPresent({ appearTimeout: 3000 });
+
     await this.revealGetInformationCta(options.pageLabel);
 
     const cta = await this.getVisibleGetInformationCta(options.pageLabel);
@@ -988,8 +1096,9 @@ export class BasePage {
 
     const previousUrl = this.page.url();
 
-    await cta.scrollIntoViewIfNeeded();
-    await cta.click({ force: true });
+    // No force: click() runs the actionability checks, so an overlay-covered CTA
+    // reports the blocker instead of registering a click that goes nowhere.
+    await cta.click();
     await this.waitForPageReady();
     await this.settle(1000);
     await this.expectNoContactRedirect(previousUrl, options.pageLabel);
@@ -1029,7 +1138,6 @@ export class BasePage {
 
     const form = options.leadForms.nth(formIndex);
 
-    await form.scrollIntoViewIfNeeded();
     await this.waitForPageReady();
 
     return form;
@@ -1048,14 +1156,13 @@ export class BasePage {
     const timeout = options.timeout ?? 30_000;
     const apiResponsePromise = this.waitForLeadApiResponse(timeout);
 
-    await options.submitButton.scrollIntoViewIfNeeded();
     await expect(
       options.submitButton,
       `${options.formName} submit button should be visible before submit`,
     ).toBeVisible({ timeout: 10_000 });
 
+    // No force: an overlay covering Submit means the form is not submittable.
     await options.submitButton.click({
-      force: true,
       noWaitAfter: true,
       timeout: 5_000,
     });

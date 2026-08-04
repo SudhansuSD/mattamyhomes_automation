@@ -135,13 +135,23 @@ export class QMIPage extends SearchablePage {
 
   /** Locator: all visible QMI modal forms with a submit button. */
   private get leadFormDialogOrSidebar(): Locator {
-    return this.page
-      .locator(
-        '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
-      )
-      .filter({
-        has: this.page.locator('form, input, select, textarea'),
-      });
+    return (
+      this.page
+        .locator(
+          '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
+        )
+        // A Submit button, not just any input, is what separates a lead form from
+        // the page's other dialogs - the National-promotion overlay is a
+        // full-screen role="dialog" with inputs and used to match here. and(), not
+        // filter({ hasNot }): the aria-label sits on the overlay itself, and
+        // hasNot only inspects descendants.
+        .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+        .and(
+          this.page.locator(
+            ':not([aria-label*="promotion" i]):not([aria-label*="notification" i])',
+          ),
+        )
+    );
   }
 
   /** Locator: successful QMI modal form confirmation message. */
@@ -171,7 +181,7 @@ export class QMIPage extends SearchablePage {
   async verifySearchByQMI(expectedAddress: string): Promise<void> {
     await this.step(`Verify QMI search redirects to '${expectedAddress}'`, async () => {
       await this.waitForPageReady();
-      await this.dismissPromoPopupIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
       const reachedQmiUrl = await this.page
         .waitForURL(QMIPage.QMI_URL_PATTERN, { timeout: 60_000 })
         .then(() => true)
@@ -186,7 +196,7 @@ export class QMIPage extends SearchablePage {
           timeout: 90_000,
         });
         await this.waitForPageReady();
-        await this.dismissPromoPopupIfPresent();
+        await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
       }
 
       await expect(this.heading).toBeVisible({
@@ -594,7 +604,7 @@ export class QMIPage extends SearchablePage {
       formIndex,
       ctaTimeout: QMIPage.PAGE_LOAD_TIMEOUT,
       beforeReveal: async () => {
-        await this.dismissPromoPopupIfPresent();
+        await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
         await this.dismissCookieBannerIfPresent();
       },
     });

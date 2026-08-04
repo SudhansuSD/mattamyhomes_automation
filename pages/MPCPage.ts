@@ -1,6 +1,5 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { getLocationConfig } from '../config/locations/locationConfig';
 import { escapeRegex, getLastPathSegment, getMediaSource } from '../utils/pageObjectUtils';
 import {
   clickSubmit,
@@ -59,7 +58,9 @@ export class MPCPage extends BasePage {
 
   /** Setup: initialize MPC page locators. */
   constructor(page: Page) {
-    super(page);
+    // Master-Planned Communities are a USA-only offering, so this page always
+    // runs against the USA site regardless of the LOCATION the run started with.
+    super(page, 'USA');
 
     this.heading = page.getByRole('heading', { level: 1 });
     this.heroSection = page.locator('main, #root').first();
@@ -80,11 +81,11 @@ export class MPCPage extends BasePage {
     this.imageGallerySection = page
       .locator('[role="region"][aria-label*="Images and videos of"]')
       .or(page.locator('#gallery'))
-      .filter({ has: page.locator('img, picture, video, iframe, button') })
+      .filter({ has: page.locator('img, picture, video, iframe') })
       .or(
         page
           .locator('section')
-          .filter({ has: page.locator('img, picture, video, iframe, button') })
+          .filter({ has: page.locator('img, picture, video, iframe') })
           .filter({
             has: page.getByRole('heading', {
               name: /gallery|photos|images/i,
@@ -94,7 +95,7 @@ export class MPCPage extends BasePage {
       .or(
         page
           .locator('section')
-          .filter({ has: page.locator('img, picture, video, iframe, button') })
+          .filter({ has: page.locator('img, picture, video, iframe') })
           .filter({ hasText: /New Home Gallery|Community Gallery|Photos|Videos/i }),
       )
       .first();
@@ -115,21 +116,34 @@ export class MPCPage extends BasePage {
 
   /** Locator: Get Information lead form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
-    return this.page
-      .locator(
-        [
-          '#ModalForm',
-          '[id*="ModalForm"]',
-          '[role="dialog"]',
-          '.ReactModal__Content',
-          'aside',
-          '[class*="modal" i]',
-          '[class*="drawer" i]',
-          '[class*="sidebar" i]',
-        ].join(', '),
-      )
-      .filter({ has: this.page.getByRole('button', { name: /submit|register|request|send/i }) })
-      .filter({ has: this.page.locator('input, select, textarea') });
+    return (
+      this.page
+        .locator(
+          [
+            '#ModalForm',
+            '[id*="ModalForm"]',
+            '[role="dialog"]',
+            '.ReactModal__Content',
+            'aside',
+            '[class*="modal" i]',
+            '[class*="drawer" i]',
+            '[class*="sidebar" i]',
+          ].join(', '),
+        )
+        // visible: the page pre-renders hidden ModalForm/drawer shells that also
+        // contain inputs, so an unfiltered set reports the modal as already open
+        // and hands back a hidden container. and(): excludes the full-screen
+        // National-promotion overlay, whose aria-label sits on the element itself
+        // (filter({ hasNot }) only inspects descendants).
+        .filter({ visible: true })
+        .filter({ has: this.page.getByRole('button', { name: /submit|register|request|send/i }) })
+        .filter({ has: this.page.locator('input, select, textarea') })
+        .and(
+          this.page.locator(
+            ':not([aria-label*="promotion" i]):not([aria-label*="notification" i])',
+          ),
+        )
+    );
   }
 
   /** Locator: lead form success confirmation message. */
@@ -145,7 +159,7 @@ export class MPCPage extends BasePage {
   async navigateToMPC(relativeUrl: string): Promise<void> {
     await this.step(`Navigate to MPC page: ${relativeUrl}`, async () => {
       const { baseURL, envName } = getEnvConfig();
-      const location = getLocationConfig();
+      const location = this.location;
       const homeUrl = `${baseURL}/?${location.queryParam}`;
       const mpcUrl = `${baseURL}${relativeUrl}`;
 
@@ -172,7 +186,7 @@ export class MPCPage extends BasePage {
       await this.dismissBlockingOverlays();
       await this.ensureConfiguredCountrySelected();
       await this.waitForPageReady();
-      await this.dismissPromoPopupIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 
@@ -197,7 +211,7 @@ export class MPCPage extends BasePage {
               return true;
             }
 
-            await this.dismissPromoPopupIfPresent();
+            await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
             return this.heading
               .first()
               .isVisible({ timeout: 1000 })
@@ -411,7 +425,19 @@ export class MPCPage extends BasePage {
 
       await this.showGalleryPhotosIfAvailable();
 
-      const mediaCount = await this.imageGalleryMedia.count();
+      // Poll rather than count once: the gallery is a carousel whose slides load
+      // lazily, so an immediate count can read 0 on a gallery that does populate a
+      // moment later. A gallery that still has no media after this is a genuine
+      // finding, not a timing artefact.
+      const mediaCount = await expect
+        .poll(() => this.imageGalleryMedia.count(), {
+          message: 'MPC image gallery should include at least one media item',
+          timeout: 15000,
+        })
+        .toBeGreaterThan(0)
+        .then(() => this.imageGalleryMedia.count())
+        .catch(() => 0);
+
       expect(
         mediaCount,
         'MPC image gallery should include at least one media item',
@@ -425,7 +451,7 @@ export class MPCPage extends BasePage {
       const src = await getMediaSource(firstMedia);
       expect(src, 'First MPC gallery media src missing').toBeTruthy();
 
-      await firstMedia.click({ force: true });
+      await firstMedia.click();
 
       await expect(this.galleryModal, 'MPC gallery modal should open').toBeVisible({
         timeout: 10000,
@@ -501,7 +527,7 @@ export class MPCPage extends BasePage {
     ).toBeTruthy();
 
     if (await nextButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await nextButton.click({ force: true });
+      await nextButton.click();
       await expect(
         this.galleryModal.locator('img, video, iframe, picture').first(),
         'MPC gallery modal media should remain visible after next',
@@ -515,7 +541,7 @@ export class MPCPage extends BasePage {
     }
 
     if (await previousButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await previousButton.click({ force: true });
+      await previousButton.click();
       await expect(
         this.galleryModal.locator('img, video, iframe, picture').first(),
         'MPC gallery modal media should remain visible after previous',
@@ -526,7 +552,7 @@ export class MPCPage extends BasePage {
   /** Helper: close the gallery modal with its close button or Escape fallback. */
   private async closeGalleryModal(): Promise<void> {
     if (await this.galleryModalCloseButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await this.galleryModalCloseButton.click({ force: true });
+      await this.galleryModalCloseButton.click();
     } else {
       await this.page.keyboard.press('Escape');
     }
@@ -605,7 +631,7 @@ export class MPCPage extends BasePage {
 
       await this.reportValue('First neighborhood card', this.buildFullUrl(href));
 
-      await firstNeighborhoodLink.click({ force: true });
+      await firstNeighborhoodLink.click();
       await this.waitForPageReady();
       await expect(this.page).toHaveURL(new RegExp(escapeRegex(href!), 'i'));
     });
@@ -827,7 +853,7 @@ export class MPCPage extends BasePage {
     const previousUrl = this.page.url();
 
     await this.getInformationCta.scrollIntoViewIfNeeded();
-    await this.getInformationCta.click({ force: true });
+    await this.getInformationCta.click();
     await this.waitForPageReady();
     await this.settle(1000);
 

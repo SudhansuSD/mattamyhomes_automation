@@ -51,7 +51,8 @@ export class MobileWebSearchPage extends MobileWebHomePage {
           const text = document.body?.innerText || '';
           const cards = document.querySelectorAll('#ProductInfo, [id="ProductInfo"]').length;
           const hasTabs = /Communities|Plans|Quick Move-Ins/i.test(text);
-          const hasSearchState = /results|available|no results|filter|sort|communities|plans|quick move/i.test(text);
+          const hasSearchState =
+            /results|available|no results|filter|sort|communities|plans|quick move/i.test(text);
 
           return {
             cards,
@@ -62,12 +63,16 @@ export class MobileWebSearchPage extends MobileWebHomePage {
           };
         });
 
-        return snapshot.readyState === 'complete' && snapshot.textLength > 20 && (snapshot.cards > 0 || snapshot.hasTabs || snapshot.hasSearchState);
+        return (
+          snapshot.readyState === 'complete' &&
+          snapshot.textLength > 20 &&
+          (snapshot.cards > 0 || snapshot.hasTabs || snapshot.hasSearchState)
+        );
       },
       {
         timeout: 45000,
         timeoutMsg: 'Mobile search page did not render results, tabs, or search controls',
-      }
+      },
     );
   }
 
@@ -76,27 +81,39 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     await this.waitForSearchPage();
     await this.closeCookiePreferencesIfVisible();
 
-    const clicked = await this.driver.execute(({ tabName }) => {
-      const isVisible = (element) => {
-        const style = window.getComputedStyle(element);
-        const rect = element.getBoundingClientRect();
+    const clicked = await this.driver.execute(
+      ({ tabName }) => {
+        const isVisible = (element) => {
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
-      };
-      const regex = new RegExp(tabName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      const tabs = Array.from(document.querySelectorAll('button, [role="button"], a, [aria-label]'));
-      const tab = tabs.find((element) =>
-        isVisible(element) && regex.test(`${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`)
-      );
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        };
+        const regex = new RegExp(tabName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        const tabs = Array.from(
+          document.querySelectorAll('button, [role="button"], a, [aria-label]'),
+        );
+        const tab = tabs.find(
+          (element) =>
+            isVisible(element) &&
+            regex.test(`${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`),
+        );
 
-      if (tab instanceof HTMLElement) {
-        tab.scrollIntoView({ block: 'center', inline: 'center' });
-        tab.click();
-        return true;
-      }
+        if (tab instanceof HTMLElement) {
+          tab.scrollIntoView({ block: 'center', inline: 'center' });
+          tab.click();
+          return true;
+        }
 
-      return false;
-    }, { tabName });
+        return false;
+      },
+      { tabName },
+    );
 
     if (clicked) {
       await this.driver.pause(1500);
@@ -108,23 +125,32 @@ export class MobileWebSearchPage extends MobileWebHomePage {
   async getSearchSnapshot() {
     return this.driver.execute(() => {
       const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
-      const cards = Array.from(document.querySelectorAll('#ProductInfo, [id="ProductInfo"]')).map((card) => {
-        const text = normalize(card.textContent || '');
-        const link = card.querySelector('a[href]');
-        const image = card.closest('a, section, article, div')?.querySelector('img[src]') || card.querySelector('img[src]');
+      const cards = Array.from(document.querySelectorAll('#ProductInfo, [id="ProductInfo"]')).map(
+        (card) => {
+          const text = normalize(card.textContent || '');
+          const link = card.querySelector('a[href]');
+          const image =
+            card.closest('a, section, article, div')?.querySelector('img[src]') ||
+            card.querySelector('img[src]');
 
-        return {
-          href: link?.getAttribute('href') || '',
-          imageSrc: image?.getAttribute('src') || '',
-          text,
-          title: normalize(card.querySelector('h1, h2, h3, h4, [class*="title" i]')?.textContent || ''),
-        };
-      });
+          return {
+            href: link?.getAttribute('href') || '',
+            imageSrc: image?.getAttribute('src') || '',
+            text,
+            title: normalize(
+              card.querySelector('h1, h2, h3, h4, [class*="title" i]')?.textContent || '',
+            ),
+          };
+        },
+      );
       const bodyText = document.body?.innerText || '';
       const statusText = normalize(
-        document.querySelector('[role="status"], div[role="status"]')?.textContent || ''
+        document.querySelector('[role="status"], div[role="status"]')?.textContent || '',
       );
-      const hasSearchState = /results|available|no results|filter|sort|communities|plans|quick move|homeType|start exploring/i.test(bodyText);
+      const hasSearchState =
+        /results|available|no results|filter|sort|communities|plans|quick move|homeType|start exploring/i.test(
+          bodyText,
+        );
 
       return {
         bodyText,
@@ -145,9 +171,12 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     this.logResult(`${tabName} cards: ${snapshot.cards.length} | status: ${snapshot.statusText}`);
 
     assert.equal(
-      snapshot.cards.length > 0 || snapshot.noResults || snapshot.hasSearchState || /available|results/i.test(snapshot.statusText),
+      snapshot.cards.length > 0 ||
+        snapshot.noResults ||
+        snapshot.hasSearchState ||
+        /available|results/i.test(snapshot.statusText),
       true,
-      `Expected ${tabName} cards, count status, no-results message, or mobile search state`
+      `Expected ${tabName} cards, count status, no-results message, or mobile search state`,
     );
   }
 
@@ -162,8 +191,14 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
 
     for (const [index, card] of snapshot.cards.entries()) {
-      assert.ok(card.text.length > 10, `${tabName} card ${index + 1} should include descriptive text`);
-      assert.ok(card.title || /beds|baths|sq\.?\s*ft|from|community/i.test(card.text), `${tabName} card ${index + 1} should include a title or key details`);
+      assert.ok(
+        card.text.length > 10,
+        `${tabName} card ${index + 1} should include descriptive text`,
+      );
+      assert.ok(
+        card.title || /beds|baths|sq\.?\s*ft|from|community/i.test(card.text),
+        `${tabName} card ${index + 1} should include a title or key details`,
+      );
       assert.ok(card.href, `${tabName} card ${index + 1} should include a CTA/details link`);
     }
   }
@@ -179,7 +214,9 @@ export class MobileWebSearchPage extends MobileWebHomePage {
   async validateResultCardCtaNavigation(tabName, cardsToValidate = 2) {
     await this.verifyResults(tabName);
     const snapshot = await this.getSearchSnapshot();
-    const cards = snapshot.cards.filter((card) => card.href && !/^\/?search(?:\?|$)/i.test(card.href));
+    const cards = snapshot.cards.filter(
+      (card) => card.href && !/^\/?search(?:\?|$)/i.test(card.href),
+    );
 
     if (!cards.length) {
       this.logSkip(`${tabName}: no detail CTAs present - skipping CTA navigation validation`);
@@ -191,7 +228,11 @@ export class MobileWebSearchPage extends MobileWebHomePage {
       await this.driver.url(card.href);
       await this.waitForPageReady();
       this.logOpen(`${tabName} card detail`, await this.driver.getUrl());
-      assert.notEqual(await this.driver.getUrl(), previousUrl, `${tabName} CTA should navigate away from search page`);
+      assert.notEqual(
+        await this.driver.getUrl(),
+        previousUrl,
+        `${tabName} CTA should navigate away from search page`,
+      );
       this.assertNoErrorPage(await this.getSnapshot());
       await this.driver.back();
       await this.waitForSearchPage();
@@ -207,7 +248,10 @@ export class MobileWebSearchPage extends MobileWebHomePage {
 
   /** Filters by price. */
   async filterByPrice(minPrice, maxPrice) {
-    await this.applyFilterControl(/price/i, [this.formatPriceLabel(minPrice), this.formatPriceLabel(maxPrice)]);
+    await this.applyFilterControl(/price/i, [
+      this.formatPriceLabel(minPrice),
+      this.formatPriceLabel(maxPrice),
+    ]);
   }
 
   /** Validates price range across tabs. */
@@ -222,7 +266,10 @@ export class MobileWebSearchPage extends MobileWebHomePage {
       }
 
       for (const price of prices) {
-        assert.ok(price >= minPrice && price <= maxPrice, `${tab} price ${price} should be within ${minPrice}-${maxPrice}`);
+        assert.ok(
+          price >= minPrice && price <= maxPrice,
+          `${tab} price ${price} should be within ${minPrice}-${maxPrice}`,
+        );
       }
     }
   }
@@ -243,11 +290,17 @@ export class MobileWebSearchPage extends MobileWebHomePage {
         const baths = Number(card.text.match(/(\d+)\s*Baths?/i)?.[1]);
 
         if (Number.isFinite(beds)) {
-          assert.ok(beds >= minBeds, `${tab} card ${index + 1} beds ${beds} should be >= ${minBeds}`);
+          assert.ok(
+            beds >= minBeds,
+            `${tab} card ${index + 1} beds ${beds} should be >= ${minBeds}`,
+          );
         }
 
         if (Number.isFinite(baths)) {
-          assert.ok(baths >= minBaths, `${tab} card ${index + 1} baths ${baths} should be >= ${minBaths}`);
+          assert.ok(
+            baths >= minBaths,
+            `${tab} card ${index + 1} baths ${baths} should be >= ${minBaths}`,
+          );
         }
       }
     }
@@ -266,12 +319,19 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     await this.waitForSearchPage();
 
     const after = await this.getVisibleCardSignature();
-    assert.ok(before || filtered || after, 'Expected search results state to be readable before and after reset');
+    assert.ok(
+      before || filtered || after,
+      'Expected search results state to be readable before and after reset',
+    );
   }
 
   /** Validates community sort options. */
   async validateCommunitySortOptions() {
-    await this.validateSortOptions('Communities', ['$ - $$$', 'A - Z', 'Availability'], ['Featured']);
+    await this.validateSortOptions(
+      'Communities',
+      ['$ - $$$', 'A - Z', 'Availability'],
+      ['Featured'],
+    );
   }
 
   /** Validates plan sort options. */
@@ -290,7 +350,9 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     const options = await this.openSortAndGetOptions();
 
     if (!options.length) {
-      this.logSkip(`${tabName}: sort control not present on mobile - skipping sort option validation`);
+      this.logSkip(
+        `${tabName}: sort control not present on mobile - skipping sort option validation`,
+      );
       return;
     }
 
@@ -299,12 +361,14 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     for (const option of required) {
       assert.ok(
         normalized.includes(this.normalizeText(option)),
-        `${tabName} sort options should include ${option}. Options: ${options.join(', ')}`
+        `${tabName} sort options should include ${option}. Options: ${options.join(', ')}`,
       );
     }
 
     for (const option of optional) {
-      this.logResult(`${tabName}: optional sort ${option} present=${normalized.includes(this.normalizeText(option))}`);
+      this.logResult(
+        `${tabName}: optional sort ${option} present=${normalized.includes(this.normalizeText(option))}`,
+      );
     }
   }
 
@@ -314,7 +378,9 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     const options = await this.openSortAndGetOptions();
 
     if (!options.length) {
-      this.logSkip(`${tabName}: sort control not present on mobile - skipping sort behavior validation`);
+      this.logSkip(
+        `${tabName}: sort control not present on mobile - skipping sort behavior validation`,
+      );
       return;
     }
 
@@ -326,7 +392,11 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
 
     const before = await this.getVisibleCardSignature();
-    await this.clickVisibleByText(new RegExp(`^\\s*${this.escapeRegExp(option)}\\s*$`, 'i'), ['button', 'a', 'div'], `${tabName} sort: ${option}`);
+    await this.clickVisibleByText(
+      new RegExp(`^\\s*${this.escapeRegExp(option)}\\s*$`, 'i'),
+      ['button', 'a', 'div'],
+      `${tabName} sort: ${option}`,
+    );
     await this.driver.pause(1500);
     await this.waitForSearchPage();
     const after = await this.getVisibleCardSignature();
@@ -341,10 +411,19 @@ export class MobileWebSearchPage extends MobileWebHomePage {
         const style = window.getComputedStyle(element);
         const rect = element.getBoundingClientRect();
 
-        return style.visibility !== 'hidden' && style.display !== 'none' && rect.width > 0 && rect.height > 0;
+        return (
+          style.visibility !== 'hidden' &&
+          style.display !== 'none' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
       };
-      const sort = Array.from(document.querySelectorAll('button, [role="button"], [aria-label]')).find((element) =>
-        isVisible(element) && /sort/i.test(`${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`)
+      const sort = Array.from(
+        document.querySelectorAll('button, [role="button"], [aria-label]'),
+      ).find(
+        (element) =>
+          isVisible(element) &&
+          /sort/i.test(`${element.textContent || ''} ${element.getAttribute('aria-label') || ''}`),
       );
 
       if (sort instanceof HTMLElement) {
@@ -363,9 +442,11 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     await this.driver.pause(500);
 
     return this.driver.execute(() =>
-      Array.from(document.querySelectorAll('button, [role="option"], [role="menuitem"], div[role="button"]'))
+      Array.from(
+        document.querySelectorAll('button, [role="option"], [role="menuitem"], div[role="button"]'),
+      )
         .map((element) => (element.textContent || '').replace(/\s+/g, ' ').trim())
-        .filter((text) => /\$|A - Z|Sq\.?\s*Ft|Availability|Featured|Date/i.test(text))
+        .filter((text) => /\$|A - Z|Sq\.?\s*Ft|Availability|Featured|Date/i.test(text)),
     );
   }
 
@@ -376,14 +457,20 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     const opened = await this.clickVisibleByText(filterPattern, ['button', 'a', '[role="button"]']);
 
     if (!opened) {
-      this.logSkip(`Filter control ${filterPattern} not present on mobile - skipping filter action`);
+      this.logSkip(
+        `Filter control ${filterPattern} not present on mobile - skipping filter action`,
+      );
       return;
     }
 
     await this.driver.pause(500);
 
     for (const label of optionLabels) {
-      await this.clickVisibleByText(new RegExp(this.escapeRegExp(label), 'i'), ['button', 'a', 'label', 'span', 'div'], `filter option: ${label}`);
+      await this.clickVisibleByText(
+        new RegExp(this.escapeRegExp(label), 'i'),
+        ['button', 'a', 'label', 'span', 'div'],
+        `filter option: ${label}`,
+      );
       await this.driver.pause(300);
     }
 
@@ -412,7 +499,14 @@ export class MobileWebSearchPage extends MobileWebHomePage {
   /** Returns visible card signature. */
   async getVisibleCardSignature() {
     const snapshot = await this.getSearchSnapshot();
-    return snapshot.cards.slice(0, 5).map((card) => card.text).join('|') || snapshot.statusText || snapshot.bodyText.slice(0, 500);
+    return (
+      snapshot.cards
+        .slice(0, 5)
+        .map((card) => card.text)
+        .join('|') ||
+      snapshot.statusText ||
+      snapshot.bodyText.slice(0, 500)
+    );
   }
 
   /** Formats price label. */

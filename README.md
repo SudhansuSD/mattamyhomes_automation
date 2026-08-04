@@ -63,10 +63,75 @@ npm run test:smoke       # @smoke subset
 npm run test:regression  # @regression subset
 ```
 
-Select environment/region with env vars (defaults shown):
+Select environment/region with env vars:
 
 ```bash
-ENV=STAGE LOCATION=USA npm run test:smoke     # STAGE | PROD  x  USA | CAN
+ENV=STAGE LOCATION=USA npm run test:smoke     # STAGE | PROD  x  USA | CAN | ALL
+```
+
+**Leaving `LOCATION` unset (or `ALL`) runs every location.** `npm test` and the
+`test:*` scripts go through `scripts/run-locations.ts`, which runs one Playwright
+pass per location — USA, then CAN — and builds a **single Allure report covering
+both**. Allure results accumulate across passes instead of being cleared, and the
+report's Environment widget lists the locations covered.
+
+Some suites are **pinned to one country** because the feature only exists there:
+MPC is USA-only, condo community and condo plan are Canada-only. Those page
+objects pass their country to `BasePage` (`super(page, 'USA' | 'CAN')`), so they
+navigate, pick the header country and read location data for that country no
+matter what `LOCATION` says. Running `LOCATION=CAN npx playwright test tests/mpc.spec.ts`
+exercises MPC against the USA site instead of skipping the whole suite.
+
+### Location in the report
+
+Test titles follow `@tags | LOCATION | description` — for example
+`@smoke @regression | CAN | Validate condo plan breadcrumb`. There are no `TC-nn`
+prefixes; the location is the identifying prefix instead.
+
+`annotate({ location })` in each suite sets the Allure **epic** and adds the
+location as a tag, so the Behaviors tab groups the report by location first and
+page second:
+
+```
+behaviors
+  USA
+    Community Page → …
+    MPC Page → …
+  CAN
+    Community Page → …
+    Condo Plan Page → …
+  ALL
+    Static Legal Pages → …
+    Footer Navigation → …
+```
+
+Suites that run in both passes appear under **both** USA and CAN, one entry per
+pass. `contactPage` and `customerCarePage` run once but label each test with the
+country it actually exercises, so their tests land under USA or CAN individually.
+
+`ALL` is for suites whose assertions do not vary by country — `staticLegalPages`
+and `footerNavigation` (footer visibility, Privacy Policy link, absolute social
+hrefs, newsletter validation are all structural checks). They run once rather
+than repeating identical assertions in every pass. If a country-specific
+expectation is ever added to one of them, drop it from
+`config/locations/locationAgnosticSpecs.ts` so it runs per location again.
+
+Note: a test that is skipped never runs its `beforeEach`, so it carries no Allure
+labels and is not grouped under a location — its title still names one.
+
+Suites that don't vary with the selected location — the pinned ones above plus
+`contactPage`, `customerCarePage`, `staticLegalPages` and `promoPage`, all listed
+in `config/locations/locationAgnosticSpecs.ts` — run in the first pass only, so
+the report has no duplicate entries. Every other suite carries the country in its
+describe title, keeping USA and CAN results separate in the report.
+
+Pass `LOCATION=CAN` for a single-location run — that behaves exactly as before,
+one Playwright process. An unrecognised value still fails fast.
+
+Extra arguments are forwarded to Playwright:
+
+```bash
+npm test -- --grep @smoke --project=Chrome
 ```
 
 On Windows PowerShell, prefer setting them inline via `cross-env` or set them in
@@ -185,7 +250,7 @@ come from GitHub **secrets**, not a file.
 | Variable | Used by | Required for | Default |
 | --- | --- | --- | --- |
 | `ENV` | `envConfig.ts`, reports | selecting STAGE/PROD base URL and report label | `STAGE` |
-| `LOCATION` | `locationConfig.ts` | selecting USA/CAN data | `USA` |
+| `LOCATION` | `locationConfig.ts` | selecting USA/CAN data (`ALL`/unset = one pass per location) | all locations |
 | `BROWSER` | email report | report label | `Chrome` |
 | `ALLURE_REPORT_URL` | email report | report link | — |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_SECURE` | email report | sending email | `587` / `false` |

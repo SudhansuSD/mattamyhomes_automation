@@ -136,16 +136,20 @@ export class SearchPage extends SearchablePage {
     await this.settle(800);
   }
 
-  /** Returns the no-results message locator. */
+  /**
+   * Returns the no-results message locator.
+   *
+   * Scoped to the results status only. The previous version also matched any
+   * visible `[aria-label*="No results found"]`, which the FILTER dropdowns use for
+   * their own empty lists ("Charlotte. No results found. Markets list") - so the
+   * assertion passed while the result set still held cards. A no-results check
+   * that can pass with results on screen is worse than no check at all.
+   */
   private noResultsMessage(): Locator {
-    const statusMessage = this.page
+    return this.page
       .getByRole('status')
-      .filter({ hasText: /No results in this area|No results found|No results/i });
-    const accessibleNoResultsState = this.page.locator(
-      '[aria-label*="No results found" i]:visible, [aria-label*="No results in this area" i]:visible',
-    );
-
-    return statusMessage.or(accessibleNoResultsState).first();
+      .filter({ hasText: /No results in this area|No results found|No results/i })
+      .first();
   }
 
   /** Canonicalizes search URL. */
@@ -587,13 +591,105 @@ export class SearchPage extends SearchablePage {
         await this.waitForPageReady();
         await this.openFilter('Select Beds & Baths');
 
-        await this.page.locator('span').filter({ hasText: 'Bedrooms' }).click();
-        await this.page.getByRole('checkbox', { name: `${minBeds} Bedrooms` }).click();
+        // Group toggles are buttons; the old `span` filter matched several nodes
+        // (including non-clickable wrappers) and timed out.
+        await this.page
+          .getByRole('button', { name: /^Bedrooms$/i })
+          .first()
+          .click({ timeout: 10000 });
+        await this.selectBedsOrBathsOption('Bedroom', minBeds);
+        await this.waitForResultsToLoad();
 
-        await this.page.locator('span').filter({ hasText: 'Bathrooms' }).click();
-        await this.page.getByRole('checkbox', { name: `${minBaths} Bathrooms` }).click();
+        await this.page
+          .getByRole('button', { name: /^Bathrooms$/i })
+          .first()
+          .click({ timeout: 10000 });
+        await this.selectBedsOrBathsOption('Bathroom', minBaths);
+        await this.waitForResultsToLoad();
       },
     );
+  }
+
+  /**
+   * Returns the highest minimum-price option the open price dropdown offers.
+   *
+   * The dropdown labels prices as K/M with a space ("$ 150K" ... "$ 1M") - not as
+   * full amounts - so matching on "$300,000"-style text finds nothing in the
+   * dropdown and instead hits the full prices printed on result cards, whose
+   * click navigates away from search entirely.
+   */
+  private async highestPriceOptionLabel(): Promise<string> {
+    const labels = await this.page
+      .locator('div, li, span, button, p')
+      .evaluateAll((elements) =>
+        elements
+          .map((element) => (element.textContent || '').trim())
+          .filter((text) => /^\$\s*\d+(?:\.\d+)?\s*[KM]$/i.test(text)),
+      );
+
+    const unique = [...new Set(labels)];
+
+    if (!unique.length) {
+      throw new Error('Price dropdown did not render any K/M price options');
+    }
+
+    const toNumber = (label: string) => {
+      const amount = Number(label.replace(/[^0-9.]/g, ''));
+      return /M$/i.test(label) ? amount * 1_000_000 : amount * 1_000;
+    };
+
+    return unique.reduce((highest, label) =>
+      toNumber(label) > toNumber(highest) ? label : highest,
+    );
+  }
+
+  /**
+   * Selects the beds/baths option for `count` from the options the site actually
+   * offers, and returns the number selected.
+   *
+   * Composing the label (`${count} Bedrooms`) broke on every real variant: the
+   * site renders "1 Bedroom" (singular), "4+ Bedrooms" (plus sign), and no longer
+   * offers anything above 4+, so asking for "6 Bedrooms" just waited out the
+   * timeout on a checkbox that does not exist. This reads the rendered options,
+   * picks the highest one that does not exceed `count`, and falls back to the
+   * highest available when `count` is beyond the range.
+   */
+  private async selectBedsOrBathsOption(
+    group: 'Bedroom' | 'Bathroom',
+    count: number,
+  ): Promise<number> {
+    const options = this.page.getByRole('checkbox', {
+      name: new RegExp(`^\\s*\\d+\\+?\\s+${group}s?\\s*$`, 'i'),
+    });
+
+    await expect
+      .poll(() => options.count(), {
+        message: `${group} filter should offer selectable options`,
+        timeout: 10000,
+      })
+      .toBeGreaterThan(0);
+
+    const names = await options.evaluateAll((elements) =>
+      elements.map((element) => element.getAttribute('aria-label') ?? element.textContent ?? ''),
+    );
+
+    const parsed = names
+      .map((name, index) => ({ index, value: Number(name.match(/\d+/)?.[0] ?? NaN) }))
+      .filter((entry) => Number.isFinite(entry.value));
+
+    if (!parsed.length) {
+      throw new Error(`No numeric ${group} options found (rendered: ${names.join(', ')})`);
+    }
+
+    const highest = parsed.reduce((a, b) => (b.value > a.value ? b : a));
+    const chosen =
+      parsed.filter((entry) => entry.value <= count).sort((a, b) => b.value - a.value)[0] ??
+      highest;
+
+    await options.nth(chosen.index).click();
+    await this.reportValue(`${group} filter selected`, names[chosen.index].trim());
+
+    return chosen.value;
   }
 
   /** Resets filters. */
@@ -650,10 +746,30 @@ export class SearchPage extends SearchablePage {
   /** Validates no results state. */
   async validateNoResultsState(): Promise<void> {
     await this.step('Apply unavailable criteria and verify no-results state', async () => {
+      // Order matters, and not for a cosmetic reason: the site only offers the
+      // beds/baths values present in the CURRENT result set. Apply the price
+      // minimum first and the remaining communities are price-less ones ("Coming
+      // Soon" / "Sold Out"), leaving the Beds & Baths panel with no options at all
+      // - clicking it then just times out. So filter beds/baths while the full
+      // result set is still on screen, then squeeze with price.
+      //
+      // Measured on Charlotte: 14 communities -> 4+ bedrooms -> 5 -> 4+ bathrooms
+      // -> 3 -> minimum price "$ 1M" -> 0, with the site's own no-results status.
+      // 99 is intentionally beyond range; the helper clamps to the highest option.
+      await this.filterByBedroomsAndBathrooms(99, 99);
+
+      // Close the beds/baths panel so it does not overlay the price filter.
+      await this.page.keyboard.press('Escape').catch(() => undefined);
+      await this.settle(1000);
+
       await this.openFilter('Dropdown price filter');
       await this.dropdownOption('$ No min').click();
-      await this.dropdownOption(this.formatPriceToUiLabel(1000000)).click();
-      await this.filterByBedroomsAndBathrooms(6, 6);
+
+      const minPriceLabel = await this.highestPriceOptionLabel();
+
+      await this.dropdownOption(minPriceLabel).first().click();
+      await this.reportValue('No-results criteria: min price', minPriceLabel);
+
       await this.waitForResultsToLoad();
 
       const noResults = this.noResultsMessage();
@@ -699,7 +815,7 @@ export class SearchPage extends SearchablePage {
     await this.step('Reload should preserve combined filter URL/state', async () => {
       await this.page.reload({ waitUntil: 'domcontentloaded', timeout: 90_000 });
       await this.waitForPageReady();
-      await this.dismissPromoPopupIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
       await this.openTab('Plans');
       await this.waitForResultsToLoad();
 
@@ -728,7 +844,7 @@ export class SearchPage extends SearchablePage {
         .goBack({ waitUntil: 'domcontentloaded', timeout: 60_000 })
         .catch(() => undefined);
       await this.waitForPageReady();
-      await this.dismissPromoPopupIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
 
       expect(this.page.url(), 'Back navigation should leave the filtered URL').not.toBe(
         filteredUrl,
@@ -740,7 +856,7 @@ export class SearchPage extends SearchablePage {
         .goForward({ waitUntil: 'domcontentloaded', timeout: 60_000 })
         .catch(() => undefined);
       await this.waitForPageReady();
-      await this.dismissPromoPopupIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
 
       expect(this.page.url(), 'Forward navigation should restore the filtered URL').toBe(
         filteredUrl,

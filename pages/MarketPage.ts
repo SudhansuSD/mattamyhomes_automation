@@ -188,7 +188,7 @@ export class MarketPage extends BasePage {
       await this.waitForPageReady();
       await this.ensureConfiguredCountrySelected();
       await this.waitForPageReady();
-      await this.dismissPromoPopupIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 

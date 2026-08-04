@@ -141,13 +141,23 @@ export class PlanDetailPage extends SearchablePage {
 
   /** Locator: Get Information modal form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
-    return this.page
-      .locator(
-        '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
-      )
-      .filter({
-        has: this.page.locator('form, input, select, textarea'),
-      });
+    return (
+      this.page
+        .locator(
+          '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
+        )
+        // A Submit button, not just any input, is what separates a lead form from
+        // the page's other dialogs - the National-promotion overlay is a
+        // full-screen role="dialog" with inputs and used to match here. and(), not
+        // filter({ hasNot }): the aria-label sits on the overlay itself, and
+        // hasNot only inspects descendants.
+        .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+        .and(
+          this.page.locator(
+            ':not([aria-label*="promotion" i]):not([aria-label*="notification" i])',
+          ),
+        )
+    );
   }
 
   /** Locator: modal form success confirmation message. */
@@ -333,7 +343,7 @@ export class PlanDetailPage extends SearchablePage {
         }
 
         await tab.scrollIntoViewIfNeeded();
-        await tab.click({ force: true });
+        await tab.click();
         await this.waitForPageReady();
         await this.settle(500);
 
