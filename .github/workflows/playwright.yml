@@ -266,7 +266,6 @@ jobs:
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_CC: ${{ secrets.EMAIL_CC }}
           ENV: ${{ env.TEST_ENV }}
-          TEST_ENV: ${{ env.TEST_ENV }}
           BROWSER: ${{ env.BROWSER }}
           BUILD_NUMBER: ${{ github.run_number }}
           # Permanent, per-build URL — it keeps working after later runs publish.

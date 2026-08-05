@@ -527,9 +527,10 @@ function buildSubject(summary: ExecutionSummary): string {
 }
 
 function buildEmailHtml(summary: ExecutionSummary): string {
-  const buildLabel = summary.buildNumber ? ` (Build #${summary.buildNumber})` : '';
+  // const buildLabel = summary.buildNumber ? ` (Build #${summary.buildNumber})` : '';
+  // ${escapeHtml(buildLabel)}
   const reportLink = summary.reportUrl
-    ? `<a class="button" href="${escapeHtml(summary.reportUrl)}" target="_blank" rel="noopener noreferrer">View Allure HTML Report${escapeHtml(buildLabel)}</a>`
+    ? `<a class="button" href="${escapeHtml(summary.reportUrl)}" target="_blank" rel="noopener noreferrer">View Full Report</a>`
     : '<span class="missing-link">Report link not configured</span>';
 
   // The catalog link is what makes previous runs reachable — this build's report
@@ -641,9 +642,9 @@ function buildEmailHtml(summary: ExecutionSummary): string {
       <body>
         <div class="container">
           <div class="panel">
-            <h1>Automation Test Execution Report</h1>
+            <h1>Mattamy Homes Automation Test Execution Report</h1>
             <p>Hi Team,</p>
-            <p>The automation test execution has been completed. Please find the execution summary below.</p>
+            <p>The automation test execution has been completed in ${escapeHtml(summary.environment)}. Please find the execution summary below.</p>
 
             <div class="metric-row">
               <div class="metric">Total<strong>${summary.total}</strong></div>

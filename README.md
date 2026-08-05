@@ -183,7 +183,10 @@ npm run allure:merge && npm run allure:open:merged
 ```
 
 Allure 3 generates the Awesome report at `allure-report/<mode>/awesome/` and a
-charts-only dashboard at `allure-report/<mode>/dashboard/`. A small root
+charts-only dashboard at `allure-report/<mode>/dashboard/`. Allure hard-codes a
+920px content column on the Report view, so `generate-allure-report.ts` patches
+the generated CSS to use the full window width; set `ALLURE_REPORT_MAX_WIDTH` to
+a CSS length (e.g. `1600px`) to cap it, or to `default` to keep Allure's 920px. A small root
 `index.html` redirects to Awesome so existing report links keep working. Trend
 graphs, including Status dynamics, persist across runs through `.allure-history/`.
 The report and email summary also show the overall run type (`CI`, `Smoke`,

@@ -77,7 +77,6 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
   const env = getEnvConfig();
   const properties: Record<string, string> = {
     Suite: label,
-    TEST_ENV: env.envName,
     Environment: env.envName,
     BaseURL: env.baseURL,
     // Every location the run covered — a single value when LOCATION was given,
@@ -201,6 +200,77 @@ function enrichRunTypeLabels(resultsDir: string, runType: string): void {
   }
 }
 
+/** Collect every stylesheet the generated report ships. */
+function collectStylesheets(dir: string): string[] {
+  if (!fs.existsSync(dir)) {
+    return [];
+  }
+
+  const collected: string[] = [];
+
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      collected.push(...collectStylesheets(fullPath));
+    } else if (entry.isFile() && entry.name.endsWith('.css')) {
+      collected.push(fullPath);
+    }
+  }
+
+  return collected;
+}
+
+/**
+ * Widen the report's content column.
+ *
+ * Allure Awesome hard-codes `max-width:920px` on the Report view's container, so
+ * on a normal monitor the summary sits in a narrow centred strip with large empty
+ * margins — while the Graphs view, which is not inside that container, fills the
+ * window. The plugin exposes no CSS hook and its `layout: 'split'` option adds a
+ * second pane rather than widening the content, so patching the generated
+ * stylesheet is the only way to change it.
+ *
+ * The replacement keys on the exact `max-width:920px` token, NOT on the hashed
+ * class names (`.b2XhjWBW`), which change on every Allure build. `max-width:1920px`
+ * appears elsewhere in the same file and is deliberately left alone.
+ *
+ * Set ALLURE_REPORT_MAX_WIDTH to a CSS length to cap it instead ('1600px'), or to
+ * 'default' to keep Allure's own 920px.
+ */
+function widenReportLayout(reportDir: string): void {
+  const target = getEnv('ALLURE_REPORT_MAX_WIDTH', 'none');
+
+  if (target.toLowerCase() === 'default') {
+    return;
+  }
+
+  let replaced = 0;
+
+  for (const stylesheet of collectStylesheets(reportDir)) {
+    const css = fs.readFileSync(stylesheet, 'utf8');
+    const matches = css.match(/max-width:920px/g);
+
+    if (!matches) {
+      continue;
+    }
+
+    fs.writeFileSync(stylesheet, css.replace(/max-width:920px/g, `max-width:${target}`));
+    replaced += matches.length;
+  }
+
+  if (replaced) {
+    console.log(`[allure] Widened report container: ${replaced} rule(s) -> max-width:${target}`);
+  } else {
+    // Not fatal, but worth surfacing: it almost certainly means an Allure upgrade
+    // changed the value, and the report has quietly gone back to a narrow column.
+    console.warn(
+      '[allure] No "max-width:920px" rule found — Allure may have changed its layout CSS. ' +
+        'Re-check widenReportLayout() in scripts/generate-allure-report.ts.',
+    );
+  }
+}
+
 function writeReportLandingPage(reportDir: string): void {
   const html = `<!doctype html>
 <html lang="en">
@@ -259,6 +329,7 @@ function generateReport(resultsDirs: string[], reportDir: string, historyFilePat
     },
   );
 
+  widenReportLayout(reportDir);
   writeReportLandingPage(reportDir);
 }
 

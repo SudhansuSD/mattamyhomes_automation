@@ -116,7 +116,7 @@ export default defineConfig({
   //   test.setTimeout(8 * 60 * 1000)
   timeout: 5 * 60 * 1000,
   // Retry once under CI to absorb flakiness; no retries locally (unchanged).
-  retries: isCI ? 1 : 0,
+  retries: isCI ? 0 : 0,
   projects,
   reporter,
 });
