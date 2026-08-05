@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mattamy Homes Automation — Report Builds</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; padding: 32px 20px; font-family: -apple-system, Segoe UI, Arial, sans-serif; background: #f3f5f8; color: #172033; }
+      @media (prefers-color-scheme: dark) { body { background: #11151c; color: #e6e9ef; } }
+      .wrap { max-width: 1180px; margin: 0 auto; }
+      h1 { font-size: 24px; margin: 0 0 4px; }
+      p.sub { margin: 0 0 20px; opacity: .7; font-size: 14px; }
+      .filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+      select { padding: 6px 10px; border-radius: 6px; border: 1px solid #b9c2cf; background: transparent; color: inherit; font-size: 14px; }
+      .scroll { overflow-x: auto; border: 1px solid #d5dbe4; border-radius: 8px; }
+      @media (prefers-color-scheme: dark) { .scroll { border-color: #2b3340; } }
+      table { border-collapse: collapse; width: 100%; font-size: 14px; background: rgba(255,255,255,.55); }
+      @media (prefers-color-scheme: dark) { table { background: rgba(255,255,255,.03); } }
+      th, td { padding: 9px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid #e2e7ee; }
+      @media (prefers-color-scheme: dark) { th, td { border-bottom-color: #232a35; } }
+      th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; opacity: .65; }
+      tr:last-child td { border-bottom: none; }
+      a { color: #1d63c8; } @media (prefers-color-scheme: dark) { a { color: #6ba6ff; } }
+      .ok { color: #17794a; font-weight: 700; } .bad { color: #c02b2b; font-weight: 700; }
+      @media (prefers-color-scheme: dark) { .ok { color: #4ec98a; } .bad { color: #ff8080; } }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Mattamy Homes Automation — Report Builds</h1>
+      <p class="sub">1 retained build. Each row opens that build's full Allure report.</p>
+
+      <div class="filters">
+        <select id="runTypeFilter"><option value="">All run types</option><option value="Smoke">Smoke</option></select>
+        <select id="environmentFilter"><option value="">All environments</option><option value="STAGE">STAGE</option></select>
+      </div>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Build</th><th>Run type</th><th>Env</th><th>Location</th><th>Browser</th>
+              <th>Pass %</th><th>Total</th><th>Passed</th><th>Failed</th><th>Skipped</th>
+              <th>Executed</th><th>CI</th>
+            </tr>
+          </thead>
+          <tbody id="builds">
+<tr data-run-type="Smoke" data-environment="STAGE">
+        <td><a href="smoke/stage/158/">#158</a></td>
+        <td>Smoke</td>
+        <td>STAGE</td>
+        <td>ALL</td>
+        <td>Chrome</td>
+        <td class="ok">100%</td>
+        <td>71</td>
+        <td>70</td>
+        <td>0</td>
+        <td>1</td>
+        <td>2026-08-05 09:49 UTC</td>
+        <td><a href="https://github.com/SudhansuSD/mattamyhomes_automation/actions/runs/30993614181">CI run</a></td>
+      </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      var runTypeFilter = document.getElementById('runTypeFilter');
+      var environmentFilter = document.getElementById('environmentFilter');
+      function applyFilters() {
+        var runType = runTypeFilter.value;
+        var environment = environmentFilter.value;
+        var rows = document.querySelectorAll('#builds tr');
+        for (var i = 0; i < rows.length; i++) {
+          var row = rows[i];
+          var matches = (!runType || row.dataset.runType === runType) &&
+                        (!environment || row.dataset.environment === environment);
+          row.style.display = matches ? '' : 'none';
+        }
+      }
+      runTypeFilter.addEventListener('change', applyFilters);
+      environmentFilter.addEventListener('change', applyFilters);
+    </script>
+  </body>
+</html>
