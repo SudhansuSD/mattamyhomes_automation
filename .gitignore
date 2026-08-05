@@ -36,6 +36,8 @@ allure-report/
 .allure-history/
 */allure-results/
 */allure-report/
+# Working copy of the gh-pages report site, checked out by CI during publishing.
+gh-pages-site/
 
 # ---- Logs -------------------------------------------------------------------
 *.log

@@ -61,6 +61,10 @@ type ExecutionSummary = {
   browser: string;
   executionDateTime: string;
   reportUrl: string;
+  /** Root of the published report site — the catalog of all retained builds. */
+  reportSiteUrl: string;
+  /** CI build number this report belongs to; empty for local runs. */
+  buildNumber: string;
   runType: string;
   failedTests: Array<{
     name: string;
@@ -335,6 +339,8 @@ function buildSummaryFromCounts(
     browser: getEnv('BROWSER', 'Chrome'),
     executionDateTime: new Date().toLocaleString('en-US'),
     reportUrl: getEnv('ALLURE_REPORT_URL', ''),
+    reportSiteUrl: getEnv('ALLURE_REPORT_SITE_URL', ''),
+    buildNumber: getEnv('BUILD_NUMBER', getEnv('GITHUB_RUN_NUMBER', '')),
     runType,
     failedTests,
   };
@@ -448,7 +454,8 @@ async function generateChart(summary: ExecutionSummary): Promise<string> {
 }
 
 function renderSummaryRows(summary: ExecutionSummary): string {
-  const rows = [
+  const rows: Array<[string, string | number]> = [
+    ...(summary.buildNumber ? [['Build', `#${summary.buildNumber}`] as [string, string]] : []),
     ['Total Tests', summary.total],
     ['Passed Tests', summary.passed],
     ['Failed Tests', summary.failed],
@@ -503,10 +510,33 @@ function renderFailedTests(summary: ExecutionSummary): string {
   `;
 }
 
+/**
+ * Subject line that identifies the run on its own, so a mailbox full of reports
+ * stays readable: "Automation Report - Regression - STAGE - Build #142 - 96% Passed".
+ */
+function buildSubject(summary: ExecutionSummary): string {
+  return [
+    'Automation Report',
+    summary.runType,
+    summary.environment,
+    summary.buildNumber ? `Build #${summary.buildNumber}` : null,
+    `${summary.passPercentage}% Passed`,
+  ]
+    .filter(Boolean)
+    .join(' - ');
+}
+
 function buildEmailHtml(summary: ExecutionSummary): string {
+  const buildLabel = summary.buildNumber ? ` (Build #${summary.buildNumber})` : '';
   const reportLink = summary.reportUrl
-    ? `<a class="button" href="${escapeHtml(summary.reportUrl)}" target="_blank" rel="noopener noreferrer">View Allure HTML Report</a>`
+    ? `<a class="button" href="${escapeHtml(summary.reportUrl)}" target="_blank" rel="noopener noreferrer">View Allure HTML Report${escapeHtml(buildLabel)}</a>`
     : '<span class="missing-link">Report link not configured</span>';
+
+  // The catalog link is what makes previous runs reachable — this build's report
+  // stays at its own permanent URL, and the catalog lists every retained build.
+  const siteLink = summary.reportSiteUrl
+    ? `<p><a href="${escapeHtml(summary.reportSiteUrl)}" target="_blank" rel="noopener noreferrer">Browse all previous builds</a></p>`
+    : '';
 
   return `
     <!doctype html>
@@ -635,6 +665,7 @@ function buildEmailHtml(summary: ExecutionSummary): string {
 
             <h2>Allure HTML Report</h2>
             ${reportLink}
+            ${siteLink}
 
             <p class="footer">Regards,<br />QA Automation Team</p>
           </div>
@@ -704,7 +735,7 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
     from,
     to,
     cc: cc.length > 0 ? cc : undefined,
-    subject: `Automation Test Execution Report - ${summary.environment} - ${summary.passPercentage}% Passed`,
+    subject: buildSubject(summary),
     html: buildEmailHtml(summary),
     attachments: [
       {
@@ -732,6 +763,7 @@ export async function sendAllureEmailReport(): Promise<void> {
     environment: summary.environment,
     browser: summary.browser,
     runType: summary.runType,
+    buildNumber: summary.buildNumber || 'local run',
     reportUrl: summary.reportUrl || 'Report link not configured',
   });
 

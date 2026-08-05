@@ -196,6 +196,47 @@ npm run report:email          # send summary of the latest results
 npm run test:allure:email     # full run + report + email workflow
 ```
 
+### Published, build-wise reports
+
+CI publishes every run to the `gh-pages` branch under its own permanent URL, so
+previous runs stay readable instead of being overwritten:
+
+```
+https://sudhansusd.github.io/mattamyhomes_automation/            catalog of all builds
+https://sudhansusd.github.io/mattamyhomes_automation/regression/stage/142/
+https://sudhansusd.github.io/mattamyhomes_automation/latest/smoke/prod/   newest of that pair
+```
+
+The path is `<run type>/<environment>/<build number>`, taken from `TEST_SUITE`,
+`ENV`, and the GitHub Actions run number. `scripts/publish-report-site.ts` copies
+the generated report in, records the build in `builds.json`, regenerates the
+catalog page, and prunes the oldest builds beyond `KEEP_BUILDS_PER_COMBINATION`
+(default 10) per run type + environment pair. Retention is deliberately modest:
+GitHub Pages hard-fails a deployment above 1 GB, so the script logs the site size
+each run and warns at 750 MB.
+
+The report email links to that build's permanent URL and to the catalog, and its
+subject carries the run type, environment and build number.
+
+**The published copy withholds traces.** Playwright traces (`.zip`) carry DOM
+snapshots and full network request/response bodies, and the site is anonymously
+readable — so `data/attachments/*.zip|.webm|.mp4|.har` are skipped when copying
+into the site. Failure screenshots are kept, since they are what makes a shared
+link useful for triage. Traces stay in the 30-day CI artifacts. Override with
+`PUBLISH_EXCLUDE_ATTACHMENT_EXTENSIONS` (`none` publishes everything).
+
+**Trend history lives on the branch**, at `history/desktop-<runtype>-<env>.jsonl`,
+one chain per run type + environment. It is restored before `allure:generate`
+(`npm run report:history:restore`) and written back with the build, so a report
+and the history describing it land in the same commit and cannot drift — and it
+survives the Actions cache's 7-day eviction, which the previous setup did not.
+
+Publishing retries: if two runs publish at once, the loser refetches the branch
+and re-publishes on top of the winner rather than merging generated files.
+
+GitHub setup this depends on: **Settings → Pages → Source = Deploy from a branch
+→ `gh-pages` / (root)**, and the workflow's `permissions: contents: write`.
+
 ---
 
 ## 6. Quality gates
@@ -297,7 +338,12 @@ Two GitHub Actions workflows in `.github/workflows/`:
 Both: pin Node via `.nvmrc`, `npm ci`, **type-check → lint → tests → Allure report**
 (quality gates fail the job loudly, no `continue-on-error`), and upload
 `playwright-report/`, `allure-report/`, `allure-results/`, and `test-results/` as
-artifacts. Secrets (`EMAIL_*`, `ALLURE_REPORT_URL`) are read from GitHub secrets.
+artifacts. Email secrets (`EMAIL_*`) are read from GitHub secrets; the report URL
+is computed per build by the publish step (see §5) and needs no secret.
+
+`playwright.yml` additionally publishes each build's Allure report to the
+`gh-pages` branch, keeping trend history there per suite + environment so charts
+compare like with like instead of interleaving smoke and regression runs (§5).
 
 Under `CI=true`, `playwright.config.ts` switches to headless, adds the HTML
 reporter, enables the firefox/webkit projects, runs 2 workers, and retries once.

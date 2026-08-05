@@ -39,18 +39,15 @@ concurrency:
   group: playwright-${{ github.ref }}
   cancel-in-progress: true
 
+# contents: write is what lets the built-in GITHUB_TOKEN push each build's report
+# to the gh-pages branch. Pages is served from that branch, not from an artifact.
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 jobs:
   playwright:
     timeout-minutes: 90
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy-pages.outputs.page_url }}
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
     env:
@@ -101,16 +98,29 @@ jobs:
           ENV: ${{ env.TEST_ENV }}
           LOCATION: ${{ env.TEST_LOCATION }}
 
-      - name: Restore Allure history
+      # Pull down every build published so far. This happens BEFORE report
+      # generation because the trend history lives on the branch too — storing it
+      # there rather than in the Actions cache keeps a report and the history it
+      # describes in one commit (they cannot drift) and survives cache eviction.
+      # The branch does not exist before the first publish, hence continue-on-error.
+      - name: Check out published report site
         if: always()
-        uses: actions/cache/restore@v4
+        id: site-checkout
+        continue-on-error: true
+        uses: actions/checkout@v4
         with:
-          path: |
-            .allure-history/
-            allure-report/desktop/history
-          key: allure-history-${{ github.ref_name }}-${{ github.run_id }}
-          restore-keys: |
-            allure-history-${{ github.ref_name }}-
+          ref: gh-pages
+          path: gh-pages-site
+
+      # History is kept per suite AND environment, so a Regression/PROD report's
+      # trend compares against previous Regression/PROD runs only — one shared
+      # chain interleaved the suites and read as false flakiness.
+      - name: Restore Allure trend history
+        if: always()
+        run: npm run report:history:restore
+        env:
+          ENV: ${{ env.TEST_ENV }}
+          REPORT_SITE_DIR: gh-pages-site
 
       - name: Generate Allure HTML report
         if: always()
@@ -140,28 +150,67 @@ jobs:
             echo "has_report=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Save Allure history
+      # Publish + push in one step so a rejected push can be retried by rebuilding
+      # the site on top of whatever landed in the meantime. Merging the two trees
+      # is not safe — builds.json and index.html are generated files that would
+      # conflict — but re-running the publish is, because it is idempotent.
+      - name: Publish this build to the report site
         if: always() && steps.allure-site.outputs.has_report == 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: .allure-history/
-          key: allure-history-${{ github.ref_name }}-${{ github.run_id }}
+        id: report-site
+        shell: bash
+        env:
+          ENV: ${{ env.TEST_ENV }}
+          LOCATION: ${{ env.TEST_LOCATION }}
+          REPORT_SITE_DIR: gh-pages-site
+          BUILD_NUMBER: ${{ github.run_number }}
+          # Builds retained per run type + environment pair before the oldest are
+          # pruned. Kept modest because GitHub Pages hard-fails above a 1 GB site.
+          KEEP_BUILDS_PER_COMBINATION: '10'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
 
-      - name: Configure GitHub Pages
-        if: always() && steps.allure-site.outputs.has_report == 'true'
-        id: pages
-        uses: actions/configure-pages@v5
+          MAX_ATTEMPTS=5
 
-      - name: Upload Allure report for GitHub Pages
-        if: always() && steps.allure-site.outputs.has_report == 'true'
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: allure-report/desktop
+          for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+            npm run report:publish
 
-      - name: Deploy Allure report to GitHub Pages
-        if: always() && steps.allure-site.outputs.has_report == 'true'
-        id: deploy-pages
-        uses: actions/deploy-pages@v4
+            pushd gh-pages-site > /dev/null
+
+            if [ ! -d .git ]; then
+              git init -b gh-pages
+              git remote add origin \
+                "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            fi
+
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+
+            if git diff --staged --quiet; then
+              echo "No report changes to publish."
+              exit 0
+            fi
+
+            git commit -q -m \
+              "Publish Allure report build #${GITHUB_RUN_NUMBER} (${TEST_SUITE}/${TEST_ENV})"
+
+            if git push origin HEAD:gh-pages; then
+              echo "Published on attempt ${attempt}."
+              exit 0
+            fi
+
+            echo "::warning::Push rejected on attempt ${attempt}/${MAX_ATTEMPTS} — another run published first; rebuilding on top of it."
+
+            # Discard this attempt and reset the tree to what is now on the remote,
+            # then loop: the next publish re-adds this build to the newer site.
+            git fetch --depth=1 origin gh-pages
+            git checkout -q -B gh-pages origin/gh-pages
+            popd > /dev/null
+          done
+
+          echo "::error::Could not publish the report after ${MAX_ATTEMPTS} attempts."
+          exit 1
 
       - name: Upload Allure results (raw)
         if: always()
@@ -202,7 +251,7 @@ jobs:
           echo "EMAIL_TO configured: ${{ secrets.EMAIL_TO != '' }}"
           echo "EMAIL_CC configured: ${{ secrets.EMAIL_CC != '' }}"
           echo "Allure site generated: ${{ steps.allure-site.outputs.has_report == 'true' }}"
-          echo "GitHub Pages URL: ${{ steps.deploy-pages.outputs.page_url || 'not deployed' }}"
+          echo "Build report URL: ${{ steps.report-site.outputs.build_url || 'not published' }}"
 
       - name: Send email report
         if: always()
@@ -216,6 +265,10 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           EMAIL_CC: ${{ secrets.EMAIL_CC }}
+          ENV: ${{ env.TEST_ENV }}
           TEST_ENV: ${{ env.TEST_ENV }}
           BROWSER: ${{ env.BROWSER }}
-          ALLURE_REPORT_URL: ${{ steps.deploy-pages.outputs.page_url }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          # Permanent, per-build URL — it keeps working after later runs publish.
+          ALLURE_REPORT_URL: ${{ steps.report-site.outputs.build_url }}
+          ALLURE_REPORT_SITE_URL: ${{ steps.report-site.outputs.site_url }}

@@ -46,6 +46,8 @@
     "allure:watch:mobile": "npx allure watch allure-results/mobile",
     "test:allure": "npm run clean:allure:desktop && ts-node scripts/run-locations.ts",
     "report:email": "ts-node scripts/send-allure-email-report.ts",
+    "report:publish": "ts-node scripts/publish-report-site.ts publish",
+    "report:history:restore": "ts-node scripts/publish-report-site.ts restore",
     "test:allure:email": "ts-node scripts/run-allure-email-workflow.ts",
     "test:ci": "npm run clean:allure && ts-node scripts/run-locations.ts --project=Chrome --grep @ci",
     "test:smoke": "npm run clean:allure && ts-node scripts/run-locations.ts --project=Chrome --grep @smoke",
