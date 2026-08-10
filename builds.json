@@ -1,5 +1,27 @@
 [
   {
+    "buildNumber": 165,
+    "buildId": "31357533874",
+    "runType": "Smoke",
+    "environment": "STAGE",
+    "location": "ALL",
+    "browser": "Chrome",
+    "branch": "main",
+    "commit": "d276c5c",
+    "workflowRunUrl": "https://github.com/SudhansuSD/mattamyhomes_automation/actions/runs/31357533874",
+    "buildPath": "smoke/stage/165",
+    "timestamp": "2026-08-10T05:31:20.938Z",
+    "stats": {
+      "total": 71,
+      "passed": 67,
+      "failed": 3,
+      "broken": 0,
+      "skipped": 1,
+      "passPercentage": 96
+    },
+    "status": "failed"
+  },
+  {
     "buildNumber": 164,
     "buildId": "31295286119",
     "runType": "Smoke",
