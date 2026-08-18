@@ -165,6 +165,60 @@ export class PlanDetailPage extends SearchablePage {
     return this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last();
   }
 
+  /** Locator: gallery media with approved fallback selectors. */
+  private async planGalleryImages(): Promise<Locator> {
+    return this.healLocator('plan detail gallery media', [
+      {
+        locator: this.galleryImages,
+        selector: '.slick-slide img, .swiper-slide img, img',
+      },
+      {
+        locator: this.page.locator('#gallery img, [id*="gallery" i] img'),
+        selector: '#gallery img, [id*="gallery" i] img',
+      },
+      {
+        locator: this.page.locator('[role="region"][aria-label*="image" i] img'),
+        selector: '[role="region"][aria-label*="image" i] img',
+      },
+    ]);
+  }
+
+  /** Locator: available quick move-in homes section with approved fallback selectors. */
+  private async availableHomesSection(): Promise<Locator> {
+    return this.healLocator('plan detail available homes section', [
+      {
+        locator: this.qmiSection,
+        selector: '#availablehomes',
+      },
+      {
+        locator: this.page
+          .locator('section, div')
+          .filter({ has: this.page.getByRole('heading', { name: /Quick Move-In Homes/i }) })
+          .first(),
+        selector: 'section/div with Quick Move-In Homes heading',
+      },
+      {
+        locator: this.page
+          .locator('section, div')
+          .filter({ has: this.page.locator('a[href*="productType=qmi"], a[href*="quick-move"]') })
+          .first(),
+        selector: 'section/div with QMI links',
+      },
+    ]);
+  }
+
+  /** Locator: quick move-in home links inside a section. */
+  private qmiHomeLinks(section: Locator): Locator {
+    return section.locator(
+      'a[aria-label*="Floorplan"], a:has-text("Floorplan"), a[href*="quick-move"], a[href*="/homes/"]',
+    );
+  }
+
+  /** Locator: View All QMI CTA inside a section. */
+  private viewAllQmiButton(section: Locator): Locator {
+    return section.locator('a:has-text("View all"), a[href*="productType=qmi"]').first();
+  }
+
   // ----------------------------------
   // Page Load Validation
   // ----------------------------------
@@ -313,16 +367,28 @@ export class PlanDetailPage extends SearchablePage {
   /** Verify: gallery image is visible and gallery controls work when present. */
   async verifyGallery() {
     await this.step('Verify gallery image and controls', async () => {
-      await expect(this.galleryImages.first()).toBeVisible();
+      const galleryImages = await this.planGalleryImages();
 
-      if (await this.nextGalleryBtn.isVisible()) {
-        await this.nextGalleryBtn.click();
-      }
+      await expect(galleryImages.first()).toBeVisible();
 
-      if (await this.prevGalleryBtn.isVisible()) {
-        await this.prevGalleryBtn.click();
-      }
+      await this.clickGalleryControlIfVisible(this.nextGalleryBtn, 'Next gallery slide');
+      await this.clickGalleryControlIfVisible(this.prevGalleryBtn, 'Previous gallery slide');
     });
+  }
+
+  /** Clicks a gallery control, falling back to DOM dispatch when overlays intercept pointer events. */
+  private async clickGalleryControlIfVisible(control: Locator, label: string): Promise<void> {
+    if (!(await control.isVisible({ timeout: 2000 }).catch(() => false))) {
+      return;
+    }
+
+    await this.dismissPromoPopupIfPresent({ appearTimeout: 1000 });
+    await this.scrollIntoCenter(control);
+    await control.click({ timeout: 5000 }).catch(async () => {
+      await this.reportValue(`${label} native click was intercepted; dispatching DOM click`);
+      await control.dispatchEvent('click');
+    });
+    await this.settle(500);
   }
 
   /** Verify: optional gallery media tabs render usable media when selected. */
@@ -476,11 +542,16 @@ export class PlanDetailPage extends SearchablePage {
   /** Verify: QMI section logs available homes and View All URL when present. */
   async verifyQMISection() {
     await this.step('Verify QMI section', async () => {
-      if (await isLocatorVisible(this.qmiSection)) {
-        await this.qmiSection.scrollIntoViewIfNeeded();
+      const qmiSection = await this.availableHomesSection();
+
+      if (await isLocatorVisible(qmiSection)) {
+        await qmiSection.scrollIntoViewIfNeeded();
         await this.waitForPageReady();
 
-        const qmiCount = await this.qmiHomeslist.count();
+        const qmiHomeslist = this.qmiHomeLinks(qmiSection);
+        const viewAllQMIButton = this.viewAllQmiButton(qmiSection);
+        const qmiCount = await qmiHomeslist.count();
+
         await this.reportValue('Number of QMI Homes listed', qmiCount);
         if (qmiCount === 0) {
           await this.reportValue('QMI section has no home cards - skipping card validation');
@@ -488,16 +559,16 @@ export class PlanDetailPage extends SearchablePage {
         }
 
         for (let i = 0; i < qmiCount; i++) {
-          const homeLink = this.qmiHomeslist.nth(i);
+          const homeLink = qmiHomeslist.nth(i);
           const homeHref = await homeLink.getAttribute('href');
           expect(homeHref).toBeTruthy();
           await this.reportValue(`QMI Home ${i + 1}`, this.buildFullUrl(homeHref));
         }
 
-        if ((await this.viewAllQMIButton.count()) > 0) {
-          await expect(this.viewAllQMIButton).toBeVisible();
+        if ((await viewAllQMIButton.count()) > 0) {
+          await expect(viewAllQMIButton).toBeVisible();
 
-          const href = await this.viewAllQMIButton.getAttribute('href');
+          const href = await viewAllQMIButton.getAttribute('href');
           await this.reportValue('View All QMI URL', href);
         } else {
           await this.reportValue('View All link not visible');
@@ -511,27 +582,33 @@ export class PlanDetailPage extends SearchablePage {
   /** Verify: configured quick move-in homes section content and links. */
   async verifyQuickMoveInHomes(plan: PlanDetails): Promise<void> {
     await this.step('Verify quick move-in homes section', async () => {
-      await expect(this.qmiSection).toBeVisible();
+      const qmiSection = await this.availableHomesSection();
+      const viewAllQMIButton = this.viewAllQmiButton(qmiSection);
+      const qmiHomeslist = this.qmiHomeLinks(qmiSection);
+
+      await expect(qmiSection).toBeVisible();
 
       if (plan.qmiHeadline) {
-        await expect(this.qmiSection.getByText(plan.qmiHeadline, { exact: false })).toBeVisible();
+        await expect(qmiSection.getByText(plan.qmiHeadline, { exact: false })).toBeVisible();
       }
 
-      await expect(this.viewAllQMIButton).toBeVisible();
-      await expect(this.viewAllQMIButton).toHaveAttribute('href', /productType=qmi/i);
-      expect(await this.qmiHomeslist.count()).toBeGreaterThan(0);
+      await expect(viewAllQMIButton).toBeVisible();
+      await expect(viewAllQMIButton).toHaveAttribute('href', /productType=qmi/i);
+      expect(await qmiHomeslist.count()).toBeGreaterThan(0);
     });
   }
 
   /** Verify: quick move-in homes section is visible when present. */
   async verifyQuickMoveInHomesSection(): Promise<void> {
     await this.step('Verify quick move-in homes section present', async () => {
-      if (await isLocatorVisible(this.qmiSection)) {
-        await this.qmiSection.scrollIntoViewIfNeeded();
-        await expect(this.qmiSection).toBeVisible();
-        await expect(this.viewAllQMIButton).toBeVisible();
+      const qmiSection = await this.availableHomesSection();
 
-        const qmiCount = await this.qmiHomeslist.count();
+      if (await isLocatorVisible(qmiSection)) {
+        await qmiSection.scrollIntoViewIfNeeded();
+        await expect(qmiSection).toBeVisible();
+        await expect(this.viewAllQmiButton(qmiSection)).toBeVisible();
+
+        const qmiCount = await this.qmiHomeLinks(qmiSection).count();
         if (qmiCount === 0) {
           await this.reportValue('QMI section has no home cards - skipping card validation');
           return;

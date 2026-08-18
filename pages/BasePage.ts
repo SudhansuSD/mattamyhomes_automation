@@ -11,6 +11,17 @@ import {
   normalizeComparableText,
 } from '../utils/pageObjectUtils';
 
+type SelfHealingLocatorCandidate = {
+  locator: Locator;
+  selector: string;
+};
+
+type SelfHealingLocatorOptions = {
+  minimumCount?: number;
+  state?: 'attached' | 'visible';
+  timeout?: number;
+};
+
 /* ==========================================================
    Base Page – Shared Navigation & Common Utilities
 ========================================================== */
@@ -485,6 +496,63 @@ export class BasePage {
    */
   protected async reportValue(message: string, value?: unknown): Promise<void> {
     await reportValue(message, value);
+  }
+
+  /**
+   * Returns the first candidate locator that is currently usable.
+   *
+   * Self-healing is deliberately limited to explicit fallback selectors. When
+   * no fallback matches, the primary locator is returned so the original test
+   * failure remains visible.
+   */
+  protected async healLocator(
+    label: string,
+    candidates: SelfHealingLocatorCandidate[],
+    options: SelfHealingLocatorOptions = {},
+  ): Promise<Locator> {
+    if (candidates.length === 0) {
+      throw new Error(`No self-healing locator candidates provided for ${label}`);
+    }
+
+    const minimumCount = options.minimumCount ?? 1;
+    const state = options.state ?? 'visible';
+    const timeout = options.timeout ?? 750;
+    const primary = candidates[0];
+
+    for (const [index, candidate] of candidates.entries()) {
+      const locator = candidate.locator;
+      const count = await locator.count().catch(() => 0);
+
+      if (count < minimumCount) {
+        continue;
+      }
+
+      const isUsable = await locator
+        .first()
+        .waitFor({ state, timeout })
+        .then(() => true)
+        .catch(() => false);
+
+      if (!isUsable) {
+        continue;
+      }
+
+      if (index > 0) {
+        await this.reportValue(
+          `Self-healed locator: ${label}`,
+          `Primary failed: ${primary.selector}; fallback used: ${candidate.selector}`,
+        );
+      }
+
+      return locator;
+    }
+
+    await this.reportValue(
+      `Self-healing fallback not found: ${label}`,
+      `Using primary selector so the test fails normally: ${primary.selector}`,
+    );
+
+    return primary.locator;
   }
 
   /* ==========================================================

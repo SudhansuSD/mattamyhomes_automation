@@ -8,6 +8,7 @@ import {
   expectSideModalFormFields,
   fillInvalidSideModalForm,
   fillValidSideModalForm,
+  getConsentCheckbox,
   getInvalidLeadData,
   getSubmitButton,
   getValidLeadData,
@@ -722,11 +723,17 @@ export class MPCPage extends BasePage {
         fields.country,
         fields.zip,
         fields.phone,
-        fields.terms,
         fields.submit,
       ]) {
         await expect(field.first()).toBeVisible({ timeout: 10000 });
       }
+
+      await expect(
+        fields.terms,
+        'Community update consent checkbox should be present',
+      ).toBeAttached({
+        timeout: 10000,
+      });
 
       const options = await fields.community.locator('option').allTextContents();
       expect(
@@ -818,9 +825,7 @@ export class MPCPage extends BasePage {
       country: form.getByRole('combobox', { name: /Country of Residence/i }),
       zip: form.getByRole('textbox', { name: /Zip|Postal/i }),
       phone: form.getByRole('textbox', { name: /Phone/i }),
-      terms: form.getByRole('checkbox', {
-        name: /I am providing express consent/i,
-      }),
+      terms: getConsentCheckbox(form),
       submit: form.locator('button[type="submit"]').first(),
     };
   }

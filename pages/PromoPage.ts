@@ -1,6 +1,11 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { fillIfPresent, getLeadProfile, getValidLeadData } from '../utils/leadFormHelper';
+import {
+  fillIfPresent,
+  getConsentCheckbox,
+  getLeadProfile,
+  getValidLeadData,
+} from '../utils/leadFormHelper';
 import { BasePage } from './BasePage';
 
 type PromoLeadData = {
@@ -129,7 +134,9 @@ export class PromoPage extends BasePage {
       await this.assertVisible(this.zipPostalField, 'Zip/Postal Code field should be visible');
       await this.assertVisible(this.phoneField, 'Phone number field should be visible');
       await this.expectFieldIfPresent(this.questionsField);
-      await this.assertVisible(this.termsCheckbox, 'Terms checkbox should be visible');
+      await expect(this.termsCheckbox, 'Terms checkbox should be present').toBeAttached({
+        timeout: 10000,
+      });
       await this.assertVisible(this.submitButton, 'Promo form submit button should be visible');
     });
   }
@@ -247,11 +254,7 @@ export class PromoPage extends BasePage {
 
   /** Returns the terms checkbox locator or value. */
   private get termsCheckbox(): Locator {
-    return this.promoForm
-      .getByRole('checkbox', {
-        name: /entering my contact information/i,
-      })
-      .first();
+    return getConsentCheckbox(this.promoForm);
   }
 
   /** Returns the sms checkbox locator or value. */

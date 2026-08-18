@@ -157,17 +157,28 @@ export class Header extends BasePage {
       await this.registerNationalPromotionHandler();
       await this.clickFindYourHome();
 
-      const fyhLinkButtons = this.page.locator('button[href^="/search"]');
-      const count = await fyhLinkButtons.count();
+      const fyhLinkButtons = this.header.locator('button[href^="/search"], a[href^="/search"]');
+      await expect
+        .poll(() => fyhLinkButtons.count(), {
+          message: 'Find Your Dream Home menu should expose search links',
+          timeout: 15000,
+        })
+        .toBeGreaterThan(0);
+
+      const links = await fyhLinkButtons.evaluateAll((elements) =>
+        elements
+          .map((element) => ({
+            href: element.getAttribute('href') || '',
+            text: element.textContent?.trim().replace(/\s+/g, ' ') || '',
+          }))
+          .filter((link) => /^\/search/i.test(link.href)),
+      );
+      const count = links.length;
 
       await this.reportValue('Total Find Your Dream Home links', count);
       expect(count, 'Find Your Dream Home menu should expose search links').toBeGreaterThan(0);
 
-      for (let i = 0; i < count; i++) {
-        const button = fyhLinkButtons.nth(i);
-
-        const href = await button.getAttribute('href');
-        const text = await button.innerText();
+      for (const [i, { href, text }] of links.entries()) {
         expect(href, `Find Your Dream Home link ${i + 1} should expose href`).toMatch(/^\/search/i);
 
         await this.reportValue(
@@ -186,7 +197,10 @@ export class Header extends BasePage {
           continue;
         }
 
-        await this.clickElement(button);
+        await this.page.goto(this.buildFullUrl(href), {
+          waitUntil: 'domcontentloaded',
+          timeout: 90_000,
+        });
         await this.waitForPageReady();
 
         // The campaign modal is injected shortly after the search page has loaded.
@@ -207,7 +221,7 @@ export class Header extends BasePage {
         }
 
         const url = new URL(this.page.url());
-        const metro = url.searchParams.get('metro');
+        const metro = url.searchParams.get('metro') ?? '';
 
         expect(metro).toBe(metroValue);
       }

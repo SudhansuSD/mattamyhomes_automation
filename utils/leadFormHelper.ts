@@ -181,12 +181,32 @@ export async function selectCountryIfPresent(
 }
 
 /** Check the appropriate consent checkbox when present (skips "real estate agent" opt-ins). */
-export async function checkConsentIfPresent(form: Locator): Promise<void> {
-  const named = form
+export function getConsentCheckbox(form: Locator): Locator {
+  return form
     .getByRole('checkbox', {
-      name: /express consent|providing consent|privacy policy/i,
+      name: /express consent|providing consent|privacy policy|entering my contact information/i,
     })
+    .or(
+      form.locator(
+        [
+          'input[type="checkbox"][name*="consent" i]',
+          'input[type="checkbox"][id*="consent" i]',
+          'input[type="checkbox"][aria-label*="consent" i]',
+          'input[type="checkbox"][name*="privacy" i]',
+          'input[type="checkbox"][id*="privacy" i]',
+          'input[type="checkbox"][aria-label*="privacy" i]',
+          'input[type="checkbox"][name*="terms" i]',
+          'input[type="checkbox"][id*="terms" i]',
+          'input[type="checkbox"][aria-label*="terms" i]',
+        ].join(', '),
+      ),
+    )
     .first();
+}
+
+/** Check the appropriate consent checkbox when present (skips "real estate agent" opt-ins). */
+export async function checkConsentIfPresent(form: Locator): Promise<void> {
+  const named = getConsentCheckbox(form);
 
   if (await named.count()) {
     await named.check({ force: true }).catch(() => undefined);

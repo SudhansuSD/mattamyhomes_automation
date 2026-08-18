@@ -149,6 +149,78 @@ export class MobileWebBasePage {
     await this.dismissBlockingOverlaysIfPresent();
   }
 
+  /**
+   * Returns the first visible selector from an explicit candidate list.
+   *
+   * Mobile uses DOM execution heavily, so this helper heals selector strings
+   * before those scripts run. If no fallback is usable it returns the primary
+   * selector, preserving the original failure behavior.
+   */
+  async healMobileSelector(
+    label,
+    candidates,
+    options: { minimumCount?: number; requireVisible?: boolean } = {},
+  ) {
+    if (!Array.isArray(candidates) || candidates.length === 0) {
+      throw new Error(`No self-healing selector candidates provided for ${label}`);
+    }
+
+    const minimumCount = options.minimumCount ?? 1;
+    const requireVisible = options.requireVisible ?? true;
+    const primary = candidates[0];
+
+    const match = await this.driver.execute(
+      ({ candidates, minimumCount, requireVisible }) => {
+        const isVisible = (element) => {
+          if (!(element instanceof HTMLElement)) {
+            return false;
+          }
+
+          const style = window.getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+
+          return (
+            style.visibility !== 'hidden' &&
+            style.display !== 'none' &&
+            rect.width > 0 &&
+            rect.height > 0
+          );
+        };
+
+        for (let index = 0; index < candidates.length; index += 1) {
+          const candidate = candidates[index];
+          const elements = Array.from(document.querySelectorAll(candidate.selector));
+          const count = requireVisible ? elements.filter(isVisible).length : elements.length;
+
+          if (count >= minimumCount) {
+            return { candidate, index };
+          }
+        }
+
+        return null;
+      },
+      { candidates, minimumCount, requireVisible },
+    );
+
+    if (match?.candidate) {
+      if (match.index > 0) {
+        this.logMobileStep(
+          'RESULT',
+          `Self-healed selector: ${label}. Primary failed: ${primary.selector}; fallback used: ${match.candidate.selector}`,
+        );
+      }
+
+      return match.candidate.selector;
+    }
+
+    this.logMobileStep(
+      'RESULT',
+      `Self-healing fallback not found: ${label}. Using primary selector: ${primary.selector}`,
+    );
+
+    return primary.selector;
+  }
+
   /** Accepts the cookie banner when it is visible. */
   async acceptCookiesIfVisible() {
     await this.removeCookieOverlays();

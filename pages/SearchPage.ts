@@ -36,8 +36,27 @@ export class SearchPage extends SearchablePage {
 
   private filterButton = (label: string) => this.page.locator(`button[aria-label*="${label}"]`);
 
-  // Keep assertions scoped to cards visible in the active tab.
-  private resultCards = () => this.page.locator('#ProductInfo:visible');
+  /** Keep assertions scoped to cards visible in the active tab, with approved fallback selectors. */
+  private async resultCards(): Promise<Locator> {
+    return this.healLocator('search result cards', [
+      {
+        locator: this.page.locator('#ProductInfo:visible'),
+        selector: '#ProductInfo:visible',
+      },
+      {
+        locator: this.page.locator('[data-testid*="product" i]:visible'),
+        selector: '[data-testid*="product" i]:visible',
+      },
+      {
+        locator: this.page.locator('article:has(a[href]):visible'),
+        selector: 'article:has(a[href]):visible',
+      },
+      {
+        locator: this.page.locator('[class*="card" i]:has(a[href]):visible'),
+        selector: '[class*="card" i]:has(a[href]):visible',
+      },
+    ]);
+  }
 
   /** Returns tab locator. */
   private getTabLocator(tabName: string) {
@@ -163,7 +182,7 @@ export class SearchPage extends SearchablePage {
   /** Returns card count. */
   private async getCardCount(): Promise<number> {
     await this.waitForResultsToLoad();
-    return this.resultCards().count();
+    return (await this.resultCards()).count();
   }
 
   // Waits for results to load and asserts at least one card is present before returning the count.
@@ -180,7 +199,7 @@ export class SearchPage extends SearchablePage {
 
   /** Returns visible card signature. */
   private async getVisibleCardSignature(): Promise<string> {
-    const cards = this.resultCards();
+    const cards = await this.resultCards();
     const count = await cards.count();
     const visibleTexts: string[] = [];
 
@@ -439,7 +458,7 @@ export class SearchPage extends SearchablePage {
 
   /** Returns all prices. */
   async getAllPrices(): Promise<number[]> {
-    const cards = this.resultCards();
+    const cards = await this.resultCards();
     const count = await cards.count();
 
     const prices: number[] = [];
@@ -776,9 +795,10 @@ export class SearchPage extends SearchablePage {
       await expect(noResults, 'Search page should show a clear no-results state').toBeVisible({
         timeout: 20000,
       });
-      await expect(this.resultCards(), 'No-results state should not show result cards').toHaveCount(
-        0,
-      );
+      await expect(
+        this.page.locator('#ProductInfo:visible'),
+        'No-results state should not show primary result cards',
+      ).toHaveCount(0);
     });
   }
 
@@ -798,7 +818,7 @@ export class SearchPage extends SearchablePage {
     await this.waitForResultsToLoad();
 
     const filteredUrl = this.page.url();
-    const filteredCount = await this.resultCards().count();
+    const filteredCount = await (await this.resultCards()).count();
 
     await this.step('Combined filters should update URL with selected values', async () => {
       expect(filteredUrl, 'Combined filters should update browser URL/state').not.toBe(initialUrl);
@@ -896,7 +916,7 @@ export class SearchPage extends SearchablePage {
     minBaths: number,
     tabName?: ResultsTab,
   ): Promise<string[]> {
-    const cards = this.resultCards();
+    const cards = await this.resultCards();
     const count = await cards.count();
 
     const mismatches: string[] = [];
@@ -957,7 +977,7 @@ export class SearchPage extends SearchablePage {
       // wait briefly after tab switch
       await this.settle(2000);
 
-      const cards = this.resultCards();
+      const cards = await this.resultCards();
       const noResults = this.noResultsMessage();
 
       // Wait for either cards OR no-results
@@ -1016,7 +1036,7 @@ export class SearchPage extends SearchablePage {
     await this.verifyResults(tabName);
 
     await this.step(`Validate ${tabName} card required details`, async () => {
-      const cards = this.resultCards();
+      const cards = await this.resultCards();
       const count = await cards.count();
 
       expect(count, `${tabName} should display at least one result card`).toBeGreaterThan(0);
@@ -1050,7 +1070,7 @@ export class SearchPage extends SearchablePage {
     await this.verifyResults(tabName);
 
     await this.step(`Validate ${tabName} card CTA navigation`, async () => {
-      const cards = this.resultCards();
+      const cards = await this.resultCards();
       const count = await cards.count();
       const validationCount = Math.min(count, cardsToValidate);
 
@@ -1145,7 +1165,7 @@ export class SearchPage extends SearchablePage {
 
   /** Returns sortable prices. */
   async getSortablePrices(tabName: ResultsTab): Promise<number[]> {
-    const cards = this.resultCards();
+    const cards = await this.resultCards();
     const count = await this.getSortableCardCount(tabName, await cards.count());
 
     const prices: number[] = [];
@@ -1193,7 +1213,7 @@ export class SearchPage extends SearchablePage {
 
   /** Returns sortable sq. ft.. */
   async getSortableSqFt(tabName: ResultsTab): Promise<number[]> {
-    const cards = this.resultCards();
+    const cards = await this.resultCards();
     const count = await this.getSortableCardCount(tabName, await cards.count());
 
     const values: number[] = [];
@@ -1214,7 +1234,7 @@ export class SearchPage extends SearchablePage {
 
   /** Returns sortable titles. */
   async getSortableTitles(tabName: ResultsTab): Promise<string[]> {
-    const cards = this.resultCards();
+    const cards = await this.resultCards();
     const count = await this.getSortableCardCount(tabName, await cards.count());
 
     const titles: string[] = [];

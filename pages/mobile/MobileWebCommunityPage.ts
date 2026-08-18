@@ -36,13 +36,23 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
     await this.closeCookiePreferencesIfVisible();
 
-    const sections = await this.driver.execute(() => {
+    const availableHomesSelector = await this.healMobileSelector(
+      'mobile community available homes section',
+      [
+        { selector: '#availablehomes' },
+        { selector: '[id*="available" i]' },
+        { selector: '[id*="quick" i]' },
+      ],
+      { requireVisible: false },
+    );
+
+    const sections = await this.driver.execute((availableHomesSelector) => {
       const bodyText = document.body?.innerText || '';
 
       return {
         hasAvailableHomes:
           /available homes|quick move-in homes/i.test(bodyText) ||
-          Boolean(document.querySelector('#availablehomes')),
+          Boolean(document.querySelector(availableHomesSelector)),
         hasMap:
           /map|directions/i.test(bodyText) ||
           Boolean(document.querySelector('#map, [id*="map" i]')),
@@ -50,7 +60,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
           /contact|sales|schedule|call|directions/i.test(bodyText) ||
           Boolean(document.querySelector('#contact')),
       };
-    });
+    }, availableHomesSelector);
 
     assert.equal(
       sections.hasAvailableHomes || sections.hasMap || sections.hasContact,
@@ -126,9 +136,19 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
       45000,
     );
 
-    const result = await this.driver.execute(() => {
+    const availableHomesSelector = await this.healMobileSelector(
+      'mobile community QMI card section',
+      [
+        { selector: '#availablehomes' },
+        { selector: '[id*="available" i]' },
+        { selector: '[id*="quick" i]' },
+      ],
+      { requireVisible: false },
+    );
+
+    const result = await this.driver.execute((availableHomesSelector) => {
       const section =
-        document.querySelector('#availablehomes') ||
+        document.querySelector(availableHomesSelector) ||
         Array.from(document.querySelectorAll('section, div')).find((element) =>
           /quick move-in homes|available homes/i.test(element.textContent || ''),
         );
@@ -140,7 +160,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
       section.scrollIntoView({ block: 'center', inline: 'center' });
       const currentCommunitySegment =
         window.location.pathname.split('/').filter(Boolean).pop() || '';
-      const links = Array.from(section.querySelectorAll('a[href]'))
+      const links = (Array.from(section.querySelectorAll('a[href]')) as HTMLAnchorElement[])
         .filter((link) => !/view all/i.test(link.textContent || ''))
         .map((link) => link.getAttribute('href') || '')
         .filter((href) => href && !/\/search\?/i.test(href));
@@ -160,7 +180,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
               .includes(currentCommunitySegment),
         ),
       };
-    });
+    }, availableHomesSelector);
 
     if (result.skipped) {
       this.logSkip(`${result.reason} - skipping QMI community-name validation`);
