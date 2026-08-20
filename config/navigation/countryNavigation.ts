@@ -34,6 +34,29 @@ export const RESOURCE_MENU_BY_COUNTRY: Record<
   },
 };
 
+/** How a country's header exposes a page: a top-level item, or nested in a mega-menu. */
+export type DesignStudioNavEntry =
+  | { placement: 'top-level'; link: NavLink }
+  | { placement: 'menu'; menuName: string; link: NavLink };
+
+/**
+ * Where each country's header surfaces Design Studio. USA shows it as a
+ * standalone top-level nav item; CAN nests it inside the Resources mega-menu.
+ * Design Studio tests enter through this link instead of hitting the URL
+ * directly, so the placement itself is covered and not just the landing page.
+ */
+export const DESIGN_STUDIO_NAV_BY_COUNTRY: Record<LocationKey, DesignStudioNavEntry> = {
+  USA: {
+    placement: 'top-level',
+    link: { name: 'Design Studio', url: '/design-studio' },
+  },
+  CAN: {
+    placement: 'menu',
+    menuName: 'Resources',
+    link: { name: 'Design Studio', url: '/design-studio' },
+  },
+};
+
 /**
  * Full set of Design Studio / Homebuying section paths surfaced in each
  * country's navigation (top-level items + mega-menu links). A page NOT listed

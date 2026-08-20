@@ -399,6 +399,71 @@ export class Header extends BasePage {
     });
   }
 
+  /** Gets the header links pointing at a path that are actually rendered on screen. */
+  private visibleHeaderLinks(url: string): Locator {
+    return this.header.locator(`a[href="${url}"]:visible`);
+  }
+
+  /** Checks that a link is exposed as a visible top-level header item, with no flyout opened. */
+  async verifyTopLevelNavLinkVisible(link: HeaderNavigationLink): Promise<void> {
+    await this.step(`Verify top-level nav link: ${link.name}`, async () => {
+      await this.header.waitFor({ state: 'attached', timeout: 20000 });
+      await this.page.evaluate(() => window.scrollTo(0, 0));
+
+      await expect
+        .poll(() => this.visibleHeaderLinks(link.url).count(), {
+          message: `${link.name} should be visible as a top-level header item`,
+          timeout: 20000,
+        })
+        .toBeGreaterThan(0);
+
+      await this.reportValue(
+        `Top-level header nav link: ${link.name}`,
+        this.buildFullUrl(link.url),
+      );
+    });
+  }
+
+  /**
+   * Checks a link is NOT a top-level header item - it lives inside a flyout for
+   * this country. Asserted on the closed header, where the flyout's copy of the
+   * link is in the DOM but has no box, so ":visible" is what separates the two
+   * placements.
+   */
+  async verifyNoTopLevelNavLink(link: HeaderNavigationLink): Promise<void> {
+    await this.step(`Verify ${link.name} is not a top-level nav link`, async () => {
+      await this.header.waitFor({ state: 'attached', timeout: 20000 });
+      await this.page.evaluate(() => window.scrollTo(0, 0));
+
+      await expect
+        .poll(() => this.visibleHeaderLinks(link.url).count(), {
+          message: `${link.name} should not be surfaced as a top-level header item`,
+          timeout: 15000,
+        })
+        .toBe(0);
+    });
+  }
+
+  /** Opens a header flyout menu, clicks one of its links and waits for the route. */
+  async clickMenuLink(menuName: string, link: HeaderNavigationLink): Promise<void> {
+    await this.step(`Click '${menuName}' menu link: ${link.name}`, async () => {
+      await this.openMenu(menuName);
+
+      const menuLink = this.header.locator(`a[href="${link.url}"]`).first();
+
+      await this.assertVisible(menuLink, `${link.name} should be visible in the ${menuName} menu`);
+
+      // noWaitAfter: the link navigates and detaches, so Playwright's post-click
+      // checks would time out against a gone element; waitForURL is the real
+      // assertion that the click worked.
+      await menuLink.click({ noWaitAfter: true });
+      await this.page.waitForURL((url) => url.pathname === link.url, { timeout: 30000 });
+      await this.waitForPageReady();
+
+      await this.reportValue(`${menuName} menu navigation: ${link.name}`, this.page.url());
+    });
+  }
+
   /** Clicks a top-level header navigation link by its href and waits for the route. */
   async clickTopLevelNavLink(link: HeaderNavigationLink): Promise<void> {
     await this.step(`Click top-level nav link: ${link.name}`, async () => {
