@@ -1,6 +1,4 @@
 import { expect, Locator, Page } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
-import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 import { escapeRegex } from '../utils/pageObjectUtils';
 import { BasePage } from './BasePage';
 
@@ -43,20 +41,22 @@ export class DesignStudioPage extends BasePage {
     this.marketDesignStudioLinks = page.locator('a[href*="-design-studio"]:visible');
   }
 
-  /** Opens the Design Studio page for the configured country. */
-  async navigateToDesignStudio(overrideLocation?: LocationKey): Promise<void> {
-    await this.step('Navigate to Design Studio', async () => {
-      const { baseURL, envName } = getEnvConfig();
-      const location = getLocationConfig(overrideLocation);
-      const targetUrl = `${baseURL}${DesignStudioPage.PATH}?${location.queryParam}`;
-
-      await this.reportValue('Navigating to Design Studio', `ENV=${envName} | URL=${targetUrl}`);
-
-      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
-      await this.acceptCookiesIfPresent();
+  /**
+   * Settles the page after arriving on Design Studio.
+   *
+   * Design Studio is entered by clicking the country's header link (top-level on
+   * USA, nested under Resources on CAN) instead of by URL, and the click itself
+   * already waits for the route. What is left is what a goto would have handled:
+   * letting the SPA finish painting and clearing the promo overlay before the
+   * validations start clicking around.
+   */
+  async verifyDesignStudioLanding(): Promise<void> {
+    await this.step('Verify Design Studio landing', async () => {
       await this.waitForPageReady();
       await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+
+      await this.reportValue('Design Studio entry point', this.page.url());
     });
   }
 

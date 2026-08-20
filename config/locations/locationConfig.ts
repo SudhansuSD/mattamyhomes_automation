@@ -371,7 +371,7 @@ export function getLocationsToRun(): LocationKey[] {
 }
 
 export function getLocationKey(overrideLocation?: LocationKey): LocationKey {
-  const rawKey = overrideLocation ?? (process?.env?.LOCATION as string | undefined) ?? 'USA'; // Default location if not specified
+  const rawKey = overrideLocation ?? (process?.env?.LOCATION as string | undefined) ?? 'CAN'; // Default location if not specified
   const key = rawKey.toUpperCase() as LocationKey;
   const envName = getEnvConfig().envName as EnvName;
 

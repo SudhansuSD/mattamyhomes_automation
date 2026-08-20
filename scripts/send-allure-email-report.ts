@@ -90,6 +90,14 @@ const chartPath = path.resolve(os.tmpdir(), 'test-summary-chart.png');
 /** ANSI colour codes Playwright wraps around error text; built at runtime to keep the escape character out of source. */
 const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 const MAX_ERROR_SUMMARY_LENGTH = 300;
+/** Machine detail Playwright prints beside the message: locator dumps, matcher calls, stack frames, call-log bullets. */
+const MACHINE_DETAIL_PATTERN =
+  /^(?:locator|expected|received|timeout|call log|snapshot|attachment|diff|selector|error message)\s*:|^(?:at\s|[-–+]\s|expect[\s(])/i;
+/** A leading "Error:" / "AssertionError:" label adds nothing once the line stands on its own. */
+const ERROR_LABEL_PATTERN = /^(?:[A-Za-z]*Error|Failed|Failure)\s*:\s*/;
+/** A line still carrying code - matchers, locators, chained calls, markup - is not a readable summary. */
+const CODE_FRAGMENT_PATTERN =
+  /expect\(|locator\(|page\.[a-z]+\(|=>|\$\{|<\/?[a-z][^>]*>|\)\.(?:first|last|nth)\(/i;
 const chartCid = 'test-summary-chart';
 const RUN_TYPE_LABEL = 'runType';
 const RUN_TYPE_BY_KEY: Record<string, string> = {
@@ -248,22 +256,30 @@ function readAllureReportTestCases(): AllureReportTestCase[] {
 }
 
 /**
- * Playwright failure text arrives with ANSI colour codes, a stack trace, and a long
- * "Call log" tail. The email needs one readable line, so keep the assertion lines only.
+ * Playwright failure text arrives with ANSI colour codes, matcher calls, locator dumps,
+ * a stack trace, and a long "Call log" tail. An email reads as plain prose, so keep only
+ * the human sentences and return an empty string when the failure carries none.
  */
 function summarizeErrorText(message: string, trace: string): string {
   const lines = (message || trace)
     .replace(ANSI_ESCAPE_PATTERN, '')
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(Boolean)
-    // Stack frames and log entries add length without telling the reader what broke.
-    .filter((line) => !/^(at\s|[-–]\s*(waiting|locator|attempting))/i.test(line));
+    .filter(Boolean);
 
+  // Everything from "Call log:" onwards is the retry log, never a summary.
   const callLogIndex = lines.findIndex((line) => /^call log:/i.test(line));
-  const meaningful = callLogIndex > 0 ? lines.slice(0, callLogIndex) : lines;
-  const summary = meaningful
-    .join(' ')
+  const meaningful = callLogIndex >= 0 ? lines.slice(0, callLogIndex) : lines;
+
+  const prose = meaningful
+    .filter((line) => !MACHINE_DETAIL_PATTERN.test(line))
+    .map((line) => line.replace(ERROR_LABEL_PATTERN, '').trim())
+    .filter((line) => line.length > 0 && !CODE_FRAGMENT_PATTERN.test(line));
+
+  // Two sentences at most: the assertion message and the underlying cause.
+  const summary = Array.from(new Set(prose))
+    .slice(0, 2)
+    .join(' - ')
     .replace(/\s{2,}/g, ' ')
     .trim();
 
@@ -292,7 +308,10 @@ function findStepError(steps: AllureReportStep[] | undefined): AllureReportError
   return null;
 }
 
-/** Error summary for a failed test: root error first, then the failing step, setup, or teardown. */
+/**
+ * Error summary for a failed test: root error first, then the failing step, setup, or
+ * teardown. Empty when no readable prose survives, so the email can hide the column.
+ */
 function getReportFailureMessage(testCase: AllureReportTestCase): string {
   const error =
     (testCase.error?.message || testCase.error?.trace ? testCase.error : null) ??
@@ -300,9 +319,7 @@ function getReportFailureMessage(testCase: AllureReportTestCase): string {
     findStepError(testCase.setup) ??
     findStepError(testCase.teardown);
 
-  const summary = error ? summarizeErrorText(error.message ?? '', error.trace ?? '') : '';
-
-  return summary || 'No failure message available';
+  return error ? summarizeErrorText(error.message ?? '', error.trace ?? '') : '';
 }
 
 function getReportFailedTests(testCases: AllureReportTestCase[]): ExecutionSummary['failedTests'] {
@@ -437,11 +454,10 @@ function buildSummaryFromResults(results: AllureResult[]): ExecutionSummary {
     .map((result) => ({
       name: result.name || result.fullName || 'Unnamed test',
       location: result.name && result.fullName ? result.fullName : '',
-      message:
-        summarizeErrorText(
-          result.statusDetails?.message ?? '',
-          result.statusDetails?.trace ?? '',
-        ) || 'No failure message available',
+      message: summarizeErrorText(
+        result.statusDetails?.message ?? '',
+        result.statusDetails?.trace ?? '',
+      ),
     }));
 
   return buildSummaryFromCounts(
@@ -547,13 +563,16 @@ function renderFailedTests(summary: ExecutionSummary): string {
     return '<p class="empty-state">No failed scenarios were found.</p>';
   }
 
+  // With no readable message on any row the error column is dead weight, so list scenarios only.
+  const hasErrorSummary = summary.failedTests.some((test) => test.message.trim().length > 0);
+
   return `
     <table class="data-table">
       <thead>
         <tr>
           <th>#</th>
           <th>Failed Scenario</th>
-          <th>Error Summary</th>
+          ${hasErrorSummary ? '<th>Error Summary</th>' : ''}
         </tr>
       </thead>
       <tbody>
@@ -566,7 +585,7 @@ function renderFailedTests(summary: ExecutionSummary): string {
                   ${escapeHtml(test.name)}
                   ${test.location ? `<div class="scenario-location">${escapeHtml(test.location)}</div>` : ''}
                 </td>
-                <td class="error-cell">${escapeHtml(test.message)}</td>
+                ${hasErrorSummary ? `<td class="error-cell">${escapeHtml(test.message.trim()) || '&mdash;'}</td>` : ''}
               </tr>
             `,
           )
