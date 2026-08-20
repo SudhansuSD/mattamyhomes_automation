@@ -84,8 +84,8 @@
 //     return `${String(index + 1).padStart(4, '0')}_${hostname}${normalizedPath}`;
 // }
 
-// function dedupeUrls(urls: string[]): string[] {
-//     return Array.from(new Set(urls.map(normalizeUrl)));
+// function dedupeUrls(URLs: string[]): string[] {
+//     return Array.from(new Set(URLs.map(normalizeUrl)));
 // }
 
 // function isXmlResponse(contentType: string | null): boolean {

@@ -16,13 +16,13 @@ const MOBILE_LEAD_DATA = LEAD_DATA.mobile;
 export class MobileWebMarketPage extends MobileWebHomePage {
   marketPageReady: boolean;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(driver: MobileBrowser = browser) {
     super(driver);
     this.marketPageReady = false;
   }
 
-  /** Returns the configured market (matched by alias, falling back to the first market). */
+  /** Gets the configured market (matched by alias, falling back to the first market). */
   getConfiguredMarket() {
     const location = getLocationConfig();
     const configured = location.markets.find((market) =>
@@ -105,7 +105,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     this.marketPageReady = true;
   }
 
-  /** Verifies the market page URL and heading match the configured market. */
+  /** Checks that the market page URL and heading match the configured market. */
   async verifyMarketPage(market = this.getConfiguredMarket()) {
     await this.waitForPageReady(60000);
     await this.closeCookiePreferencesIfVisible();
@@ -130,7 +130,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     this.logOpen('Market page', snapshot.currentUrl);
   }
 
-  /** Validates the mobile browser context (user agent + viewport) for the market page. */
+  /** Checks the mobile browser context (user agent + viewport) for the market page. */
   async verifyLoaded(market = this.getConfiguredMarket()) {
     const snapshot = await this.getSnapshot();
     const viewport = await this.driver.getWindowSize();
@@ -150,7 +150,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates the market hero content, media, autoplay safety, and search CTAs. */
+  /** Checks the market hero content, media, autoplay safety, and search CTAs. */
   async validateHeroContent(market = this.getConfiguredMarket()) {
     await this.openMarket(market);
     await this.closeCookiePreferencesIfVisible();
@@ -235,7 +235,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     }
   }
 
-  /** Validates the market community cards section lists at least one card. */
+  /** Checks the market community cards section lists at least one card. */
   async validateCommunityCards(market = this.getConfiguredMarket()) {
     await this.openMarket(market);
     const cards = await this.getCommunityCardsSnapshot();
@@ -254,7 +254,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     this.logResult(`Found ${cards.cards.length} community card(s) for ${market.name}`);
   }
 
-  /** Validates each community card exposes a title, href, and image source when present. */
+  /** Checks each community card exposes a title, href, and image source when present. */
   async validateCommunityCardDetails(market = this.getConfiguredMarket()) {
     await this.openMarket(market);
     const cards = await this.getCommunityCardsSnapshot();
@@ -300,7 +300,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates the first community card navigates to its community page (mobile script-driven click). */
+  /** Checks the first community card navigates to its community page (mobile script-driven click). */
   async validateFirstCommunityCardNavigation(market = this.getConfiguredMarket()) {
     await this.openMarket(market);
 
@@ -361,11 +361,15 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     assert.match(await this.driver.getUrl(), new RegExp(this.escapeRegExp(result.href), 'i'));
   }
 
-  /** Validates the Discover Our Homes section links point at the expected search result types. */
+  /** Checks the Discover Our Homes section links point at the expected search result types. */
   async validateDiscoverOurHomesSection(market = this.getConfiguredMarket()) {
     await this.openMarket(market);
     await this.driver.execute(() => window.scrollTo(0, document.body.scrollHeight));
-    await this.driver.pause(1000);
+    await this.waitForMobileCondition(
+      async () =>
+        /discover our homes|floorplans|quick move-in|communities/i.test(await this.getBodyText()),
+      `Expected Discover Our Homes content after scrolling ${market.name}`,
+    );
 
     const section = await this.driver.execute(() => {
       const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -441,7 +445,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates the market page links to both plan and QMI search results. */
+  /** Checks the market page links to both plan and QMI search results. */
   async validateMarketSearchLinks(market = this.getConfiguredMarket()) {
     await this.openMarket(market);
 
@@ -478,7 +482,15 @@ export class MobileWebMarketPage extends MobileWebHomePage {
 
     if (opened) {
       this.logScriptClick('mobile hamburger menu');
-      await this.driver.pause(1000);
+      await this.waitForMobileCondition(
+        async () =>
+          this.driver.execute(() =>
+            /find my home|find your home|design studio|customer care|about us|contact us/i.test(
+              document.body?.innerText || '',
+            ),
+          ),
+        'Expected mobile navigation links after opening hamburger menu',
+      );
     }
 
     const navigation = await this.driver.execute(() => {
@@ -558,11 +570,9 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     });
   }
 
-  /* ==========================================================
-     LEAD FORM (market "Community of Interest" form)
-  ========================================================== */
+  // LEAD FORM (market "Community of Interest" form)
 
-  /** Validates the market lead form exposes its expected fields. */
+  /** Checks the market lead form exposes its expected fields. */
   async validateLeadFormFields(market = this.getConfiguredMarket()) {
     await this.openMarket(market);
     const form = await this.getMarketLeadForm();
@@ -577,7 +587,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     assert.equal(form.hasSubmit, true, 'Expected market lead form submit button on mobile');
   }
 
-  /** Validates the market lead form shows required-field errors on empty submit. */
+  /** Checks the market lead form shows required-field errors on empty submit. */
   async validateLeadFormRequiredErrors(market = this.getConfiguredMarket()) {
     await this.openMarket(market);
     await this.getMarketLeadForm();
@@ -587,7 +597,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     await this.assertFormErrors('Expected required field validation in market lead form');
   }
 
-  /** Validates the market lead form rejects an invalid email. */
+  /** Checks the market lead form rejects an invalid email address. */
   async validateLeadFormInvalidEmail(market = this.getConfiguredMarket()) {
     await this.openMarket(market);
     await this.getMarketLeadForm();
@@ -635,7 +645,6 @@ export class MobileWebMarketPage extends MobileWebHomePage {
         const height = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
         window.scrollTo(0, Math.floor(height * ratio));
       }, fraction);
-      await this.driver.pause(1000);
       await this.installLeadFormFinder();
 
       const snapshot = await this.getLeadFormSnapshotByIndex(0);
@@ -645,7 +654,14 @@ export class MobileWebMarketPage extends MobileWebHomePage {
           const form = window.__getVisibleMarketLeadForms?.()[0];
           form?.scrollIntoView({ block: 'center', inline: 'center' });
         });
-        await this.driver.pause(500);
+        await this.waitForMobileCondition(
+          async () => {
+            const current = await this.getLeadFormSnapshotByIndex(0);
+            return current.found;
+          },
+          'Expected market lead form to remain visible after scrolling into view',
+          5000,
+        );
         return snapshot;
       }
     }
@@ -662,7 +678,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     });
   }
 
-  /** Returns a snapshot (found/text/hasSubmit) of the market lead form at the given index. */
+  /** Captures the market lead form at the requested index. */
   async getLeadFormSnapshotByIndex(formIndex = 0) {
     await this.installLeadFormFinder();
 
@@ -844,16 +860,14 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     }, config);
   }
 
-  /** Asserts the market lead form submission success confirmation is shown (allows for slow emulators). */
+  /** Checks that the market lead form submission success confirmation is shown (allows for slow emulators). */
   async assertSubmissionSuccess(message, timeout = 60000) {
     await super.assertSubmissionSuccess(message, timeout);
   }
 
-  /* ==========================================================
-     COMMUNITY CARDS SNAPSHOT
-  ========================================================== */
+  // COMMUNITY CARDS SNAPSHOT
 
-  /** Returns a snapshot of the market community cards (title/href/image per card). */
+  /** Captures the market community cards, including title, href, and image. */
   async getCommunityCardsSnapshot() {
     return this.driver.execute(() => {
       const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -931,11 +945,9 @@ export class MobileWebMarketPage extends MobileWebHomePage {
     });
   }
 
-  /* ==========================================================
-     MEDIA VALIDATION
-  ========================================================== */
+  // MEDIA VALIDATION
 
-  /** Validates every market image/video URL returns HTTP 200. */
+  /** Checks every market image/video URL returns HTTP 200. */
   async validateImageAndVideoUrlsReturn200(
     pageName = 'Market page',
     market = this.getConfiguredMarket(),

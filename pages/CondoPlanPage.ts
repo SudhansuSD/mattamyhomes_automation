@@ -11,6 +11,7 @@ import {
   fillValidSideModalForm,
   getSubmitButton,
   selectOptionIfPresent,
+  SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadFormHelper';
 
 const TIMEOUT = {
@@ -75,7 +76,7 @@ export class CondoPlanPage extends SearchablePage {
   readonly communityUpdatesSection: Locator;
   readonly successDialogModal: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     // Condos are a Canada-only offering, so this page always runs against the
     // Canadian site regardless of the LOCATION the run started with.
@@ -129,12 +130,12 @@ export class CondoPlanPage extends SearchablePage {
     this.successDialogModal = page.locator('.ReactModal__Content');
   }
 
-  /** Locator: all visible navigation and content links. */
+  /** Finds all visible navigation and content links. */
   private get navLinks(): Locator {
     return this.page.locator('a[href]');
   }
 
-  /** Locator: Get Information modal form rendered in a modal, drawer, or sidebar. */
+  /** Finds Get Information modal form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
     return (
       this.page
@@ -143,10 +144,13 @@ export class CondoPlanPage extends SearchablePage {
         )
         // A Submit button, not just any input, is what separates a lead form from
         // the page's other dialogs - the National-promotion overlay is a
-        // full-screen role="dialog" with inputs and used to match here. and(), not
-        // filter({ hasNot }): the aria-label sits on the overlay itself, and
-        // hasNot only inspects descendants.
-        .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+        // full-screen role="dialog" with inputs and used to match here. Matched
+        // by CSS rather than by role (see SUBMIT_BUTTON_SELECTOR): the promotion
+        // popup aria-hides the whole page while it is up, which left this filter
+        // matching nothing and an open side modal reporting as "did not open".
+        // and(), not filter({ hasNot }): the aria-label sits on the overlay
+        // itself, and hasNot only inspects descendants.
+        .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
         .and(
           this.page.locator(
             ':not([aria-label*="promotion" i]):not([aria-label*="notification" i])',
@@ -155,12 +159,12 @@ export class CondoPlanPage extends SearchablePage {
     );
   }
 
-  /** Locator: modal form success message. */
+  /** Finds modal form success message. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(TEXT.successMessage).last();
   }
 
-  /** Verify: condo plan search lands on the configured condo plan URL with a visible H1. */
+  /** Checks that condo plan search lands on the configured condo plan URL with a visible H1. */
   async verifySearchByCondoPlan(): Promise<void> {
     await this.step('Verify search lands on condo plan URL', async () => {
       const location = this.location as ReturnType<typeof getLocationConfig> & {
@@ -183,7 +187,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: condo plan page has loaded with the expected heading. */
+  /** Checks that condo plan page has loaded with the expected heading. */
   async verifyPageLoaded(expectedPlanName = 'M2ad'): Promise<void> {
     await this.step(`Verify condo plan page loaded ('${expectedPlanName}')`, async () => {
       await expect(this.heading).toBeVisible({ timeout: TIMEOUT.long });
@@ -191,7 +195,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: current URL and browser title match the expected condo plan details. */
+  /** Checks that current URL and browser title match the expected condo plan details. */
   async verifyUrlAndTitle(plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify URL and title', async () => {
       await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(plan.url)}\\/?$`, 'i'));
@@ -199,7 +203,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: breadcrumb contains market, city, community, and plan context. */
+  /** Checks that breadcrumb contains market, city, community, and plan context. */
   async verifyBreadcrumb(plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify breadcrumb context', async () => {
       if (await this.breadcrumb.count()) {
@@ -224,7 +228,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: hero summary contains plan name, specs, and plan type. */
+  /** Checks that hero summary contains plan name, specs, and plan type. */
   async verifyHeroSummary(plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify hero summary', async () => {
       await expect(this.heading).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
@@ -239,7 +243,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: main Condo Plan Details copy is present and meaningful. */
+  /** Checks that main Condo Plan Details copy is present and meaningful. */
   async verifyCondoPlanDetailsContent(): Promise<void> {
     await this.step('Verify condo plan details content', async () => {
       await expect(this.page.getByRole('heading', { name: TEXT.condoPlanDetails })).toBeVisible({
@@ -252,7 +256,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: floorplan image exists and has a non-empty source. */
+  /** Checks that floorplan image exists and has a non-empty source. */
   async verifyFloorplanImage(): Promise<void> {
     await this.step('Verify floorplan image', async () => {
       await expect(this.floorplanImage).toBeVisible({ timeout: TIMEOUT.medium });
@@ -260,7 +264,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: mortgage calculator section and CTA are visible, without opening/submitting any form. */
+  /** Checks that mortgage calculator section and CTA are visible, without opening/submitting any form. */
   async verifyMortgageCalculatorCta(): Promise<void> {
     await this.step('Verify mortgage calculator CTA', async () => {
       await expect(this.mortgageCalculatorSection).toBeVisible({ timeout: TIMEOUT.short });
@@ -268,14 +272,14 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: support headline below mortgage calculator is visible. */
+  /** Checks that support headline below mortgage calculator is visible. */
   async verifySupportHeadline(): Promise<void> {
     await this.step('Verify support headline', async () => {
       await expect(this.body).toContainText(TEXT.supportHeadline, { timeout: TIMEOUT.short });
     });
   }
 
-  /** Verify: related floorplans and View All CTA are present and valid. */
+  /** Checks that related floorplans and View All CTA are present and valid. */
   async verifyAvailableFloorplans(_plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify available floorplans', async () => {
       await expect(this.availableFloorplansSection).toBeVisible({ timeout: TIMEOUT.medium });
@@ -313,7 +317,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: Show More button is safe to use when available and keeps user on the same page. */
+  /** Checks that the Show More button works without navigating away. */
   async verifyShowMoreFloorplansIfPresent(): Promise<void> {
     await this.step('Verify Show More floorplans', async () => {
       const showMore = this.page
@@ -334,7 +338,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: sales/contact office content, map link, and phone link are valid. */
+  /** Checks that sales/contact office content, map link, and phone link are valid. */
   async verifyContactUsSection(): Promise<void> {
     await this.step('Verify Contact Us section', async () => {
       await expect(this.contactSection).toBeVisible({ timeout: TIMEOUT.short });
@@ -354,7 +358,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: Hours section is available and shows an open/closed state. */
+  /** Checks that the Hours section shows an open or closed state. */
   async verifyHoursSection(): Promise<void> {
     await this.step('Verify Hours section', async () => {
       await expect(this.hoursSection).toBeVisible({ timeout: TIMEOUT.short });
@@ -362,7 +366,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: Get Information CTA opens the condo plan side modal form. */
+  /** Checks that the Get Information CTA opens the condo plan side modal form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
       const form = await this.openSideModalForm();
@@ -373,7 +377,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: condo plan side modal form fields are present without submitting the form. */
+  /** Checks that condo plan side modal form fields are present without submitting the form. */
   async verifySideModalFormFields(): Promise<void> {
     await this.step('Verify Get Information side modal form fields', async () => {
       const form = await this.getAvailableSideModalForm();
@@ -385,7 +389,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: visible page links have usable href values. */
+  /** Checks that visible page links have usable href values. */
   async verifyNavigationLinks(): Promise<void> {
     await this.step('Verify navigation links have usable hrefs', async () => {
       const linkCount = await this.navLinks.count();
@@ -409,7 +413,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: an empty condo plan side modal form shows required-field validation. */
+  /** Checks that an empty condo plan side modal form shows required-field validation. */
   async validateSideModalFormRequiredErrors(): Promise<void> {
     await this.step('Validate Get Information side modal form required errors', async () => {
       const form = await this.getAvailableSideModalForm();
@@ -418,7 +422,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: condo plan side modal form rejects invalid email addresses. */
+  /** Checks that condo plan side modal form rejects invalid email addresses. */
   async validateSideModalFormInvalidEmail(): Promise<void> {
     await this.step('Validate Get Information side modal form invalid email', async () => {
       const form = await this.getAvailableSideModalForm();
@@ -431,7 +435,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Verify: condo plan Get Information side modal form can be submitted successfully. */
+  /** Checks that condo plan Get Information side modal form can be submitted successfully. */
   async verifySideModalFormSuccessfulSubmission(): Promise<void> {
     await this.step('Submit Get Information side modal form successfully', async () => {
       const form = await this.getAvailableSideModalForm();
@@ -461,7 +465,7 @@ export class CondoPlanPage extends SearchablePage {
     return this.getAvailableSideModalForm(formName);
   }
 
-  /** Helper: return the visible Get Information side modal form, asserting its submit button is usable. */
+  /** Get the visible Get Information side modal form, asserting its submit button is usable. */
   private async getAvailableSideModalForm(
     formName = 'Get Information condo plan side modal form',
   ): Promise<Locator> {
@@ -475,7 +479,7 @@ export class CondoPlanPage extends SearchablePage {
     return form;
   }
 
-  /** Helper: open the Get Information side modal form and return the visible container. */
+  /** open the Get Information side modal form and return the visible container. */
   private async openSideModalForm(
     formName = 'Get Information condo plan side modal form',
   ): Promise<Locator> {

@@ -19,6 +19,11 @@ This repository keeps project-specific Codex skills in `skills/`.
 
 - `desktop-to-appium-mobile`
 
+## Current Quality Guard Skills
+
+- `automation-code-review`
+- `automation-code-review-fixer`
+
 ## Add Future Skills
 
 1. Create a new folder under `skills/` using lowercase letters, digits, and hyphens.
@@ -30,4 +35,18 @@ This repository keeps project-specific Codex skills in `skills/`.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\sync-codex-skills.ps1
+```
+
+## Claude Usage
+
+Claude Code can apply the automation quality guard through:
+
+```text
+/automation-code-review <automation task or review scope>
+```
+
+Claude Code can safely remediate findings from the quality guard through:
+
+```text
+/automation-code-review-fixer <Code Review Summary, issue list, or affected files>
 ```

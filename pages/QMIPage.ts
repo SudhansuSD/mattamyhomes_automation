@@ -17,11 +17,10 @@ import {
   fillInvalidSideModalForm,
   fillValidSideModalForm,
   getSubmitButton,
+  SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadFormHelper';
 
-/* ==========================================================
-    QMI Page Object Model
-========================================================== */
+// QMI Page Object Model
 
 const location = getLocationConfig();
 
@@ -58,7 +57,7 @@ export class QMIPage extends SearchablePage {
   readonly relatedQmiCards: Locator;
   readonly successDialogModal: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
     const mortgageSectionTitle = page.getByText('Mortgage Calculator', {
@@ -133,7 +132,7 @@ export class QMIPage extends SearchablePage {
     this.successDialogModal = page.locator('.ReactModal__Content');
   }
 
-  /** Locator: all visible QMI modal forms with a submit button. */
+  /** Finds all visible QMI modal forms with a submit button. */
   private get leadFormDialogOrSidebar(): Locator {
     return (
       this.page
@@ -142,10 +141,13 @@ export class QMIPage extends SearchablePage {
         )
         // A Submit button, not just any input, is what separates a lead form from
         // the page's other dialogs - the National-promotion overlay is a
-        // full-screen role="dialog" with inputs and used to match here. and(), not
-        // filter({ hasNot }): the aria-label sits on the overlay itself, and
-        // hasNot only inspects descendants.
-        .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+        // full-screen role="dialog" with inputs and used to match here. Matched
+        // by CSS rather than by role (see SUBMIT_BUTTON_SELECTOR): the promotion
+        // popup aria-hides the whole page while it is up, which left this filter
+        // matching nothing and an open side modal reporting as "did not open".
+        // and(), not filter({ hasNot }): the aria-label sits on the overlay
+        // itself, and hasNot only inspects descendants.
+        .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
         .and(
           this.page.locator(
             ':not([aria-label*="promotion" i]):not([aria-label*="notification" i])',
@@ -154,16 +156,14 @@ export class QMIPage extends SearchablePage {
     );
   }
 
-  /** Locator: successful QMI modal form confirmation message. */
+  /** Finds successful QMI modal form confirmation message. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last();
   }
 
-  /* ==========================================================
-       Navigation and Page Load
-    ========================================================== */
+  // Navigation and Page Load
 
-  /** Verify: QMI detail page has loaded with heading and breadcrumb. */
+  /** Checks that the QMI detail page loaded with its heading and breadcrumb. */
   async verifyPageLoaded(): Promise<void> {
     await this.step('Verify QMI detail page loaded', async () => {
       await expect(this.heading).toBeVisible({
@@ -173,11 +173,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       Search Result Validation
-    ========================================================== */
+  // Search Result Validation
 
-  /** Verify: home page QMI search redirects to the expected QMI detail page. */
+  /** Checks that home page QMI search redirects to the expected QMI detail page. */
   async verifySearchByQMI(expectedAddress: string): Promise<void> {
     await this.step(`Verify QMI search redirects to '${expectedAddress}'`, async () => {
       await this.waitForPageReady();
@@ -206,7 +204,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: current QMI URL path exactly matches the configured QMI path. */
+  /** Checks that current QMI URL path exactly matches the configured QMI path. */
   async verifyExactQmiUrl(): Promise<void> {
     await this.step('Verify QMI URL path matches configured path', async () => {
       const currentPath = new URL(this.page.url()).pathname;
@@ -214,11 +212,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       Hero and Summary
-    ========================================================== */
+  // Hero and Summary
 
-  /** Verify: hero section, heading, configured address, and summary stats are visible. */
+  /** Checks that hero section, heading, configured address, and summary stats are visible. */
   async verifyHeroSection(): Promise<void> {
     await this.step('Verify QMI hero section, heading & stats', async () => {
       await expect(this.heroSection).toBeVisible({
@@ -234,14 +230,14 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: breadcrumb container is visible. */
+  /** Checks that breadcrumb container is visible. */
   async verifyBreadcrumb(): Promise<void> {
     await this.step('Verify breadcrumb is visible', async () => {
       await expect(this.breadcrumb).toBeVisible();
     });
   }
 
-  /** Verify: hero displays beds, baths, garage or half bath, square footage, and price. */
+  /** Checks that hero displays beds, baths, garage or half bath, square footage, and price. */
   async verifyHeroHomeFacts(): Promise<void> {
     await this.step('Verify hero home facts (beds, baths, sq.ft., price)', async () => {
       await expect(this.heroDetails).toBeVisible({
@@ -255,11 +251,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       Price and CTA
-    ========================================================== */
+  // Price and CTA
 
-  /** Verify: price section and Get Information CTA are visible. */
+  /** Checks that price section and Get Information CTA are visible. */
   async verifyPriceOrCTA(): Promise<void> {
     await this.step('Verify price section & Get Information CTA', async () => {
       await expect(this.priceSection.first()).toBeVisible();
@@ -267,7 +261,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: Get Information CTA opens the QMI side modal form. */
+  /** Checks that the Get Information CTA opens the QMI side modal form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
       const form = await this.openGetInformationLeadForm('QMI Get Information side modal form');
@@ -282,11 +276,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       Gallery
-    ========================================================== */
+  // Gallery
 
-  /** Verify: gallery is visible and gallery navigation buttons work when present. */
+  /** Checks that gallery is visible and gallery navigation buttons work when present. */
   async verifyGallery(): Promise<void> {
     await this.step('Verify gallery & navigation buttons', async () => {
       await expect(this.gallerySection.first()).toBeVisible();
@@ -295,11 +287,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       Floor Plan and Community Map
-    ========================================================== */
+  // Floor Plan and Community Map
 
-  /** Verify: floor plan section is visible when available. */
+  /** Checks that floor plan section is visible when available. */
   async verifyFloorPlan(): Promise<void> {
     await this.step('Verify floor plan section when available', async () => {
       const floorPlanSection = (await isLocatorVisible(this.interactiveFloorPlanSection))
@@ -313,7 +303,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: interactive floor plan section content when available. */
+  /** Checks that interactive floor plan section content when available. */
   async verifyInteractiveFloorPlan(): Promise<void> {
     await this.step('Verify interactive floor plan when available', async () => {
       if (!(await isLocatorVisible(this.interactiveFloorPlanSection))) {
@@ -329,7 +319,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: community sitemap section content when available. */
+  /** Checks that community sitemap section content when available. */
   async verifyCommunitySitemap(): Promise<void> {
     await this.step('Verify community sitemap when available', async () => {
       if (!(await isLocatorVisible(this.communitySitemapSection))) {
@@ -346,11 +336,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       Content Sections
-    ========================================================== */
+  // Content Sections
 
-  /** Verify: home design details section has meaningful content. */
+  /** Checks that home design details section has meaningful content. */
   async verifyHomeDesignDetails(): Promise<void> {
     await this.step('Verify home design details content', async () => {
       await this.homeDesignDetailsSection.scrollIntoViewIfNeeded();
@@ -366,7 +354,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: home features section has meaningful content. */
+  /** Checks that home features section has meaningful content. */
   async verifyHomeFeatures(): Promise<void> {
     await this.step('Verify home features content', async () => {
       await this.homeFeaturesSection.scrollIntoViewIfNeeded();
@@ -382,7 +370,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: sales office section includes contact links, map link, and form submit button. */
+  /** Checks that sales office section includes contact links, map link, and form submit button. */
   async verifySalesOfficeAndContactForm(): Promise<void> {
     await this.step('Verify sales office & contact form', async () => {
       const salesOfficeSection = await this.getSalesOfficeSectionIfAvailable();
@@ -407,11 +395,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       Lead Form Validation
-    ========================================================== */
+  // Lead Form Validation
 
-  /** Verify: expected QMI form fields and submit button are visible. */
+  /** Checks that expected QMI form fields and submit button are visible. */
   async verifySideModalFormFields(): Promise<void> {
     await this.step('Verify QMI side modal form fields & submit button', async () => {
       const form = await this.getAvailableForm(0, 'QMI Get Information side modal form');
@@ -426,7 +412,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: QMI form shows required-field validation errors. */
+  /** Checks that the QMI form shows required-field errors. */
   async validateSideModalFormRequiredErrors(): Promise<void> {
     await this.step('Verify QMI side modal form required-field errors', async () => {
       const form = await this.getAvailableForm(0, 'QMI Get Information side modal form');
@@ -440,7 +426,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: QMI form rejects an invalid email address. */
+  /** Checks that the QMI form rejects an invalid email address. */
   async validateSideModalFormInvalidEmail(): Promise<void> {
     await this.step('Verify QMI side modal form rejects invalid email', async () => {
       const form = await this.getAvailableForm(0, 'QMI Get Information side modal form');
@@ -455,7 +441,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: QMI form can be submitted successfully with valid lead data. */
+  /** Checks that the QMI form submits successfully with valid lead data. */
   async verifySideModalFormSuccessSubmission(): Promise<void> {
     await this.step('Submit QMI side modal form with valid data', async () => {
       const form = await this.getAvailableForm(0, 'QMI Get Information side modal form');
@@ -487,11 +473,9 @@ export class QMIPage extends SearchablePage {
     return form;
   }
 
-  /* ==========================================================
-       Related Homes
-    ========================================================== */
+  // Related Homes
 
-  /** Verify: related quick move-in homes section and related card content. */
+  /** Checks that related quick move-in homes section and related card content. */
   async verifyRelatedQuickMoveInHomes(): Promise<void> {
     await this.step('Verify related Quick Move-In homes', async () => {
       await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -529,11 +513,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       Mortgage Popup
-    ========================================================== */
+  // Mortgage Popup
 
-  /** Verify: mortgage modal opens and closes when the mortgage component exists. */
+  /** Checks that mortgage modal opens and closes when the mortgage component exists. */
   async verifyMortgagePopup(): Promise<void> {
     await this.step('Verify mortgage popup opens & closes', async () => {
       if (await isLocatorVisible(this.mortgageComponent)) {
@@ -547,11 +529,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       UTour Section
-    ========================================================== */
+  // UTour Section
 
-  /** Verify: self-guided tour section and CTA are visible. */
+  /** Checks that self-guided tour section and CTA are visible. */
   async verifyUTourSectionVisible(): Promise<void> {
     await this.step('Verify self-guided tour section visible', async () => {
       await this.page.waitForLoadState('domcontentloaded');
@@ -565,7 +545,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: self-guided tour section and CTA are hidden. */
+  /** Checks that self-guided tour section and CTA are hidden. */
   async verifyUTourSectionHidden(): Promise<void> {
     await this.step('Verify self-guided tour section hidden', async () => {
       await expect(this.uTourTitle).toHaveCount(0);
@@ -573,11 +553,9 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-       Shared Helpers
-    ========================================================== */
+  // Shared Helpers
 
-  /** Helper: return a configured QMI form and validate its submit button. */
+  /** Get a configured QMI form and validate its submit button. */
   private async getAvailableForm(formIndex = 0, formName = 'QMI form'): Promise<Locator | null> {
     const form = await this.openGetInformationLeadForm(formName, formIndex);
     const submitButton = getSubmitButton(form);
@@ -592,7 +570,7 @@ export class QMIPage extends SearchablePage {
     return form;
   }
 
-  /** Helper: open the Get Information sidebar/modal form and return the visible container by index. */
+  /** open the Get Information sidebar/modal form and return the visible container by index. */
   private async openGetInformationLeadForm(
     formName = 'QMI Get Information side modal form',
     formIndex = 0,
@@ -610,22 +588,22 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Helper: fill modal form with data that should fail email validation. */
+  /** fill modal form with data that should fail email validation. */
   private async fillLeadFormWithInvalidEmail(form: Locator): Promise<void> {
     await fillInvalidSideModalForm(form, 'qmi');
   }
 
-  /** Helper: fill modal form with valid data for successful submission tests. */
+  /** fill modal form with valid data for successful submission tests. */
   private async fillLeadFormWithValidData(form: Locator): Promise<void> {
     await fillValidSideModalForm(form, 'qmi');
   }
 
-  /** Helper: return compact visible text for logging and comparisons. */
+  /** Get compact visible text for logging and comparisons. */
   private async getCompactText(locator: Locator): Promise<string> {
     return (await locator.innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
   }
 
-  /** Helper: find the sales office section across supported QMI page layouts. */
+  /** find the sales office section across supported QMI page layouts. */
   private async getSalesOfficeSectionIfAvailable(): Promise<Locator | null> {
     await this.salesOfficeSection
       .waitFor({ state: 'attached', timeout: 5000 })
@@ -646,7 +624,7 @@ export class QMIPage extends SearchablePage {
     return salesOfficeHeading.locator('xpath=ancestor::*[self::section or self::div][1]');
   }
 
-  /** Helper: verify sales office phone is available as a tel link or visible phone text. */
+  /** verify sales office phone is available as a tel link or visible phone text. */
   private async verifySalesOfficePhone(salesOfficeSection: Locator): Promise<void> {
     const phoneLink = salesOfficeSection.locator('a[href^="tel:"]').first();
 
@@ -658,7 +636,7 @@ export class QMIPage extends SearchablePage {
     await expect(salesOfficeSection).toContainText(/\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/);
   }
 
-  /** Helper: verify a map link when the sales office layout exposes one. */
+  /** verify a map link when the sales office layout exposes one. */
   private async verifySalesOfficeMapLinkIfPresent(salesOfficeSection: Locator): Promise<void> {
     const mapLink = salesOfficeSection
       .locator('a[href*="google.com/maps"], a[href*="maps.google"], a[href*="/maps"]')
@@ -669,7 +647,7 @@ export class QMIPage extends SearchablePage {
     }
   }
 
-  /** Helper: locate the related QMI card address/title within a single card. */
+  /** locate the related QMI card address/title within a single card. */
   private getRelatedQmiCardNameLocator(card: Locator): Locator {
     return card
       .locator(
@@ -685,7 +663,7 @@ export class QMIPage extends SearchablePage {
       .first();
   }
 
-  /** Helper: return the related QMI card address/title shown in the card heading. */
+  /** Get the related QMI card address/title shown in the card heading. */
   private async getRelatedQmiCardName(card: Locator, href: string | null): Promise<string> {
     const addressFromHref = href ? this.getAddressFromQmiHref(href) : null;
 
@@ -711,7 +689,7 @@ export class QMIPage extends SearchablePage {
     return this.getCompactText(card);
   }
 
-  /** Helper: convert the QMI URL address slug into the compact display address. */
+  /** convert the QMI URL address slug into the compact display address. */
   private getAddressFromQmiHref(href: string): string | null {
     const path = href.split('?')[0].replace(/\/$/, '');
     const addressSlug = path.split('/').pop();
@@ -723,7 +701,7 @@ export class QMIPage extends SearchablePage {
     return addressSlug.split('-').filter(Boolean).join(' ').toUpperCase();
   }
 
-  /** Helper: close an open modal when a close button is visible. */
+  /** close an open modal when a close button is visible. */
   private async closeModalIfPresent(): Promise<void> {
     if (await isLocatorVisible(this.closeModalBtn)) {
       await this.closeModalBtn.click();
@@ -733,7 +711,7 @@ export class QMIPage extends SearchablePage {
     }
   }
 
-  /** Helper: dismiss OneTrust cookie UI when it appears. */
+  /** dismiss OneTrust cookie UI when it appears. */
   private async dismissCookieBannerIfPresent(): Promise<void> {
     await this.acceptCookiesIfPresent();
 
@@ -747,7 +725,7 @@ export class QMIPage extends SearchablePage {
     }
   }
 
-  /** Helper: find a section by its heading text. */
+  /** find a section by its heading text. */
   private getSectionByHeading(heading: RegExp): Locator {
     return this.page
       .locator('section')
@@ -757,16 +735,14 @@ export class QMIPage extends SearchablePage {
       .first();
   }
 
-  /* ==========================================================
-       Breadcrumb Validation
-    ========================================================== */
+  // Breadcrumb Validation
 
-  /** Helper: split the configured QMI path into route segments. */
+  /** split the configured QMI path into route segments. */
   private getQmiPathSegments(): string[] {
     return getPathSegments(location.qmiPath);
   }
 
-  /** Verify: breadcrumb state, community, current address, and path match configured QMI path. */
+  /** Checks that breadcrumb state, community, current address, and path match configured QMI path. */
   async verifyBreadcrumbNavigation(): Promise<void> {
     await this.step('Verify breadcrumb navigation', async () => {
       const [stateSlug, , , communitySlug, , ...addressSlugs] = this.getQmiPathSegments();
@@ -793,7 +769,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Verify: breadcrumb links point to the configured community and plan parent paths. */
+  /** Checks that breadcrumb links point to the configured community and plan parent paths. */
   async verifyBreadcrumbLinks(): Promise<void> {
     await this.step('Verify breadcrumb links', async () => {
       const segments = this.getQmiPathSegments();
@@ -808,7 +784,7 @@ export class QMIPage extends SearchablePage {
     });
   }
 
-  /** Helper: log breadcrumb link labels and URLs for report troubleshooting. */
+  /** log breadcrumb link labels and URLs for report troubleshooting. */
   private async logBreadcrumbNamesAndUrls(): Promise<void> {
     const breadcrumbLinks = this.breadcrumb.locator('a[href]');
     const linkCount = await breadcrumbLinks.count();
@@ -829,7 +805,7 @@ export class QMIPage extends SearchablePage {
     }
   }
 
-  /** Helper: derive a readable breadcrumb label from href when UI text is truncated. */
+  /** derive a readable breadcrumb label from href when UI text is truncated. */
   private getNameFromHref(href: string | null, fallback: string): string {
     if (!href || (fallback && !fallback.includes('...'))) {
       return fallback;

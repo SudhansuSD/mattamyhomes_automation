@@ -9,11 +9,10 @@ import {
   fillInvalidSideModalForm,
   fillValidSideModalForm,
   getSubmitButton,
+  SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadFormHelper';
 
-/* ==========================================================
-    Plan Detail Page – Page Object Model
-========================================================== */
+// Plan Detail Page – Page Object Model
 
 export type PlanDetails = {
   path: string;
@@ -35,58 +34,58 @@ export type PlanDetails = {
 };
 
 export class PlanDetailPage extends SearchablePage {
-  /** Locator: main plan detail heading. */
+  /** Finds main plan detail heading. */
   readonly heading: Locator;
 
-  /** Locator: breadcrumb navigation container. */
+  /** Finds breadcrumb navigation container. */
   readonly breadcrumb: Locator;
 
-  /** Locator: starting price label. */
+  /** Finds starting price label. */
   readonly priceSection: Locator;
 
-  /** Locator: gallery images on the plan detail page. */
+  /** Finds gallery images on the plan detail page. */
   readonly galleryImages: Locator;
 
-  /** Locator: gallery next button. */
+  /** Finds gallery next button. */
   readonly nextGalleryBtn: Locator;
 
-  /** Locator: gallery previous button. */
+  /** Finds gallery previous button. */
   readonly prevGalleryBtn: Locator;
 
-  /** Locator: interactive floorplan section. */
+  /** Finds interactive floorplan section. */
   readonly floorPlanSection: Locator;
 
-  /** Locator: exterior styles section. */
+  /** Finds exterior styles section. */
   readonly exteriorStylesSection: Locator;
 
-  /** Locator: mortgage calculator Get Started button. */
+  /** Finds mortgage calculator Get Started button. */
   readonly mortgageBtn: Locator;
 
-  /** Locator: mortgage calculator component. */
+  /** Finds mortgage calculator component. */
   readonly mortgageComponent: Locator;
 
-  /** Locator: modal close button. */
+  /** Finds modal close button. */
   readonly closeModalBtn: Locator;
 
-  /** Locator: available quick move-in homes section. */
+  /** Finds available quick move-in homes section. */
   readonly qmiSection: Locator;
 
-  /** Locator: View All QMI CTA. */
+  /** Finds View All QMI CTA. */
   readonly viewAllQMIButton: Locator;
 
-  /** Locator: related QMI home links. */
+  /** Finds related QMI home links. */
   readonly qmiHomeslist: Locator;
 
-  /** Locator: Get Information CTA. */
+  /** Finds Get Information CTA. */
   readonly getInformationCta: Locator;
 
-  /** Locator: community updates form section. */
+  /** Finds community updates form section. */
   readonly signUpFormSection: Locator;
 
-  /** Locator: sales office section. */
+  /** Finds sales office section. */
   readonly salesOfficeSection: Locator;
 
-  /** Locator: React modal shown after successful form submission. */
+  /** Finds React modal shown after successful form submission. */
   readonly successDialogModal: Locator;
 
   /** Setup: initialize plan detail page locators. */
@@ -139,7 +138,7 @@ export class PlanDetailPage extends SearchablePage {
     this.successDialogModal = page.locator('.ReactModal__Content');
   }
 
-  /** Locator: Get Information modal form rendered in a modal, drawer, or sidebar. */
+  /** Finds Get Information modal form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
     return (
       this.page
@@ -148,10 +147,13 @@ export class PlanDetailPage extends SearchablePage {
         )
         // A Submit button, not just any input, is what separates a lead form from
         // the page's other dialogs - the National-promotion overlay is a
-        // full-screen role="dialog" with inputs and used to match here. and(), not
-        // filter({ hasNot }): the aria-label sits on the overlay itself, and
-        // hasNot only inspects descendants.
-        .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+        // full-screen role="dialog" with inputs and used to match here. Matched
+        // by CSS rather than by role (see SUBMIT_BUTTON_SELECTOR): the promotion
+        // popup aria-hides the whole page while it is up, which left this filter
+        // matching nothing and an open side modal reporting as "did not open".
+        // and(), not filter({ hasNot }): the aria-label sits on the overlay
+        // itself, and hasNot only inspects descendants.
+        .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
         .and(
           this.page.locator(
             ':not([aria-label*="promotion" i]):not([aria-label*="notification" i])',
@@ -160,12 +162,12 @@ export class PlanDetailPage extends SearchablePage {
     );
   }
 
-  /** Locator: modal form success confirmation message. */
+  /** Finds modal form success confirmation message. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last();
   }
 
-  /** Locator: gallery media with approved fallback selectors. */
+  /** Finds gallery media with approved fallback selectors. */
   private async planGalleryImages(): Promise<Locator> {
     return this.healLocator('plan detail gallery media', [
       {
@@ -183,7 +185,7 @@ export class PlanDetailPage extends SearchablePage {
     ]);
   }
 
-  /** Locator: available quick move-in homes section with approved fallback selectors. */
+  /** Finds available quick move-in homes section with approved fallback selectors. */
   private async availableHomesSection(): Promise<Locator> {
     return this.healLocator('plan detail available homes section', [
       {
@@ -207,14 +209,14 @@ export class PlanDetailPage extends SearchablePage {
     ]);
   }
 
-  /** Locator: quick move-in home links inside a section. */
+  /** Finds quick move-in home links inside a section. */
   private qmiHomeLinks(section: Locator): Locator {
     return section.locator(
       'a[aria-label*="Floorplan"], a:has-text("Floorplan"), a[href*="quick-move"], a[href*="/homes/"]',
     );
   }
 
-  /** Locator: View All QMI CTA inside a section. */
+  /** Finds View All QMI CTA inside a section. */
   private viewAllQmiButton(section: Locator): Locator {
     return section.locator('a:has-text("View all"), a[href*="productType=qmi"]').first();
   }
@@ -223,7 +225,7 @@ export class PlanDetailPage extends SearchablePage {
   // Page Load Validation
   // ----------------------------------
 
-  /** Verify: plan detail page heading and breadcrumb are visible. */
+  /** Checks that plan detail page heading and breadcrumb are visible. */
   async verifyPageLoaded() {
     await this.step('Verify plan detail page loaded', async () => {
       await expect(this.heading).toBeVisible({ timeout: 20000 });
@@ -235,7 +237,7 @@ export class PlanDetailPage extends SearchablePage {
   // Plan detail Validation
   // ----------------------------------
 
-  /** Verify: search by plan lands on the expected plan URL and shows a heading. */
+  /** Checks that search by plan lands on the expected plan URL and shows a heading. */
   async verifySearchByPlan(expectedSlug: string) {
     await this.step('Verify search by plan lands on expected URL', async () => {
       await this.waitForPageReady();
@@ -246,7 +248,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: plan URL and optional browser title match expected details. */
+  /** Checks that plan URL and optional browser title match expected details. */
   async verifyPlanUrlAndTitle(plan: PlanDetails): Promise<void> {
     await this.step('Verify plan URL and title', async () => {
       await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(plan.path)}$`, 'i'));
@@ -257,14 +259,14 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: current URL contains an expected plan URL fragment. */
+  /** Checks that current URL contains an expected plan URL fragment. */
   async verifyPlanUrlContains(expectedUrlPart: string): Promise<void> {
     await this.step(`Verify URL contains '${expectedUrlPart}'`, async () => {
       await expect(this.page).toHaveURL(new RegExp(escapeRegex(expectedUrlPart), 'i'));
     });
   }
 
-  /** Verify: hero heading is visible. */
+  /** Checks that hero heading is visible. */
   async verifyHeroSection() {
     await this.step('Verify hero section heading visible', async () => {
       const headingLoaded = await this.heading
@@ -287,7 +289,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: hero heading contains a specific plan name. */
+  /** Checks that hero heading contains a specific plan name. */
   async verifyHeroSummaryForPlan(planName: string): Promise<void> {
     await this.step(`Verify hero heading contains '${planName}'`, async () => {
       await expect(this.heading).toBeVisible({ timeout: 20000 });
@@ -295,7 +297,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: page body includes standard home specs. */
+  /** Checks that page body includes standard home specs. */
   async verifyHomeSpecsPresent(): Promise<void> {
     await this.step('Verify home specs present', async () => {
       const pageText = this.page.locator('body');
@@ -306,7 +308,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: hero summary contains configured plan name, price, specs, and product line. */
+  /** Checks that hero summary contains configured plan name, price, specs, and product line. */
   async verifyHeroSummary(plan: PlanDetails): Promise<void> {
     await this.step('Verify hero summary details', async () => {
       await expect(this.heading).toBeVisible({ timeout: 20000 });
@@ -327,7 +329,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: breadcrumb is visible when present. */
+  /** Checks that breadcrumb is visible when present. */
   async verifyBreadcrumb() {
     await this.step('Verify breadcrumb visible', async () => {
       if ((await this.breadcrumb.count()) > 0) {
@@ -336,7 +338,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: breadcrumb includes expected items from the configured plan path. */
+  /** Checks that breadcrumb includes expected items from the configured plan path. */
   async verifyBreadcrumbMatchesPlanPath(plan: PlanDetails): Promise<void> {
     await this.step('Verify breadcrumb matches plan path', async () => {
       await expect(this.breadcrumb).toBeVisible();
@@ -347,7 +349,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: breadcrumb contains the expected plan name. */
+  /** Checks that breadcrumb contains the expected plan name. */
   async verifyBreadcrumbContainsPlan(planName: string): Promise<void> {
     await this.step(`Verify breadcrumb contains '${planName}'`, async () => {
       await expect(this.breadcrumb).toBeVisible();
@@ -355,7 +357,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: starting price label is visible when present. */
+  /** Checks that starting price label is visible when present. */
   async verifyPriceOrCTA() {
     await this.step('Verify starting price label', async () => {
       if ((await this.priceSection.count()) > 0) {
@@ -364,7 +366,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: gallery image is visible and gallery controls work when present. */
+  /** Checks that gallery image is visible and gallery controls work when present. */
   async verifyGallery() {
     await this.step('Verify gallery image and controls', async () => {
       const galleryImages = await this.planGalleryImages();
@@ -391,7 +393,7 @@ export class PlanDetailPage extends SearchablePage {
     await this.settle(500);
   }
 
-  /** Verify: optional gallery media tabs render usable media when selected. */
+  /** Checks that optional gallery media tabs render usable media when selected. */
   async verifyGalleryMediaTabsIfAvailable(): Promise<void> {
     await this.step('Verify gallery media tabs when available', async () => {
       const tabNames = [/^Videos$/i, /^360 Tours$/i, /^Photos$/i, /^Model Home$/i];
@@ -432,7 +434,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: floorplan section is visible when present. */
+  /** Checks that floorplan section is visible when present. */
   async verifyFloorPlan() {
     await this.step('Verify floorplan section', async () => {
       if (await isLocatorVisible(this.floorPlanSection)) {
@@ -442,7 +444,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: interactive floorplan section and optional iframe source match expected plan details. */
+  /** Checks that interactive floorplan section and optional iframe source match expected plan details. */
   async verifyInteractiveFloorPlan(plan: PlanDetails): Promise<void> {
     await this.step('Verify interactive floorplan', async () => {
       await this.floorPlanSection.scrollIntoViewIfNeeded();
@@ -461,7 +463,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: interactive floorplan section is available when present. */
+  /** Checks that interactive floorplan section is available when present. */
   async verifyInteractiveFloorPlanSection(): Promise<void> {
     await this.step('Verify interactive floorplan section', async () => {
       const floorPlanHeading = this.page
@@ -480,7 +482,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: configured exterior styles are visible. */
+  /** Checks that configured exterior styles are visible. */
   async verifyExteriorStyles(styles: string[]): Promise<void> {
     await this.step('Verify exterior styles', async () => {
       await this.exteriorStylesSection.scrollIntoViewIfNeeded();
@@ -492,7 +494,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: exterior styles section is visible when present. */
+  /** Checks that exterior styles section is visible when present. */
   async verifyExteriorStylesSection(): Promise<void> {
     await this.step('Verify exterior styles section', async () => {
       const exteriorHeading = this.page
@@ -510,7 +512,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: mortgage form CTA opens and can be closed when present. */
+  /** Checks that mortgage form CTA opens and can be closed when present. */
   async verifyMortgageForm() {
     await this.step('Verify mortgage form CTA', async () => {
       if (await isLocatorVisible(this.mortgageBtn)) {
@@ -524,7 +526,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: mortgage calculator CTA is visible when the section exists. */
+  /** Checks that mortgage calculator CTA is visible when the section exists. */
   async verifyMortgageCalculatorCta(): Promise<void> {
     await this.step('Verify mortgage calculator CTA', async () => {
       const mortgageTitle = this.page.getByText(/Mortgage Calculator/i).first();
@@ -539,7 +541,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: QMI section logs available homes and View All URL when present. */
+  /** Checks the QMI section and logs available homes plus the View All URL when present. */
   async verifyQMISection() {
     await this.step('Verify QMI section', async () => {
       const qmiSection = await this.availableHomesSection();
@@ -579,7 +581,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: configured quick move-in homes section content and links. */
+  /** Checks that configured quick move-in homes section content and links. */
   async verifyQuickMoveInHomes(plan: PlanDetails): Promise<void> {
     await this.step('Verify quick move-in homes section', async () => {
       const qmiSection = await this.availableHomesSection();
@@ -598,7 +600,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: quick move-in homes section is visible when present. */
+  /** Checks that quick move-in homes section is visible when present. */
   async verifyQuickMoveInHomesSection(): Promise<void> {
     await this.step('Verify quick move-in homes section present', async () => {
       const qmiSection = await this.availableHomesSection();
@@ -621,7 +623,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: sales office content matches configured plan details. */
+  /** Checks that sales office content matches configured plan details. */
   async verifySalesOffice(plan: PlanDetails): Promise<void> {
     await this.step('Verify sales office details', async () => {
       await expect(this.page.getByText(/^Sales Office$/i)).toBeVisible();
@@ -638,7 +640,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: sales office section is visible when present. */
+  /** Checks that sales office section is visible when present. */
   async verifySalesOfficeSection(): Promise<void> {
     await this.step('Verify sales office section', async () => {
       const salesOfficeTitle = this.page.getByText(/^Sales Office$/i).first();
@@ -653,7 +655,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Helper: return the visible plan modal form with a submit button when available. */
+  /** Get the visible plan modal form with a submit button when available. */
   private async getAvailableForm(
     formIndex = 0,
     formName = 'Get Information plan detail side modal form',
@@ -671,7 +673,7 @@ export class PlanDetailPage extends SearchablePage {
     return form;
   }
 
-  /** Helper: open the Get Information side modal form and return the visible container by index. */
+  /** open the Get Information side modal form and return the visible container by index. */
   private async openSideModalForm(
     formName = 'Get Information plan detail side modal form',
     formIndex = 0,
@@ -684,7 +686,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Helper: verify required side modal form fields. */
+  /** verify required side modal form fields. */
   private async verifySideModalFormFieldsByIndex(
     formIndex: number,
     formName: string,
@@ -698,7 +700,7 @@ export class PlanDetailPage extends SearchablePage {
     await expectSideModalFormFields(form, { timeout: 10000 });
   }
 
-  /** Helper: submit an empty form and verify required-field errors. */
+  /** submit an empty form and verify required-field errors. */
   private async validateEmptyFormErrorsByIndex(formIndex: number, formName: string): Promise<void> {
     const form = await this.getAvailableForm(formIndex, formName);
 
@@ -710,7 +712,7 @@ export class PlanDetailPage extends SearchablePage {
     await expectRequiredErrorsInForm(form, 10000);
   }
 
-  /** Helper: submit invalid email data and verify email validation errors. */
+  /** submit invalid email address data and verify email validation errors. */
   private async validateInvalidEmailByIndex(formIndex: number, formName: string): Promise<void> {
     const form = await this.getAvailableForm(formIndex, formName);
 
@@ -723,7 +725,7 @@ export class PlanDetailPage extends SearchablePage {
     await expectInvalidEmailErrorInForm(form, 10000);
   }
 
-  /** Helper: fill and submit a valid form selected by index. */
+  /** fill and submit a valid form selected by index. */
   private async submitSuccessfulFormByIndex(formIndex: number, formName: string): Promise<void> {
     const form = await this.getAvailableForm(formIndex, formName);
 
@@ -740,7 +742,7 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: Get Information CTA opens the plan detail side modal form. */
+  /** Checks that the Get Information CTA opens the plan detail side modal form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
       const form = await this.openSideModalForm('Get Information plan detail side modal form');
@@ -756,28 +758,28 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Verify: plan detail side modal form fields are visible. */
+  /** Checks that plan detail side modal form fields are visible. */
   async verifySideModalFormFields(): Promise<void> {
     await this.step('Verify plan detail form fields', async () => {
       await this.verifySideModalFormFieldsByIndex(0, 'Get Information plan detail side modal form');
     });
   }
 
-  /** Verify: plan detail side modal form shows empty required-field errors. */
+  /** Checks that plan detail side modal form shows empty required-field errors. */
   async validateSideModalFormRequiredErrors(): Promise<void> {
     await this.step('Validate plan detail form empty errors', async () => {
       await this.validateEmptyFormErrorsByIndex(0, 'Get Information plan detail side modal form');
     });
   }
 
-  /** Verify: plan detail side modal form rejects invalid email addresses. */
+  /** Checks that plan detail side modal form rejects invalid email addresses. */
   async validateSideModalFormInvalidEmail(): Promise<void> {
     await this.step('Validate plan detail form invalid email', async () => {
       await this.validateInvalidEmailByIndex(0, 'Get Information plan detail side modal form');
     });
   }
 
-  /** Verify: plan detail side modal form can be submitted successfully. */
+  /** Checks that plan detail side modal form can be submitted successfully. */
   async verifySideModalFormSuccessSubmission(): Promise<void> {
     await this.step('Submit plan detail form successfully', async () => {
       await this.submitSuccessfulFormByIndex(0, 'Get Information plan detail side modal form');

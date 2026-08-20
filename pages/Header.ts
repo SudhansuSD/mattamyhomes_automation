@@ -16,7 +16,7 @@ export class Header extends BasePage {
   private promoPopupHandlerRegistered = false;
   private nationalPromotionDismissed = false;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -27,11 +27,9 @@ export class Header extends BasePage {
     this.aboutUsMenuLinks = this.header.locator('a[role="button"][href^="/about"]');
   }
 
-  /* ==========================================================
-     Header Visibility Validation
-  ========================================================== */
+  // Header Visibility Validation
 
-  /** Verifies header links visible. */
+  /** Checks that the header links are visible. */
   async verifyHeaderLinksVisible(): Promise<void> {
     await this.step('Verify header links visible', async () => {
       await this.page.waitForSelector('header', { timeout: 20000 });
@@ -51,9 +49,7 @@ export class Header extends BasePage {
     });
   }
 
-  /* ==========================================================
-     Actions
-  ========================================================== */
+  // Actions
 
   /** Clicks find your home. */
   async clickFindYourHome(): Promise<void> {
@@ -104,11 +100,9 @@ export class Header extends BasePage {
     });
   }
 
-  /* ==========================================================
-     Find Your Home Link Validation
-  ========================================================== */
+  // Find Your Home Link Validation
 
-  /** Returns the national promotion dialog locator or value. */
+  /** Gets the national promotion dialog locator. */
   private get nationalPromotionDialog(): Locator {
     return this.page
       .locator('.ReactModal__Content[role="dialog"][aria-label="National promotion"]')
@@ -151,7 +145,7 @@ export class Header extends BasePage {
     this.promoPopupHandlerRegistered = true;
   }
 
-  /** Verifies find your home links. */
+  /** Checks the Find Your Home links. */
   async verifyFindYourHomeLinks(): Promise<void> {
     await this.step('Verify Find Your Dream Home links', async () => {
       await this.registerNationalPromotionHandler();
@@ -228,11 +222,9 @@ export class Header extends BasePage {
     });
   }
 
-  /* ==========================================================
-     About Us Link Validation
-  ========================================================== */
+  // About Us Link Validation
 
-  /** Returns visible about us menu links. */
+  /** Gets visible about us menu links. */
   async getVisibleAboutUsMenuLinks(expectedLinkCount?: number): Promise<HeaderNavigationLink[]> {
     return this.step('Get visible About Us menu links', async () => {
       await this.openAboutUsMenu(expectedLinkCount);
@@ -256,7 +248,7 @@ export class Header extends BasePage {
     });
   }
 
-  /** Verifies about us menu links. */
+  /** Checks the About Us menu links. */
   async verifyAboutUsMenuLinks(expectedLinks: readonly HeaderNavigationLink[]): Promise<void> {
     await this.step('Verify About Us menu links', async () => {
       const actualLinks = await this.getVisibleAboutUsMenuLinks(expectedLinks.length);
@@ -295,7 +287,7 @@ export class Header extends BasePage {
     });
   }
 
-  /** Verifies about us links. */
+  /** Checks the About Us links. */
   async verifyAboutUsLinks(expectedLinks: readonly HeaderNavigationLink[]): Promise<void> {
     await this.step('Verify About Us links navigation', async () => {
       await this.verifyAboutUsMenuLinks(expectedLinks);
@@ -356,7 +348,7 @@ export class Header extends BasePage {
     });
   }
 
-  /** Returns about us menu link. */
+  /** Gets about us menu link. */
   private getAboutUsMenuLink(expectedLink: HeaderNavigationLink): Locator {
     return this.aboutUsMenuLinks
       .filter({ hasText: new RegExp(`^\\s*${escapeRegex(expectedLink.name)}\\s*$`, 'i') })
@@ -364,9 +356,7 @@ export class Header extends BasePage {
       .first();
   }
 
-  /* ==========================================================
-     Generic Mega-Menu Flyout Validation
-  ========================================================== */
+  // Generic Mega-Menu Flyout Validation
 
   /** Opens a top-level header menu (flyout) by its button label. */
   async openMenu(menuName: string): Promise<void> {
@@ -385,7 +375,7 @@ export class Header extends BasePage {
     });
   }
 
-  /** Verifies a header flyout menu exposes the expected navigation links. */
+  /** Checks that a header flyout menu exposes the expected navigation links. */
   async verifyMenuLinks(
     menuName: string,
     expectedLinks: readonly HeaderNavigationLink[],
@@ -424,7 +414,7 @@ export class Header extends BasePage {
     });
   }
 
-  /** Verifies the chatbot widget / launcher is loaded on the page. */
+  /** Checks that the chatbot widget / launcher is loaded on the page. */
   async verifyChatbotLoaded(): Promise<void> {
     await this.step('Verify chatbot widget loads', async () => {
       const launcher = this.page

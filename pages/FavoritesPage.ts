@@ -4,13 +4,7 @@ import { getLocationConfig, LocationKey } from '../config/locations/locationConf
 import { escapeRegex } from '../utils/pageObjectUtils';
 import { BasePage } from './BasePage';
 
-/* ==========================================================
-   Favorites ("Homes I Love") Page Object Model
-
-   Covers the /favorites page (SearchFavorites component) and the
-   cross-page "save a home" workflow driven by the heart/favorite
-   toggle rendered on search / community / plan / QMI cards.
-========================================================== */
+// Favorites ("Homes I Love") Page Object Model Covers the /favorites page (SearchFavorites component) and the cross-page "save a home" workflow driven by the heart/favorite toggle rendered on search / community / plan / QMI cards.
 
 export class FavoritesPage extends BasePage {
   static readonly PATH = '/favorites';
@@ -19,7 +13,7 @@ export class FavoritesPage extends BasePage {
   readonly main: Locator;
   readonly footer: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -47,12 +41,12 @@ export class FavoritesPage extends BasePage {
       .filter({ hasNotText: /Go to Favorites Page/i });
   }
 
-  /** Returns only the not-yet-saved favorite controls. */
+  /** Gets only the not-yet-saved favorite controls. */
   private unsavedFavoriteToggles(): Locator {
     return this.page.locator('[aria-label*="Mark as favorite" i]:visible');
   }
 
-  /** Navigates to the Favorites page for the configured country. */
+  /** Opens the Favorites page for the configured country. */
   async navigateToFavorites(overrideLocation?: LocationKey): Promise<void> {
     await this.step('Navigate to Favorites', async () => {
       const { baseURL, envName } = getEnvConfig();
@@ -61,7 +55,7 @@ export class FavoritesPage extends BasePage {
 
       await this.reportValue('Navigating to Favorites', `ENV=${envName} | URL=${targetUrl}`);
 
-      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.ensurePageRendered();
@@ -69,7 +63,7 @@ export class FavoritesPage extends BasePage {
     });
   }
 
-  /** Validates the Favorites page shell (title, route, header, footer). */
+  /** Checks the Favorites page shell (title, route, header, footer). */
   async validatePageShell(): Promise<void> {
     await this.step('Validate Favorites page shell', async () => {
       await this.assertPageTitle(
@@ -93,7 +87,7 @@ export class FavoritesPage extends BasePage {
     });
   }
 
-  /** Validates the header "Go to Favorites" affordance points at /favorites. */
+  /** Checks the header "Go to Favorites" affordance points at /favorites. */
   async validateHeaderFavoritesLink(): Promise<void> {
     await this.step('Validate header Go to Favorites link', async () => {
       const favoritesLink = this.header
@@ -115,7 +109,7 @@ export class FavoritesPage extends BasePage {
   }
 
   /**
-   * Validates the empty-state that renders when no homes are saved.
+   * Checks the empty state that renders when no homes are saved.
    *
    * Identity is asserted via the document title and the page's own empty-state
    * markers, NOT an <h1>: the Favorites page renders none (its only headings are
@@ -191,7 +185,7 @@ export class FavoritesPage extends BasePage {
     });
   }
 
-  /** Validates at least one saved home renders on the Favorites page. */
+  /** Checks at least one saved home renders on the Favorites page. */
   async validateSavedHomesPresent(): Promise<void> {
     await this.step('Validate saved homes are listed', async () => {
       await expect
@@ -228,7 +222,7 @@ export class FavoritesPage extends BasePage {
     });
   }
 
-  /** Returns the number of saved-home cards currently rendered. */
+  /** Gets the number of saved-home cards currently rendered. */
   private async getSavedCardCount(): Promise<number> {
     const cards = this.page.locator('#ProductInfo:visible, [class*="card" i]:has(a[href]):visible');
     return cards.count();

@@ -154,7 +154,7 @@ export class CustomerCarePage extends BasePage {
   readonly serviceRequestForm: Locator;
   readonly submitButton: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -169,7 +169,7 @@ export class CustomerCarePage extends BasePage {
     this.submitButton = this.main.getByRole('button', { name: /^SUBMIT$/i });
   }
 
-  /** Navigates to customer care. */
+  /** Opens the Customer Care page. */
   async navigateToCustomerCare(locationKey: LocationKey): Promise<void> {
     await this.step(`Navigate to Customer Care page (${locationKey})`, async () => {
       const { baseURL, envName } = getEnvConfig();
@@ -193,7 +193,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Verifies page loaded. */
+  /** Checks that the page loaded. */
   async verifyPageLoaded(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Verify Customer Care page loaded (${config.locationKey})`, async () => {
       await this.assertPageTitle(
@@ -230,7 +230,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Validates area list. */
+  /** Checks the area list. */
   async validateAreaList(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Validate Customer Care area list (${config.locationKey})`, async () => {
       const areaButtons = this.getAreaButtons();
@@ -268,7 +268,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Validates area details. */
+  /** Checks the selected area details. */
   async validateAreaDetails(area: CustomerCareArea): Promise<void> {
     await this.step(`Validate Customer Care area details: ${area.name}`, async () => {
       const button = this.getAreaButton(area.name);
@@ -285,7 +285,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Validates resource links. */
+  /** Checks the resource links. */
   async validateResourceLinks(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Validate Customer Care resource links (${config.locationKey})`, async () => {
       for (const resourceLink of config.resourceLinks) {
@@ -312,7 +312,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Validates us emergency support content. */
+  /** Checks the U.S. emergency support content. */
   async validateUsEmergencySupportContent(): Promise<void> {
     await this.step('Validate US emergency support content', async () => {
       const emergencyHeadings = [
@@ -336,7 +336,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Validates us service request form. */
+  /** Checks the U.S. service request form. */
   async validateUsServiceRequestForm(): Promise<void> {
     await this.step('Validate US service request form fields', async () => {
       await this.assertVisible(
@@ -372,7 +372,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Validates us required field validation. */
+  /** Checks the U.S. required-field validation. */
   async validateUsRequiredFieldValidation(): Promise<void> {
     await this.step('Validate US service request required-field validation', async () => {
       const validationState = await this.serviceRequestForm.evaluate(
@@ -404,7 +404,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Validates canada support sections. */
+  /** Checks the Canada support sections. */
   async validateCanadaSupportSections(): Promise<void> {
     await this.step('Validate Canada support sections', async () => {
       const expectedHeadings = [
@@ -423,12 +423,12 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Returns area buttons. */
+  /** Gets the area buttons. */
   private getAreaButtons(): Locator {
     return this.main.locator('button[aria-label^="View contact details of"]:visible');
   }
 
-  /** Returns area button. */
+  /** Gets the selected area button. */
   private getAreaButton(areaName: string): Locator {
     return this.getAreaButtons()
       .filter({
@@ -483,7 +483,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Returns service request field states. */
+  /** Captures the service request field states. */
   private async getServiceRequestFieldStates(fields: readonly ServiceRequestField[]): Promise<
     Array<{
       label: string;

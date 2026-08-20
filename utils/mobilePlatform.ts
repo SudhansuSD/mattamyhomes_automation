@@ -6,7 +6,7 @@ export type MobilePlatform = 'android' | 'ios';
 
 export type UserAgentPatterns = { device: RegExp; browser: RegExp };
 
-/** Returns the configured mobile platform: 'ios' or 'android' (default). */
+/** Gets the configured mobile platform: 'ios' or 'android' (default). */
 export function getMobilePlatform(): MobilePlatform {
   const raw = String(process.env.MOBILE_PLATFORM || process.env.APPIUM_PLATFORM || 'android')
     .trim()

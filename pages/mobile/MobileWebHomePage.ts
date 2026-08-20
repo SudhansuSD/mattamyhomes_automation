@@ -6,14 +6,14 @@ export class MobileWebHomePage extends MobileWebBasePage {
   homePath: string;
   expectedTitle: RegExp;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(driver: MobileBrowser = browser) {
     super(driver);
     this.homePath = '/';
     this.expectedTitle = /Mattamy Homes/i;
   }
 
-  /** Opens open. */
+  /** Opens the configured home page. */
   async open(path = this.homePath) {
     const targetPath =
       path === this.homePath ? `${this.homePath}?${getLocationConfig().queryParam}` : path;
@@ -29,7 +29,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     await super.open(targetPath);
   }
 
-  /** Verifies loaded. */
+  /** Checks that the page loaded correctly. */
   async verifyLoaded() {
     const snapshot = await this.waitForHomeContent();
     const viewport = await this.driver.getWindowSize();
@@ -53,7 +53,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     this.assertNoErrorPage(snapshot);
   }
 
-  /** Validates hero section. */
+  /** Checks hero section. */
   async validateHeroSection() {
     const snapshot = await this.waitForHomeContent();
 
@@ -123,7 +123,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     }
   }
 
-  /** Verifies header links visible. */
+  /** Checks that the header links are visible. */
   async verifyHeaderLinksVisible() {
     const snapshot = await this.waitForHomeContent();
 
@@ -180,7 +180,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     );
   }
 
-  /** Verifies footer loaded. */
+  /** Checks that the footer loaded. */
   async verifyFooterLoaded() {
     const snapshot = await this.waitForHomeContent();
 
@@ -195,7 +195,10 @@ export class MobileWebHomePage extends MobileWebBasePage {
 
     await this.closeCookiePreferencesIfVisible();
     await this.driver.execute(() => window.scrollTo(0, document.body.scrollHeight));
-    await this.driver.pause(1000);
+    await this.waitForMobileCondition(
+      async () => /privacy|terms|contact|careers|copyright|mattamy/i.test(await this.getBodyText()),
+      'Expected footer/legal content after scrolling to page bottom',
+    );
 
     const footer = await this.driver.execute(() => {
       const element = document.querySelector('footer');
@@ -224,7 +227,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     );
   }
 
-  /** Searches by market. */
+  /** Searches for a market. */
   async searchByMarket(market = getLocationConfig().market) {
     const location = getLocationConfig();
     if (this.shouldUseHomeAutocomplete()) {
@@ -248,7 +251,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return true;
   }
 
-  /** Verifies search by market. */
+  /** Checks the market search flow. */
   async verifySearchByMarket(expectedMarket = getLocationConfig().market) {
     const currentUrl = await this.driver.getUrl();
     const normalizedUrl = this.normalizeText(currentUrl);
@@ -273,7 +276,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     }
   }
 
-  /** Searches by community. */
+  /** Searches for a community. */
   async searchByCommunity(community = getLocationConfig().community) {
     const location = getLocationConfig();
     const communityPath = this.getCommunityPath(location);
@@ -289,7 +292,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return true;
   }
 
-  /** Verifies search by community. */
+  /** Checks the community search flow. */
   async verifySearchByCommunity(expectedCommunity = getLocationConfig().community) {
     await this.waitForPageReady();
     await this.waitForBodyText(
@@ -304,7 +307,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     this.assertNoErrorPage(snapshot);
   }
 
-  /** Searches by QMI. */
+  /** Searches for a quick move-in home. */
   async searchByQMI(address = getLocationConfig().qmiAddress) {
     const location = getLocationConfig();
     const didSearch = await this.searchFromHomeAutocompleteWithRetry(address, 'qmi', {
@@ -319,7 +322,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return true;
   }
 
-  /** Verifies search by QMI. */
+  /** Checks the QMI search flow. */
   async verifySearchByQMI(expectedAddress = getLocationConfig().qmiAddress) {
     await this.waitForPageReady();
     const location = getLocationConfig();
@@ -357,7 +360,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     }
   }
 
-  /** Searches by plan. */
+  /** Searches for a plan. */
   async searchByPlan(planName = getLocationConfig().planName) {
     const location = getLocationConfig();
     const preferredPlanPath = location.expectedPlanPath || location.expectedPlanUrlPart;
@@ -373,11 +376,9 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return true;
   }
 
-  /* ==========================================================
-     UNIFIED SEARCH-FROM-HOME DISPATCHER (mirrors web SearchablePage)
-  ========================================================== */
+  // UNIFIED SEARCH-FROM-HOME DISPATCHER (mirrors web SearchablePage)
 
-  /** Searches and validates by value. */
+  /** Runs a search and checks that it lands on the expected page. */
   async searchAndValidateByValue(searchType, searchValue) {
     try {
       await this.runSearchAndValidate(searchType, searchValue);
@@ -445,7 +446,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     await this.open();
   }
 
-  /** Checks whether configured home page. */
+  /** Checks whether the browser is on the configured home page. */
   isConfiguredHomePage(currentUrl) {
     if (!currentUrl || this.isChromeNativeUrl(currentUrl)) {
       return false;
@@ -466,7 +467,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     }
   }
 
-  /** Verifies search by plan. */
+  /** Checks the plan search flow. */
   async verifySearchByPlan(expectedUrlPart = getLocationConfig().expectedPlanUrlPart) {
     await this.waitForPageReady();
     const snapshot = await this.getSnapshot();
@@ -475,7 +476,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     this.assertNoErrorPage(snapshot);
   }
 
-  /** Validates market cards. */
+  /** Checks market cards. */
   async validateMarketCards() {
     const snapshot = await this.waitForHomeContent();
 
@@ -566,7 +567,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     );
   }
 
-  /** Opens find your home. */
+  /** Opens the Find Your Home search panel. */
   async openFindYourHome() {
     await this.openHamburgerMenu();
 
@@ -576,10 +577,10 @@ export class MobileWebHomePage extends MobileWebBasePage {
       true,
       'Expected Find Your Home menu item to be clickable from mobile navigation',
     );
-    await this.driver.pause(1000);
+    await this.waitForPageReady();
   }
 
-  /** Searches from home autocomplete. */
+  /** Searches from the home page autocomplete. */
   async searchFromHomeAutocomplete(value: string, searchType: string, options: any = {}) {
     await this.waitForHomeContent();
     await this.closeCookiePreferencesIfVisible();
@@ -722,7 +723,29 @@ export class MobileWebHomePage extends MobileWebBasePage {
       }
     }
 
-    await this.driver.pause(500);
+    await this.waitForMobileCondition(
+      async () =>
+        this.driver.execute(() => {
+          const isVisible = (element) => {
+            const style = window.getComputedStyle(element);
+            const rect = element.getBoundingClientRect();
+
+            return (
+              style.visibility !== 'hidden' &&
+              style.display !== 'none' &&
+              rect.width > 0 &&
+              rect.height > 0
+            );
+          };
+
+          return Array.from(
+            document.querySelectorAll(
+              '[role="listbox"], [role="option"], [aria-live], [class*="suggest" i], [class*="autocomplete" i]',
+            ),
+          ).some(isVisible);
+        }),
+      'Expected autocomplete suggestions after typing search value',
+    ).catch(() => undefined);
 
     const getAutocompleteSnapshot = async () =>
       this.driver.execute(
@@ -827,7 +850,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return result.clicked;
   }
 
-  /** Searches from home autocomplete with retry. */
+  /** Retries the home page autocomplete search when the first attempt misses. */
   async searchFromHomeAutocompleteWithRetry(value: string, searchType: string, options: any = {}) {
     const maxAttempts = Number(options.maxAttempts || process.env.APPIUM_SEARCH_MAX_ATTEMPTS || 2);
 
@@ -851,7 +874,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return false;
   }
 
-  /** Returns community path. */
+  /** Builds the expected community path. */
   getCommunityPath(location = getLocationConfig()) {
     return (
       location.communityPath ||
@@ -864,7 +887,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return String(process.env.APPIUM_USE_HOME_AUTOCOMPLETE || '').toLowerCase() === 'true';
   }
 
-  /** Waits for home content. */
+  /** Waits until the home page content is ready. */
   async waitForHomeContent() {
     let loadedPageSnapshot;
     let sessionLostError;
@@ -927,7 +950,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return loadedPageSnapshot || this.getSnapshot();
   }
 
-  /** Opens hamburger menu. */
+  /** Opens the mobile hamburger menu. */
   async openHamburgerMenu() {
     await this.waitForHomeContent();
     await this.closeCookiePreferencesIfVisible();
@@ -1023,10 +1046,18 @@ export class MobileWebHomePage extends MobileWebBasePage {
       return;
     }
 
-    await this.driver.pause(1000);
+    await this.waitForMobileCondition(
+      async () =>
+        this.driver.execute(() =>
+          /find my home|find your home|design studio|customer care|about us|contact us/i.test(
+            document.body?.innerText || '',
+          ),
+        ),
+      'Expected mobile navigation links after opening hamburger menu',
+    );
   }
 
-  /** Normalizes text. */
+  /** Normalizes text for reliable comparisons. */
   normalizeText(value) {
     return value
       .toLowerCase()
@@ -1039,7 +1070,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return this.normalizeText(value).replace(/\s+/g, '-');
   }
 
-  /** Escapes reg exp. */
+  /** Escapes text for use in a regular expression. */
   escapeRegExp(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }

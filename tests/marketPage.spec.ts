@@ -28,9 +28,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
     });
   });
 
-  /* ==========================================================
-     BASIC MARKET VALIDATION (ALL MARKETS)
-  ========================================================== */
+  // BASIC MARKET VALIDATION (ALL MARKETS)
 
   test.describe('Basic Market Validation', () => {
     test(`@smoke @regression | ${location.country} | Validate all markets navigation and heading`, async () => {
@@ -48,9 +46,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
     });
   });
 
-  /* ==========================================================
-     MARKET-SPECIFIC TESTS
-  ========================================================== */
+  // MARKET-SPECIFIC TESTS
 
   for (const market of location.markets) {
     test.describe(`Market: ${market.name}`, () => {
@@ -64,9 +60,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
       });
     });
   }
-  /* ==========================================================
-         MARKET-PAGE VALIDATION
-      ========================================================== */
+  // MARKET-PAGE VALIDATION
 
   test.describe(`Configured market deep validation - ${configuredMarket.name}`, () => {
     test.beforeEach(async () => {

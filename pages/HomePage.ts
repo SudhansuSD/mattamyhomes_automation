@@ -57,9 +57,7 @@ export class HomePage extends SearchablePage {
     this.marketCards = page.locator('#cards .slick-slide:not(.slick-cloned)');
   }
 
-  /* ==========================================================
-     PAGE LOAD
-  ========================================================== */
+  // PAGE LOAD
 
   // Confirms the home page finished loading and shows the expected title.
   async verifyPageLoaded(): Promise<void> {
@@ -69,7 +67,7 @@ export class HomePage extends SearchablePage {
     });
   }
 
-  // Verifies the hero video is configured for and actually performs muted inline autoplay.
+  // Checks that the hero video is configured for muted inline autoplay and actually plays.
   async validateHeroVideoAutoplay(): Promise<void> {
     await this.step('Validate hero video autoplay', async () => {
       await this.waitForPageReady();
@@ -169,9 +167,7 @@ export class HomePage extends SearchablePage {
       .toBeTruthy();
   }
 
-  /* ==========================================================
-     MARKET CARD UI AND LINK VALIDATION
-  ========================================================== */
+  // MARKET CARD UI AND LINK VALIDATION
 
   // Splits a config market name on '||' into the list of normalized accepted display names.
   private getAcceptedNames(name: string): string[] {
@@ -414,7 +410,7 @@ export class HomePage extends SearchablePage {
     });
   }
 
-  // Verifies the cookie banner stays dismissed across a reload and stores a consent cookie.
+  // Checks that the cookie banner stays dismissed after reload and stores a consent cookie.
   async validateCookieBannerPersistence(): Promise<void> {
     await this.step('Validate cookie banner persistence', async () => {
       const banner = this.page.locator('#onetrust-banner-sdk, .ot-sdk-container').first();
@@ -445,11 +441,9 @@ export class HomePage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-     PROMOTION / NOTIFICATION BANNER VALIDATION
-  ========================================================== */
+  // PROMOTION / NOTIFICATION BANNER VALIDATION
 
-  // Validates the promotion / notification banner renders content and is dismissible when shown.
+  // Checks that the promotion or notification banner has content and can be dismissed when shown.
   async validatePromotionOrNotificationBanner(): Promise<void> {
     await this.step('Validate promotion / notification banner', async () => {
       await this.waitForPageReady();

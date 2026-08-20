@@ -15,9 +15,7 @@ const location = getLocationConfig();
 test.describe(`Search Page Tests - ${location.country}`, () => {
   let searchPage: SearchPage;
 
-  /* -------------------------------------------------------
-     Common Setup
-  -------------------------------------------------------- */
+  // Common Setup
 
   test.beforeEach(async ({ page }) => {
     searchPage = new SearchPage(page);
@@ -33,9 +31,8 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
     });
   });
 
-  /* -------------------------------------------------------
-     Default Search Tests
-  -------------------------------------------------------- */
+  // Default Search Tests
+
   test.describe('Default Search Tests', () => {
     test(`@smoke @regression | ${location.country} | Verify community results functionality`, async () => {
       await test.step('Verify community results functionality', async () => {
@@ -68,9 +65,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
     });
   });
 
-  /* -------------------------------------------------------
-     Filter Tests
-  -------------------------------------------------------- */
+  // Filter Tests
 
   test.describe('Filter Tests', () => {
     test(`@regression | ${location.country} | Verify filter by price functionality`, async () => {
@@ -116,9 +111,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
     });
   });
 
-  /* -------------------------------------------------------
-     Sorting Validation Tests
-  -------------------------------------------------------- */
+  // Sorting Validation Tests
 
   test.describe('Sorting Validation Tests', () => {
     test(`@regression | ${location.country} | Validate community sorting options`, async () => {
@@ -148,9 +141,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
     });
   });
 
-  /* -------------------------------------------------------
-     Savings Calculator Tests
-  -------------------------------------------------------- */
+  // Savings Calculator Tests
 
   test.describe('Savings Calculator', () => {
     test(`@regression | ${location.country} | Validate savings calculator sidebar`, async () => {

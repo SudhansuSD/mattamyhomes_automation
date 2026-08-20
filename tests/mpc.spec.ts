@@ -95,9 +95,7 @@ test.describe(`MPC page tests - ${location.country}`, () => {
     });
   });
 
-  /* ==========================================================
-     FORM VALIDATION
-  ========================================================== */
+  // FORM VALIDATION
 
   test.describe('Form Validation', () => {
     test.describe('Get Information Form Validation', () => {

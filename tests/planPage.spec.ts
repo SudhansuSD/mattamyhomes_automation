@@ -16,9 +16,8 @@ const { envName } = getEnvConfig();
 test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
   let planPage: PlanDetailPage;
 
-  /* -------------------------------------------------------
-     Common Setup
-  -------------------------------------------------------- */
+  // Common Setup
+
   test.beforeEach(async ({ page }) => {
     planPage = new PlanDetailPage(page);
 
@@ -35,9 +34,8 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
     });
   });
 
-  /* -------------------------------------------------------
-     UI & Functional Validation
-  -------------------------------------------------------- */
+  // UI & Functional Validation
+
   test.describe('UI & Functional Validation', () => {
     test(`@smoke @regression | ${location.country} | Validate Plan Detail page core content`, async () => {
       await test.step('Verify plan URL contains configured plan path', async () => {
@@ -92,9 +90,8 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
     });
   });
 
-  /* -------------------------------------------------------
-     Form Validation
-  -------------------------------------------------------- */
+  // Form Validation
+
   test.describe('Form Validation', () => {
     test(`@regression | ${location.country} | Validate Get Information CTA opens plan detail side modal form`, async () => {
       await planPage.verifyGetInformationCtaOpensLeadForm();
@@ -124,9 +121,8 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
     });
   });
 
-  /* -------------------------------------------------------
-     QMI Section Validation
-  -------------------------------------------------------- */
+  // QMI Section Validation
+
   test.describe('QMI Section Validation', () => {
     test(`@prod @regression | ${location.country} | Verify QMI Section on Plan Detail page`, async () => {
       await test.step('Verify QMI section is displayed and functional', async () => {
@@ -135,9 +131,8 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
     });
   });
 
-  /* -------------------------------------------------------
-     Media Validation
-  -------------------------------------------------------- */
+  // Media Validation
+
   test.describe('Media Validation', () => {
     test(`@regression | ${location.country} | Validate plan page image and video URLs return 200`, async () => {
       await planPage.validateImageAndVideoUrlsReturn200('Plan page');

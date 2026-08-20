@@ -18,13 +18,11 @@ describe('Mattamy Homes mobile web - Market page on mobile (Android/iOS)', funct
         market.name
           .split('||')
           .map((name) => name.trim())
-          .includes(location.market)
+          .includes(location.market),
       ) || location.markets[0];
   });
 
-  /* ==========================================================
-     BASIC MARKET VALIDATION (ALL MARKETS)
-  ========================================================== */
+  // BASIC MARKET VALIDATION (ALL MARKETS)
 
   describe('Basic Market Validation', () => {
     it('TC-01 | @smoke @regression | Validate all markets navigation and heading', async () => {
@@ -35,9 +33,7 @@ describe('Mattamy Homes mobile web - Market page on mobile (Android/iOS)', funct
     });
   });
 
-  /* ==========================================================
-     CONFIGURED MARKET DEEP VALIDATION
-  ========================================================== */
+  // CONFIGURED MARKET DEEP VALIDATION
 
   describe('Configured Market Deep Validation', () => {
     beforeEach(async () => {

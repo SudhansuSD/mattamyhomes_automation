@@ -36,7 +36,6 @@ on:
           - chromium
           - firefox
           - webkit
-          - all
       suite:
         description: Test suite
         required: true
@@ -92,19 +91,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          BROWSER="${{ inputs.browser }}"
           SUITE="${{ inputs.suite }}"
-
-          # Map browser -> Playwright project. Note: the chromium project is
-          # named "Chrome" in playwright.config.ts (repo convention). "all"
-          # intentionally passes NO --project flag so every configured project runs.
-          case "$BROWSER" in
-            chromium) PROJECT_ARG="--project=Chrome" ;;
-            firefox)  PROJECT_ARG="--project=firefox" ;;
-            webkit)   PROJECT_ARG="--project=webkit" ;;
-            all)      PROJECT_ARG="" ;;
-            *) echo "::error::Unsupported browser '$BROWSER'"; exit 1 ;;
-          esac
 
           # Map suite -> tag grep (repo uses @smoke / @regression tags, not folders).
           # "all" intentionally passes NO --grep filter so the full suite runs.
@@ -116,7 +103,6 @@ jobs:
           esac
 
           # Expose resolved args to later steps.
-          echo "PROJECT_ARG=$PROJECT_ARG" >> "$GITHUB_ENV"
           echo "GREP_ARG=$GREP_ARG" >> "$GITHUB_ENV"
 
           # Print the selected configuration to the logs and the run summary.
@@ -127,27 +113,27 @@ jobs:
             echo "| --- | --- |"
             echo "| Environment | ${{ inputs.environment }} |"
             echo "| Country/region | ${{ inputs.country }} |"
-            echo "| Browser | $BROWSER |"
+            echo "| Browser | ${{ inputs.browser }} |"
             echo "| Test suite | $SUITE |"
-            echo "| Command | \`npx ts-node scripts/run-locations.ts $PROJECT_ARG $GREP_ARG\` |"
+            echo "| Command | \`BROWSER=${{ inputs.browser }} npx ts-node scripts/run-locations.ts $GREP_ARG\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
           echo "Environment : ${{ inputs.environment }}"
           echo "Country     : ${{ inputs.country }}"
-          echo "Browser     : $BROWSER"
+          echo "Browser     : ${{ inputs.browser }}"
           echo "Test suite  : $SUITE"
-          echo "Command     : npx ts-node scripts/run-locations.ts $PROJECT_ARG $GREP_ARG"
+          echo "Command     : BROWSER=${{ inputs.browser }} npx ts-node scripts/run-locations.ts $GREP_ARG"
 
       # 7 + 12. Run the tests. A non-zero Playwright exit code fails this step
       #         (and therefore the job) — the exit code is preserved because it
-      #         is not swallowed. $PROJECT_ARG / $GREP_ARG are intentionally
-      #         unquoted so empty values expand to nothing and "--grep @smoke"
-      #         splits into two arguments.
+      #         is not swallowed. $GREP_ARG is intentionally unquoted so an empty
+      #         value expands to nothing and "--grep @smoke" splits into two args.
       - name: Run Playwright tests
         # Routed through the location runner so country=ALL executes one pass
         # per location; a single country behaves exactly as `playwright test`.
-        run: npx ts-node scripts/run-locations.ts $PROJECT_ARG $GREP_ARG
+        run: npx ts-node scripts/run-locations.ts $GREP_ARG
         env:
+          BROWSER: ${{ inputs.browser }}
           # GitHub inputs are converted into the SAME environment variables the
           # framework already reads locally (ENV + LOCATION). COUNTRY is set as a
           # convenience alias; the framework reads LOCATION.

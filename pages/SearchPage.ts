@@ -21,7 +21,7 @@ export class SearchPage extends SearchablePage {
   readonly sortMenuItems: Locator;
   readonly resetFiltersButton: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -30,9 +30,7 @@ export class SearchPage extends SearchablePage {
     this.resetFiltersButton = page.getByRole('button', { name: /Reset all filters/i });
   }
 
-  /* ------------------------------------------------------------------
-       Locators
-    ------------------------------------------------------------------ */
+  // Locators
 
   private filterButton = (label: string) => this.page.locator(`button[aria-label*="${label}"]`);
 
@@ -58,7 +56,7 @@ export class SearchPage extends SearchablePage {
     ]);
   }
 
-  /** Returns tab locator. */
+  /** Gets tab locator. */
   private getTabLocator(tabName: string) {
     const nameRegex = new RegExp(tabName, 'i');
 
@@ -93,11 +91,9 @@ export class SearchPage extends SearchablePage {
     await button.click({ timeout: 20000 });
   }
 
-  /* ------------------------------------------------------------------
-       Common Helpers
-    ------------------------------------------------------------------ */
+  // Common Helpers
 
-  /** Opens tab. */
+  /** Opens the requested results tab. */
   async openTab(tabName: string): Promise<void> {
     await this.step(`Open '${tabName}' tab`, async () => {
       let tab;
@@ -144,7 +140,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Waits for results to load. */
+  /** Waits until results to load. */
   private async waitForResultsToLoad(): Promise<void> {
     await Promise.race([
       this.page.waitForSelector('#ProductInfo:visible', { timeout: 15000 }).catch(() => undefined),
@@ -179,7 +175,7 @@ export class SearchPage extends SearchablePage {
     return `${url.origin}${url.pathname}?${url.searchParams.toString()}`;
   }
 
-  /** Returns card count. */
+  /** Gets card count. */
   private async getCardCount(): Promise<number> {
     await this.waitForResultsToLoad();
     return (await this.resultCards()).count();
@@ -197,7 +193,7 @@ export class SearchPage extends SearchablePage {
     return text.replace(/\s+/g, ' ').trim().toLowerCase();
   }
 
-  /** Returns visible card signature. */
+  /** Builds a signature for the visible result cards. */
   private async getVisibleCardSignature(): Promise<string> {
     const cards = await this.resultCards();
     const count = await cards.count();
@@ -217,7 +213,7 @@ export class SearchPage extends SearchablePage {
     return visibleTexts.join('|');
   }
 
-  /** Returns displayed result count. */
+  /** Gets displayed result count. */
   private async getDisplayedResultCount(tabName: ResultsTab): Promise<number | null> {
     const resultLabel = tabName === 'Quick Move-Ins' ? 'quick move-ins' : tabName.toLowerCase();
     const statusPattern = new RegExp(`\\d+\\s+${escapeRegex(resultLabel)}\\s+available`, 'i');
@@ -231,7 +227,7 @@ export class SearchPage extends SearchablePage {
     return Number.isFinite(count) ? count : null;
   }
 
-  /** Returns sortable card count. */
+  /** Gets sortable card count. */
   private async getSortableCardCount(tabName: ResultsTab, availableCards: number): Promise<number> {
     const displayedCount = await this.getDisplayedResultCount(tabName);
 
@@ -242,7 +238,7 @@ export class SearchPage extends SearchablePage {
     return Math.min(availableCards, displayedCount);
   }
 
-  /** Returns product type for tab. */
+  /** Gets product type for tab. */
   private getProductTypeForTab(tabName: ResultsTab): string {
     switch (tabName) {
       case 'Plans':
@@ -278,7 +274,7 @@ export class SearchPage extends SearchablePage {
     return values[0] ?? null;
   }
 
-  /** Returns card text lines. */
+  /** Gets card text lines. */
   private getCardTextLines(text: string): string[] {
     return text
       .split('\n')
@@ -286,7 +282,7 @@ export class SearchPage extends SearchablePage {
       .filter(Boolean);
   }
 
-  /** Returns location line. */
+  /** Gets location line. */
   private getLocationLine(lines: string[], tabName: ResultsTab): string {
     const locationPattern =
       tabName === 'Communities'
@@ -308,7 +304,7 @@ export class SearchPage extends SearchablePage {
     return card.locator(SearchPage.CARD_TITLE_SELECTOR).first();
   }
 
-  /** Returns result card container. */
+  /** Gets result card container. */
   private async getResultCardContainer(card: Locator): Promise<Locator> {
     const container = card.locator('xpath=ancestor::*[.//img and .//*[@id="ProductInfo"]][1]');
 
@@ -319,7 +315,7 @@ export class SearchPage extends SearchablePage {
     return card;
   }
 
-  /** Validates card image. */
+  /** Checks card image. */
   private async validateCardImage(
     card: Locator,
     cardIndex: number,
@@ -337,7 +333,7 @@ export class SearchPage extends SearchablePage {
     );
   }
 
-  /** Validates card details link. */
+  /** Checks card details link. */
   private async validateCardDetailsLink(
     card: Locator,
     cardIndex: number,
@@ -353,7 +349,7 @@ export class SearchPage extends SearchablePage {
     ).toMatch(/^\/(?!search(?:\?|$)).+/);
   }
 
-  /** Returns card details. */
+  /** Gets card details. */
   private async getCardDetails(
     card: Locator,
     tabName: ResultsTab,
@@ -383,7 +379,7 @@ export class SearchPage extends SearchablePage {
     };
   }
 
-  /** Validates detail page matches card. */
+  /** Checks detail page matches card. */
   private async validateDetailPageMatchesCard(
     tabName: ResultsTab,
     cardIndex: number,
@@ -427,7 +423,7 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Validates card location line. */
+  /** Checks card location line. */
   private validateCardLocationLine(
     lines: string[],
     tabName: ResultsTab,
@@ -452,11 +448,9 @@ export class SearchPage extends SearchablePage {
     return locationLine;
   }
 
-  /* ------------------------------------------------------------------
-       Price Utilities (Production Ready)
-    ------------------------------------------------------------------ */
+  // Price Utilities (Production Ready)
 
-  /** Returns all prices. */
+  /** Gets all prices. */
   async getAllPrices(): Promise<number[]> {
     const cards = await this.resultCards();
     const count = await cards.count();
@@ -493,13 +487,10 @@ export class SearchPage extends SearchablePage {
     return prices;
   }
 
-  /* =================================================================
-       FILTERS
-    ================================================================= */
+  // FILTERS
 
-  /* ------------------------------------------------------------------
-    Filter by price
-    ------------------------------------------------------------------ */
+  // Filter by price
+
   /** Filters by price. */
   async filterByPrice(minPrice: number, maxPrice: number): Promise<void> {
     const minPriceLabel = this.formatPriceToUiLabel(minPrice);
@@ -520,11 +511,9 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /* ------------------------------------------------------------------
-       Validation: Price Range
-    ------------------------------------------------------------------ */
+  // Validation: Price Range
 
-  /** Validates price range across tabs. */
+  /** Checks price range across tabs. */
   async validatePriceRangeAcrossTabs(min: number, max: number): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
     const allFailures: string[] = [];
@@ -552,11 +541,9 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /* ------------------------------------------------------------------
-       Validation: Price on each card
-    ------------------------------------------------------------------ */
+  // Validation: Price on each card
 
-  /** Validates price range. */
+  /** Checks price range. */
   async validatePriceRange(
     minValue: number,
     maxValue: number,
@@ -598,9 +585,7 @@ export class SearchPage extends SearchablePage {
     );
   }
 
-  /*-------------------------------------------------------------------
-    Filter by beds and baths
-    ------------------------------------------------------------------ */
+  // Filter by beds and baths
 
   /** Filters by bedrooms and bathrooms. */
   async filterByBedroomsAndBathrooms(minBeds: number, minBaths: number): Promise<void> {
@@ -720,7 +705,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Validates clear reset filters behavior. */
+  /** Checks clear reset filters behavior. */
   async validateClearResetFiltersBehavior(): Promise<void> {
     await this.verifyResults('Communities');
 
@@ -762,7 +747,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Validates no results state. */
+  /** Checks no results state. */
   async validateNoResultsState(): Promise<void> {
     await this.step('Apply unavailable criteria and verify no-results state', async () => {
       // Order matters, and not for a cosmetic reason: the site only offers the
@@ -802,7 +787,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Validates combined filters persist in URL state. */
+  /** Checks combined filters persist in URL state. */
   async validateCombinedFiltersPersistInUrlState(
     minPrice: number,
     maxPrice: number,
@@ -846,7 +831,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Validates filter browser history navigation. */
+  /** Checks filter browser history navigation. */
   async validateFilterBrowserHistoryNavigation(minPrice: number, maxPrice: number): Promise<void> {
     await this.verifyResults('Communities');
 
@@ -883,11 +868,9 @@ export class SearchPage extends SearchablePage {
       );
     });
   }
-  /* ------------------------------------------------------------------
-       Validation: Beds & Baths
-    ------------------------------------------------------------------ */
+  // Validation: Beds & Baths
 
-  /** Validates beds baths across tabs. */
+  /** Checks beds baths across tabs. */
   async validateBedsBathsAcrossTabs(minBeds: number, minBaths: number): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
     const allMismatches: string[] = [];
@@ -906,11 +889,9 @@ export class SearchPage extends SearchablePage {
       `Beds & Baths filter validation failed:\n${allMismatches.join('\n')}`,
     ).toHaveLength(0);
   }
-  /* ------------------------------------------------------------------
-       Validation: Beds & Baths on each card
-    ------------------------------------------------------------------ */
+  // Validation: Beds & Baths on each card
 
-  /** Validates beds baths. */
+  /** Checks beds baths. */
   async validateBedsBaths(
     minBeds: number,
     minBaths: number,
@@ -964,11 +945,9 @@ export class SearchPage extends SearchablePage {
     return mismatches;
   }
 
-  /* ------------------------------------------------------------------
-       Results Validation
-    ------------------------------------------------------------------ */
+  // Results Validation
 
-  /** Verifies results. */
+  /** Checks the search results. */
   async verifyResults(tabName: ResultsTab): Promise<void> {
     await this.step(`Verify ${tabName} results load`, async () => {
       await this.openTab(tabName);
@@ -1027,11 +1006,9 @@ export class SearchPage extends SearchablePage {
       throw new Error(`${tabName}: No results AND no "No results" message found`);
     });
   }
-  /* ------------------------------------------------------------------
-       Result Card Required Details Validation
-    ------------------------------------------------------------------ */
+  // Result Card Required Details Validation
 
-  /** Validates result cards required details. */
+  /** Checks result cards required details. */
   async validateResultCardsRequiredDetails(tabName: ResultsTab): Promise<void> {
     await this.verifyResults(tabName);
 
@@ -1056,7 +1033,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Validates all result cards required details. */
+  /** Checks all result cards required details. */
   async validateAllResultCardsRequiredDetails(): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
 
@@ -1065,7 +1042,7 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Validates result card CTA navigation. */
+  /** Checks result card CTA navigation. */
   async validateResultCardCtaNavigation(tabName: ResultsTab, cardsToValidate = 3): Promise<void> {
     await this.verifyResults(tabName);
 
@@ -1096,7 +1073,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Validates all result card CTA navigation. */
+  /** Checks all result card CTA navigation. */
   async validateAllResultCardCtaNavigation(cardsToValidatePerTab = 3): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
 
@@ -1105,11 +1082,9 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /* ------------------------------------------------------------------
-       Sort Options Validation
-    ------------------------------------------------------------------ */
+  // Sort Options Validation
 
-  /** Validates sort options. */
+  /** Checks sort options. */
   async validateSortOptions(
     tabName: ResultsTab,
     required: string[],
@@ -1137,11 +1112,9 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /* ------------------------------------------------------------------
-       Tab-Specific Sorting
-    ------------------------------------------------------------------ */
+  // Tab-Specific Sorting
 
-  /** Validates community sort options. */
+  /** Checks community sort options. */
   async validateCommunitySortOptions(): Promise<void> {
     await this.validateSortOptions(
       'Communities',
@@ -1150,20 +1123,18 @@ export class SearchPage extends SearchablePage {
     );
   }
 
-  /** Validates plan sort options. */
+  /** Checks plan sort options. */
   async validatePlanSortOptions(): Promise<void> {
     await this.validateSortOptions('Plans', ['$ - $$$', 'Sq. Ft.', 'A - Z']);
   }
 
-  /** Validates QMI sort options. */
+  /** Checks QMI sort options. */
   async validateQMISortOptions(): Promise<void> {
     await this.validateSortOptions('Quick Move-Ins', ['Date', '$ - $$$', 'Sq. Ft.', 'A - Z']);
   }
-  /* ==========================================================
-       SORTABLE DATA EXTRACTION
-    ========================================================== */
+  // SORTABLE DATA EXTRACTION
 
-  /** Returns sortable prices. */
+  /** Gets sortable prices. */
   async getSortablePrices(tabName: ResultsTab): Promise<number[]> {
     const cards = await this.resultCards();
     const count = await this.getSortableCardCount(tabName, await cards.count());
@@ -1183,9 +1154,7 @@ export class SearchPage extends SearchablePage {
 
     return prices;
   }
-  /* ==========================================================
-       SORT ACTION
-    ========================================================== */
+  // SORT ACTION
 
   /** Selects sort option. */
   async selectSortOption(tabName: ResultsTab, option: string): Promise<void> {
@@ -1211,7 +1180,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Returns sortable sq. ft.. */
+  /** Gets sortable sq. ft. */
   async getSortableSqFt(tabName: ResultsTab): Promise<number[]> {
     const cards = await this.resultCards();
     const count = await this.getSortableCardCount(tabName, await cards.count());
@@ -1232,7 +1201,7 @@ export class SearchPage extends SearchablePage {
     return values;
   }
 
-  /** Returns sortable titles. */
+  /** Gets sortable titles. */
   async getSortableTitles(tabName: ResultsTab): Promise<string[]> {
     const cards = await this.resultCards();
     const count = await this.getSortableCardCount(tabName, await cards.count());
@@ -1254,11 +1223,9 @@ export class SearchPage extends SearchablePage {
     return titles;
   }
 
-  /* ==========================================================
-       SORT VALIDATION HELPERS
-    ========================================================== */
+  // SORT VALIDATION HELPERS
 
-  /** Validates ascending numbers. */
+  /** Checks ascending numbers. */
   private validateAscendingNumbers(actual: number[], label: string): void {
     const failures: string[] = [];
 
@@ -1280,18 +1247,16 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Validates alphabetical. */
+  /** Checks alphabetical. */
   private validateAlphabetical(actual: string[], label: string): void {
     const expected = [...actual].sort((a, b) => a.localeCompare(b));
 
     expect(actual, `${label} sorting is incorrect`).toEqual(expected);
   }
 
-  /* ==========================================================
-       ACTUAL CARD SORTING VALIDATION
-    ========================================================== */
+  // ACTUAL CARD SORTING VALIDATION
 
-  /** Validates price sorting. */
+  /** Checks price sorting. */
   async validatePriceSorting(tabName: ResultsTab): Promise<void> {
     await this.selectSortOption(tabName, '$ - $$$');
 
@@ -1303,7 +1268,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Validates sq. ft. sorting. */
+  /** Checks sq. ft. sorting. */
   async validateSqFtSorting(tabName: ResultsTab): Promise<void> {
     await this.selectSortOption(tabName, 'Sq. Ft.');
 
@@ -1315,7 +1280,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Validates A-Z sorting. */
+  /** Checks A-Z sorting. */
   async validateAZSorting(tabName: ResultsTab): Promise<void> {
     await this.selectSortOption(tabName, 'A - Z');
 
@@ -1327,7 +1292,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Returns sort validation configs. */
+  /** Gets sort validation configs. */
   private getSortValidationConfigs(tabName: ResultsTab): SortValidationConfig[] {
     const commonConfigs: SortValidationConfig[] = [
       { option: '$ - $$$', criterion: 'price', label: 'Price' },
@@ -1345,7 +1310,7 @@ export class SearchPage extends SearchablePage {
     ];
   }
 
-  /** Returns sortable values. */
+  /** Gets sortable values. */
   private async getSortableValues(
     tabName: ResultsTab,
     criterion: SortCriterion,
@@ -1362,7 +1327,7 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Validates sortable values. */
+  /** Checks sortable values. */
   private validateSortableValues(
     values: number[] | string[],
     config: SortValidationConfig,
@@ -1381,11 +1346,9 @@ export class SearchPage extends SearchablePage {
     this.validateAscendingNumbers(values as number[], `${tabName} ${config.label}`);
   }
 
-  /* ==========================================================
-       HIGH-LEVEL SORTING TEST METHODS
-    ========================================================== */
+  // HIGH-LEVEL SORTING TEST METHODS
 
-  /** Validates sorting behavior. */
+  /** Checks sorting behavior. */
   async validateSortingBehavior(tabName: ResultsTab): Promise<void> {
     const configs = this.getSortValidationConfigs(tabName);
 
@@ -1399,23 +1362,23 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Validates community sorting behavior. */
+  /** Checks community sorting behavior. */
   async validateCommunitySortingBehavior(): Promise<void> {
     await this.validateSortingBehavior('Communities');
   }
 
-  /** Validates plan sorting behavior. */
+  /** Checks plan sorting behavior. */
   async validatePlanSortingBehavior(): Promise<void> {
     await this.validateSortingBehavior('Plans');
   }
 
-  /** Validates QMI sorting behavior. */
+  /** Checks QMI sorting behavior. */
   async validateQMISortingBehavior(): Promise<void> {
     await this.validateSortingBehavior('Quick Move-Ins');
   }
 
   /**
-   * Validates the Savings Calculator sidebar on the search page: it renders
+   * Checks the Savings Calculator sidebar on the search page: it renders
    * adjustable inputs and surfaces a currency value.
    */
   async validateSavingsCalculatorSidebar(): Promise<void> {

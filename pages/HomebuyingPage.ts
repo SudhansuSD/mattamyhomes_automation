@@ -4,15 +4,7 @@ import { getLocationConfig, LocationKey } from '../config/locations/locationConf
 import { escapeRegex } from '../utils/pageObjectUtils';
 import { BasePage } from './BasePage';
 
-/* ==========================================================
-   Homebuying Pages Object Model
-
-   Covers the Homebuying section pages, driven by a per-path
-   expectation map (mirrors AboutUsPage):
-     - /homebuying/homebuying    (Journey / What to Expect)
-     - /homebuying/financing     (Financing + MortgageCalculator)
-     - /homebuying/shopping-tools(Shopping Tools + SavingsCalculator + Form)
-========================================================== */
+// Homebuying Pages Object Model Covers the Homebuying section pages, driven by a per-path expectation map (mirrors AboutUsPage): - /homebuying/homebuying    (Journey / What to Expect) - /homebuying/financing     (Financing + MortgageCalculator) - /homebuying/shopping-tools(Shopping Tools + SavingsCalculator + Form)
 
 export type HomebuyingPageExpectation = {
   name: string;
@@ -59,7 +51,7 @@ export class HomebuyingPage extends BasePage {
   readonly main: Locator;
   readonly footer: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -68,7 +60,7 @@ export class HomebuyingPage extends BasePage {
     this.footer = page.locator('#footer, section[id="footer"], footer').first();
   }
 
-  /** Navigates to the given Homebuying page for the configured country. */
+  /** Opens the given Homebuying page for the configured country. */
   async navigateToHomebuyingPage(
     expectation: HomebuyingPageExpectation,
     overrideLocation?: LocationKey,
@@ -83,7 +75,7 @@ export class HomebuyingPage extends BasePage {
         `ENV=${envName} | PAGE=${expectation.name} | URL=${targetUrl}`,
       );
 
-      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.ensurePageRendered();
@@ -91,7 +83,7 @@ export class HomebuyingPage extends BasePage {
     });
   }
 
-  /** Validates the page shell (title, route, header, main and footer). */
+  /** Checks the page shell (title, route, header, main and footer). */
   async validatePageShell(expectation: HomebuyingPageExpectation): Promise<void> {
     await this.step(`Validate page shell: ${expectation.name}`, async () => {
       await this.assertPageTitle(
@@ -120,7 +112,7 @@ export class HomebuyingPage extends BasePage {
     });
   }
 
-  /** Validates the page renders meaningful content and expected headings. */
+  /** Checks the page renders meaningful content and expected headings. */
   async validateContent(expectation: HomebuyingPageExpectation): Promise<void> {
     await this.step(`Validate content: ${expectation.name}`, async () => {
       await expect
@@ -142,7 +134,7 @@ export class HomebuyingPage extends BasePage {
   }
 
   /**
-   * Validates the Affiliated Business Arrangement (ABA) disclosure modal behind
+   * Checks the Affiliated Business Arrangement (ABA) disclosure modal behind
    * the "Mortgage Calculator" CTA.
    *
    * The Financing page does NOT host a calculator - the CTA opens this
@@ -219,7 +211,7 @@ export class HomebuyingPage extends BasePage {
     await expect(modal, 'ABA disclosure modal should close').toBeHidden({ timeout: 8_000 });
   }
 
-  /** Validates the savings calculator sidebar renders an estimated savings value. */
+  /** Checks the savings calculator sidebar renders an estimated savings value. */
   async validateSavingsCalculator(): Promise<void> {
     await this.step('Validate savings calculator', async () => {
       const calculator = this.page
@@ -255,7 +247,7 @@ export class HomebuyingPage extends BasePage {
     });
   }
 
-  /** Validates the shopping-tools form enforces required-field validation. */
+  /** Checks the shopping-tools form enforces required-field validation. */
   async validateFormRequiredValidation(): Promise<void> {
     await this.step('Validate form required-field validation', async () => {
       const form = this.main.locator('form').first();
@@ -284,12 +276,12 @@ export class HomebuyingPage extends BasePage {
     });
   }
 
-  /** Returns the normalized length of the main content text. */
+  /** Gets the normalized length of the main content text. */
   private async getMainTextLength(): Promise<number> {
     return (await this.getMainText()).length;
   }
 
-  /** Returns the normalized main content text. */
+  /** Gets the normalized main content text. */
   private async getMainText(): Promise<string> {
     return this.main.evaluate((main) => (main.textContent || '').replace(/\s+/g, ' ').trim());
   }

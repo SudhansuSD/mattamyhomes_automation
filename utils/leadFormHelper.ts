@@ -1,14 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import testData from '../data/test_data.json';
 
-/* ==========================================================
-   Shared Lead-Form Helpers (Web / Playwright)
-
-   Common, reusable lead-form primitives and the centralized
-   form test data used across the desktop page objects. Keeping
-   these here removes the per-page duplication of fill / select /
-   consent / submit / validation logic.
-========================================================== */
+// Shared Lead-Form Helpers (Web / Playwright) Common, reusable lead-form primitives and the centralized form test data used across the desktop page objects. Keeping these here removes the per-page duplication of fill / select / consent / submit / validation logic.
 
 type Region = {
   country: string;
@@ -41,13 +34,7 @@ export type LeadFieldData = {
   country: string;
 };
 
-/* ==========================================================
-   Test data accessors (sourced from data/test_data.json)
-
-   Each profile references a shared region (country/phone/zip)
-   and only overrides the values unique to it, so no field
-   value is duplicated across profiles.
-========================================================== */
+// Test data accessors (sourced from data/test_data.json) Each profile references a shared region (country/phone/zip) and only overrides the values unique to it, so no field value is duplicated across profiles.
 
 /** Resolve a profile's effective country (from its region) plus its own phone/zip. */
 function resolveLocation(profile: WebProfile): { country: string; phone: string; zip: string } {
@@ -63,12 +50,12 @@ export function buildValidEmail(emailPrefix: string): string {
   return `${emailPrefix}${Date.now()}@${LEAD.emailDomain}`;
 }
 
-/** Return the raw web lead-form profile entry. */
+/** Get the raw web lead-form profile entry. */
 export function getLeadProfile(profile: LeadFormProfileKey): WebProfile {
   return PROFILES[profile];
 }
 
-/** Return valid lead data (with a fresh unique email) for a profile. */
+/** Get valid lead data (with a fresh unique email) for a profile. */
 export function getValidLeadData(profile: LeadFormProfileKey): LeadFieldData {
   const entry = PROFILES[profile];
   const location = resolveLocation(entry);
@@ -83,7 +70,7 @@ export function getValidLeadData(profile: LeadFormProfileKey): LeadFieldData {
   };
 }
 
-/** Return invalid-email lead data for a profile (falls back to the shared/region values where no override exists). */
+/** Get invalid-email lead data for a profile (falls back to the shared/region values where no override exists). */
 export function getInvalidLeadData(profile: LeadFormProfileKey): LeadFieldData {
   const entry = PROFILES[profile];
   const location = resolveLocation(entry);
@@ -98,9 +85,7 @@ export function getInvalidLeadData(profile: LeadFormProfileKey): LeadFieldData {
   };
 }
 
-/* ==========================================================
-   Field primitives
-========================================================== */
+// Field primitives
 
 /** Fill a field only when it exists. */
 export async function fillIfPresent(field: Locator, value: string): Promise<void> {
@@ -115,10 +100,7 @@ export async function selectFirstOptionIfPresent(field: Locator): Promise<void> 
     return;
   }
 
-  await field
-    .first()
-    .selectOption({ index: 1 })
-    .catch(() => undefined);
+  await field.first().selectOption({ index: 1 });
 }
 
 /** Select a dropdown value when the field exists, preferring a label then falling back to the first option. */
@@ -143,7 +125,7 @@ export async function selectOptionIfPresent(
     }
   }
 
-  await target.selectOption({ index: 1 }).catch(() => undefined);
+  await target.selectOption({ index: 1 });
 }
 
 /** Check a single checkbox when present (used for consent/preference toggles). */
@@ -151,7 +133,7 @@ export async function checkIfPresent(field: Locator): Promise<void> {
   const target = field.first();
 
   if (await target.count()) {
-    await target.check({ force: true }).catch(() => undefined);
+    await target.check({ force: true });
   }
 }
 
@@ -177,7 +159,43 @@ export async function selectCountryIfPresent(
     }
   }
 
-  await country.selectOption({ index: 1 }).catch(() => undefined);
+  await country.selectOption({ index: 1 });
+}
+
+async function settlePageDom(
+  page: Page,
+  ms: number,
+  quietWindowMs = Math.min(300, ms),
+): Promise<void> {
+  await page
+    .evaluate(
+      ([maxMs, quietMs]) =>
+        new Promise<void>((resolve) => {
+          const quietWindow = Math.min(quietMs, maxMs);
+          let quietTimer = window.setTimeout(finish, quietWindow);
+          const capTimer = window.setTimeout(finish, maxMs);
+          const observer = new MutationObserver(() => {
+            window.clearTimeout(quietTimer);
+            quietTimer = window.setTimeout(finish, quietWindow);
+          });
+
+          observer.observe(document.documentElement, {
+            attributes: true,
+            characterData: true,
+            childList: true,
+            subtree: true,
+          });
+
+          function finish() {
+            window.clearTimeout(quietTimer);
+            window.clearTimeout(capTimer);
+            observer.disconnect();
+            resolve();
+          }
+        }),
+      [ms, quietWindowMs] as const,
+    )
+    .catch(() => undefined);
 }
 
 /** Check the appropriate consent checkbox when present (skips "real estate agent" opt-ins). */
@@ -229,9 +247,31 @@ export async function checkConsentIfPresent(form: Locator): Promise<void> {
   }
 }
 
-/** Return the lead-form submit button. */
+/**
+ * How a lead-form Submit button is matched, without going through the
+ * accessibility tree.
+ *
+ * The page objects identify a lead form by "the thing containing a Submit
+ * button", and that used to be a `getByRole` lookup. The problem: the site's
+ * National-promotion popup is a react-modal, and while it's mounted react-modal
+ * marks `#root` `aria-hidden="true"`, which takes the whole page out of the
+ * accessibility tree. Every role lookup then comes back empty and a form that is
+ * rendered, visible and hydrated reports as absent - the failures read "not
+ * present on the community page" and "sidebar/modal form did not open" for forms
+ * plainly visible in the screenshots.
+ *
+ * CSS and text matching don't care about `aria-hidden`, so form lookups use this
+ * instead. One shared constant so every page object matches the same button. The
+ * real markup is `<button type="submit" value="SUBMIT">SUBMIT</button>`; the
+ * other variants cover forms that submit through an `<input type="submit">` or a
+ * styled `role="button"`.
+ */
+export const SUBMIT_BUTTON_SELECTOR =
+  'button[type="submit"], input[type="submit"], button:has-text("Submit"), [role="button"]:has-text("Submit")';
+
+/** Get the lead-form submit button. */
 export function getSubmitButton(form: Locator): Locator {
-  return form.getByRole('button', { name: /submit/i }).first();
+  return form.locator(SUBMIT_BUTTON_SELECTOR).first();
 }
 
 /** Assert a field is visible only when present in the form. */
@@ -245,18 +285,15 @@ export async function expectFieldVisibleIfPresent(
   }
 }
 
-/* ==========================================================
-   Submit + validation
-========================================================== */
+// Submit + validation
 
 /**
  * Click a form submit button without waiting on third-party submit requests.
  *
  * `options.submitButton` overrides how the submit button is resolved (some forms
- * match it by a page-specific label rather than the default /submit/i).
- * `options.settle` overrides the post-click pause: pass BasePage's adaptive
- * `settle` to return as soon as the DOM stops mutating instead of always
- * sleeping the full 800ms. Both default to the previous behaviour.
+ * label theirs something other than "Submit").
+ * `options.settle` overrides the post-click settle behavior. Without an override,
+ * the helper waits for the DOM to go quiet instead of sleeping for a fixed time.
  */
 export async function clickSubmit(
   page: Page,
@@ -285,7 +322,7 @@ export async function clickSubmit(
     return;
   }
 
-  await page.waitForTimeout(800);
+  await settlePageDom(page, 800);
 }
 
 /** Assert expected required-field messages within a lead form. */
@@ -322,9 +359,7 @@ export async function expectInvalidEmailErrorInForm(form: Locator, timeout = 100
   ).toBeVisible({ timeout });
 }
 
-/* ==========================================================
-   Composite fill (getByRole-based forms)
-========================================================== */
+// Composite fill (getByRole-based forms)
 
 export type FillLeadOptions = {
   emailName?: RegExp;
@@ -477,20 +512,7 @@ export async function fillValidSideModalForm(
   return fillLeadFormByFormId(form, getValidLeadData(profile), options);
 }
 
-/* ==========================================================
-   Extra lead fields (Bedroom Count / Desired Move Date /
-   New Budget / First Time Home Buyer)
-
-   These four dropdowns render on both the US / custom forms (where
-   they are optional) and the Canada (ScheduleAVisit) forms (where they
-   are required). First Time Home Buyer used to be a Yes/No radio group
-   and is now a Yes/No dropdown. The helpers fill whichever of the four
-   are present and return the chosen values so callers can capture them
-   as submission evidence. Bedroom Count / Desired Move Date / New Budget
-   get a random valid value; First Time Home Buyer alternates by iteration
-   (odd attempt -> Yes, even -> No) when an attempt number is supplied, and
-   falls back to a random Yes/No otherwise.
-========================================================== */
+// Extra lead fields (Bedroom Count / Desired Move Date / New Budget / First Time Home Buyer) These four dropdowns render on both the US / custom forms (where they are optional) and the Canada (ScheduleAVisit) forms (where they are required). First Time Home Buyer used to be a Yes/No radio group and is now a Yes/No dropdown. The helpers fill whichever of the four are present and return the chosen values so callers can capture them as submission evidence. Bedroom Count / Desired Move Date / New Budget get a random valid value; First Time Home Buyer alternates by iteration (odd attempt -> Yes, even -> No) when an attempt number is supplied, and falls back to a random Yes/No otherwise.
 
 /** Selected values for the extra lead fields; '' for any field that is absent from the form. */
 export type ExtraLeadFields = {

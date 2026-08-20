@@ -55,7 +55,7 @@ export class AboutUsPage extends BasePage {
   readonly main: Locator;
   readonly footer: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -64,7 +64,7 @@ export class AboutUsPage extends BasePage {
     this.footer = page.locator('#footer, section[id="footer"]').first();
   }
 
-  /** Validates about page. */
+  /** Checks about page. */
   async validateAboutPage(link: HeaderNavigationLink): Promise<void> {
     await this.step(`Validate About page: ${link.name}`, async () => {
       const expectation = ABOUT_PAGE_EXPECTATIONS[link.url];
@@ -119,7 +119,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Validates page shell. */
+  /** Checks page shell. */
   async validatePageShell(
     link: HeaderNavigationLink,
     expectation: AboutPageExpectation,
@@ -153,7 +153,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Validates page content. */
+  /** Checks page content. */
   async validatePageContent(expectation: AboutPageExpectation): Promise<void> {
     await this.step('Validate page content, headings, links and buttons', async () => {
       await expect
@@ -194,7 +194,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Validates community involvement functionality. */
+  /** Checks community involvement functionality. */
   async validateCommunityInvolvementFunctionality(): Promise<void> {
     await this.step('Validate Community Involvement functionality', async () => {
       await this.validateShowMoreIfPresent();
@@ -202,7 +202,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Validates sustainability functionality. */
+  /** Checks sustainability functionality. */
   async validateSustainabilityFunctionality(): Promise<void> {
     await this.step('Validate Sustainability functionality', async () => {
       await this.validateVisibleHref(/sustainabilityreport|assetstream|dfsmedia/i);
@@ -211,7 +211,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Validates media and investor functionality. */
+  /** Checks media and investor functionality. */
   async validateMediaAndInvestorFunctionality(): Promise<void> {
     await this.step('Validate Media and Investor Relations functionality', async () => {
       const releaseLinks = this.main.locator('a[href*="mediaroom.com"]:visible');
@@ -241,7 +241,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Validates careers functionality. */
+  /** Checks careers functionality. */
   async validateCareersFunctionality(): Promise<void> {
     await this.step('Validate Careers functionality', async () => {
       await this.validateLinkIfPresent(/\/about\/careers\/early-careers/i);
@@ -278,7 +278,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Validates show more if present. */
+  /** Checks show more if present. */
   private async validateShowMoreIfPresent(): Promise<void> {
     const showMoreButton = this.main.getByRole('button', { name: /SHOW MORE/i }).first();
 
@@ -297,7 +297,7 @@ export class AboutUsPage extends BasePage {
       .toBeGreaterThanOrEqual(visibleLinksBefore);
   }
 
-  /** Validates investor form if present. */
+  /** Checks investor form if present. */
   private async validateInvestorFormIfPresent(): Promise<void> {
     const form = this.main.locator('form').first();
 
@@ -312,7 +312,7 @@ export class AboutUsPage extends BasePage {
     await expect(form.getByRole('button', { name: /^SUBMIT$/i })).toBeVisible();
   }
 
-  /** Validates visible links have destinations. */
+  /** Checks visible links have destinations. */
   private async validateVisibleLinksHaveDestinations(): Promise<void> {
     const linksWithoutHref = await this.main
       .locator('a:visible')
@@ -327,21 +327,21 @@ export class AboutUsPage extends BasePage {
     );
   }
 
-  /** Validates external link if present. */
+  /** Checks external link if present. */
   private async validateExternalLinkIfPresent(hrefPattern: RegExp): Promise<void> {
     if (await this.hasVisibleLinkMatching(hrefPattern)) {
       await this.validateVisibleHref(hrefPattern);
     }
   }
 
-  /** Validates link if present. */
+  /** Checks link if present. */
   private async validateLinkIfPresent(hrefPattern: RegExp): Promise<void> {
     if (await this.hasAnyLinkMatching(hrefPattern)) {
       await this.validateVisibleHref(hrefPattern);
     }
   }
 
-  /** Validates visible href. */
+  /** Checks visible href. */
   private async validateVisibleHref(hrefPattern: RegExp): Promise<void> {
     await expect
       .poll(async () => this.hasAnyLinkMatching(hrefPattern), {
@@ -396,12 +396,12 @@ export class AboutUsPage extends BasePage {
     );
   }
 
-  /** Returns visible main content length. */
+  /** Gets visible main content length. */
   private async getVisibleMainContentLength(): Promise<number> {
     return (await this.getMainText()).length;
   }
 
-  /** Returns main text. */
+  /** Gets main text. */
   private async getMainText(): Promise<string> {
     return this.main.evaluate((main) => (main.textContent || '').replace(/\s+/g, ' ').trim());
   }

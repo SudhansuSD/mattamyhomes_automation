@@ -13,7 +13,7 @@ import {
 const COMMUNITY_FORM_GLOBAL = '__getVisibleCommunityForms';
 
 export class MobileWebCommunityPage extends MobileWebHomePage {
-  /** Verifies search by community. */
+  /** Checks the community search flow. */
   async verifySearchByCommunity(expectedCommunity = getLocationConfig().community) {
     await this.waitForPageReady();
     await this.waitForBodyText(
@@ -27,7 +27,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     this.assertNoErrorPage(snapshot);
   }
 
-  /** Verifies core sections. */
+  /** Checks the core page sections. */
   async verifyCoreSections() {
     await this.waitForBodyText(
       /available homes|quick move-in|map|contact|sales|directions|amenities|overview/i,
@@ -69,7 +69,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies overview address market and attributes. */
+  /** Checks the overview, address, market, and attributes. */
   async verifyOverviewAddressMarketAndAttributes(
     expectedCommunity = getLocationConfig().community,
   ) {
@@ -126,7 +126,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     assert.equal(snapshot.hasAttributes, true, 'Expected community key attributes on mobile');
   }
 
-  /** Verifies QMI card community name matches current community. */
+  /** Checks that the QMI card belongs to the current community. */
   async verifyQmiCardCommunityNameMatchesCurrentCommunity(
     expectedCommunity = getLocationConfig().community,
   ) {
@@ -194,7 +194,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies all navigation links. */
+  /** Checks all navigation links. */
   async verifyAllNavigationLinks() {
     await this.waitForPageReady();
 
@@ -218,7 +218,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies available homes navigation. */
+  /** Checks the Available Homes navigation. */
   async verifyAvailableHomesNavigation() {
     const result = await this.clickFirstCommunityLink(
       /quick-move-in|available-home|\d{1,}-/i,
@@ -235,7 +235,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     await this.waitForPageReady();
   }
 
-  /** Verifies plans navigation. */
+  /** Checks the Plans navigation. */
   async verifyPlansNavigation() {
     const location = getLocationConfig();
     const planPattern = new RegExp(
@@ -306,7 +306,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     return clicked;
   }
 
-  /** Validates primary form empty errors. */
+  /** Checks primary form required-field errors. */
   async validatePrimaryFormEmptyErrors() {
     await this.waitForCommunityForm();
     await this.submitVisibleFormByIndex(0);
@@ -319,7 +319,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates footer form empty errors. */
+  /** Checks footer form required-field errors. */
   async validateFooterFormEmptyErrors() {
     await this.waitForCommunityForm();
     await this.submitVisibleFormByIndex(1);
@@ -332,7 +332,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates primary form invalid email. */
+  /** Checks primary form invalid email address. */
   async validatePrimaryFormInvalidEmail() {
     await this.waitForCommunityForm();
     await this.fillInvalidEmailFormByIndex(0);
@@ -346,7 +346,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates footer form invalid email. */
+  /** Checks footer form invalid email address. */
   async validateFooterFormInvalidEmail() {
     await this.waitForCommunityForm();
     await this.fillInvalidEmailFormByIndex(1);
@@ -360,12 +360,12 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies primary form success submission. */
+  /** Checks that the primary form submits successfully. */
   async verifyPrimaryFormSuccessSubmission() {
     await this.submitCommunityFormSuccessfully(0, 'primary community form');
   }
 
-  /** Verifies footer form success submission. */
+  /** Checks that the footer form submits successfully. */
   async verifyFooterFormSuccessSubmission() {
     await this.submitCommunityFormSuccessfully(1, 'footer community form');
   }
@@ -393,7 +393,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     assert.equal(submitted, true, `Expected visible community form at index ${formIndex}`);
   }
 
-  /** Fills invalid email form by index. */
+  /** Fills invalid email address form by index. */
   async fillInvalidEmailFormByIndex(formIndex = 0) {
     const filled = await fillInvalidEmailLeadFormByIndex(
       this.driver,
@@ -424,7 +424,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Waits for community form. */
+  /** Waits until community form. */
   async waitForCommunityForm() {
     await this.waitForBodyText(
       /sign up for community updates|first name|last name|email|zip\/postal code|submit/i,

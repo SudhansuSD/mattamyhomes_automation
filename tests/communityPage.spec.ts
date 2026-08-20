@@ -10,9 +10,8 @@ const { envName } = getEnvConfig();
 test.describe(`Community Detail - ${location.community}`, () => {
   let communityPage: CommunityPage;
 
-  /* ==========================================================
-       Setup
-    ========================================================== */
+  // Setup
+
   test.beforeEach(async ({ page }) => {
     communityPage = new CommunityPage(page);
 
@@ -29,9 +28,8 @@ test.describe(`Community Detail - ${location.community}`, () => {
     });
   });
 
-  /* ==========================================================
-       UI VALIDATION
-    ========================================================== */
+  // UI VALIDATION
+
   test.describe('UI Validation', () => {
     test(`@smoke @regression | ${location.country} | Validate community core sections`, async () => {
       await test.step('Validate community core sections', async () => {
@@ -52,9 +50,8 @@ test.describe(`Community Detail - ${location.community}`, () => {
     });
   });
 
-  /* ==========================================================
-       NAVIGATION VALIDATION
-    ========================================================== */
+  // NAVIGATION VALIDATION
+
   test.describe('Navigation Validation', () => {
     test(`@regression | ${location.country} | Validate all navigation links`, async () => {
       await test.step('Validate all navigation links', async () => {
@@ -81,9 +78,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
     });
   });
 
-  /* ==========================================================
-       FORM VALIDATION
-    ========================================================== */
+  // FORM VALIDATION
 
   test.describe('Lead Form', () => {
     test.describe('Get Information Form Validation', () => {

@@ -30,6 +30,7 @@ import path from 'node:path';
 import process from 'node:process';
 import { DESKTOP_ALLURE_HISTORY_FILE, DESKTOP_ALLURE_REPORT_DIR, REPO_ROOT } from './allurePaths';
 import { loadEnv, getEnv, getNumberEnv } from '../config/env';
+import { getBrowserDisplayName } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
 
 loadEnv();
@@ -561,7 +562,7 @@ export function publishReportSite(): void {
     runType,
     environment,
     location: getEnv('LOCATION', getEnv('TEST_LOCATION', 'ALL')),
-    browser: getEnv('BROWSER', 'Chrome'),
+    browser: getBrowserDisplayName(),
     branch: getEnv('GITHUB_REF_NAME', 'local'),
     commit: getEnv('GITHUB_SHA').slice(0, 7),
     workflowRunUrl: repository && runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : '',

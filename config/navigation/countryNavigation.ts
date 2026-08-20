@@ -1,14 +1,6 @@
 import { getLocationKey, LocationKey } from '../locations/locationConfig';
 
-/* ==========================================================
-   Country Navigation Source of Truth
-
-   Availability of a page is defined by what a country's site
-   navigation actually DISPLAYS - not by whether the raw URL
-   resolves. Some pages (e.g. /homebuying/shopping-tools) return
-   200 for both countries but are only linked in one country's
-   menu; for the other country they are treated as unavailable.
-========================================================== */
+// Country Navigation Source of Truth Availability of a page is defined by what a country's site navigation actually DISPLAYS - not by whether the raw URL resolves. Some pages (e.g. /homebuying/shopping-tools) return 200 for both countries but are only linked in one country's menu; for the other country they are treated as unavailable.
 
 export type NavLink = {
   name: string;
@@ -63,7 +55,7 @@ export const EXPOSED_PATHS_BY_COUNTRY: Record<LocationKey, readonly string[]> = 
   ],
 };
 
-/** Returns whether the given path is surfaced in the country's navigation. */
+/** Checks whether the given path is surfaced in the country's navigation. */
 export function isPathExposedForCountry(path: string, country?: LocationKey): boolean {
   const key = country ?? getLocationKey();
   return (EXPOSED_PATHS_BY_COUNTRY[key] ?? []).includes(path);

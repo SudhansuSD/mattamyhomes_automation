@@ -8,12 +8,12 @@ import {
 export class MobileWebBasePage {
   driver: MobileBrowser;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(driver: MobileBrowser = browser) {
     this.driver = driver;
   }
 
-  /** Opens open. */
+  /** Opens the configured home page. */
   async open(path = '/') {
     this.logMobileStep('ACTION', `Open mobile page: ${path}`);
     await this.navigateTo(path);
@@ -22,21 +22,21 @@ export class MobileWebBasePage {
     await this.dismissPromoPopupIfPresent();
   }
 
-  /** Checks whether session lost error. */
+  /** Checks whether an error means the mobile session was lost. */
   isSessionLostError(error) {
     return /invalid session id|browser has closed the connection|disconnected|chrome not reachable/i.test(
       String(error?.message || error),
     );
   }
 
-  /** Checks whether navigation timeout error. */
+  /** Checks whether an error came from a mobile navigation timeout. */
   isNavigationTimeoutError(error) {
     return /timeout|timed out receiving message from renderer|unable to receive message from renderer/i.test(
       String(error?.message || error),
     );
   }
 
-  /** Checks whether chrome native URL. */
+  /** Checks whether Chrome is still on a native or blank startup URL. */
   isChromeNativeUrl(url) {
     return /^chrome-native:|^chrome:|^about:blank$/i.test(String(url || ''));
   }
@@ -59,7 +59,7 @@ export class MobileWebBasePage {
     return new URL(target, `${baseUrl.replace(/\/$/, '')}/`).toString();
   }
 
-  /** Navigates to navigate to. */
+  /** Opens the requested URL and waits for a usable page. */
   async navigateTo(path) {
     const beforeUrl = await this.driver.getUrl().catch(() => '');
     const targetUrl = this.resolveNavigationUrl(path);
@@ -67,13 +67,13 @@ export class MobileWebBasePage {
     try {
       this.logMobileStep('ACTION', `Navigate to ${targetUrl}`);
       await this.driver.url(targetUrl);
-      await this.driver.pause(Number(process.env.APPIUM_NAVIGATION_SETTLE_MS || 8000));
+      await this.waitForMobileNavigation(targetUrl, beforeUrl);
       const afterUrl = await this.driver.getUrl().catch(() => '');
 
       if (this.isChromeNativeUrl(afterUrl)) {
         this.logStep(`Mobile Chrome stayed on ${afterUrl}; retrying navigation to ${targetUrl}`);
         await this.driver.url(targetUrl);
-        await this.driver.pause(Number(process.env.APPIUM_NAVIGATION_SETTLE_MS || 8000));
+        await this.waitForMobileNavigation(targetUrl, afterUrl);
       }
 
       return;
@@ -93,6 +93,42 @@ export class MobileWebBasePage {
     }
   }
 
+  /** Waits until mobile browser navigation leaves native/blank Chrome state and has usable DOM. */
+  async waitForMobileNavigation(targetUrl, beforeUrl = '', timeout = 30000) {
+    const expectedPath = new URL(targetUrl, 'https://placeholder.local').pathname;
+
+    await this.driver.waitUntil(
+      async () => {
+        const snapshot = await this.driver
+          .execute(() => ({
+            bodyTextLength: (document.body?.innerText || '').trim().length,
+            currentUrl: window.location.href,
+            readyState: document.readyState,
+          }))
+          .catch(async () => ({
+            bodyTextLength: 0,
+            currentUrl: await this.driver.getUrl().catch(() => ''),
+            readyState: '',
+          }));
+
+        if (!snapshot.currentUrl || this.isChromeNativeUrl(snapshot.currentUrl)) {
+          return false;
+        }
+
+        const currentPath = new URL(snapshot.currentUrl, 'https://placeholder.local').pathname;
+        const reachedTargetPath = currentPath === expectedPath;
+        const movedFromPreviousUrl = beforeUrl ? snapshot.currentUrl !== beforeUrl : true;
+        const hasUsableDom = snapshot.readyState !== 'loading' || snapshot.bodyTextLength > 20;
+
+        return hasUsableDom && (reachedTargetPath || movedFromPreviousUrl);
+      },
+      {
+        timeout,
+        timeoutMsg: `Mobile navigation did not settle on ${targetUrl}`,
+      },
+    );
+  }
+
   /** Reloads the mobile browser session after session loss. */
   async reloadSessionAfterLoss() {
     if (typeof this.driver.reloadSession !== 'function') {
@@ -102,7 +138,7 @@ export class MobileWebBasePage {
     await this.driver.reloadSession();
   }
 
-  /** Waits for page ready. */
+  /** Waits until the page is ready for interaction. */
   async waitForPageReady(timeout = 30000) {
     let sessionLostError;
 
@@ -276,7 +312,29 @@ export class MobileWebBasePage {
     });
 
     if (closed) {
-      await this.driver.pause(1000);
+      await this.waitForMobileCondition(
+        async () =>
+          this.driver.execute(() => {
+            const visibleOverlay = Array.from(
+              document.querySelectorAll(
+                '#onetrust-consent-sdk, #onetrust-banner-sdk, #onetrust-pc-sdk',
+              ),
+            ).find((element) => {
+              if (!(element instanceof HTMLElement)) {
+                return false;
+              }
+
+              const style = window.getComputedStyle(element);
+              const rect = element.getBoundingClientRect();
+
+              return style.visibility !== 'hidden' && style.display !== 'none' && rect.height > 0;
+            });
+
+            return !visibleOverlay;
+          }),
+        'Expected cookie overlay to close on mobile',
+        5000,
+      ).catch(() => undefined);
     }
 
     await this.removeCookieOverlays();
@@ -315,12 +373,52 @@ export class MobileWebBasePage {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       if (await this.tryDismissPromoPopup()) {
         this.logMobileStep('ACTION', 'Dismissed mobile promotional popup');
-        await this.driver.pause(500);
+        await this.waitForMobileCondition(
+          async () =>
+            this.driver.execute(() => {
+              const visibleDialog = Array.from(
+                document.querySelectorAll(
+                  '.ReactModal__Content, [role="dialog"], [aria-modal="true"]',
+                ),
+              ).find((element) => {
+                if (!(element instanceof HTMLElement)) {
+                  return false;
+                }
+
+                const style = window.getComputedStyle(element);
+                const rect = element.getBoundingClientRect();
+                const text = element.textContent || '';
+
+                return (
+                  style.visibility !== 'hidden' &&
+                  style.display !== 'none' &&
+                  rect.width > 0 &&
+                  rect.height > 0 &&
+                  /promo|promotion|going on now|special|offer|incentive/i.test(text)
+                );
+              });
+
+              return !visibleDialog;
+            }),
+          'Expected promotional popup to close on mobile',
+          5000,
+        ).catch(() => undefined);
         return;
       }
 
       if (attempt === 1) {
-        await this.driver.pause(750);
+        await this.waitForMobileCondition(
+          async () =>
+            this.driver.execute(() =>
+              Boolean(
+                document.querySelector(
+                  '.ReactModal__Content, [role="dialog"], [aria-modal="true"]',
+                ),
+              ),
+            ),
+          'Optional promotional popup did not appear on first mobile check',
+          750,
+        ).catch(() => undefined);
       }
     }
   }
@@ -488,7 +586,7 @@ export class MobileWebBasePage {
     return clicked;
   }
 
-  /** Waits for body text. */
+  /** Waits until the page body contains text. */
   async waitForBodyText(pattern, timeoutMsg, timeout = 20000) {
     await this.driver.waitUntil(async () => pattern.test(await this.getBodyText()), {
       timeout,
@@ -496,12 +594,21 @@ export class MobileWebBasePage {
     });
   }
 
-  /** Returns body text. */
+  /** Waits until a short-lived condition after a script-driven interaction. */
+  async waitForMobileCondition(condition, timeoutMsg, timeout = 10000) {
+    await this.driver.waitUntil(condition, {
+      timeout,
+      timeoutMsg,
+      interval: 250,
+    });
+  }
+
+  /** Reads the visible body text. */
   async getBodyText() {
     return this.driver.execute(() => (document.body?.innerText || '').slice(0, 20000));
   }
 
-  /** Returns snapshot. */
+  /** Captures the current mobile page snapshot. */
   async getSnapshot() {
     return this.driver.execute(() => ({
       bodyText: (document.body?.innerText || document.documentElement?.textContent || '').slice(
@@ -518,12 +625,12 @@ export class MobileWebBasePage {
     }));
   }
 
-  /** Asserts no error page. */
+  /** Fails fast if the browser landed on an error page. */
   assertNoErrorPage(snapshot) {
     assert.doesNotMatch(snapshot.bodyText, /404|page not found|server error/i);
   }
 
-  /** Asserts the browser user agent matches the configured mobile platform (Android Chrome / iOS Safari). */
+  /** Checks that the browser user agent matches the configured mobile platform (Android Chrome / iOS Safari). */
   expectMobileUserAgent(userAgent) {
     const platform = getMobilePlatform();
     const { device, browser } = getUserAgentPatterns();
@@ -540,12 +647,7 @@ export class MobileWebBasePage {
     );
   }
 
-  /* ==========================================================
-     MEDIA VALIDATION
-
-     Shared by every mobile page that checks its image/video
-     URLs; the pages differ only in how they open themselves.
-  ========================================================== */
+  // MEDIA VALIDATION Shared by every mobile page that checks its image/video URLs; the pages differ only in how they open themselves.
 
   /** Scrolls the full page to trigger lazy-loaded media, then returns to the top. */
   async loadLazyMedia() {
@@ -658,7 +760,7 @@ export class MobileWebBasePage {
     return [...unique.values()];
   }
 
-  /** Returns the HTTP status for a media URL (HEAD, falling back to GET). */
+  /** Gets the HTTP status for a media URL (HEAD, falling back to GET). */
   async getMediaUrlStatus(url) {
     const tryRequest = async (method) => {
       try {
@@ -705,11 +807,9 @@ export class MobileWebBasePage {
     );
   }
 
-  /* ==========================================================
-     LEAD FORM SNAPSHOTS & ASSERTIONS
-  ========================================================== */
+  // LEAD FORM SNAPSHOTS & ASSERTIONS
 
-  /** Returns a snapshot (found/text/hasSubmit) of the visible lead form at the given index. */
+  /** Captures the visible lead form at the requested index. */
   async getVisibleLeadFormSnapshot(globalName: string, formIndex = 0) {
     return this.driver.execute(
       ({ globalName, index }) => {
@@ -730,12 +830,12 @@ export class MobileWebBasePage {
     );
   }
 
-  /** Returns a snapshot of lead-form validation state (errors, invalid fields). */
+  /** Captures the lead-form validation state. */
   async getFormErrorSnapshot() {
     return getLeadFormErrorSnapshot(this.driver);
   }
 
-  /** Asserts required/validation errors are present in the lead form. */
+  /** Checks that required/validation errors are present in the lead form. */
   async assertFormErrors(message) {
     const snapshot = await this.getFormErrorSnapshot();
 
@@ -746,7 +846,7 @@ export class MobileWebBasePage {
     );
   }
 
-  /** Asserts an email-format validation message is present in the lead form. */
+  /** Checks that an email-format validation message is present in the lead form. */
   async assertEmailError(message) {
     const snapshot = await this.getFormErrorSnapshot();
 
@@ -758,7 +858,7 @@ export class MobileWebBasePage {
     );
   }
 
-  /** Asserts the lead form submission success confirmation is shown. */
+  /** Checks that the lead form submission success confirmation is shown. */
   async assertSubmissionSuccess(message, timeout = 30000) {
     await assertLeadFormSubmissionSuccess(this.driver, message, timeout);
   }
@@ -781,14 +881,7 @@ export class MobileWebBasePage {
     console.log(`${kind} ${cleanMessage}`);
   }
 
-  /* ==========================================================
-     READABLE STEP LOG VOCABULARY
-     Produces concise action-narrative lines, e.g.:
-       Clicked on: 15 Year Loan
-       Clicked (script) on: featured quick move-in home card
-       15-year term: $2519 → $2854
-       Opened QMI detail: https://...
-  ========================================================== */
+  // READABLE STEP LOG VOCABULARY Produces concise action-narrative lines, e.g.: Clicked on: 15 Year Loan Clicked (script) on: featured quick move-in home card 15-year term: $2519 → $2854 Opened QMI detail: https://...
 
   /** Generic action line. */
   logStep(message) {

@@ -14,13 +14,13 @@ const MPC_FORM_GLOBAL = '__getVisibleMpcLeadForms';
 export class MobileWebMPCPage extends MobileWebHomePage {
   mpcPageReady: boolean;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(driver: MobileBrowser = browser) {
     super(driver);
     this.mpcPageReady = false;
   }
 
-  /** Returns configured MPC. */
+  /** Gets the configured MPC for this run. */
   getConfiguredMpc() {
     const location = getLocationConfig() as any;
     const mpc =
@@ -30,7 +30,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     return mpc;
   }
 
-  /** Opens MPC. */
+  /** Opens the configured MPC page. */
   async openMpc(mpc = this.getConfiguredMpc()) {
     const location = getLocationConfig();
     const targetPath = `${mpc.url}?${location.queryParam}`;
@@ -49,7 +49,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     this.mpcPageReady = true;
   }
 
-  /** Verifies MPC page. */
+  /** Checks that the MPC page opened correctly. */
   async verifyMpcPage(mpc = this.getConfiguredMpc()) {
     await this.waitForPageReady(60000);
     await this.closeCookiePreferencesIfVisible();
@@ -67,7 +67,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     this.logOpen('MPC detail', snapshot.currentUrl);
   }
 
-  /** Validates hero content. */
+  /** Checks hero content. */
   async validateHeroContent(mpcName = this.getConfiguredMpc().name) {
     await this.openMpc();
 
@@ -183,12 +183,12 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     }
   }
 
-  /** Validates summary tab. */
+  /** Checks summary tab. */
   async validateSummaryTab() {
     await this.validateMpcTab('Summary', /community|homes|neighborhood|designed|location/i);
   }
 
-  /** Validates home details tab. */
+  /** Checks home details tab. */
   async validateHomeDetailsTab() {
     await this.validateMpcTab(
       'Home Details',
@@ -196,7 +196,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates contact hours tab. */
+  /** Checks contact hours tab. */
   async validateContactHoursTab() {
     await this.validateMpcTab(
       'Contact & Hours',
@@ -204,7 +204,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates MPC tab. */
+  /** Checks MPC tab. */
   async validateMpcTab(tabName, expectedPattern) {
     await this.openMpc();
     await this.closeCookiePreferencesIfVisible();
@@ -254,7 +254,10 @@ export class MobileWebMPCPage extends MobileWebHomePage {
 
     if (result.clicked) {
       this.logScriptClick(`${tabName} tab`);
-      await this.driver.pause(1000);
+      await this.waitForMobileCondition(async () => {
+        const snapshot = await this.getSnapshot();
+        return expectedPattern.test(`${snapshot.bodyText} ${snapshot.currentUrl}`);
+      }, `Expected ${tabName} tab content after clicking mobile MPC tab`);
     } else {
       this.logSkip(
         `${tabName} tab is not present in the mobile MPC layout - validating page content instead`,
@@ -265,7 +268,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     assert.match(bodyText, expectedPattern, `Expected MPC ${tabName} content on mobile`);
   }
 
-  /** Validates amenity and location sections. */
+  /** Checks amenity and location sections. */
   async validateAmenityAndLocationSections() {
     await this.openMpc();
     const result = await this.getSectionByPattern(
@@ -276,7 +279,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     assert.match(result.text, /amenit|location|convenient|destination|lifestyle|nearby|explore/i);
   }
 
-  /** Validates promotion CTA. */
+  /** Checks promotion CTA. */
   async validatePromotionCTA(mpcUrl = this.getConfiguredMpc().url) {
     await this.openMpc();
 
@@ -337,7 +340,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     }
   }
 
-  /** Validates image gallery if available. */
+  /** Checks image gallery if available. */
   async validateImageGalleryIfAvailable() {
     await this.openMpc();
 
@@ -422,7 +425,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     await this.dismissPromoPopupIfPresent();
   }
 
-  /** Validates neighborhood cards. */
+  /** Checks neighborhood cards. */
   async validateNeighborhoodCards(
     mpcName = this.getConfiguredMpc().name,
     mpcUrl = this.getConfiguredMpc().url,
@@ -440,7 +443,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates first neighborhood navigation. */
+  /** Checks first neighborhood navigation. */
   async validateFirstNeighborhoodNavigation(mpcUrl = this.getConfiguredMpc().url) {
     await this.openMpc();
 
@@ -518,7 +521,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     assert.match(await this.driver.getUrl(), new RegExp(this.escapeRegExp(result.href), 'i'));
   }
 
-  /** Verifies get information CTA opens lead form. */
+  /** Checks that the Get Information CTA opens a lead form. */
   async verifyGetInformationCtaOpensLeadForm() {
     await this.openMpc();
     const form = await this.openGetInformationForm();
@@ -531,7 +534,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     assert.equal(form.hasSubmit, true, 'Expected Get Information form submit button on mobile');
   }
 
-  /** Validates get information form empty errors. */
+  /** Checks get information form required-field errors. */
   async validateGetInformationFormEmptyErrors() {
     await this.openMpc();
     await this.openGetInformationForm();
@@ -541,7 +544,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     await this.assertFormErrors('Expected required field validation in Get Information form');
   }
 
-  /** Validates get information form invalid email. */
+  /** Checks get information form invalid email address. */
   async validateGetInformationFormInvalidEmail() {
     await this.openMpc();
     await this.openGetInformationForm();
@@ -551,7 +554,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     await this.assertEmailError('Expected invalid email validation in Get Information form');
   }
 
-  /** Verifies get information form success submission. */
+  /** Checks that the Get Information form submits successfully. */
   async verifyGetInformationFormSuccessSubmission() {
     const { envName } = getEnvConfig();
 
@@ -567,7 +570,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates community update form fields. */
+  /** Checks community update form fields. */
   async validateCommunityUpdateFormFields() {
     await this.openMpc();
     const form = await this.getCommunityUpdateForm();
@@ -586,7 +589,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates community update required errors. */
+  /** Checks community update required errors. */
   async validateCommunityUpdateRequiredErrors() {
     await this.openMpc();
     await this.getCommunityUpdateForm();
@@ -596,7 +599,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     await this.assertFormErrors('Expected required field validation in MPC community update form');
   }
 
-  /** Validates community update invalid email. */
+  /** Checks community update invalid email address. */
   async validateCommunityUpdateInvalidEmail() {
     await this.openMpc();
     await this.getCommunityUpdateForm();
@@ -610,13 +613,13 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     await this.assertEmailError('Expected invalid email validation in MPC community update form');
   }
 
-  /** Validates every MPC image/video URL returns HTTP 200. */
+  /** Checks every MPC image/video URL returns HTTP 200. */
   async validateImageAndVideoUrlsReturn200(pageName = 'MPC page') {
     await this.openMpc();
     await this.assertMediaUrlsReturn200(pageName);
   }
 
-  /** Returns section by pattern. */
+  /** Finds a section whose text matches the pattern. */
   async getSectionByPattern(pattern) {
     await this.openMpc();
 
@@ -654,7 +657,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     );
   }
 
-  /** Returns neighborhood cards snapshot. */
+  /** Captures the visible neighborhood cards. */
   async getNeighborhoodCardsSnapshot(mpcUrl) {
     return this.driver.execute((mpcUrl) => {
       const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -780,22 +783,30 @@ export class MobileWebMPCPage extends MobileWebHomePage {
 
     assert.equal(opened, true, 'Expected Get Information CTA on mobile MPC page');
     this.logScriptClick('Get Information CTA');
-    await this.driver.pause(1500);
     await this.installLeadFormFinder();
+    await this.waitForMobileCondition(async () => {
+      await this.installLeadFormFinder();
+      const snapshot = await this.getLeadFormSnapshotByIndex(0);
+      return snapshot.found;
+    }, 'Expected MPC lead form after clicking Get Information CTA');
 
     return this.getLeadFormSnapshotByIndex(0);
   }
 
-  /** Returns community update form. */
+  /** Finds the community update form. */
   async getCommunityUpdateForm() {
     await this.driver.execute(() => window.scrollTo(0, document.body.scrollHeight));
-    await this.driver.pause(1000);
     await this.installLeadFormFinder();
+    await this.waitForMobileCondition(async () => {
+      await this.installLeadFormFinder();
+      const snapshot = await this.getLeadFormSnapshotByIndex(0);
+      return snapshot.found;
+    }, 'Expected MPC community update form after scrolling to page bottom');
 
     return this.getLeadFormSnapshotByIndex(0);
   }
 
-  /** Installs lead form finder. */
+  /** Installs the shared lead-form finder. */
   async installLeadFormFinder() {
     await installVisibleLeadFormFinder(this.driver, {
       containerSelectors: '.ReactModal__Content, [role="dialog"], aside, section, div',
@@ -803,7 +814,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     });
   }
 
-  /** Returns lead form snapshot by index. */
+  /** Captures the lead form at the requested index. */
   async getLeadFormSnapshotByIndex(formIndex = 0) {
     await this.installLeadFormFinder();
 
@@ -816,7 +827,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     return submitVisibleLeadFormByIndex(this.driver, MPC_FORM_GLOBAL, formIndex);
   }
 
-  /** Fills invalid email lead form by index. */
+  /** Fills invalid email address lead form by index. */
   async fillInvalidEmailLeadFormByIndex(formIndex = 0) {
     await this.installLeadFormFinder();
     return fillInvalidEmailLeadFormByIndex(this.driver, MPC_FORM_GLOBAL, formIndex);

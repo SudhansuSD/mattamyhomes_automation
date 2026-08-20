@@ -16,9 +16,8 @@ const mpc = 'mpc' in location ? location.mpc?.[0] : undefined;
 test.describe(`Mattamy Homes - ${location.country}`, () => {
   let homePage: HomePage;
 
-  /* ==========================================================
-       Setup
-    ========================================================== */
+  // Setup
+
   test.beforeEach(async ({ page }) => {
     homePage = new HomePage(page);
 
@@ -35,9 +34,8 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     });
   });
 
-  /* ==========================================================
-       PAGE LOAD
-    ========================================================== */
+  // PAGE LOAD
+
   test.describe('Page Load', () => {
     test(`@ci @smoke @regression | ${location.country} | Home page should load correctly`, async () => {
       await test.step('Verify page loaded successfully', async () => {
@@ -57,9 +55,8 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     });
   });
 
-  /* ==========================================================
-       SEARCH VALIDATION
-    ========================================================== */
+  // SEARCH VALIDATION
+
   test.describe('Search', () => {
     test(`@smoke @regression | ${location.country} | Search market functionality should work`, async () => {
       await test.step('Search and validate by market', async () => {
@@ -110,9 +107,8 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     });
   });
 
-  /* ==========================================================
-       HOME PAGE CONTENT VALIDATION
-    ========================================================== */
+  // HOME PAGE CONTENT VALIDATION
+
   test.describe('Home Page Content Validation', () => {
     test(`@regression | ${location.country} | Validate market cards on Home Page`, async () => {
       await test.step('Verify market cards are visible and correctly linked', async () => {

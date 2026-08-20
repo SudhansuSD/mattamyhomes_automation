@@ -86,9 +86,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
     });
   });
 
-  /* ==========================================================
-         FORM VALIDATION
-      ========================================================== */
+  // FORM VALIDATION
 
   test.describe('Lead Form', () => {
     test.describe('Get Information Form Validation', () => {

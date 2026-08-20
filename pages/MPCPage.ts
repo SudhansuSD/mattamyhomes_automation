@@ -24,37 +24,37 @@ export interface MPCConfig {
 type MpcTab = 'Summary' | 'Home Details' | 'Contact & Hours';
 
 export class MPCPage extends BasePage {
-  /** Locator: main MPC page heading. */
+  /** Finds main MPC page heading. */
   readonly heading: Locator;
 
-  /** Locator: primary hero or app root container. */
+  /** Finds primary hero or app root container. */
   readonly heroSection: Locator;
 
-  /** Locator: Summary tab button. */
+  /** Finds Summary tab button. */
   readonly summaryTab: Locator;
 
-  /** Locator: Home Details tab button. */
+  /** Finds Home Details tab button. */
   readonly homeDetailsTab: Locator;
 
-  /** Locator: Contact & Hours tab button. */
+  /** Finds Contact & Hours tab button. */
   readonly contactHoursTab: Locator;
 
-  /** Locator: neighborhood cards section. */
+  /** Finds neighborhood cards section. */
   readonly neighborhoodSection: Locator;
 
-  /** Locator: community update form heading. */
+  /** Finds community update form heading. */
   readonly communityUpdateHeading: Locator;
 
-  /** Locator: optional MPC image gallery section. */
+  /** Finds optional MPC image gallery section. */
   readonly imageGallerySection: Locator;
 
-  /** Locator: images inside the optional MPC image gallery. */
+  /** Finds images inside the optional MPC image gallery. */
   readonly imageGalleryImages: Locator;
 
-  /** Locator: media inside the optional MPC image gallery. */
+  /** Finds media inside the optional MPC image gallery. */
   readonly imageGalleryMedia: Locator;
 
-  /** Locator: React modal shown after successful form submission. */
+  /** Finds React modal shown after successful form submission. */
   readonly successDialogModal: Locator;
 
   /** Setup: initialize MPC page locators. */
@@ -105,7 +105,7 @@ export class MPCPage extends BasePage {
     this.successDialogModal = page.locator('.ReactModal__Content');
   }
 
-  /** Locator: Get Information CTA that opens the lead form sidebar/modal. */
+  /** Finds Get Information CTA that opens the lead form sidebar/modal. */
   private get getInformationCta(): Locator {
     return this.page
       .locator('button:visible, a:visible')
@@ -115,7 +115,7 @@ export class MPCPage extends BasePage {
       .first();
   }
 
-  /** Locator: Get Information lead form rendered in a modal, drawer, or sidebar. */
+  /** Finds Get Information lead form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
     return (
       this.page
@@ -147,16 +147,14 @@ export class MPCPage extends BasePage {
     );
   }
 
-  /** Locator: lead form success confirmation message. */
+  /** Finds lead form success confirmation message. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last();
   }
 
-  /* ==========================================================
-     Navigation
-  ========================================================== */
+  // Navigation
 
-  /** Action: navigate directly to an MPC page using its relative URL. */
+  /** Runs the action to navigate directly to an MPC page using its relative URL. */
   async navigateToMPC(relativeUrl: string): Promise<void> {
     await this.step(`Navigate to MPC page: ${relativeUrl}`, async () => {
       const { baseURL, envName } = getEnvConfig();
@@ -191,11 +189,9 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /* ==========================================================
-     Page Load
-  ========================================================== */
+  // Page Load
 
-  /** Verify: MPC page URL, title, and heading match expected configuration. */
+  /** Checks that the MPC URL, title, and heading match the expected configuration. */
   async verifyMPCPage(mpc: MPCConfig): Promise<void> {
     await this.step(`Verify MPC page: ${mpc.name}`, async () => {
       await this.waitForPageReady();
@@ -240,7 +236,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: MPC hero contains the expected community name and visible content. */
+  /** Checks that the MPC hero shows the expected community name and content. */
   async validateHeroContent(mpcName: string): Promise<void> {
     await this.step(`Validate MPC hero content: ${mpcName}`, async () => {
       await this.assertTextContains(
@@ -270,11 +266,9 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /* ==========================================================
-     Tabs
-  ========================================================== */
+  // Tabs
 
-  /** Verify: Summary tab opens and displays expected community summary content. */
+  /** Checks that the Summary tab opens and shows the expected community content. */
   async validateSummaryTab(): Promise<void> {
     await this.step('Validate Summary tab', async () => {
       const openedTab = await this.openTab('Summary');
@@ -293,7 +287,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: Home Details tab opens and displays expected detail headings. */
+  /** Checks that the Home Details tab opens and shows its detail headings. */
   async validateHomeDetailsTab(): Promise<void> {
     await this.step('Validate Home Details tab', async () => {
       await this.openTab('Home Details');
@@ -313,7 +307,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: Contact & Hours tab opens and displays sales contact information. */
+  /** Checks that the Contact & Hours tab opens and shows sales contact information. */
   async validateContactHoursTab(): Promise<void> {
     await this.step('Validate Contact & Hours tab', async () => {
       await this.openTab('Contact & Hours');
@@ -333,7 +327,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Helper: open a named MPC tab when it is not already selected. */
+  /** open a named MPC tab when it is not already selected. */
   private async openTab(tabName: MpcTab): Promise<boolean> {
     await this.dismissBlockingOverlays();
 
@@ -356,11 +350,9 @@ export class MPCPage extends BasePage {
     return true;
   }
 
-  /* ==========================================================
-     Content Sections
-  ========================================================== */
+  // Content Sections
 
-  /** Verify: MPC page includes at least one amenity or location section. */
+  /** Checks that the MPC page includes an amenity or location section. */
   async validateAmenityAndLocationSections(): Promise<void> {
     await this.step('Validate amenity and location sections', async () => {
       const amenityOrLocationHeading = this.page.getByRole('heading', {
@@ -381,7 +373,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: promotional CTA points into the expected MPC URL path. */
+  /** Checks that promotional CTA points into the expected MPC URL path. */
   async validatePromotionCTA(mpcUrl: string): Promise<void> {
     await this.step('Validate promotion CTA', async () => {
       const promotionButton = this.page.getByRole('button', { name: /View promotions/i }).first();
@@ -411,7 +403,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: image gallery content and navigation when the optional gallery is available. */
+  /** Checks gallery content and navigation when the optional gallery is available. */
   async validateImageGalleryIfAvailable(): Promise<void> {
     await this.step('Validate image gallery (if available)', async () => {
       if (!(await this.isVisible(this.imageGallerySection, 5000))) {
@@ -467,7 +459,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Locator: visible MPC gallery modal/dialog after opening media. */
+  /** Finds visible MPC gallery modal/dialog after opening media. */
   private get galleryModal(): Locator {
     return this.page
       .locator('.ReactModal__Content:visible, [role="dialog"]:visible')
@@ -475,7 +467,7 @@ export class MPCPage extends BasePage {
       .last();
   }
 
-  /** Locator: close button inside the visible gallery modal. */
+  /** Finds close button inside the visible gallery modal. */
   private get galleryModalCloseButton(): Locator {
     return this.galleryModal
       .locator(
@@ -484,7 +476,7 @@ export class MPCPage extends BasePage {
       .first();
   }
 
-  /** Helper: return the currently active gallery slide media, excluding carousel/filter icons. */
+  /** Get the currently active gallery slide media, excluding carousel/filter icons. */
   private getActiveGalleryMedia(): Locator {
     return this.imageGallerySection
       .locator(
@@ -493,7 +485,7 @@ export class MPCPage extends BasePage {
       .first();
   }
 
-  /** Helper: switch the MPC gallery to photos before opening the modal when the filter exists. */
+  /** switch the MPC gallery to photos before opening the modal when the filter exists. */
   private async showGalleryPhotosIfAvailable(): Promise<void> {
     const clickedPhotosFilter = await this.page.evaluate(() => {
       const photosControl = Array.from(document.querySelectorAll<HTMLElement>('[aria-label]')).find(
@@ -510,7 +502,7 @@ export class MPCPage extends BasePage {
     }
   }
 
-  /** Helper: navigate gallery modal media when next/previous controls are available. */
+  /** navigate gallery modal media when next/previous controls are available. */
   private async navigateGalleryModalMediaIfAvailable(): Promise<void> {
     const nextButton = this.galleryModal
       .locator('button[aria-label*="Next" i], button:has-text("Next")')
@@ -550,7 +542,7 @@ export class MPCPage extends BasePage {
     }
   }
 
-  /** Helper: close the gallery modal with its close button or Escape fallback. */
+  /** close the gallery modal with its close button or Escape fallback. */
   private async closeGalleryModal(): Promise<void> {
     if (await this.galleryModalCloseButton.isVisible({ timeout: 3000 }).catch(() => false)) {
       await this.galleryModalCloseButton.click();
@@ -563,7 +555,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Helper: return the first visible media source rendered in the gallery modal. */
+  /** Get the first visible media source rendered in the gallery modal. */
   private async getVisibleGalleryModalMediaKey(): Promise<string> {
     return getMediaSource(
       this.galleryModal
@@ -572,11 +564,9 @@ export class MPCPage extends BasePage {
     );
   }
 
-  /* ==========================================================
-     Neighborhood Cards
-  ========================================================== */
+  // Neighborhood Cards
 
-  /** Verify: neighborhood cards are visible and link under the expected MPC path. */
+  /** Checks that neighborhood cards are visible and link under the expected MPC path. */
   async validateNeighborhoodCards(mpcName: string, _mpcUrl: string): Promise<void> {
     await this.step(`Validate neighborhood cards: ${mpcName}`, async () => {
       await this.scrollTo(this.neighborhoodSection);
@@ -618,7 +608,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: first neighborhood card navigates to its detail page. */
+  /** Checks that first neighborhood card navigates to its detail page. */
   async validateFirstNeighborhoodNavigation(_mpcUrl: string): Promise<void> {
     await this.step('Validate first neighborhood card navigation', async () => {
       await this.scrollTo(this.neighborhoodSection);
@@ -638,21 +628,19 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Helper: return visible neighborhood card links under the expected MPC path. */
+  /** Get visible neighborhood card links under the expected MPC path. */
   private getNeighborhoodCardLinks(): Locator {
     return this.neighborhoodSection.locator('a[href]:visible');
   }
 
-  /** Helper: return the exact MPC path segment from the current page URL. */
+  /** Get the exact MPC path segment from the current page URL. */
   private getCurrentMpcUrlSegment(): string | undefined {
     return getLastPathSegment(this.page.url());
   }
 
-  /* ==========================================================
-     Lead Form
-  ========================================================== */
+  // Lead Form
 
-  /** Verify: Get Information CTA opens the MPC sideModalForm sidebar/modal. */
+  /** Checks that the Get Information CTA opens the MPC side modal. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
       await expect(this.getInformationCta, 'Get Information CTA should be visible').toBeVisible({
@@ -667,7 +655,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: Get Information MPC sideModalForm fields are visible. */
+  /** Checks that the MPC side modal shows its form fields. */
   async verifySideModalFormFields(): Promise<void> {
     await this.step('Validate Get Information sideModalForm fields', async () => {
       const form = await this.getAvailableGetInformationForm();
@@ -675,7 +663,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: Get Information MPC sideModalForm shows required-field validation errors. */
+  /** Checks that the MPC side modal shows required-field errors. */
   async validateSideModalFormRequiredErrors(): Promise<void> {
     await this.step('Validate Get Information sideModalForm required errors', async () => {
       const form = await this.getAvailableGetInformationForm();
@@ -684,7 +672,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: Get Information MPC sideModalForm rejects invalid email addresses. */
+  /** Checks that the MPC side modal rejects an invalid email address. */
   async validateSideModalFormInvalidEmail(): Promise<void> {
     await this.step('Validate Get Information sideModalForm invalid email', async () => {
       const form = await this.getAvailableGetInformationForm();
@@ -694,7 +682,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: Get Information MPC sideModalForm can be submitted successfully. */
+  /** Checks that the MPC side modal form submits successfully. */
   async verifySideModalFormSuccessSubmission(): Promise<void> {
     await this.step('Submit Get Information sideModalForm successfully', async () => {
       const form = await this.getAvailableGetInformationForm();
@@ -709,7 +697,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: community update form fields and submit button are visible. */
+  /** Checks that community update form fields and submit button are visible. */
   async validateCommunityUpdateFormFields(): Promise<void> {
     await this.step('Validate community update form fields', async () => {
       const form = await this.getCommunityUpdateForm();
@@ -743,7 +731,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: community update form shows required-field validation errors. */
+  /** Checks that community update form shows required-field validation errors. */
   async validateCommunityUpdateRequiredErrors(): Promise<void> {
     await this.step('Validate community update required errors', async () => {
       const form = await this.getCommunityUpdateForm();
@@ -757,7 +745,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: community update form rejects an invalid email address. */
+  /** Checks that the community update form rejects an invalid email address. */
   async validateCommunityUpdateInvalidEmail(): Promise<void> {
     await this.step('Validate community update invalid email', async () => {
       const form = await this.getCommunityUpdateForm();
@@ -775,7 +763,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Verify: community update form can be submitted successfully. */
+  /** Checks that community update form can be submitted successfully. */
   async submitCommunityUpdateFormSuccessfully(): Promise<void> {
     await this.step('Submit community update form successfully', async () => {
       const form = await this.getCommunityUpdateForm();
@@ -794,7 +782,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Helper: find and return the community update form section. */
+  /** find and return the community update form section. */
   private async getCommunityUpdateForm(): Promise<Locator> {
     await this.dismissBlockingOverlays();
     await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -815,7 +803,7 @@ export class MPCPage extends BasePage {
     return form;
   }
 
-  /** Helper: return all fields used by the community update form. */
+  /** Get all fields used by the community update form. */
   private getCommunityUpdateFormFields(form: Locator) {
     return {
       community: form.getByRole('combobox', { name: /Community of Interest/i }),
@@ -830,7 +818,7 @@ export class MPCPage extends BasePage {
     };
   }
 
-  /** Helper: fill MPC community update form fields while preserving original dropdown and consent behavior. */
+  /** fill MPC community update form fields while preserving original dropdown and consent behavior. */
   private async fillCommunityUpdateFormFields(
     fields: ReturnType<MPCPage['getCommunityUpdateFormFields']>,
     leadData: LeadFieldData,
@@ -845,7 +833,7 @@ export class MPCPage extends BasePage {
     await fields.terms.check({ force: true }).catch(() => undefined);
   }
 
-  /** Helper: click the Get Information CTA when the sidebar/modal form is not already open. */
+  /** click the Get Information CTA when the sidebar/modal form is not already open. */
   private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
     if (await this.leadFormDialogOrSidebar.count()) {
       return;
@@ -868,7 +856,7 @@ export class MPCPage extends BasePage {
     ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
-  /** Helper: find the Get Information lead form after opening its CTA. */
+  /** find the Get Information lead form after opening its CTA. */
   private async getAvailableGetInformationForm(
     formName = 'Get Information MPC form',
   ): Promise<Locator> {
@@ -894,27 +882,27 @@ export class MPCPage extends BasePage {
     return form;
   }
 
-  /** Helper: fill Get Information sideModalForm with data that should fail email validation. */
+  /** fill Get Information side modal form with data that should fail email validation. */
   private async fillGetInformationFormWithInvalidEmail(form: Locator): Promise<void> {
     await fillInvalidSideModalForm(form, 'mpc', { selectCommunity: true });
   }
 
-  /** Helper: fill Get Information sideModalForm with valid data for successful submission. */
+  /** fill Get Information side modal form with valid data for successful submission. */
   private async fillGetInformationFormWithValidData(form: Locator): Promise<void> {
     await fillValidSideModalForm(form, 'mpcGetInfo', { selectCommunity: true });
   }
 
-  /** Helper: click a form submit button without waiting on third-party submit requests. */
+  /** click a form submit button without waiting on third-party submit requests. */
   private async clickSubmit(form: Locator): Promise<void> {
     await clickSubmit(this.page, form, 10000, { settle: (ms) => this.settle(ms) });
   }
 
-  /** Helper: return true when a locator becomes visible within the timeout. */
+  /** Get true when a locator becomes visible within the timeout. */
   private async isVisible(locator: Locator, timeout = 2000): Promise<boolean> {
     return locator.isVisible({ timeout }).catch(() => false);
   }
 
-  /** Helper: dismiss country, cookie, and modal overlays that can block interactions. */
+  /** dismiss country, cookie, and modal overlays that can block interactions. */
   private async dismissBlockingOverlays(): Promise<void> {
     const usaCountryButton = this.page
       .locator('.ReactModalPortal')

@@ -22,53 +22,48 @@ import {
   getSubmitButton,
   getValidLeadData,
   LeadFieldData,
+  SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadFormHelper';
 
-/* ==========================================================
-   Community Page – Page Object Model
-========================================================== */
+// Community Page – Page Object Model
 
 export class CommunityPage extends SearchablePage {
-  /* ==========================================================
-     Constructor
-  ========================================================== */
+  // Constructor
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
   }
 
-  /* ==========================================================
-     LOCATORS
-  ========================================================== */
+  // LOCATORS
 
   // ----- Core Page -----
 
-  /** Returns the heading locator or value. */
+  /** Gets the page heading locator. */
   private get heading(): Locator {
     return this.page.getByRole('heading', { level: 1 });
   }
-  /** Returns the available homes section locator or value. */
+  /** Gets the Available Homes section locator. */
   private get availableHomesSection(): Locator {
     return this.page.locator('#availablehomes');
   }
-  /** Returns the amenities section locator or value. */
+  /** Gets the amenities section locator. */
   private get amenitiesSection(): Locator {
     return this.page.getByRole('heading', { name: /amenities/i });
   }
-  /** Returns the map section locator or value. */
+  /** Gets the map section locator. */
   private get mapSection(): Locator {
     return this.page.locator('#map');
   }
-  /** Returns the contact section locator or value. */
+  /** Gets the contact section locator. */
   private get contactSection(): Locator {
     return this.page.locator('#contact');
   }
-  /** Returns the product overview section locator or value. */
+  /** Gets the product overview section locator. */
   private get productOverviewSection(): Locator {
     return this.page.locator('#ProductOverview');
   }
-  /** Returns the sales center section locator or value. */
+  /** Gets the sales center section locator. */
   private get salesCenterSection(): Locator {
     return this.page
       .locator('section, div')
@@ -77,7 +72,7 @@ export class CommunityPage extends SearchablePage {
       })
       .first();
   }
-  /** Returns the nav links locator or value. */
+  /** Gets the page navigation links. */
   private get navLinks(): Locator {
     return this.page.locator('a');
   }
@@ -101,7 +96,7 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Returns all Get Information / Stay Updated CTA candidates (any element/role). */
+  /** Gets all Get Information / Stay Updated CTA candidates (any element/role). */
   private get getInformationCtaCandidates(): Locator {
     return this.page.locator('button:visible, a:visible').filter({
       hasText: CommunityPage.CTA_TEXT,
@@ -187,11 +182,11 @@ export class CommunityPage extends SearchablePage {
 
   // ----- Register Form -----
 
-  /** Returns the success dialog modal locator or value. */
+  /** Gets the success dialog locator. */
   private get successDialogModal(): Locator {
     return this.page.locator('.ReactModal__Content');
   }
-  /** Returns the form success message locator or value. */
+  /** Gets the form success message locator. */
   private get formSuccessMessage(): Locator {
     return this.page
       .getByText(
@@ -200,7 +195,7 @@ export class CommunityPage extends SearchablePage {
       .last();
   }
   /**
-   * Returns the lead form dialog or sidebar locator or value.
+   * Returns the lead form dialog or sidebar locator.
    *
    * Three filters, each earning its place:
    * - visible: the page pre-renders hidden ModalForm/drawer shells that also
@@ -208,7 +203,10 @@ export class CommunityPage extends SearchablePage {
    *   check pass instantly and hands back a hidden container.
    * - has a Submit button: what actually distinguishes a lead form from the
    *   other dialogs on the page (the National-promotion overlay is a
-   *   full-screen role="dialog" with inputs, and used to match here).
+   *   full-screen role="dialog" with inputs, and used to match here). Matched by
+   *   CSS rather than by role - see SUBMIT_BUTTON_SELECTOR: the promotion popup
+   *   aria-hides the page while it is up, and a role-based filter then matched
+   *   nothing at all.
    * - not a promotion/notification overlay: belt and braces on the above.
    */
   private get leadFormDialogOrSidebar(): Locator {
@@ -218,7 +216,7 @@ export class CommunityPage extends SearchablePage {
           '#ModalForm, [id*="ModalForm"], .ReactModal__Content, [role="dialog"], aside, [class*="drawer" i], [class*="sidebar" i]',
         )
         .filter({ visible: true })
-        .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+        .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
         // and(), not filter({ hasNot }): the aria-label sits on the overlay itself,
         // and hasNot only inspects descendants.
         .and(
@@ -229,11 +227,9 @@ export class CommunityPage extends SearchablePage {
     );
   }
 
-  /* ==========================================================
-     PAGE LOAD VALIDATION
-  ========================================================== */
+  // PAGE LOAD VALIDATION
 
-  /** Verifies search by community. */
+  /** Checks the community search flow. */
   async verifySearchByCommunity(expectedCommunity: string): Promise<void> {
     await this.step(`Verify community search navigates to ${expectedCommunity}`, async () => {
       await this.waitForPageReady();
@@ -259,11 +255,9 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-     CORE SECTION VALIDATION
-  ========================================================== */
+  // CORE SECTION VALIDATION
 
-  /** Verifies core sections. */
+  /** Checks the core page sections. */
   async verifyCoreSections(): Promise<void> {
     await this.step('Verify core community sections', async () => {
       await this.verifySectionIfPresent(this.availableHomesSection, 'Available Homes');
@@ -271,7 +265,7 @@ export class CommunityPage extends SearchablePage {
       await this.verifySectionIfPresent(this.contactSection, 'Contact');
     });
   }
-  /** Verifies section if present. */
+  /** Checks a section when it is present. */
   private async verifySectionIfPresent(locator: Locator, name: string): Promise<void> {
     const sectionCount = await locator.count();
 
@@ -291,11 +285,9 @@ export class CommunityPage extends SearchablePage {
     await expect(section, `${name} section not visible`).toBeVisible({ timeout: 5000 });
   }
 
-  /* ==========================================================
-     ALL NAV LINK VALIDATION
-  ========================================================== */
+  // ALL NAV LINK VALIDATION
 
-  /** Verifies all navigation links. */
+  /** Checks all navigation links. */
   async verifyAllNavigationLinks(): Promise<void> {
     await this.step('Verify all navigation links have href', async () => {
       const linkCount = await this.navLinks.count();
@@ -319,11 +311,9 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-     AVAILABLE HOMES NAVIGATION
-  ========================================================== */
+  // AVAILABLE HOMES NAVIGATION
 
-  /** Verifies available homes navigation. */
+  /** Checks the Available Homes navigation. */
   async verifyAvailableHomesNavigation(): Promise<void> {
     await this.step('Verify available homes navigation', async () => {
       const firstHome = this.page.locator('a[href*="/quick-move-in"]').first();
@@ -341,11 +331,9 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-     PLAN NAVIGATION
-  ========================================================== */
+  // PLAN NAVIGATION
 
-  /** Verifies plans navigation. */
+  /** Checks the Plans navigation. */
   async verifyPlansNavigation(): Promise<void> {
     await this.step('Verify plans navigation', async () => {
       const firstPlan = this.page.locator('a[href*="/brinkley"]').first();
@@ -363,7 +351,7 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Verifies contact action CTAs when the community renders them. */
+  /** Checks the contact CTAs when the community renders them. */
   async verifyContactActionCtasIfAvailable(): Promise<void> {
     await this.step('Verify community contact action CTAs when available', async () => {
       await this.verifyHoursCtaIfAvailable();
@@ -372,7 +360,7 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Verifies the Hours CTA exposes an open/closed or day/time schedule. */
+  /** Checks that the Hours CTA exposes an open/closed or day/time schedule. */
   private async verifyHoursCtaIfAvailable(): Promise<void> {
     const hoursCta = this.page.getByRole('button', { name: /^Hours$/i }).first();
 
@@ -424,7 +412,7 @@ export class CommunityPage extends SearchablePage {
     await dialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => undefined);
   }
 
-  /** Verifies the Directions CTA links to a maps/directions destination. */
+  /** Checks that the Directions CTA links to a maps/directions destination. */
   private async verifyDirectionsCtaIfAvailable(): Promise<void> {
     const directionsCta = this.page
       .locator('a:visible, button:visible')
@@ -455,7 +443,7 @@ export class CommunityPage extends SearchablePage {
     ).toContainText(/directions|maps|google|address/i, { timeout: 10000 });
   }
 
-  /** Verifies the Schedule an Appointment CTA opens or links to scheduling context. */
+  /** Checks that the Schedule an Appointment CTA opens or links to scheduling context. */
   private async verifyScheduleAppointmentCtaIfAvailable(): Promise<void> {
     const scheduleCta = this.page
       .locator('a:visible, button:visible')
@@ -516,9 +504,7 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /* ==========================================================
-     FORM VALIDATION
-  ========================================================== */
+  // FORM VALIDATION
 
   /**
    * Selector fragment excluding anything rendered inside the side modal/dialog,
@@ -528,15 +514,15 @@ export class CommunityPage extends SearchablePage {
   private static readonly NOT_IN_DIALOG =
     ':not([role="dialog"] *):not(.ReactModal__Content *):not([id*="ModalForm"] *)';
 
-  /** Returns the in-page community forms (never the side modal). */
+  /** Gets the in-page community forms (never the side modal). */
   private get communityForms(): Locator {
     return this.page
       .locator(`form${CommunityPage.NOT_IN_DIALOG}`)
-      .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+      .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
-  /** Verifies overview address market and attributes. */
+  /** Checks the overview, address, market, and attributes. */
   async verifyOverviewAddressMarketAndAttributes(expectedCommunity: string): Promise<void> {
     await this.step('Verify overview, address, market and key attributes', async () => {
       await expect(
@@ -568,7 +554,7 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Verifies QMI card community name matches current community. */
+  /** Checks that the QMI card belongs to the current community. */
   async verifyQmiCardCommunityNameMatchesCurrentCommunity(
     expectedCommunity: string,
   ): Promise<void> {
@@ -636,7 +622,7 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Returns available homes section. */
+  /** Gets available homes section. */
   private async getAvailableHomesSection(): Promise<Locator | null> {
     const sectionById = this.availableHomesSection.first();
 
@@ -655,7 +641,7 @@ export class CommunityPage extends SearchablePage {
     return qmiHeading.locator('xpath=ancestor::*[(self::section or self::div) and .//a[@href]][1]');
   }
 
-  /** Verifies address and market details. */
+  /** Checks the address and market details. */
   private async verifyAddressAndMarketDetails(expectedCommunity: string): Promise<void> {
     await this.page.evaluate(() => window.scrollTo(0, 0));
     await this.waitForPageReady();
@@ -696,7 +682,7 @@ export class CommunityPage extends SearchablePage {
     ).toContainText(new RegExp(escapeRegex(expectedCommunity), 'i'));
   }
 
-  /** Verifies key attributes. */
+  /** Checks the key community attributes. */
   private async verifyKeyAttributes(): Promise<void> {
     const requiredAttributes = [
       /Home Types/i,
@@ -732,7 +718,7 @@ export class CommunityPage extends SearchablePage {
           .map((selector) => `${selector}${CommunityPage.NOT_IN_DIALOG}`)
           .join(', '),
       )
-      .filter({ has: this.page.getByRole('button', { name: /submit/i }) })
+      .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
@@ -812,6 +798,9 @@ export class CommunityPage extends SearchablePage {
     formName: string,
   ): Promise<Locator> {
     await this.dismissPromoPopupIfPresent({ appearTimeout: 3000 });
+    // A promo that mounted after that window leaves `#root` aria-hidden, and the
+    // in-page form lookups below would then resolve to nothing.
+    await this.ensurePageInAccessibilityTree();
 
     let form = await resolveForm();
 
@@ -832,10 +821,9 @@ export class CommunityPage extends SearchablePage {
     await form.scrollIntoViewIfNeeded({ timeout: 10_000 });
     await this.settle(1000);
 
-    await expect(
-      form.getByRole('button', { name: /submit/i }).first(),
-      `${formName} submit button should be visible`,
-    ).toBeVisible({ timeout: 10000 });
+    await expect(getSubmitButton(form), `${formName} submit button should be visible`).toBeVisible({
+      timeout: 10000,
+    });
 
     return form;
   }
@@ -886,11 +874,12 @@ export class CommunityPage extends SearchablePage {
     ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
-  /** Returns available get information form. */
+  /** Gets available get information form. */
   private async getAvailableGetInformationForm(
     formName = 'Get Information community form',
   ): Promise<Locator | null> {
     await this.openSideModalFromGetInformationCta(formName);
+    await this.ensurePageInAccessibilityTree();
 
     const modalFormCount = await expect
       .poll(() => this.leadFormDialogOrSidebar.count(), {
@@ -906,7 +895,7 @@ export class CommunityPage extends SearchablePage {
     }
 
     const modalForm = this.leadFormDialogOrSidebar.first();
-    const submitButton = modalForm.getByRole('button', { name: /submit/i }).first();
+    const submitButton = getSubmitButton(modalForm);
 
     await this.waitForPageReady();
 
@@ -961,7 +950,7 @@ export class CommunityPage extends SearchablePage {
     await this.checkConsentIfPresent(form);
   }
 
-  /** Verifies get information CTA opens lead form. */
+  /** Checks that the Get Information CTA opens a lead form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
       // The CTA visibility check and the click both live in
@@ -989,12 +978,12 @@ export class CommunityPage extends SearchablePage {
     await this.getAvailableForm(resolveForm, formName);
   }
 
-  /** Returns the visible sideModalForm by name. */
+  /** Gets the visible side modal form by name. */
   private async viewSideModalFormByName(formName: string): Promise<void> {
     await this.getAvailableGetInformationForm(formName);
   }
 
-  /** Validates empty-form errors for a named in-page form. */
+  /** Checks empty-form errors for a named in-page form. */
   private async validateEmptyFormErrorsFor(
     resolveForm: () => Promise<Locator>,
     formName: string,
@@ -1008,7 +997,7 @@ export class CommunityPage extends SearchablePage {
     ).toBeVisible({ timeout: 10000 });
   }
 
-  /** Validates sideModalForm empty form errors. */
+  /** Checks side modal form empty form errors. */
   private async validateSideModalFormEmptyErrors(formName: string): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
 
@@ -1021,7 +1010,7 @@ export class CommunityPage extends SearchablePage {
     await expectRequiredErrorsInForm(form);
   }
 
-  /** Validates the invalid-email error for a named in-page form. */
+  /** Checks the invalid-email error for a named in-page form. */
   private async validateInvalidEmailFor(
     resolveForm: () => Promise<Locator>,
     formName: string,
@@ -1037,7 +1026,7 @@ export class CommunityPage extends SearchablePage {
     await expect(form.locator('text=/valid domain name/i').first()).toBeVisible({ timeout: 10000 });
   }
 
-  /** Validates sideModalForm invalid email by name. */
+  /** Checks side modal form invalid email address by name. */
   private async validateSideModalFormInvalidEmailByName(formName: string): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
 
@@ -1065,13 +1054,13 @@ export class CommunityPage extends SearchablePage {
 
     await this.submitLeadFormAndCaptureApi({
       formName,
-      submitButton: form.getByRole('button', { name: /submit/i }).first(),
+      submitButton: getSubmitButton(form),
       successModal: this.successDialogModal,
       successMessage: this.formSuccessMessage,
     });
   }
 
-  /** Submits successful sideModalForm. */
+  /** Submits successful side modal form. */
   private async submitSuccessfulSideModalForm(formName: string): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
 
@@ -1089,52 +1078,52 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Returns the visible form. */
+  /** Gets the visible form. */
   async viewForm(): Promise<void> {
     await this.viewPrimaryForm();
   }
 
-  /** Returns the visible primary form. */
+  /** Gets the visible primary form. */
   async viewPrimaryForm(): Promise<void> {
     await this.step('View primary community form', async () => {
       await this.viewNamedForm(() => this.primaryForm(), 'Primary community form');
     });
   }
 
-  /** Returns the visible footer form. */
+  /** Gets the visible footer form. */
   async viewFooterForm(): Promise<void> {
     await this.step('View footer community form', async () => {
       await this.viewNamedForm(() => this.footerForm(), 'Footer community form');
     });
   }
 
-  /** Returns the visible sideModalForm. */
+  /** Gets the visible side modal form. */
   async viewSideModalForm(): Promise<void> {
     await this.step('View Get Information sideModalForm', async () => {
       await this.viewSideModalFormByName('Get Information community sideModalForm');
     });
   }
 
-  /** Validates empty form errors. */
+  /** Checks empty form errors. */
   async validateEmptyFormErrors(): Promise<void> {
     await this.validatePrimaryFormEmptyErrors();
   }
 
-  /** Validates primary form empty errors. */
+  /** Checks primary form required-field errors. */
   async validatePrimaryFormEmptyErrors(): Promise<void> {
     await this.step('Validate primary form empty errors', async () => {
       await this.validateEmptyFormErrorsFor(() => this.primaryForm(), 'Primary community form');
     });
   }
 
-  /** Validates footer form empty errors. */
+  /** Checks footer form required-field errors. */
   async validateFooterFormEmptyErrors(): Promise<void> {
     await this.step('Validate footer form empty errors', async () => {
       await this.validateEmptyFormErrorsFor(() => this.footerForm(), 'Footer community form');
     });
   }
 
-  /** Validates sideModalForm fields. */
+  /** Checks side modal form fields. */
   async verifySideModalFormFields(): Promise<void> {
     await this.step('Verify Get Information sideModalForm fields', async () => {
       const form = await this.getAvailableGetInformationForm(
@@ -1149,61 +1138,61 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Validates sideModalForm empty errors. */
+  /** Checks side modal form required-field errors. */
   async validateSideModalFormRequiredErrors(): Promise<void> {
     await this.step('Validate Get Information sideModalForm empty errors', async () => {
       await this.validateSideModalFormEmptyErrors('Get Information community sideModalForm');
     });
   }
 
-  /** Validates invalid email. */
+  /** Checks invalid email address. */
   async validateInvalidEmail(): Promise<void> {
     await this.validatePrimaryFormInvalidEmail();
   }
 
-  /** Validates primary form invalid email. */
+  /** Checks primary form invalid email address. */
   async validatePrimaryFormInvalidEmail(): Promise<void> {
     await this.step('Validate primary form invalid email', async () => {
       await this.validateInvalidEmailFor(() => this.primaryForm(), 'Primary community form');
     });
   }
 
-  /** Validates footer form invalid email. */
+  /** Checks footer form invalid email address. */
   async validateFooterFormInvalidEmail(): Promise<void> {
     await this.step('Validate footer form invalid email', async () => {
       await this.validateInvalidEmailFor(() => this.footerForm(), 'Footer community form');
     });
   }
 
-  /** Validates sideModalForm invalid email. */
+  /** Checks side modal form invalid email address. */
   async validateSideModalFormInvalidEmail(): Promise<void> {
     await this.step('Validate Get Information sideModalForm invalid email', async () => {
       await this.validateSideModalFormInvalidEmailByName('Get Information community sideModalForm');
     });
   }
 
-  /** Verifies primary form success submission. */
+  /** Checks that the primary form submits successfully. */
   async verifyPrimaryFormSuccessSubmission(): Promise<void> {
     await this.step('Submit primary community form successfully', async () => {
       await this.submitSuccessfulFormFor(() => this.primaryForm(), 'Primary community form');
     });
   }
 
-  /** Verifies footer form success submission. */
+  /** Checks that the footer form submits successfully. */
   async verifyFooterFormSuccessSubmission(): Promise<void> {
     await this.step('Submit footer community form successfully', async () => {
       await this.submitSuccessfulFormFor(() => this.footerForm(), 'Footer community form');
     });
   }
 
-  /** Verifies sideModalForm success submission. */
+  /** Checks that the side modal form submits successfully. */
   async verifySideModalFormSuccessSubmission(): Promise<void> {
     await this.step('Submit Get Information community sideModalForm successfully', async () => {
       await this.submitSuccessfulSideModalForm('Get Information community sideModalForm');
     });
   }
 
-  /** Returns market from current URL. */
+  /** Gets market from current URL. */
   private getMarketFromCurrentUrl(): string | null {
     const segments = getPathSegments(this.page.url());
 

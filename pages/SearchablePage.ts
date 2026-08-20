@@ -38,9 +38,7 @@ export class SearchablePage extends BasePage {
       .first();
   }
 
-  /* ==========================================================
-     SHARED CONSTANTS
-  ========================================================== */
+  // SHARED CONSTANTS
 
   private readonly SEARCH_MAX_ATTEMPTS = 2;
   private readonly SEARCH_INPUT_TIMEOUT = 10000;
@@ -65,9 +63,7 @@ export class SearchablePage extends BasePage {
     '[class*="Search"] a[href]:visible',
   ];
 
-  /* ==========================================================
-     SEARCH LOCATORS
-  ========================================================== */
+  // SEARCH LOCATORS
 
   // Locator for the preferred autocomplete suggestion elements (combined primary selectors).
   private get primarySearchResults(): Locator {
@@ -84,9 +80,7 @@ export class SearchablePage extends BasePage {
     return this.page.locator(`${this.SEARCH_INPUT_SELECTOR}:visible`).first();
   }
 
-  /* ==========================================================
-     SEARCH FEATURE
-  ========================================================== */
+  // SEARCH FEATURE
 
   // Types the value into the search box character by character and opens the first matching
   // suggestion; retries, recovers a hidden search box, and falls back to direct navigation.
@@ -453,9 +447,7 @@ export class SearchablePage extends BasePage {
     return condoUrl ? condoUrl.split('/').slice(0, -1).join('/') : undefined;
   }
 
-  /* ==========================================================
-     GENERIC SEARCH FLOW WRAPPER
-  ========================================================== */
+  // GENERIC SEARCH FLOW WRAPPER
 
   // Runs the standard search flow: start from home, search, dismiss promo popup, then validate.
   private async executeSearchFlow(
@@ -603,9 +595,7 @@ export class SearchablePage extends BasePage {
     });
   }
 
-  /* ==========================================================
-     MARKET SEARCH
-  ========================================================== */
+  // MARKET SEARCH
 
   // Searches for a market by name from the search box.
   async searchByMarket(market: string): Promise<void> {
@@ -614,7 +604,7 @@ export class SearchablePage extends BasePage {
     });
   }
 
-  // Validates the search landed on the market results page whose 'metro' param matches the market.
+  // Checks that market search lands on results whose 'metro' parameter matches the market.
   async verifySearchByMarket(expectedMarket: string): Promise<void> {
     await this.step(`Verify market search result for: ${expectedMarket}`, async () => {
       await this.waitForPageReady();
@@ -635,9 +625,7 @@ export class SearchablePage extends BasePage {
     });
   }
 
-  /* ==========================================================
-     COMMUNITY SEARCH
-  ========================================================== */
+  // COMMUNITY SEARCH
 
   // Searches for a community by name from the search box.
   async searchByCommunity(community: string): Promise<void> {
@@ -646,9 +634,7 @@ export class SearchablePage extends BasePage {
     });
   }
 
-  /* ==========================================================
-     CONDO COMMUNITY SEARCH
-  ========================================================== */
+  // CONDO COMMUNITY SEARCH
 
   // Searches for a condo community by name from the search box.
   async searchByCondoCommunity(condoCommunity: string): Promise<void> {
@@ -657,9 +643,7 @@ export class SearchablePage extends BasePage {
     });
   }
 
-  /* ==========================================================
-     MPC SEARCH
-  ========================================================== */
+  // MPC SEARCH
 
   // Resolves the MPC config entry matching the given name (or the first one), validating required fields.
   private getMpcConfig(location: LocationWithCondoPlan, mpcName?: string): MpcConfig {
@@ -749,9 +733,7 @@ export class SearchablePage extends BasePage {
     });
   }
 
-  /* ==========================================================
-     PLAN SEARCH
-  ========================================================== */
+  // PLAN SEARCH
 
   // Searches for a plan by name from the search box.
   async searchByPlan(planName: string): Promise<void> {
@@ -777,9 +759,7 @@ export class SearchablePage extends BasePage {
     return `${communityPath}/${expectedPlanPath.replace(/^\/+/, '')}`.toLowerCase();
   }
 
-  /* ==========================================================
-     CONDO PLAN SEARCH
-  ========================================================== */
+  // CONDO PLAN SEARCH
 
   // Searches for a condo plan by name from the search box.
   async searchByCondoPlan(condoPlanName: string): Promise<void> {
@@ -788,9 +768,7 @@ export class SearchablePage extends BasePage {
     });
   }
 
-  /* ==========================================================
-     QMI SEARCH
-  ========================================================== */
+  // QMI SEARCH
 
   // Searches for a quick move-in (QMI) home by address from the search box.
   async searchByQMI(address: string): Promise<void> {

@@ -1,19 +1,15 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
-/* ==========================================================
-   Footer Page Object Model
-========================================================== */
+// Footer Page Object Model
 
 export class Footer extends BasePage {
   readonly footerSection: Locator;
   readonly privacyPolicyLink: Locator;
 
-  /* ==========================================================
-     Constructor – Initialize Locators
-  ========================================================== */
+  // Constructor – Initialize Locators
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -23,11 +19,9 @@ export class Footer extends BasePage {
     });
   }
 
-  /* ==========================================================
-     Footer Validation
-  ========================================================== */
+  // Footer Validation
 
-  /** Verifies footer loaded. */
+  /** Checks that the footer loaded. */
   async verifyFooterLoaded(): Promise<void> {
     await this.step('Verify footer loaded', async () => {
       // Scroll footer into view
@@ -47,7 +41,7 @@ export class Footer extends BasePage {
     });
   }
 
-  /** Verifies the footer social links are present and correctly linked. */
+  /** Checks that the footer social links are present and correctly linked. */
   async verifySocialLinks(): Promise<void> {
     await this.step('Verify footer social links', async () => {
       await this.footerSection.scrollIntoViewIfNeeded();
@@ -81,7 +75,7 @@ export class Footer extends BasePage {
   }
 
   /**
-   * Verifies the footer newsletter signup when present: an email field with a
+   * Checks the footer newsletter signup when present: an email field with a
    * subscribe control that enforces client-side validation on empty submit.
    */
   async verifyNewsletterSignup(): Promise<void> {

@@ -12,7 +12,7 @@ import {
 const PLAN_FORM_GLOBAL = '__getVisiblePlanForms';
 
 export class MobileWebPlanPage extends MobileWebHomePage {
-  /** Returns plan source snapshot. */
+  /** Captures the configured plan data used by the mobile test. */
   async getPlanSourceSnapshot() {
     return this.driver.execute(() => {
       const visibleText = document.body?.innerText || '';
@@ -29,7 +29,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     });
   }
 
-  /** Waits for plan page. */
+  /** Waits until the plan page is ready. */
   async waitForPlanPage(planName = getLocationConfig().planName) {
     const planPattern = new RegExp(this.escapeRegExp(planName), 'i');
 
@@ -64,12 +64,12 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     await this.closeCookiePreferencesIfVisible();
   }
 
-  /** Verifies plan URL contains. */
+  /** Checks that the plan URL contains the expected path. */
   async verifyPlanUrlContains(expectedUrlPart = getLocationConfig().expectedPlanUrlPart) {
     assert.match(await this.driver.getUrl(), new RegExp(this.escapeRegExp(expectedUrlPart), 'i'));
   }
 
-  /** Verifies hero summary for plan. */
+  /** Checks the plan hero summary. */
   async verifyHeroSummaryForPlan(planName = getLocationConfig().planName) {
     await this.waitForPlanPage(planName);
     const hero = await this.driver.execute(() => {
@@ -105,7 +105,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies home specs present. */
+  /** Checks that the home specs are present. */
   async verifyHomeSpecsPresent() {
     await this.waitForPlanPage();
 
@@ -135,7 +135,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.match(specText, /sq\.?\s*ft/i, 'Expected plan detail page to include square footage');
   }
 
-  /** Verifies mobile community link navigation. */
+  /** Checks the mobile community link navigation. */
   async verifyMobileCommunityLinkNavigation() {
     const location = getLocationConfig();
 
@@ -208,7 +208,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies gallery. */
+  /** Checks the gallery. */
   async verifyGallery() {
     await this.waitForPlanPage();
     const snapshot = await this.getPlanSourceSnapshot();
@@ -254,7 +254,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.ok(gallery.imageCount > 0, 'Expected plan detail page gallery or hero images');
   }
 
-  /** Verifies interactive floor plan section. */
+  /** Checks the interactive floor plan section. */
   async verifyInteractiveFloorPlanSection() {
     await this.verifyOptionalSection(
       /interactive floorplan|floor ?plan/i,
@@ -263,7 +263,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies exterior styles section. */
+  /** Checks the exterior styles section. */
   async verifyExteriorStylesSection() {
     await this.verifyOptionalSection(
       /exterior styles|exterior/i,
@@ -272,7 +272,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies mortgage calculator CTA. */
+  /** Checks the mortgage calculator CTA. */
   async verifyMortgageCalculatorCta() {
     await this.verifyOptionalSection(
       /mortgage calculator/i,
@@ -281,15 +281,14 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies quick move in homes section. */
+  /** Checks the quick move-in homes section. */
   async verifyQuickMoveInHomesSection() {
     const result = await this.getSectionSnapshot(
       /quick move-in homes|quick move-ins|available homes/i,
     );
 
     if (!result.found) {
-      this.logSkip('QMI section not present on mobile plan page - skipping validation');
-      return;
+      assert.fail('Expected QMI section to be present on mobile plan page');
     }
 
     assert.match(result.text, /quick move|available homes|view all|ready/i);
@@ -299,7 +298,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies sales office section. */
+  /** Checks the sales office section. */
   async verifySalesOfficeSection() {
     const result = await this.getSectionSnapshot(
       /sales office|hours|directions|call|new home gallery/i,
@@ -313,7 +312,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.match(result.text, /hours|directions|call|office|gallery/i);
   }
 
-  /** Verifies plan detail form. */
+  /** Checks the plan detail form. */
   async verifyPlanDetailForm() {
     await this.waitForPlanForm();
     const snapshot = await this.getPlanSourceSnapshot();
@@ -340,19 +339,19 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.match(form.text, /zip|postal/i);
   }
 
-  /** Validates plan detail form empty errors. */
+  /** Checks plan detail form required-field errors. */
   async validatePlanDetailFormEmptyErrors() {
     await this.waitForPlanForm();
     const snapshot = await this.getPlanSourceSnapshot();
 
     if (snapshot.isSourceOnly) {
-      this.logSkip(
-        'Plan form is available only in source snapshot on mobile - skipping interactive empty-form validation',
+      assert.fail(
+        'Expected interactive plan form on mobile before validating empty-form errors; only source snapshot was available',
       );
-      return;
     }
 
-    await this.submitVisiblePlanFormByIndex(0);
+    const submitted = await this.submitVisiblePlanFormByIndex(0);
+    assert.equal(submitted, true, 'Expected visible plan form to submit for required validation');
     const errorSnapshot = await this.getFormErrorSnapshot();
 
     assert.ok(
@@ -362,19 +361,19 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates plan detail form invalid email. */
+  /** Checks plan detail form invalid email address. */
   async validatePlanDetailFormInvalidEmail() {
     await this.waitForPlanForm();
     const snapshot = await this.getPlanSourceSnapshot();
 
     if (snapshot.isSourceOnly) {
-      this.logSkip(
-        'Plan form is available only in source snapshot on mobile - skipping interactive invalid-email validation',
+      assert.fail(
+        'Expected interactive plan form on mobile before validating invalid email; only source snapshot was available',
       );
-      return;
     }
 
-    await this.fillInvalidEmailPlanFormByIndex(0);
+    const filled = await this.fillInvalidEmailPlanFormByIndex(0);
+    assert.equal(filled, true, 'Expected visible plan form to fill for invalid-email validation');
     const errorSnapshot = await this.getFormErrorSnapshot();
 
     assert.ok(
@@ -385,7 +384,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies plan detail form success submission. */
+  /** Checks that the plan detail form submits successfully. */
   async verifyPlanDetailFormSuccessSubmission() {
     const { envName } = getEnvConfig();
 
@@ -395,24 +394,24 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     const snapshot = await this.getPlanSourceSnapshot();
 
     if (snapshot.isSourceOnly) {
-      this.logSkip(
-        'Plan form is available only in source snapshot on mobile - skipping interactive success submission',
+      assert.fail(
+        'Expected interactive plan form on mobile before validating success submission; only source snapshot was available',
       );
-      return;
     }
 
-    await this.fillValidPlanFormByIndex(0);
+    const submitted = await this.fillValidPlanFormByIndex(0);
+    assert.equal(submitted, true, 'Expected visible plan form to submit valid data');
     await this.assertSubmissionSuccess(
       'Expected successful submission confirmation for plan detail form',
     );
   }
 
-  /** Verifies qmisection. */
+  /** Checks the QMI section when it is available. */
   async verifyQMISection() {
     await this.verifyQuickMoveInHomesSection();
   }
 
-  /** Verifies optional section. */
+  /** Checks an optional section when it is available. */
   async verifyOptionalSection(headingPattern, skipMessage, contentPattern) {
     const snapshot = await this.getPlanSourceSnapshot();
 
@@ -436,7 +435,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.match(result.text, contentPattern);
   }
 
-  /** Returns section snapshot. */
+  /** Captures a snapshot of the section. */
   async getSectionSnapshot(pattern) {
     await this.waitForPlanPage();
 
@@ -471,7 +470,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Waits for plan form. */
+  /** Waits until the plan form is ready. */
   async waitForPlanForm() {
     await this.waitForPlanPage();
     const snapshot = await this.getPlanSourceSnapshot();
@@ -497,7 +496,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.equal(submitted, true, `Expected visible plan form at index ${formIndex}`);
   }
 
-  /** Fills invalid email plan form by index. */
+  /** Fills invalid email address plan form by index. */
   async fillInvalidEmailPlanFormByIndex(formIndex = 0) {
     const filled = await fillInvalidEmailLeadFormByIndex(this.driver, PLAN_FORM_GLOBAL, formIndex);
     assert.equal(

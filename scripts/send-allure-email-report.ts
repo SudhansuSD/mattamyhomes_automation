@@ -6,6 +6,7 @@ import process from 'node:process';
 import nodemailer from 'nodemailer';
 import { DESKTOP_ALLURE_REPORT_DIR, DESKTOP_ALLURE_RESULTS_DIR } from './allurePaths';
 import { loadEnv } from '../config/env';
+import { getBrowserDisplayName } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
 
 loadEnv();
@@ -35,20 +36,31 @@ type AllureReportSummary = {
   statistic?: Partial<Record<TestStatus | 'total', number>>;
 } & Partial<Record<TestStatus | 'total', number>>;
 
+type AllureReportError = {
+  message?: string;
+  trace?: string;
+};
+
+type AllureReportStep = {
+  status?: TestStatus;
+  error?: AllureReportError;
+  message?: string;
+  trace?: string;
+  steps?: AllureReportStep[];
+};
+
 type AllureReportTestCase = {
   name?: string;
   fullName?: string;
   status?: TestStatus;
-  statusMessage?: string;
-  statusTrace?: string;
+  error?: AllureReportError;
+  steps?: AllureReportStep[];
+  setup?: AllureReportStep[];
+  teardown?: AllureReportStep[];
   labels?: Array<{
     name?: string;
     value?: string;
   }>;
-  testStage?: {
-    statusMessage?: string;
-    statusTrace?: string;
-  };
 };
 
 type ExecutionSummary = {
@@ -68,11 +80,16 @@ type ExecutionSummary = {
   runType: string;
   failedTests: Array<{
     name: string;
+    /** Spec file and line, shown under the scenario name; empty when it is the only label available. */
+    location: string;
     message: string;
   }>;
 };
 
 const chartPath = path.resolve(os.tmpdir(), 'test-summary-chart.png');
+/** ANSI colour codes Playwright wraps around error text; built at runtime to keep the escape character out of source. */
+const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
+const MAX_ERROR_SUMMARY_LENGTH = 300;
 const chartCid = 'test-summary-chart';
 const RUN_TYPE_LABEL = 'runType';
 const RUN_TYPE_BY_KEY: Record<string, string> = {
@@ -215,33 +232,87 @@ function readAllureReportSummary(): AllureReportSummary | null {
   }
 }
 
-function readAllureReportFailedTests(): ExecutionSummary['failedTests'] {
+function readAllureReportTestCases(): AllureReportTestCase[] {
   const testCaseDir = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'data', 'test-results');
-  const failedTests: ExecutionSummary['failedTests'] = [];
+  const testCases: AllureReportTestCase[] = [];
 
   for (const testCasePath of collectJsonFiles(testCaseDir)) {
     try {
-      const testCase = JSON.parse(fs.readFileSync(testCasePath, 'utf8')) as AllureReportTestCase;
-
-      if (testCase.status !== 'failed' && testCase.status !== 'broken') {
-        continue;
-      }
-
-      failedTests.push({
-        name: testCase.fullName || testCase.name || 'Unnamed test',
-        message:
-          testCase.statusMessage ||
-          testCase.testStage?.statusMessage ||
-          testCase.statusTrace ||
-          testCase.testStage?.statusTrace ||
-          'No failure message available',
-      });
+      testCases.push(JSON.parse(fs.readFileSync(testCasePath, 'utf8')) as AllureReportTestCase);
     } catch (error) {
       console.warn(`Unable to read Allure report test case ${testCasePath}:`, error);
     }
   }
 
-  return failedTests;
+  return testCases;
+}
+
+/**
+ * Playwright failure text arrives with ANSI colour codes, a stack trace, and a long
+ * "Call log" tail. The email needs one readable line, so keep the assertion lines only.
+ */
+function summarizeErrorText(message: string, trace: string): string {
+  const lines = (message || trace)
+    .replace(ANSI_ESCAPE_PATTERN, '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    // Stack frames and log entries add length without telling the reader what broke.
+    .filter((line) => !/^(at\s|[-–]\s*(waiting|locator|attempting))/i.test(line));
+
+  const callLogIndex = lines.findIndex((line) => /^call log:/i.test(line));
+  const meaningful = callLogIndex > 0 ? lines.slice(0, callLogIndex) : lines;
+  const summary = meaningful
+    .join(' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  return summary.length > MAX_ERROR_SUMMARY_LENGTH
+    ? `${summary.slice(0, MAX_ERROR_SUMMARY_LENGTH).trimEnd()}…`
+    : summary;
+}
+
+/** A failing hook or step keeps its error off the test root, so walk nested steps too. */
+function findStepError(steps: AllureReportStep[] | undefined): AllureReportError | null {
+  for (const step of steps ?? []) {
+    if (step.error?.message || step.error?.trace) {
+      return step.error;
+    }
+
+    if (step.message || step.trace) {
+      return { message: step.message, trace: step.trace };
+    }
+
+    const nestedError = findStepError(step.steps);
+    if (nestedError) {
+      return nestedError;
+    }
+  }
+
+  return null;
+}
+
+/** Error summary for a failed test: root error first, then the failing step, setup, or teardown. */
+function getReportFailureMessage(testCase: AllureReportTestCase): string {
+  const error =
+    (testCase.error?.message || testCase.error?.trace ? testCase.error : null) ??
+    findStepError(testCase.steps) ??
+    findStepError(testCase.setup) ??
+    findStepError(testCase.teardown);
+
+  const summary = error ? summarizeErrorText(error.message ?? '', error.trace ?? '') : '';
+
+  return summary || 'No failure message available';
+}
+
+function getReportFailedTests(testCases: AllureReportTestCase[]): ExecutionSummary['failedTests'] {
+  return testCases
+    .filter((testCase) => testCase.status === 'failed' || testCase.status === 'broken')
+    .map((testCase) => ({
+      name: testCase.name || testCase.fullName || 'Unnamed test',
+      location: testCase.name && testCase.fullName ? testCase.fullName : '',
+      message: getReportFailureMessage(testCase),
+    }));
 }
 
 function getRunTypeFromEnv(): string {
@@ -269,21 +340,6 @@ function getRunTypeFromLabels(results: Array<Pick<AllureResult, 'labels'>>): str
   }
 
   return getRunTypeFromEnv();
-}
-
-function readAllureReportRunType(): string {
-  const testCaseDir = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'data', 'test-results');
-  const testCases: AllureReportTestCase[] = [];
-
-  for (const testCasePath of collectJsonFiles(testCaseDir)) {
-    try {
-      testCases.push(JSON.parse(fs.readFileSync(testCasePath, 'utf8')) as AllureReportTestCase);
-    } catch (error) {
-      console.warn(`Unable to read Allure report test case ${testCasePath}:`, error);
-    }
-  }
-
-  return getRunTypeFromLabels(testCases);
 }
 
 function getPassPercentage(passed: number, failed: number, broken: number): number {
@@ -336,7 +392,7 @@ function buildSummaryFromCounts(
     skipped: counts.skipped,
     passPercentage,
     environment: getEnvConfig().envName,
-    browser: getEnv('BROWSER', 'Chrome'),
+    browser: getBrowserDisplayName(),
     executionDateTime: new Date().toLocaleString('en-US'),
     reportUrl: getEnv('ALLURE_REPORT_URL', ''),
     reportSiteUrl: getEnv('ALLURE_REPORT_SITE_URL', ''),
@@ -354,6 +410,8 @@ function buildSummaryFromReport(): ExecutionSummary | null {
     return null;
   }
 
+  const testCases = readAllureReportTestCases();
+
   return buildSummaryFromCounts(
     {
       passed: statistic.passed ?? 0,
@@ -362,8 +420,8 @@ function buildSummaryFromReport(): ExecutionSummary | null {
       skipped: statistic.skipped ?? 0,
       total: statistic.total,
     },
-    readAllureReportFailedTests(),
-    readAllureReportRunType(),
+    getReportFailedTests(testCases),
+    getRunTypeFromLabels(testCases),
   );
 }
 
@@ -377,8 +435,13 @@ function buildSummaryFromResults(results: AllureResult[]): ExecutionSummary {
   const failedTests = finalResults
     .filter((result) => result.status === 'failed' || result.status === 'broken')
     .map((result) => ({
-      name: result.fullName || result.name || 'Unnamed test',
-      message: result.statusDetails?.message || 'No failure message available',
+      name: result.name || result.fullName || 'Unnamed test',
+      location: result.name && result.fullName ? result.fullName : '',
+      message:
+        summarizeErrorText(
+          result.statusDetails?.message ?? '',
+          result.statusDetails?.trace ?? '',
+        ) || 'No failure message available',
     }));
 
   return buildSummaryFromCounts(
@@ -499,8 +562,11 @@ function renderFailedTests(summary: ExecutionSummary): string {
             (test, index) => `
               <tr>
                 <td>${index + 1}</td>
-                <td>${escapeHtml(test.name)}</td>
-                <td>${escapeHtml(test.message).slice(0, 500)}</td>
+                <td>
+                  ${escapeHtml(test.name)}
+                  ${test.location ? `<div class="scenario-location">${escapeHtml(test.location)}</div>` : ''}
+                </td>
+                <td class="error-cell">${escapeHtml(test.message)}</td>
               </tr>
             `,
           )
@@ -628,6 +694,16 @@ function buildEmailHtml(summary: ExecutionSummary): string {
             border-radius: 6px;
             text-decoration: none;
             font-weight: bold;
+          }
+          .scenario-location {
+            margin-top: 4px;
+            color: #64748b;
+            font-size: 12px;
+          }
+          .error-cell {
+            color: #b91c1c;
+            font-size: 13px;
+            word-break: break-word;
           }
           .missing-link,
           .empty-state {

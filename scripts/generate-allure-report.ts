@@ -14,6 +14,7 @@ import {
   REPO_ROOT,
 } from './allurePaths';
 import { loadEnv, getEnv } from '../config/env';
+import { getBrowserDisplayName } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationsToRun } from '../config/locations/locationConfig';
 
@@ -83,10 +84,7 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
     // "USA, CAN" when it was not and run-locations.ts ran a pass for each.
     Location: getLocationsToRun().join(', '),
     RunType: getRunType(),
-    Browser: getEnv(
-      'BROWSER',
-      label === 'mobile' ? getEnv('MOBILE_BROWSER_NAME', 'Chrome') : 'Chrome',
-    ),
+    Browser: label === 'mobile' ? getEnv('MOBILE_BROWSER_NAME', 'Chrome') : getBrowserDisplayName(),
     AppVersion: getAppVersion(),
     Node: process.version,
     OS: `${process.platform} ${process.arch}`,

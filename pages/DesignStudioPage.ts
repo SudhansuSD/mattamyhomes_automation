@@ -4,12 +4,7 @@ import { getLocationConfig, LocationKey } from '../config/locations/locationConf
 import { escapeRegex } from '../utils/pageObjectUtils';
 import { BasePage } from './BasePage';
 
-/* ==========================================================
-   Design Studio Page Object Model
-
-   Covers the /design-studio marketing page (ContentHero,
-   ProductOverview, Market Selector and TitleCTA components).
-========================================================== */
+// Design Studio Page Object Model Covers the /design-studio marketing page (ContentHero, ProductOverview, Market Selector and TitleCTA components).
 
 export class DesignStudioPage extends BasePage {
   static readonly PATH = '/design-studio';
@@ -20,7 +15,7 @@ export class DesignStudioPage extends BasePage {
   readonly marketPanelExpander: Locator;
   readonly marketDesignStudioLinks: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -48,7 +43,7 @@ export class DesignStudioPage extends BasePage {
     this.marketDesignStudioLinks = page.locator('a[href*="-design-studio"]:visible');
   }
 
-  /** Navigates to the Design Studio page for the configured country. */
+  /** Opens the Design Studio page for the configured country. */
   async navigateToDesignStudio(overrideLocation?: LocationKey): Promise<void> {
     await this.step('Navigate to Design Studio', async () => {
       const { baseURL, envName } = getEnvConfig();
@@ -57,7 +52,7 @@ export class DesignStudioPage extends BasePage {
 
       await this.reportValue('Navigating to Design Studio', `ENV=${envName} | URL=${targetUrl}`);
 
-      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.ensurePageRendered();
@@ -65,7 +60,7 @@ export class DesignStudioPage extends BasePage {
     });
   }
 
-  /** Validates the page shell (title, route, header, main and footer). */
+  /** Checks the page shell (title, route, header, main and footer). */
   async validatePageShell(): Promise<void> {
     await this.step('Validate Design Studio page shell', async () => {
       await this.assertPageTitle(
@@ -94,7 +89,7 @@ export class DesignStudioPage extends BasePage {
     });
   }
 
-  /** Validates the hero and product-overview content renders meaningfully. */
+  /** Checks the hero and product-overview content renders meaningfully. */
   async validateContent(): Promise<void> {
     await this.step('Validate Design Studio content', async () => {
       await this.assertHeadingVisible(
@@ -115,7 +110,7 @@ export class DesignStudioPage extends BasePage {
   }
 
   /**
-   * Validates the "Find your Design Studio" market panel.
+   * Checks the "Find your Design Studio" market panel.
    *
    * SEARCH NOW expands the panel; every market then links to its own market design
    * studio page (/<state>/<market>/market-design-studio). Each link is checked
@@ -187,7 +182,7 @@ export class DesignStudioPage extends BasePage {
     });
   }
 
-  /** Returns the HTTP status for a link, without navigating to it. */
+  /** Gets the HTTP status for a link, without navigating to it. */
   private async getUrlStatus(url: string): Promise<number | string> {
     const response = await this.page.request
       .get(url, { failOnStatusCode: false, timeout: 30_000 })
@@ -196,7 +191,7 @@ export class DesignStudioPage extends BasePage {
     return typeof response === 'string' ? response : response.status();
   }
 
-  /** Validates the primary Title CTA links to a real destination. */
+  /** Checks the primary Title CTA links to a real destination. */
   async validateTitleCta(): Promise<void> {
     await this.step('Validate Design Studio Title CTA', async () => {
       const cta = this.main
@@ -221,7 +216,7 @@ export class DesignStudioPage extends BasePage {
     });
   }
 
-  /** Returns the normalized length of the main content text. */
+  /** Gets the normalized length of the main content text. */
   private async getMainTextLength(): Promise<number> {
     return this.main.evaluate(
       (main) => (main.textContent || '').replace(/\s+/g, ' ').trim().length,

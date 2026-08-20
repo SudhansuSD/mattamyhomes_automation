@@ -14,7 +14,7 @@ const QMI_FORM_GLOBAL = '__getVisibleQmiForms';
 export class MobileWebQMIPage extends MobileWebHomePage {
   qmiPageReady = false;
 
-  /** Waits for QMI page. */
+  /** Waits until the QMI page is ready. */
   async waitForQmiPage(address = getLocationConfig().qmiAddress) {
     const location = getLocationConfig();
 
@@ -85,7 +85,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     this.logOpen('QMI detail', lastSnapshot.currentUrl || (await this.driver.getUrl()));
   }
 
-  /** Verifies exact QMI URL. */
+  /** Checks that the QMI URL is exactly the configured path. */
   async verifyExactQmiUrl() {
     const location = getLocationConfig();
     const currentPath = new URL(await this.driver.getUrl()).pathname;
@@ -93,7 +93,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.equal(currentPath, location.qmiPath, `Expected QMI URL path to be ${location.qmiPath}`);
   }
 
-  /** Verifies hero section. */
+  /** Checks the hero section. */
   async verifyHeroSection(address = getLocationConfig().qmiAddress) {
     await this.waitForQmiPage(address);
 
@@ -161,7 +161,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.equal(snapshot.hasMedia, true, 'Expected QMI hero media on mobile');
   }
 
-  /** Verifies hero home facts. */
+  /** Checks the hero home facts. */
   async verifyHeroHomeFacts() {
     await this.waitForQmiPage();
 
@@ -180,7 +180,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies price or CTA. */
+  /** Checks that the page shows either a price or a CTA. */
   async verifyPriceOrCTA() {
     await this.waitForQmiPage();
 
@@ -192,7 +192,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies get information opens a lead form. */
+  /** Checks that Get Information opens a lead form. */
   async verifyGetInformationCtaOpensLeadForm() {
     await this.waitForQmiPage();
 
@@ -202,20 +202,20 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     ]);
 
     if (!clicked) {
-      this.logSkip(
-        'Get Information CTA not present on mobile QMI page - skipping lead form validation',
-      );
-      return;
+      assert.fail('Expected Get Information CTA to be present on mobile QMI page');
     }
 
-    await this.driver.pause(1000);
+    await this.waitForMobileCondition(async () => {
+      const form = await this.getVisibleQmiForm();
+      return form.found;
+    }, 'Expected Get Information CTA to open QMI lead form');
     const form = await this.getVisibleQmiForm();
 
     assert.equal(form.found, true, 'Expected Get Information CTA to open QMI lead form');
     assert.equal(form.hasSubmit, true, 'Expected opened QMI lead form to include a submit button');
   }
 
-  /** Verifies gallery. */
+  /** Checks the gallery. */
   async verifyGallery() {
     await this.waitForQmiPage();
 
@@ -293,7 +293,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.ok(gallery.mediaCount > 0, 'Expected QMI gallery or hero images on mobile');
   }
 
-  /** Verifies floor plan. */
+  /** Checks the floor plan section. */
   async verifyFloorPlan() {
     await this.verifyOptionalSection(
       /floor ?plan/i,
@@ -302,7 +302,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies interactive floor plan. */
+  /** Checks the interactive floor plan. */
   async verifyInteractiveFloorPlan() {
     await this.verifyOptionalSection(
       /interactive floorplan/i,
@@ -311,7 +311,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies community sitemap. */
+  /** Checks the community sitemap. */
   async verifyCommunitySitemap() {
     await this.verifyOptionalSection(
       /explore the community|site ?map|community map/i,
@@ -320,7 +320,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies home design details. */
+  /** Checks the home design details. */
   async verifyHomeDesignDetails() {
     await this.verifyOptionalSection(
       /home design details|design details/i,
@@ -329,7 +329,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies home features. */
+  /** Checks the home features. */
   async verifyHomeFeatures() {
     await this.verifyOptionalSection(
       /home features|features/i,
@@ -338,7 +338,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies sales office and contact form. */
+  /** Checks the sales office and contact form context. */
   async verifySalesOfficeAndContactForm() {
     await this.waitForQmiPage();
 
@@ -367,7 +367,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     }
   }
 
-  /** Verifies related quick move in homes. */
+  /** Checks related quick move-in homes. */
   async verifyRelatedQuickMoveInHomes() {
     this.logValidate('Validate related QMI homes section');
     const result = await this.getRelatedQuickMoveInHomesSnapshot();
@@ -395,15 +395,12 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     }
   }
 
-  /** Validates QMI form fields. */
+  /** Checks the QMI form fields. */
   async validateQmiFormFields() {
     const form = await this.getVisibleQmiForm();
 
     if (!form.found) {
-      this.logSkip(
-        'QMI community updates form not present on mobile - skipping form field validation',
-      );
-      return;
+      assert.fail('Expected QMI community updates form before validating fields on mobile');
     }
 
     assert.match(form.text, /first name/i);
@@ -415,15 +412,14 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.equal(form.hasSubmit, true, 'Expected QMI form submit button on mobile');
   }
 
-  /** Validates QMI form required errors. */
+  /** Checks QMI form required-field errors. */
   async validateQmiFormRequiredErrors() {
     const submitted = await this.submitVisibleQmiFormByIndex(0);
 
     if (!submitted) {
-      this.logSkip(
-        'QMI community updates form not present on mobile - skipping required validation',
+      assert.fail(
+        'Expected QMI community updates form before validating required errors on mobile',
       );
-      return;
     }
 
     const snapshot = await this.getFormErrorSnapshot();
@@ -435,15 +431,12 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates QMI form invalid email. */
+  /** Checks that the QMI form rejects an invalid email address. */
   async validateQmiFormInvalidEmail() {
     const filled = await this.fillInvalidEmailQmiFormByIndex(0);
 
     if (!filled) {
-      this.logSkip(
-        'QMI community updates form not present on mobile - skipping invalid email validation',
-      );
-      return;
+      assert.fail('Expected QMI community updates form before validating invalid email on mobile');
     }
 
     const snapshot = await this.getFormErrorSnapshot();
@@ -456,7 +449,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies QMI form success submission. */
+  /** Checks that the QMI form submits successfully. */
   async verifyQmiFormSuccessSubmission() {
     const { envName } = getEnvConfig();
 
@@ -465,16 +458,13 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     const submitted = await this.fillValidQmiFormByIndex(0);
 
     if (!submitted) {
-      this.logSkip(
-        'QMI community updates form not present on mobile - skipping success submission',
-      );
-      return;
+      assert.fail('Expected QMI community updates form before validating successful submission');
     }
 
     await this.assertSubmissionSuccess('Expected successful submission confirmation for QMI form');
   }
 
-  /** Verifies mortgage popup. */
+  /** Checks the mortgage popup. */
   async verifyMortgagePopup() {
     await this.waitForQmiPage();
 
@@ -532,10 +522,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     });
 
     if (!mortgageSnapshot.found) {
-      this.logSkip(
-        'Mortgage CTA/link not present on mobile QMI page - skipping mortgage validation',
-      );
-      return;
+      assert.fail('Expected Mortgage CTA/link to be present on mobile QMI page');
     }
 
     assert.ok(
@@ -551,7 +538,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies breadcrumb navigation. */
+  /** Checks breadcrumb navigation. */
   async verifyBreadcrumbNavigation() {
     this.logValidate('Validate QMI breadcrumb URL context');
     await this.waitForQmiPage();
@@ -602,7 +589,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     }
   }
 
-  /** Verifies breadcrumb links. */
+  /** Checks breadcrumb links. */
   async verifyBreadcrumbLinks() {
     this.logValidate('Validate QMI breadcrumb links when rendered');
     await this.waitForQmiPage();
@@ -674,7 +661,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.match(result.text, new RegExp(this.escapeRegExp(location.qmiAddress), 'i'));
   }
 
-  /** Verifies plan name link navigation. */
+  /** Checks plan-name link navigation. */
   async verifyPlanNameLinkNavigation() {
     this.logValidate('Validate QMI plan name link navigation');
     await this.waitForQmiPage();
@@ -776,7 +763,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Verifies optional section. */
+  /** Checks an optional section when it is available. */
   async verifyOptionalSection(headingPattern, skipMessage, contentPattern) {
     const result = await this.getSectionSnapshot(headingPattern);
 
@@ -788,7 +775,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.match(result.text, contentPattern);
   }
 
-  /** Returns section snapshot. */
+  /** Captures a snapshot of the section. */
   async getSectionSnapshot(pattern) {
     await this.waitForQmiPage();
 
@@ -829,7 +816,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Returns related quick move in homes snapshot. */
+  /** Captures the related quick move-in homes. */
   async getRelatedQuickMoveInHomesSnapshot() {
     await this.waitForQmiPage();
 
@@ -918,7 +905,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Returns visible QMI form. */
+  /** Finds the visible QMI lead form. */
   async getVisibleQmiForm() {
     await this.waitForQmiPage();
     await this.installQmiFormFinder();
@@ -936,7 +923,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     });
   }
 
-  /** Installs QMI form finder. */
+  /** Installs the shared QMI form finder. */
   async installQmiFormFinder() {
     await installVisibleLeadFormFinder(this.driver, {
       containerSelectors: 'section, div, [role="group"]',
@@ -950,7 +937,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     return submitVisibleLeadFormByIndex(this.driver, QMI_FORM_GLOBAL, formIndex);
   }
 
-  /** Fills invalid email QMI form by index. */
+  /** Fills invalid email address QMI form by index. */
   async fillInvalidEmailQmiFormByIndex(formIndex = 0) {
     await this.installQmiFormFinder();
     return fillInvalidEmailLeadFormByIndex(this.driver, QMI_FORM_GLOBAL, formIndex);

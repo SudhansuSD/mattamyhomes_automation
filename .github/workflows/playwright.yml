@@ -50,6 +50,12 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
+      # A job container gets Docker's default 64MB /dev/shm, which is where
+      # Chromium puts its renderer's shared memory. The heavier pages here are
+      # 350-600KB of SSR HTML, and with 2 workers that ran the renderer out of
+      # shm - surfacing as "page.goto: Page crashed" rather than a test failure.
+      # --ipc=host is Playwright's documented fix for exactly this.
+      options: --ipc=host
     env:
       TEST_ENV: ${{ github.event.inputs.env || 'STAGE' }}
       # ALL (the default, and what scheduled/push runs use) makes the framework

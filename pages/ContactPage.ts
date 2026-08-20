@@ -124,7 +124,7 @@ export class ContactPage extends BasePage {
   readonly corporateOfficeSection: Locator;
   readonly footer: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -147,7 +147,7 @@ export class ContactPage extends BasePage {
     this.footer = page.locator('body');
   }
 
-  /** Navigates to contact. */
+  /** Opens the Contact page. */
   async navigateToContact(locationKey: LocationKey): Promise<void> {
     await this.step(`Navigate to Contact page (${locationKey})`, async () => {
       const { baseURL } = getEnvConfig();
@@ -167,7 +167,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Verifies page loaded. */
+  /** Checks that the page loaded. */
   async verifyPageLoaded(config: ContactCountryConfig): Promise<void> {
     await this.step(`Verify Contact page loaded (${config.locationKey})`, async () => {
       await this.waitForPageReady();
@@ -196,7 +196,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Validates area list. */
+  /** Checks the area list. */
   async validateAreaList(config: ContactCountryConfig): Promise<void> {
     await this.step(`Validate Contact area list (${config.locationKey})`, async () => {
       const areaButtons = this.getAreaButtons();
@@ -228,7 +228,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Validates area details. */
+  /** Checks the selected area details. */
   async validateAreaDetails(area: ContactArea): Promise<void> {
     await this.step(`Validate Contact area details: ${area.name}`, async () => {
       await this.assertVisible(
@@ -257,7 +257,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Validates corporate office emails. */
+  /** Checks the corporate office email links. */
   async validateCorporateOfficeEmails(): Promise<void> {
     await this.step('Validate corporate office emails', async () => {
       await this.assertVisible(
@@ -289,7 +289,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Validates footer and social links. */
+  /** Checks the footer and social links. */
   async validateFooterAndSocialLinks(config: ContactCountryConfig): Promise<void> {
     await this.step(`Validate footer and social links (${config.locationKey})`, async () => {
       await this.assertVisible(this.footer, 'Contact page footer should be visible', 15_000);
@@ -355,12 +355,12 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Returns area buttons. */
+  /** Gets the area buttons. */
   private getAreaButtons(): Locator {
     return this.main.locator('button[aria-label^="View contact details of"]:visible');
   }
 
-  /** Returns area button. */
+  /** Gets the selected area button. */
   private getAreaButton(areaName: string): Locator {
     return this.getAreaButtons()
       .filter({
@@ -369,7 +369,7 @@ export class ContactPage extends BasePage {
       .first();
   }
 
-  /** Clicks area button. */
+  /** Clicks an area button. */
   private async clickAreaButton(areaName: string): Promise<void> {
     for (let attempt = 1; attempt <= 3; attempt++) {
       const areaButton = this.getAreaButton(areaName);

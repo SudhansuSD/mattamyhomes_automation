@@ -22,9 +22,7 @@ type SelfHealingLocatorOptions = {
   timeout?: number;
 };
 
-/* ==========================================================
-   Base Page – Shared Navigation & Common Utilities
-========================================================== */
+// Base Page – Shared Navigation & Common Utilities
 
 export class BasePage {
   protected readonly page: Page;
@@ -42,7 +40,7 @@ export class BasePage {
    */
   protected readonly locationOverride?: LocationKey;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page, locationOverride?: LocationKey) {
     this.page = page;
     this.locationOverride = locationOverride;
@@ -53,11 +51,9 @@ export class BasePage {
     return getLocationConfig(this.locationOverride);
   }
 
-  /* ==========================================================
-     Navigation
-  ========================================================== */
+  // Navigation
 
-  /** Navigates to the configured page URL. */
+  /** Opens the configured page URL. */
   async navigate(overrideLocation?: LocationKey): Promise<void> {
     const { baseURL, envName } = getEnvConfig();
     const location = getLocationConfig(overrideLocation ?? this.locationOverride);
@@ -154,9 +150,7 @@ export class BasePage {
     }
   }
 
-  /* ==========================================================
-     Common Load Stabilization
-  ========================================================== */
+  // Common Load Stabilization
 
   /**
    * Waits until the page has stopped rendering.
@@ -227,13 +221,20 @@ export class BasePage {
    * `quietWindowMs` is how long the DOM must stay unchanged before this returns;
    * `waitForPageReady` passes a longer one because it runs right after
    * navigation, where the SPA can pause mid-render.
+   *
+   * The `ms` cap is enforced from Node, not only by the in-page timers: those
+   * timers cannot fire while the renderer's main thread is blocked, and
+   * `page.evaluate` has no timeout of its own (unlike actions, which get
+   * `actionTimeout`). A busy or dying renderer therefore used to hang here for
+   * as long as the test had left - one plan-detail run burned its whole 5-minute
+   * budget inside a single `settle(3000)`.
    */
   protected async settle(
     ms: number,
     target: Page = this.page,
     quietWindowMs = Math.min(300, ms),
   ): Promise<void> {
-    await target
+    const domQuiet = target
       .evaluate(
         ([maxMs, quietMs]) =>
           new Promise<void>((resolve) => {
@@ -260,9 +261,25 @@ export class BasePage {
         [ms, quietWindowMs] as const,
       )
       .catch(() => undefined);
+
+    // Deliberately not awaiting domQuiet on its own: whichever finishes first
+    // wins, and the loser is already .catch()-guarded so a still-pending
+    // evaluate cannot surface as an unhandled rejection later.
+    let deadline: NodeJS.Timeout | undefined;
+
+    await Promise.race([
+      domQuiet,
+      new Promise<void>((resolve) => {
+        deadline = setTimeout(resolve, ms + 2_000);
+      }),
+    ]);
+
+    if (deadline) {
+      clearTimeout(deadline);
+    }
   }
 
-  /** Validates image and video urls return200. */
+  /** Checks that image and video URLs return HTTP 200. */
   async validateImageAndVideoUrlsReturn200(pageName: string): Promise<void> {
     await test.step(`Validate image and video URLs return 200 on ${pageName}`, async () => {
       await this.waitForPageReady();
@@ -316,7 +333,7 @@ export class BasePage {
     await this.waitForPageReady();
   }
 
-  /** Collects image and video urls. */
+  /** Collects image and video URLs. */
   private async collectImageAndVideoUrls(): Promise<
     Array<{ type: string; label: string; url: string }>
   > {
@@ -445,7 +462,7 @@ export class BasePage {
     );
   }
 
-  /** Returns media URL status. */
+  /** Gets the HTTP status for a media URL. */
   private async getMediaUrlStatus(url: string): Promise<number | string> {
     const headResponse = await this.page.request
       .head(url, {
@@ -471,14 +488,7 @@ export class BasePage {
     return getResponse.status();
   }
 
-  /* ==========================================================
-     Allure Step Reporting
-
-     Thin instance wrappers over the shared helpers in
-     utils/allureReporter so page objects can call
-     this.step(...) / this.reportValue(...). Specs import the
-     standalone functions directly.
-  ========================================================== */
+  // Allure Step Reporting Thin instance wrappers over the shared helpers in utils/allureReporter so page objects can call this.step(...) / this.reportValue(...). Specs import the standalone functions directly.
 
   /**
    * Runs an action inside a named Allure step so it shows as a labeled node in
@@ -555,11 +565,9 @@ export class BasePage {
     return primary.locator;
   }
 
-  /* ==========================================================
-     Shared Assertions
-  ========================================================== */
+  // Shared Assertions
 
-  /** Asserts page loaded. */
+  /** Checks that the page loaded. */
   protected async assertPageLoaded(label = 'Page should be loaded'): Promise<void> {
     await test.step(label, async () => {
       await this.waitForPageReady();
@@ -567,7 +575,7 @@ export class BasePage {
     });
   }
 
-  /** Asserts page title. */
+  /** Checks the page title. */
   protected async assertPageTitle(
     expectedTitle: string | RegExp,
     label = 'Page title should match expected value',
@@ -577,7 +585,7 @@ export class BasePage {
     });
   }
 
-  /** Asserts page URL. */
+  /** Checks the page URL. */
   protected async assertPageUrl(
     expectedUrl: string | RegExp,
     label = 'Page URL should match expected value',
@@ -588,7 +596,7 @@ export class BasePage {
     });
   }
 
-  /** Asserts page URL contains. */
+  /** Checks that the page URL contains the expected value. */
   protected async assertPageUrlContains(
     expectedUrlPart: string,
     label = `Page URL should contain: ${expectedUrlPart}`,
@@ -597,7 +605,7 @@ export class BasePage {
     await this.assertPageUrl(new RegExp(escapeRegex(expectedUrlPart), 'i'), label, timeout);
   }
 
-  /** Asserts page URL does not match. */
+  /** Checks that the page URL does not match an unexpected value. */
   protected async assertPageUrlDoesNotMatch(
     unexpectedUrl: string | RegExp,
     label = 'Page URL should not match unexpected value',
@@ -607,7 +615,7 @@ export class BasePage {
     });
   }
 
-  /** Asserts visible. */
+  /** Checks that the element is visible. */
   protected async assertVisible(
     locator: Locator,
     label = 'Element should be visible',
@@ -618,7 +626,7 @@ export class BasePage {
     });
   }
 
-  /** Asserts attached. */
+  /** Checks that the element is attached to the DOM. */
   protected async assertAttached(
     locator: Locator,
     label = 'Element should be attached',
@@ -629,7 +637,7 @@ export class BasePage {
     });
   }
 
-  /** Asserts text contains. */
+  /** Checks that the text contains the expected value. */
   protected async assertTextContains(
     locator: Locator,
     expectedText: string | RegExp,
@@ -641,7 +649,7 @@ export class BasePage {
     });
   }
 
-  /** Asserts text. */
+  /** Checks the text exactly. */
   protected async assertText(
     locator: Locator,
     expectedText: string | RegExp,
@@ -653,7 +661,7 @@ export class BasePage {
     });
   }
 
-  /** Asserts body contains. */
+  /** Checks that the page body contains the expected text. */
   protected async assertBodyContains(
     expectedText: string | RegExp,
     label = 'Page body should contain expected text',
@@ -662,7 +670,7 @@ export class BasePage {
     await this.assertTextContains(this.page.locator('body'), expectedText, label, timeout);
   }
 
-  /** Asserts heading visible. */
+  /** Checks that the page heading is visible. */
   protected async assertHeadingVisible(
     expectedName?: string | RegExp,
     label = 'Page heading should be visible',
@@ -675,7 +683,7 @@ export class BasePage {
     await this.assertVisible(heading, label, timeout);
   }
 
-  /** Asserts heading contains. */
+  /** Checks that the page heading contains the expected text. */
   protected async assertHeadingContains(
     expectedText: string | RegExp,
     label = 'Page heading should contain expected text',
@@ -684,7 +692,7 @@ export class BasePage {
     await this.assertTextContains(this.page.locator('h1').first(), expectedText, label, timeout);
   }
 
-  /** Asserts attribute. */
+  /** Checks an element attribute. */
   protected async assertAttribute(
     locator: Locator,
     attributeName: string,
@@ -697,7 +705,7 @@ export class BasePage {
     });
   }
 
-  /** Asserts count. */
+  /** Checks the locator count. */
   protected async assertCount(
     locator: Locator,
     expectedCount: number,
@@ -716,7 +724,7 @@ export class BasePage {
     expect(value, label).toBeTruthy();
   }
 
-  /** Asserts greater than. */
+  /** Checks that the actual value is greater than the minimum. */
   protected assertGreaterThan(
     actual: number,
     minimum: number,
@@ -725,9 +733,7 @@ export class BasePage {
     expect(actual, label).toBeGreaterThan(minimum);
   }
 
-  /* ==========================================================
-     Cookie Handling
-  ========================================================== */
+  // Cookie Handling
 
   /**
    * Registers auto-dismiss handlers for late-appearing consent dialogs.
@@ -839,6 +845,7 @@ export class BasePage {
     if (await nationalPromotionDialog.isVisible().catch(() => false)) {
       await this.closeNationalPromotion(nationalPromotionDialog);
       await this.settle(500);
+      await this.clearStaleModalAriaHidden();
       return;
     }
 
@@ -907,6 +914,104 @@ export class BasePage {
 
       await dialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => undefined);
     }
+
+    await this.clearStaleModalAriaHidden();
+  }
+
+  /**
+   * Clears react-modal's page-level state when no modal is actually mounted.
+   *
+   * While a modal is open react-modal marks its app element `aria-hidden="true"`
+   * and puts `ReactModal__Body--open` on <body>, and undoes both from its own
+   * close handler. Every dismissal in this class closes those overlays the blunt
+   * way - force click, dispatchEvent, Escape, and finally `.remove()` on the
+   * overlay in closeNationalPromotion - so the modal goes away without that
+   * handler ever running and `#root` stays aria-hidden for the rest of the test.
+   *
+   * That one leftover attribute takes the whole page out of the accessibility
+   * tree, so every role-based lookup matches nothing while the page still looks
+   * perfectly normal on screen. On the USA community page it drops
+   * `getByRole('button', { name: /submit/i })` from 2 matches to 0 and
+   * `getByRole('textbox')` from 14 to 0 - which is how an open, visible form
+   * ends up reported as "not present on the page".
+   *
+   * The guard checks for a *visible* promotion/notification overlay rather than
+   * for any `.ReactModal__Content`: the promotion overlay is itself a mounted
+   * `.ReactModal__Content`, so the broader check skipped exactly when the flag
+   * needed clearing. Clearing it can't hide a real dialog either - react-modal
+   * portals its overlays outside `#root`, and the Get Information flyout is not
+   * a react-modal at all.
+   */
+  protected async clearStaleModalAriaHidden(): Promise<void> {
+    await this.page
+      .evaluate(() => {
+        const isVisible = (element: Element): boolean => {
+          const box = element.getBoundingClientRect();
+
+          return box.width > 0 || box.height > 0;
+        };
+
+        const blockingOverlay = Array.from(
+          document.querySelectorAll('.ReactModal__Content, [role="dialog"][aria-modal="true"]'),
+        ).some(
+          (element) =>
+            /promotion|notification/i.test(element.getAttribute('aria-label') ?? '') &&
+            isVisible(element),
+        );
+
+        if (blockingOverlay) {
+          return;
+        }
+
+        document.body.classList.remove('ReactModal__Body--open');
+
+        document
+          .querySelectorAll('#root[aria-hidden="true"]')
+          .forEach((element) => element.removeAttribute('aria-hidden'));
+      })
+      .catch(() => undefined);
+  }
+
+  /**
+   * Puts the page back in the accessibility tree after the promotion popup has
+   * taken it out.
+   *
+   * `dismissPromoPopupIfPresent` can miss the popup: it renders a beat after
+   * navigation, and the wait window is kept short so pages with no promo (the
+   * whole CAN site) don't pay for it on every call. A promo that mounts just
+   * after that window leaves `#root` aria-hidden for the rest of the test, and
+   * from there every role-based lookup quietly matches nothing - which is why
+   * this only ever showed up on USA, and only sometimes.
+   *
+   * Re-checking here is cheaper than waiting longer up front: one attribute
+   * lookup when all is well, a dismissal when it isn't. Never throws - if the
+   * promo refuses to close, the click it blocks reports it and names the
+   * intercepting element.
+   */
+  protected async ensurePageInAccessibilityTree(): Promise<void> {
+    const hiddenRoot = this.page.locator('#root[aria-hidden="true"]');
+
+    if (!(await hiddenRoot.count().catch(() => 0))) {
+      return;
+    }
+
+    await this.reportValue(
+      'Page was aria-hidden by the promotion popup; recovering',
+      this.page.url(),
+    );
+
+    // Ends with clearStaleModalAriaHidden(), which is what actually drops the
+    // leftover attribute when the overlay was removed without react-modal's own
+    // close handler running.
+    await this.dismissPromoPopupIfPresent();
+
+    await expect
+      .poll(() => hiddenRoot.count(), {
+        message: 'The page should be back in the accessibility tree (#root not aria-hidden)',
+        timeout: 5000,
+      })
+      .toBe(0)
+      .catch(() => undefined);
   }
 
   /**
@@ -945,6 +1050,8 @@ export class BasePage {
         })
         .catch(() => undefined);
     }
+
+    await this.clearStaleModalAriaHidden();
   }
 
   /** Ensures the configured header country is selected when the selector is visible. */
@@ -993,9 +1100,7 @@ export class BasePage {
       .toMatch(new RegExp(`${expectedCountry}(?: country is selected)?`, 'i'));
   }
 
-  /* ==========================================================
-  Scroll Handler 
-  ========================================================== */
+  // Scroll Handler
 
   /** Scrolls to the requested page position. */
   protected async scrollTo(locator: Locator): Promise<void> {
@@ -1009,11 +1114,9 @@ export class BasePage {
       });
     });
 
-    await this.page.waitForTimeout(800);
+    await this.settle(800);
   }
-  /* ==========================================================
-  Helper
-  ========================================================== */
+  // Helper
 
   /** Builds full URL. */
   protected buildFullUrl(relativeUrl: string | null): string {
@@ -1025,9 +1128,7 @@ export class BasePage {
     return formatCurrencyPrice(price);
   }
 
-  /* ==========================================================
-     Utils (NEW - stable reusable helpers)
-  ========================================================== */
+  // Utils (NEW - stable reusable helpers)
 
   /** Clicks element. */
   protected async clickElement(locator: Locator): Promise<void> {
@@ -1065,7 +1166,7 @@ export class BasePage {
     }
   }
 
-  /** Normalizes text. */
+  /** Normalizes text for reliable comparisons. */
   protected normalizeText(text: string): string {
     return normalizeComparableText(text);
   }
@@ -1075,17 +1176,9 @@ export class BasePage {
     return formatPriceLabel(price);
   }
 
-  /* ==========================================================
-     Get Information Side Modal Lead Form
+  // Get Information Side Modal Lead Form The "Get Information / Stay Updated" CTA opens the same sidebar/modal lead form on the condo plan, plan detail and QMI pages. The flow is identical on all three - only the page label, the container locator and the timeouts differ - so it lives here instead of being copied per page object.
 
-     The "Get Information / Stay Updated" CTA opens the same
-     sidebar/modal lead form on the condo plan, plan detail and
-     QMI pages. The flow is identical on all three - only the
-     page label, the container locator and the timeouts differ -
-     so it lives here instead of being copied per page object.
-  ========================================================== */
-
-  /** Returns the first visible Get Information / Stay Updated CTA. */
+  /** Finds the first visible Get Information / Stay Updated CTA. */
   protected async getVisibleGetInformationCta(pageLabel: string): Promise<Locator> {
     const allCtas = this.page.locator('a:visible, button:visible').filter({
       hasText: /Get Information|Stay Updated/i,
@@ -1191,6 +1284,10 @@ export class BasePage {
       beforeReveal: options.beforeReveal,
     });
 
+    // The promotion popup can mount after the CTA click and aria-hide the page,
+    // which would make the open side modal count as 0 below.
+    await this.ensurePageInAccessibilityTree();
+
     const formCount = await expect
       .poll(() => options.leadForms.count(), {
         message: `${options.formName} sidebar/modal should open after Get Information CTA`,
@@ -1288,7 +1385,7 @@ export class BasePage {
     await this.reportValue(`${options.formName} lead API data saved to`, outputFile);
   }
 
-  /** Waits for lead api response. */
+  /** Waits until lead api response. */
   private async waitForLeadApiResponse(timeout: number): Promise<Response | null> {
     return this.page
       .waitForResponse((response) => this.isLeadApiResponse(response), { timeout })

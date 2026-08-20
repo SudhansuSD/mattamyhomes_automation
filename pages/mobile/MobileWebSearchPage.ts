@@ -5,7 +5,7 @@ import { getLocationConfig } from '../../config/locations/locationConfig';
 const RESULT_TABS = ['Communities', 'Plans', 'Quick Move-Ins'];
 
 export class MobileWebSearchPage extends MobileWebHomePage {
-  /** Navigates to the configured mobile search page. */
+  /** Opens the configured mobile search page. */
   async navigate() {
     await this.openSearchByMarket(getLocationConfig().market);
   }
@@ -27,13 +27,13 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     await this.waitForSearchPage();
   }
 
-  /** Searches by market. */
+  /** Searches for a market. */
   async searchByMarket(market = getLocationConfig().market) {
     await this.openSearchByMarket(market);
     return true;
   }
 
-  /** Verifies search by market. */
+  /** Checks the market search flow. */
   async verifySearchByMarket(expectedMarket = getLocationConfig().market) {
     const currentUrl = await this.driver.getUrl();
     const params = new URL(currentUrl).searchParams;
@@ -43,7 +43,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     assert.equal(this.normalizeText(metro), this.normalizeText(expectedMarket));
   }
 
-  /** Waits for search page. */
+  /** Waits until search page. */
   async waitForSearchPage() {
     await this.driver.waitUntil(
       async () => {
@@ -76,7 +76,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Opens tab. */
+  /** Opens the requested results tab. */
   async openTab(tabName) {
     await this.waitForSearchPage();
     await this.closeCookiePreferencesIfVisible();
@@ -116,12 +116,11 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
 
     if (clicked) {
-      await this.driver.pause(1500);
-      await this.waitForPageReady();
+      await this.waitForSearchPage();
     }
   }
 
-  /** Returns search snapshot. */
+  /** Captures the current search results state. */
   async getSearchSnapshot() {
     return this.driver.execute(() => {
       const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim();
@@ -162,7 +161,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     });
   }
 
-  /** Verifies results. */
+  /** Checks the search results. */
   async verifyResults(tabName) {
     await this.openTab(tabName);
     await this.waitForSearchPage();
@@ -180,14 +179,13 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates result cards required details. */
+  /** Checks result cards required details. */
   async validateResultCardsRequiredDetails(tabName) {
     await this.verifyResults(tabName);
     const snapshot = await this.getSearchSnapshot();
 
     if (!snapshot.cards.length) {
-      this.logSkip(`${tabName}: no cards present - skipping card detail validation`);
-      return;
+      assert.fail(`${tabName}: expected result cards before validating card details`);
     }
 
     for (const [index, card] of snapshot.cards.entries()) {
@@ -203,14 +201,14 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
   }
 
-  /** Validates all result cards required details. */
+  /** Checks all result cards required details. */
   async validateAllResultCardsRequiredDetails() {
     for (const tab of RESULT_TABS) {
       await this.validateResultCardsRequiredDetails(tab);
     }
   }
 
-  /** Validates result card CTA navigation. */
+  /** Checks result card CTA navigation. */
   async validateResultCardCtaNavigation(tabName, cardsToValidate = 2) {
     await this.verifyResults(tabName);
     const snapshot = await this.getSearchSnapshot();
@@ -219,8 +217,9 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
 
     if (!cards.length) {
-      this.logSkip(`${tabName}: no detail CTAs present - skipping CTA navigation validation`);
-      return;
+      assert.fail(
+        `${tabName}: expected result cards with detail CTAs before navigation validation`,
+      );
     }
 
     for (const card of cards.slice(0, cardsToValidate)) {
@@ -239,7 +238,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
   }
 
-  /** Validates all result card CTA navigation. */
+  /** Checks all result card CTA navigation. */
   async validateAllResultCardCtaNavigation() {
     for (const tab of RESULT_TABS) {
       await this.validateResultCardCtaNavigation(tab);
@@ -254,14 +253,16 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     ]);
   }
 
-  /** Validates price range across tabs. */
+  /** Checks price range across tabs. */
   async validatePriceRangeAcrossTabs(minPrice, maxPrice) {
     for (const tab of RESULT_TABS) {
       await this.verifyResults(tab);
       const prices = await this.getCardNumbers(/\$([\d,]+)/g);
 
       if (tab === 'Communities' || prices.length === 0) {
-        this.logSkip(`${tab}: no displayed card prices to assert for mobile price filter`);
+        if (tab !== 'Communities') {
+          assert.fail(`${tab}: expected displayed prices to assert mobile price filtering`);
+        }
         continue;
       }
 
@@ -279,7 +280,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     await this.applyFilterControl(/beds|bath/i, [`${minBeds} Bedrooms`, `${minBaths} Bathrooms`]);
   }
 
-  /** Validates beds baths across tabs. */
+  /** Checks beds baths across tabs. */
   async validateBedsBathsAcrossTabs(minBeds, minBaths) {
     for (const tab of RESULT_TABS) {
       await this.verifyResults(tab);
@@ -306,7 +307,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
   }
 
-  /** Validates clear reset filters behavior. */
+  /** Checks clear reset filters behavior. */
   async validateClearResetFiltersBehavior() {
     await this.verifyResults('Communities');
     const before = await this.getVisibleCardSignature();
@@ -314,9 +315,12 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     await this.filterByPrice(400000, 500000);
     const filtered = await this.getVisibleCardSignature();
 
-    await this.clickVisibleByText(/reset all filters|clear filters|reset/i, ['button', 'a']);
-    await this.driver.pause(1500);
-    await this.waitForSearchPage();
+    const resetClicked = await this.clickVisibleByText(/reset all filters|clear filters|reset/i, [
+      'button',
+      'a',
+    ]);
+    assert.equal(resetClicked, true, 'Expected reset/clear filters control to be clickable');
+    await this.waitForSearchSignatureChange(filtered, 'reset filters');
 
     const after = await this.getVisibleCardSignature();
     assert.ok(
@@ -325,7 +329,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates community sort options. */
+  /** Checks community sort options. */
   async validateCommunitySortOptions() {
     await this.validateSortOptions(
       'Communities',
@@ -334,26 +338,23 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Validates plan sort options. */
+  /** Checks plan sort options. */
   async validatePlanSortOptions() {
     await this.validateSortOptions('Plans', ['$ - $$$', 'Sq. Ft.', 'A - Z']);
   }
 
-  /** Validates QMI sort options. */
+  /** Checks QMI sort options. */
   async validateQMISortOptions() {
     await this.validateSortOptions('Quick Move-Ins', ['Date', '$ - $$$', 'Sq. Ft.', 'A - Z']);
   }
 
-  /** Validates sort options. */
+  /** Checks sort options. */
   async validateSortOptions(tabName, required, optional = []) {
     await this.openTab(tabName);
     const options = await this.openSortAndGetOptions();
 
     if (!options.length) {
-      this.logSkip(
-        `${tabName}: sort control not present on mobile - skipping sort option validation`,
-      );
-      return;
+      assert.fail(`${tabName}: expected sort control/options for mobile sort option validation`);
     }
 
     const normalized = options.map((option) => this.normalizeText(option));
@@ -372,23 +373,21 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
   }
 
-  /** Validates sorting behavior. */
+  /** Checks sorting behavior. */
   async validateSortingBehavior(tabName) {
     await this.openTab(tabName);
     const options = await this.openSortAndGetOptions();
 
     if (!options.length) {
-      this.logSkip(
-        `${tabName}: sort control not present on mobile - skipping sort behavior validation`,
-      );
-      return;
+      assert.fail(`${tabName}: expected sort control/options for mobile sort behavior validation`);
     }
 
     const option = options.find((item) => /\$|A - Z|Sq\.?\s*Ft/i.test(item));
 
     if (!option) {
-      this.logSkip(`${tabName}: no sortable option found - skipping sort behavior validation`);
-      return;
+      assert.fail(
+        `${tabName}: expected at least one sortable option. Options: ${options.join(', ')}`,
+      );
     }
 
     const before = await this.getVisibleCardSignature();
@@ -397,8 +396,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
       ['button', 'a', 'div'],
       `${tabName} sort: ${option}`,
     );
-    await this.driver.pause(1500);
-    await this.waitForSearchPage();
+    await this.waitForSearchSignatureChange(before, `${tabName} sort: ${option}`);
     const after = await this.getVisibleCardSignature();
 
     assert.ok(before || after, `${tabName} sort behavior should leave readable result state`);
@@ -439,15 +437,12 @@ export class MobileWebSearchPage extends MobileWebHomePage {
       return [];
     }
 
-    await this.driver.pause(500);
+    await this.waitForMobileCondition(async () => {
+      const options = await this.getSortOptionLabels();
+      return options.length > 0;
+    }, 'Expected mobile sort options to render after opening sort control').catch(() => undefined);
 
-    return this.driver.execute(() =>
-      Array.from(
-        document.querySelectorAll('button, [role="option"], [role="menuitem"], div[role="button"]'),
-      )
-        .map((element) => (element.textContent || '').replace(/\s+/g, ' ').trim())
-        .filter((text) => /\$|A - Z|Sq\.?\s*Ft|Availability|Featured|Date/i.test(text)),
-    );
+    return this.getSortOptionLabels();
   }
 
   /** Applies a filter control by choosing its matching options. */
@@ -457,28 +452,52 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     const opened = await this.clickVisibleByText(filterPattern, ['button', 'a', '[role="button"]']);
 
     if (!opened) {
-      this.logSkip(
-        `Filter control ${filterPattern} not present on mobile - skipping filter action`,
-      );
-      return;
+      assert.fail(`Expected filter control ${filterPattern} to be present on mobile search page`);
     }
 
-    await this.driver.pause(500);
+    await this.waitForMobileCondition(async () => {
+      const text = await this.getBodyText();
+      return optionLabels.some((label) => new RegExp(this.escapeRegExp(label), 'i').test(text));
+    }, `Expected filter options for ${filterPattern} to render on mobile search page`).catch(
+      () => undefined,
+    );
 
+    const before = await this.getVisibleCardSignature();
     for (const label of optionLabels) {
-      await this.clickVisibleByText(
+      const clicked = await this.clickVisibleByText(
         new RegExp(this.escapeRegExp(label), 'i'),
         ['button', 'a', 'label', 'span', 'div'],
         `filter option: ${label}`,
       );
-      await this.driver.pause(300);
+
+      assert.equal(clicked, true, `Expected filter option "${label}" to be clickable`);
     }
 
-    await this.driver.pause(1500);
-    await this.waitForSearchPage();
+    await this.waitForSearchSignatureChange(before, `filter ${filterPattern}`);
   }
 
-  /** Returns card numbers. */
+  /** Gets visible sort option labels. */
+  async getSortOptionLabels() {
+    return this.driver.execute(() =>
+      Array.from(
+        document.querySelectorAll('button, [role="option"], [role="menuitem"], div[role="button"]'),
+      )
+        .map((element) => (element.textContent || '').replace(/\s+/g, ' ').trim())
+        .filter((text) => /\$|A - Z|Sq\.?\s*Ft|Availability|Featured|Date/i.test(text)),
+    );
+  }
+
+  /** Waits until search state to update after a filter or sort action. */
+  async waitForSearchSignatureChange(before, label) {
+    await this.waitForMobileCondition(async () => {
+      const after = await this.getVisibleCardSignature();
+      return after.length > 0 && after !== before;
+    }, `Expected mobile search results state to change after ${label}`).catch(async () => {
+      await this.waitForSearchPage();
+    });
+  }
+
+  /** Reads the visible card numbers. */
   async getCardNumbers(pattern) {
     const snapshot = await this.getSearchSnapshot();
     const numbers = [];
@@ -496,7 +515,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     return numbers;
   }
 
-  /** Returns visible card signature. */
+  /** Builds a signature for the visible result cards. */
   async getVisibleCardSignature() {
     const snapshot = await this.getSearchSnapshot();
     return (
@@ -509,7 +528,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Formats price label. */
+  /** Formats a price label for the mobile filters. */
   formatPriceLabel(value) {
     if (value >= 1000000) {
       return `$${value / 1000000}M`;

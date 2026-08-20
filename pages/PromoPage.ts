@@ -32,7 +32,7 @@ export class PromoPage extends BasePage {
   readonly submitButton: Locator;
   readonly successDialogModal: Locator;
 
-  /** Initializes this page object and its locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -54,7 +54,7 @@ export class PromoPage extends BasePage {
     this.successDialogModal = page.locator('.ReactModal__Content').last();
   }
 
-  /** Navigates to hometown heroes promo. */
+  /** Opens hometown heroes promo. */
   async navigateToHometownHeroesPromo(): Promise<void> {
     await this.step('Navigate to Hometown Heroes promo', async () => {
       const { baseURL, envName } = getEnvConfig();
@@ -75,7 +75,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Verifies page loaded. */
+  /** Checks that the page loaded. */
   async verifyPageLoaded(): Promise<void> {
     await this.step('Verify Hometown Heroes promo page loaded', async () => {
       await this.assertPageUrl(
@@ -108,7 +108,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Verifies promo form fields. */
+  /** Checks the promo form fields. */
   async verifyPromoFormFields(): Promise<void> {
     await this.step('Verify promo form fields', async () => {
       await this.scrollToForm();
@@ -141,7 +141,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Validates required field errors. */
+  /** Checks required field errors. */
   async validateRequiredFieldErrors(): Promise<void> {
     await this.step('Validate required field errors', async () => {
       await this.scrollToForm();
@@ -158,7 +158,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Validates invalid email error. */
+  /** Checks invalid email address error. */
   async validateInvalidEmailError(): Promise<void> {
     await this.step('Validate invalid email error', async () => {
       await this.scrollToForm();
@@ -193,7 +193,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Verifies successful submission. */
+  /** Checks that the form submits successfully. */
   async verifySuccessfulSubmission(): Promise<void> {
     await this.step('Verify successful form submission', async () => {
       await this.scrollToForm();
@@ -208,42 +208,42 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Returns the community field locator or value. */
+  /** Gets the community field locator. */
   private get communityField(): Locator {
     return this.promoForm.getByRole('combobox', { name: /Community of Interest/i }).first();
   }
 
-  /** Returns the first name field locator or value. */
+  /** Gets the first name field locator. */
   private get firstNameField(): Locator {
     return this.promoForm.getByRole('textbox', { name: /First name/i }).first();
   }
 
-  /** Returns the last name field locator or value. */
+  /** Gets the last name field locator. */
   private get lastNameField(): Locator {
     return this.promoForm.getByRole('textbox', { name: /Last name/i }).first();
   }
 
-  /** Returns the email field locator or value. */
+  /** Gets the email field locator. */
   private get emailField(): Locator {
     return this.promoForm.getByRole('textbox', { name: /Email/i }).first();
   }
 
-  /** Returns the country field locator or value. */
+  /** Gets the country field locator. */
   private get countryField(): Locator {
     return this.promoForm.getByRole('combobox', { name: /Country of Residence/i }).first();
   }
 
-  /** Returns the zip postal field locator or value. */
+  /** Gets the ZIP/postal field locator. */
   private get zipPostalField(): Locator {
     return this.promoForm.getByRole('textbox', { name: /Zip\/Postal Code/i }).first();
   }
 
-  /** Returns the phone field locator or value. */
+  /** Gets the phone field locator. */
   private get phoneField(): Locator {
     return this.promoForm.getByRole('textbox', { name: /Phone number/i }).first();
   }
 
-  /** Returns the questions field locator or value. */
+  /** Gets the questions field locator. */
   private get questionsField(): Locator {
     return this.promoForm
       .getByRole('textbox', {
@@ -252,12 +252,12 @@ export class PromoPage extends BasePage {
       .first();
   }
 
-  /** Returns the terms checkbox locator or value. */
+  /** Gets the terms checkbox locator. */
   private get termsCheckbox(): Locator {
     return getConsentCheckbox(this.promoForm);
   }
 
-  /** Returns the sms checkbox locator or value. */
+  /** Gets the SMS checkbox locator. */
   private get smsCheckbox(): Locator {
     return this.promoForm
       .getByRole('checkbox', {
@@ -275,7 +275,7 @@ export class PromoPage extends BasePage {
     await this.promoForm.scrollIntoViewIfNeeded();
   }
 
-  /** Fills promo form. */
+  /** Fills the promo form. */
   private async fillPromoForm(leadData: PromoLeadData): Promise<void> {
     await this.communityField.selectOption({ label: leadData.community });
     await this.firstNameField.fill(leadData.firstName);
@@ -292,7 +292,7 @@ export class PromoPage extends BasePage {
     }
   }
 
-  /** Builds valid lead data. */
+  /** Builds valid lead data for the promo form. */
   private buildValidLeadData(): PromoLeadData {
     const data = getValidLeadData('promo');
     const profile = getLeadProfile('promo');
@@ -309,7 +309,7 @@ export class PromoPage extends BasePage {
     };
   }
 
-  /** Returns the required-field error locator. */
+  /** Gets the required-field error locator. */
   private requiredError(fieldName: RegExp): Locator {
     return this.promoForm
       .locator('div:visible, span:visible, p:visible, label:visible')
