@@ -8,6 +8,8 @@ import {
   expectSideModalFormFields,
   fillInvalidSideModalForm,
   fillValidSideModalForm,
+  GET_INFORMATION_CTA_SELECTOR,
+  GET_INFORMATION_CTA_TEXT,
   getSubmitButton,
   SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadFormHelper';
@@ -124,9 +126,9 @@ export class PlanDetailPage extends SearchablePage {
       'a[aria-label*="Floorplan"], a:has-text("Floorplan")',
     );
     this.getInformationCta = page
-      .locator('a, button')
+      .locator(GET_INFORMATION_CTA_SELECTOR)
       .filter({
-        hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i,
+        hasText: GET_INFORMATION_CTA_TEXT,
       })
       .first();
     this.signUpFormSection = page
