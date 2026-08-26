@@ -16,6 +16,8 @@ import {
   expectSideModalFormFields,
   fillInvalidSideModalForm,
   fillValidSideModalForm,
+  GET_INFORMATION_CTA_SELECTOR,
+  GET_INFORMATION_CTA_TEXT,
   getSubmitButton,
   SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadFormHelper';
@@ -72,9 +74,9 @@ export class QMIPage extends SearchablePage {
     this.breadcrumb = page.locator('#breadcrumb');
     this.priceSection = this.heroSection.locator("p:has-text('$')");
     this.getInformationCta = page
-      .locator('a, button')
+      .locator(GET_INFORMATION_CTA_SELECTOR)
       .filter({
-        hasText: /Get Information|Stay Updated/i,
+        hasText: GET_INFORMATION_CTA_TEXT,
       })
       .first();
     this.formSection = page

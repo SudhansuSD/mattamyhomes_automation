@@ -16,8 +16,12 @@ import {
   expectRequiredErrorsInForm,
   fillLeadFormByFormId,
   fillLeadFormFields,
+  getHeroInformationCta,
   getInvalidLeadData,
+  getSubmitButton as getLeadFormSubmitButton,
   getValidLeadData,
+  GET_INFORMATION_CTA_TEXT,
+  SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadFormHelper';
 
 const TIMEOUT = {
@@ -50,6 +54,13 @@ const FORM_CONTAINER_SELECTOR = [
 ].join(', ');
 
 export class CondoCommunityPage extends SearchablePage {
+  /**
+   * Excludes side-modal/dialog content from in-page form lookups so the three
+   * condo community form paths stay distinct: side modal, primary, and footer.
+   */
+  private static readonly NOT_IN_DIALOG =
+    ':not([role="dialog"] *):not(.ReactModal__Content *):not([id*="ModalForm"] *)';
+
   /** Sets up the page object for the Canada-only condo experience. */
   constructor(page: Page) {
     // Condo communities exist only in Canada, so this page always runs against
@@ -84,22 +95,29 @@ export class CondoCommunityPage extends SearchablePage {
     return this.page.locator('a, button').filter({ hasText: TEXT.cta });
   }
 
-  /** Finds community CTA that opens the lead form sidebar/modal. */
+  /**
+   * Finds community CTA that opens the lead form sidebar/modal.
+   *
+   * The hero CTA (`#HeaderPlanPage` > `<button aria-label="Stay updated about this community">`) is
+   * tried first, since naming that container rules out the off-canvas sticky-bar copies outright.
+   * The heading-relative lookup stays as a fallback for layouts without that hero id.
+   */
   private get getInformationCta(): Locator {
-    return this.page
+    const headingScopedCta = this.page
       .getByRole('heading', { level: 1 })
       .first()
       .locator('xpath=ancestor::*[(self::section or self::div) and .//button][1]')
       .locator('button:visible')
-      .filter({ hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i })
-      .first();
+      .filter({ hasText: GET_INFORMATION_CTA_TEXT });
+
+    return getHeroInformationCta(this.page).or(headingScopedCta).first();
   }
 
   /** Finds possible condo lead forms on the page. */
   private get condoForms(): Locator {
     return this.page
-      .locator('form')
-      .filter({ has: this.page.getByRole('button', { name: TEXT.submit }) })
+      .locator(`form${CondoCommunityPage.NOT_IN_DIALOG}`)
+      .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
@@ -107,9 +125,17 @@ export class CondoCommunityPage extends SearchablePage {
   private get condoFormContainers(): Locator {
     return this.page
       .locator(
-        'form, [id^="Sitecore-ScheduleAVisit-FormInstance"], [id^="ScheduleAVisit-FormInstance"]',
+        [
+          'form',
+          '[id^="Sitecore-ScheduleAVisit-FormInstance"]',
+          '[id^="ScheduleAVisit-FormInstance"]',
+          '[id*="FormInstance"]',
+          '[role="group"]',
+        ]
+          .map((selector) => `${selector}${CondoCommunityPage.NOT_IN_DIALOG}`)
+          .join(', '),
       )
-      .filter({ has: this.page.getByRole('button', { name: TEXT.submit }) })
+      .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
@@ -125,7 +151,14 @@ export class CondoCommunityPage extends SearchablePage {
 
   /** Finds Get Information lead form rendered in a modal, drawer, or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
-    return this.page.locator('#ModalForm');
+    return this.page
+      .locator(
+        '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
+      )
+      .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
+      .and(
+        this.page.locator(':not([aria-label*="promotion" i]):not([aria-label*="notification" i])'),
+      );
   }
 
   /** Finds optional condo community media gallery section. */
@@ -575,6 +608,11 @@ export class CondoCommunityPage extends SearchablePage {
       return;
     }
 
+    // The hero CTA is only rendered once the hero scrolls into view, so counting straight after
+    // navigation finds nothing. The sticky quick-action bar duplicate is excluded by the shared CTA
+    // selector, so it can no longer stand in for the real one here.
+    await this.revealGetInformationCta('condo community page');
+
     const getInformationCtas = this.getInformationCta;
     const previousUrl = this.page.url();
     const ctaCount = await getInformationCtas.count();
@@ -625,6 +663,16 @@ export class CondoCommunityPage extends SearchablePage {
 
       await this.page.evaluate(() => window.scrollTo(0, 0)).catch(() => undefined);
     }
+  }
+
+  /**
+   * Open the Get Information side modal lead form and return its container.
+   *
+   * Exposes the same CTA flow the side-modal checks use, so an evidence spec that only needs the
+   * open form reuses the click-with-DOM-fallback CTA handling instead of its own clicker.
+   */
+  async openSideModalLeadForm(formName = 'Get Information condo sideModalForm'): Promise<Locator> {
+    return this.getAvailableGetInformationForm(formName);
   }
 
   /** find the Get Information lead form after opening its CTA. */
@@ -821,7 +869,7 @@ export class CondoCommunityPage extends SearchablePage {
 
   /** locate submit button inside a specific condo form. */
   private getSubmitButton(form: Locator): Locator {
-    return form.getByRole('button', { name: TEXT.submit }).first();
+    return getLeadFormSubmitButton(form);
   }
 
   /** click this page's submit button (broader label match) without waiting on third-party requests. */

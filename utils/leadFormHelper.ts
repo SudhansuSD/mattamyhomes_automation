@@ -269,6 +269,77 @@ export async function checkConsentIfPresent(form: Locator): Promise<void> {
 export const SUBMIT_BUTTON_SELECTOR =
   'button[type="submit"], input[type="submit"], button:has-text("Submit"), [role="button"]:has-text("Submit")';
 
+/**
+ * Text shared by every "Get Information" / "Stay Updated" CTA that opens the lead-form modal.
+ *
+ * Anchored so it only matches the CTA itself, never a wrapper whose text merely contains it.
+ */
+export const GET_INFORMATION_CTA_TEXT = /^\s*(?:Get Information|Stay Updated)\s*$/i;
+
+/**
+ * How the "Get Information" CTA is matched, without going through the accessibility tree.
+ *
+ * Name-based lookups (`getByRole('button', { name: /Get Information/i })`) find nothing on
+ * community, condo and plan detail pages: the hero CTA renders as
+ * `<button aria-label="Stay updated about this community">GET INFORMATION</button>`, so its
+ * accessible name is the aria-label, not the visible text. Other detail pages render the same
+ * modal trigger as a link-style element with no href. Real href anchors are excluded so this helper
+ * does not follow `/contact` or `#contact` paths and accidentally validate the primary/footer form.
+ *
+ * Matching on visible text and non-navigating controls keeps the real side-modal trigger, the same
+ * way {@link SUBMIT_BUTTON_SELECTOR} sidesteps `aria-hidden` for form lookups.
+ *
+ * The detail pages also render duplicates of the same CTA inside two sticky quick-action containers,
+ * `#detailsBlockBar` and `#anchor-cta`. Both sit off-canvas at a negative `top` until you scroll past
+ * the hero, yet still report as visible. Clicking such a copy fails with "Element is outside of the
+ * viewport", and it is a `role="link"` that can navigate to /contact, so both bars are excluded here.
+ *
+ * The exclusion names those containers rather than `[aria-hidden="true"]`: an open React modal
+ * aria-hides the whole app root, so excluding that would leave no CTAs at all on a page whose promo
+ * popup has not been dismissed yet.
+ */
+const NOT_IN_STICKY_BAR = ':not(#detailsBlockBar *):not(#anchor-cta *)';
+export const GET_INFORMATION_CTA_SELECTOR = [
+  `button${NOT_IN_STICKY_BAR}`,
+  `a:not([href])${NOT_IN_STICKY_BAR}`,
+  `a[href=""]${NOT_IN_STICKY_BAR}`,
+  `a[href^="javascript:"]${NOT_IN_STICKY_BAR}`,
+].join(', ');
+
+/** Get the "Get Information" CTAs that open the lead-form modal on the given page. */
+export function getInformationCtas(page: Page): Locator {
+  return page.locator(GET_INFORMATION_CTA_SELECTOR).filter({ hasText: GET_INFORMATION_CTA_TEXT });
+}
+
+/**
+ * The plan detail / QMI / condo plan modal trigger, which lives in the breadcrumb bar:
+ * `<button role="link" aria-label="Get Information">` on some pages and
+ * `<button role="link" aria-label="Stay Updated">` on others, sometimes next to a real `<a href>`
+ * "Schedule a Self-Guided Tour" link.
+ *
+ * Matched by container plus {@link GET_INFORMATION_CTA_TEXT} rather than by aria-label or class: the
+ * label varies between the two wordings, and the styled-component class hashes
+ * (`Button__StyledButton-sc-dz2fra-0` on one page, `sc-gGKoUb` on another) are build-specific.
+ * Scoping to the breadcrumb is what stops the off-canvas copies from being picked by position.
+ * Callers fall back to {@link getInformationCtas} for pages without a breadcrumb CTA.
+ */
+export function getBreadcrumbInformationCta(page: Page): Locator {
+  return page.locator('#breadcrumb button').filter({ hasText: GET_INFORMATION_CTA_TEXT });
+}
+
+/**
+ * The community / condo community modal trigger, which lives in the hero section:
+ * `<button aria-label="Stay updated about this community">Stay Updated</button>` inside
+ * `#HeaderPlanPage`. Unlike the off-canvas copies it carries no `role="link"`, but the container is
+ * the stable part - the label wording and the styled-component classes both vary by page.
+ *
+ * It renders only once the hero is scrolled into view, so a lookup straight after navigation finds
+ * nothing; callers reveal it first.
+ */
+export function getHeroInformationCta(page: Page): Locator {
+  return page.locator('#HeaderPlanPage button').filter({ hasText: GET_INFORMATION_CTA_TEXT });
+}
+
 /** Get the lead-form submit button. */
 export function getSubmitButton(form: Locator): Locator {
   return form.locator(SUBMIT_BUTTON_SELECTOR).first();

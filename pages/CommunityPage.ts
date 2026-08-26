@@ -18,9 +18,12 @@ import {
   fillInvalidSideModalForm,
   fillIfPresent,
   fillValidSideModalForm,
+  getHeroInformationCta,
   getInvalidLeadData,
   getSubmitButton,
   getValidLeadData,
+  GET_INFORMATION_CTA_SELECTOR,
+  GET_INFORMATION_CTA_TEXT,
   LeadFieldData,
   SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadFormHelper';
@@ -76,8 +79,6 @@ export class CommunityPage extends SearchablePage {
   private get navLinks(): Locator {
     return this.page.locator('a');
   }
-  /** Text shared by every Get Information / Stay Updated CTA. */
-  private static readonly CTA_TEXT = /^\s*(?:Get Information|Stay Updated)\s*$/i;
 
   /**
    * The real hero CTA: a <button> that is NOT role="link".
@@ -91,15 +92,15 @@ export class CommunityPage extends SearchablePage {
    * to /contact.
    */
   private get getInformationButtonCta(): Locator {
-    return this.page.locator('button:not([role="link"]):visible').filter({
-      hasText: CommunityPage.CTA_TEXT,
+    return this.page.locator(`${GET_INFORMATION_CTA_SELECTOR}:visible`).filter({
+      hasText: GET_INFORMATION_CTA_TEXT,
     });
   }
 
   /** Gets all Get Information / Stay Updated CTA candidates (any element/role). */
   private get getInformationCtaCandidates(): Locator {
     return this.page.locator('button:visible, a:visible').filter({
-      hasText: CommunityPage.CTA_TEXT,
+      hasText: GET_INFORMATION_CTA_TEXT,
     });
   }
 
@@ -113,6 +114,15 @@ export class CommunityPage extends SearchablePage {
    * the first raw candidate.
    */
   private async resolveGetInformationCta(): Promise<Locator | null> {
+    // The hero CTA is the real trigger: `<button aria-label="Stay updated about this community">`
+    // inside #HeaderPlanPage. Matching that container first means the off-canvas sticky-bar copies
+    // cannot win on ordering, which is what the in-viewport fallbacks below exist to work around.
+    const heroCta = getHeroInformationCta(this.page);
+    const heroIndex = await this.firstInViewportIndex(heroCta);
+    if (heroIndex !== -1) {
+      return heroCta.nth(heroIndex);
+    }
+
     const buttonCta = this.getInformationButtonCta;
     const buttonIndex = await this.pollForInViewportCtaIndex(buttonCta);
     if (buttonIndex !== -1) {
@@ -1183,6 +1193,25 @@ export class CommunityPage extends SearchablePage {
     await this.step('Submit footer community form successfully', async () => {
       await this.submitSuccessfulFormFor(() => this.footerForm(), 'Footer community form');
     });
+  }
+
+  /**
+   * Open the Get Information side modal lead form and return its container.
+   *
+   * Exposes the same CTA flow the side-modal checks use, so an evidence spec that only needs the
+   * open form reuses the viewport-aware CTA resolution instead of clicking the off-canvas
+   * sticky-bar duplicate.
+   */
+  async openSideModalLeadForm(
+    formName = 'Get Information community sideModalForm',
+  ): Promise<Locator> {
+    const form = await this.getAvailableGetInformationForm(formName);
+
+    if (!form) {
+      throw new Error(`${formName} did not open`);
+    }
+
+    return form;
   }
 
   /** Checks that the side modal form submits successfully. */

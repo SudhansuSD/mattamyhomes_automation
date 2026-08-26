@@ -9,6 +9,8 @@ import {
   expectSideModalFormFields,
   fillInvalidSideModalForm,
   fillValidSideModalForm,
+  GET_INFORMATION_CTA_SELECTOR,
+  GET_INFORMATION_CTA_TEXT,
   getSubmitButton,
   selectOptionIfPresent,
   SUBMIT_BUTTON_SELECTOR,
@@ -87,9 +89,9 @@ export class CondoPlanPage extends SearchablePage {
     this.body = page.locator('body');
     this.floorplanImage = page.locator('img[alt*="Floorplan" i], img[alt*="M2AD" i]').first();
     this.getInformationCta = page
-      .locator('button, a')
+      .locator(GET_INFORMATION_CTA_SELECTOR)
       .filter({
-        hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i,
+        hasText: GET_INFORMATION_CTA_TEXT,
       })
       .first();
     this.mortgageCalculatorSection = page

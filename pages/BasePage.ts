@@ -10,6 +10,11 @@ import {
   formatPriceToUiLabel as formatPriceLabel,
   normalizeComparableText,
 } from '../utils/pageObjectUtils';
+import {
+  getBreadcrumbInformationCta,
+  getHeroInformationCta,
+  getInformationCtas,
+} from '../utils/leadFormHelper';
 
 type SelfHealingLocatorCandidate = {
   locator: Locator;
@@ -1178,22 +1183,71 @@ export class BasePage {
 
   // Get Information Side Modal Lead Form The "Get Information / Stay Updated" CTA opens the same sidebar/modal lead form on the condo plan, plan detail and QMI pages. The flow is identical on all three - only the page label, the container locator and the timeouts differ - so it lives here instead of being copied per page object.
 
-  /** Finds the first visible Get Information / Stay Updated CTA. */
+  /**
+   * Finds the Get Information / Stay Updated CTA to click.
+   *
+   * Prefers the breadcrumb CTA the plan detail, QMI and condo plan pages use, then the hero CTA the
+   * community pages use, then a scan of every CTA on the page. In-viewport candidates win: these pages
+   * also render a zero-box duplicate, and the sticky quick-action bar copy reports as visible while
+   * parked off-canvas, which is what made the click fail with "Element is outside of the viewport".
+   */
   protected async getVisibleGetInformationCta(pageLabel: string): Promise<Locator> {
-    const allCtas = this.page.locator('a:visible, button:visible').filter({
-      hasText: /Get Information|Stay Updated/i,
-    });
-    const count = await allCtas.count();
+    let firstVisible: Locator | null = null;
 
-    for (let i = 0; i < count; i++) {
-      const candidate = allCtas.nth(i);
+    // Most specific container first: the plan/QMI breadcrumb CTA, then the community hero CTA, then
+    // a scan of whatever else matches. Each container-scoped lookup rules out the off-canvas copies.
+    const ctaSets = [
+      getBreadcrumbInformationCta(this.page),
+      getHeroInformationCta(this.page),
+      getInformationCtas(this.page),
+    ];
 
-      if (await candidate.isVisible().catch(() => false)) {
-        return candidate;
+    for (const ctas of ctaSets) {
+      const count = await ctas.count();
+
+      for (let i = 0; i < count; i++) {
+        const candidate = ctas.nth(i);
+
+        if (!(await candidate.isVisible().catch(() => false))) {
+          continue;
+        }
+
+        if (await this.hasBoxInViewport(candidate)) {
+          return candidate;
+        }
+
+        firstVisible ??= candidate;
       }
     }
 
+    // Nothing is in view yet: hand back a visible candidate so Playwright's own scroll can reach a
+    // below-the-fold CTA, the way this did before the in-viewport preference was added.
+    if (firstVisible) {
+      return firstVisible;
+    }
+
     throw new Error(`No visible Get Information CTA found on ${pageLabel}`);
+  }
+
+  /** Whether a locator has a real box that overlaps the viewport. */
+  private async hasBoxInViewport(locator: Locator): Promise<boolean> {
+    const box = await locator.boundingBox().catch(() => null);
+
+    if (!box || box.width <= 0 || box.height <= 0) {
+      return false;
+    }
+
+    const viewport = await this.page.evaluate(() => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }));
+
+    return (
+      box.x + box.width > 0 &&
+      box.x < viewport.width &&
+      box.y + box.height > 0 &&
+      box.y < viewport.height
+    );
   }
 
   /** Reveals a Get Information CTA by scrolling down until one becomes visible. */
