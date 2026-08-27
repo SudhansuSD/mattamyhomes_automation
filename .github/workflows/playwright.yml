@@ -34,6 +34,15 @@ on:
           - ALL
           - CAN
           - USA
+      browser:
+        description: Browser to run
+        required: true
+        default: chromium
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
 
 concurrency:
   group: playwright-${{ github.ref }}
@@ -62,8 +71,16 @@ jobs:
       # run one pass per location and report on both.
       TEST_LOCATION: ${{ github.event.inputs.location || 'ALL' }}
       TEST_SUITE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[single-test]') && 'ci' || github.event.inputs.suite || 'smoke' }}
-      BROWSER: Chrome
+      # Scheduled and push runs have no inputs, so they fall back to chromium.
+      # A firefox/webkit run deselects @chrome-only tests (see run-locations.ts).
+      BROWSER: ${{ github.event.inputs.browser || 'chromium' }}
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      # One retry on CI only. A test that fails then passes is reported by Allure
+      # as FLAKY rather than green, so instability stays visible in the trend -
+      # which was the reason retries were left at 0 - without a single unstable
+      # selector reddening the whole pipeline. Treat every flaky result as a
+      # defect to fix, not as a pass.
+      PW_RETRIES: '1'
 
     steps:
       - uses: actions/checkout@v4

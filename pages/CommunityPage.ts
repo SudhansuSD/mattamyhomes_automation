@@ -1,4 +1,5 @@
 import { Locator, Page, expect } from '@playwright/test';
+import type { FeatureKey } from '../config/features/featureExpectations';
 import {
   escapeRegex,
   getLastPathSegment,
@@ -6,7 +7,7 @@ import {
   getPathSegments,
   toSlug,
   toTitleCase,
-} from '../utils/pageObjectUtils';
+} from '../utils/web/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
 import {
   checkConsentIfPresent,
@@ -26,7 +27,7 @@ import {
   GET_INFORMATION_CTA_TEXT,
   LeadFieldData,
   SUBMIT_BUTTON_SELECTOR,
-} from '../utils/leadFormHelper';
+} from '../utils/leadform/leadFormHelper';
 
 // Community Page – Page Object Model
 
@@ -56,7 +57,17 @@ export class CommunityPage extends SearchablePage {
   }
   /** Gets the map section locator. */
   private get mapSection(): Locator {
-    return this.page.locator('#map');
+    // #map stopped matching: the map moved into "Explore the community" with an
+    // embedded sitemap iframe. #map stays first for pages that still use it.
+    return this.page
+      .locator('#map')
+      .or(this.page.locator('section').filter({ has: this.page.locator('a[href*="maps.google"]') }))
+      .or(
+        this.page
+          .getByRole('heading', { name: /Explore the community|^Location$/i })
+          .locator('xpath=ancestor::section[1]'),
+      )
+      .first();
   }
   /** Gets the contact section locator. */
   private get contactSection(): Locator {
@@ -270,17 +281,20 @@ export class CommunityPage extends SearchablePage {
   /** Checks the core page sections. */
   async verifyCoreSections(): Promise<void> {
     await this.step('Verify core community sections', async () => {
-      await this.verifySectionIfPresent(this.availableHomesSection, 'Available Homes');
-      await this.verifySectionIfPresent(this.mapSection, 'Map');
-      await this.verifySectionIfPresent(this.contactSection, 'Contact');
+      await this.verifySection(
+        this.availableHomesSection,
+        'Available Homes',
+        'community.availableHomesSection',
+      );
+      await this.verifySection(this.mapSection, 'Map', 'community.mapSection');
+      await this.verifySection(this.contactSection, 'Contact', 'community.contactSection');
     });
   }
-  /** Checks a section when it is present. */
-  private async verifySectionIfPresent(locator: Locator, name: string): Promise<void> {
-    const sectionCount = await locator.count();
-
-    if (!sectionCount) {
-      await this.reportValue(`${name} section not present`);
+  /** Checks a core section. Missing fails unless declared optional. */
+  private async verifySection(locator: Locator, name: string, feature: FeatureKey): Promise<void> {
+    if (
+      !(await this.isFeaturePresent(locator, feature, `${name} section`, { state: 'attached' }))
+    ) {
       return;
     }
 
@@ -362,20 +376,21 @@ export class CommunityPage extends SearchablePage {
   }
 
   /** Checks the contact CTAs when the community renders them. */
-  async verifyContactActionCtasIfAvailable(): Promise<void> {
+  async verifyContactActionCtas(): Promise<void> {
     await this.step('Verify community contact action CTAs when available', async () => {
-      await this.verifyHoursCtaIfAvailable();
-      await this.verifyDirectionsCtaIfAvailable();
-      await this.verifyScheduleAppointmentCtaIfAvailable();
+      await this.verifyHoursCta();
+      await this.verifyDirectionsCta();
+      await this.verifyScheduleAppointmentCta();
     });
   }
 
   /** Checks that the Hours CTA exposes an open/closed or day/time schedule. */
-  private async verifyHoursCtaIfAvailable(): Promise<void> {
+  private async verifyHoursCta(): Promise<void> {
     const hoursCta = this.page.getByRole('button', { name: /^Hours$/i }).first();
 
-    if (!(await hoursCta.isVisible({ timeout: 3000 }).catch(() => false))) {
-      await this.reportValue('Hours CTA not present - skipping validation');
+    if (
+      !(await this.isFeaturePresent(hoursCta, 'community.hoursCta', 'Hours CTA', { timeout: 3000 }))
+    ) {
       return;
     }
 
@@ -423,14 +438,19 @@ export class CommunityPage extends SearchablePage {
   }
 
   /** Checks that the Directions CTA links to a maps/directions destination. */
-  private async verifyDirectionsCtaIfAvailable(): Promise<void> {
+  private async verifyDirectionsCta(): Promise<void> {
+    // By accessible name, not text. It is a link wrapping an icon plus the word
+    // "Directions", so /^Directions$/ failed on the markup whitespace.
     const directionsCta = this.page
-      .locator('a:visible, button:visible')
-      .filter({ hasText: /^Directions$/i })
+      .getByRole('link', { name: /directions/i })
+      .or(this.page.getByRole('button', { name: /directions/i }))
       .first();
 
-    if (!(await directionsCta.isVisible({ timeout: 3000 }).catch(() => false))) {
-      await this.reportValue('Directions CTA not present - skipping validation');
+    if (
+      !(await this.isFeaturePresent(directionsCta, 'community.directionsCta', 'Directions CTA', {
+        timeout: 3000,
+      }))
+    ) {
       return;
     }
 
@@ -454,14 +474,20 @@ export class CommunityPage extends SearchablePage {
   }
 
   /** Checks that the Schedule an Appointment CTA opens or links to scheduling context. */
-  private async verifyScheduleAppointmentCtaIfAvailable(): Promise<void> {
+  private async verifyScheduleAppointmentCta(): Promise<void> {
     const scheduleCta = this.page
       .locator('a:visible, button:visible')
       .filter({ hasText: /Schedule an Appointment/i })
       .first();
 
-    if (!(await scheduleCta.isVisible({ timeout: 3000 }).catch(() => false))) {
-      await this.reportValue('Schedule an Appointment CTA not present - skipping validation');
+    if (
+      !(await this.isFeaturePresent(
+        scheduleCta,
+        'community.scheduleAppointmentCta',
+        'Schedule an Appointment CTA',
+        { timeout: 3000 },
+      ))
+    ) {
       return;
     }
 
@@ -1063,6 +1089,7 @@ export class CommunityPage extends SearchablePage {
     await this.fillCommunityLeadForm(form, valid);
 
     await this.submitLeadFormAndCaptureApi({
+      form: form,
       formName,
       submitButton: getSubmitButton(form),
       successModal: this.successDialogModal,
@@ -1081,6 +1108,7 @@ export class CommunityPage extends SearchablePage {
     await fillValidSideModalForm(form, 'communityGetInfo');
 
     await this.submitLeadFormAndCaptureApi({
+      form: form,
       formName,
       submitButton: getSubmitButton(form),
       successModal: this.successDialogModal,

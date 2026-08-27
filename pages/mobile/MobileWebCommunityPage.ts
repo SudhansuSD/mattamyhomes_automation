@@ -8,7 +8,7 @@ import {
   getLeadFormErrorSnapshot,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} from '../../utils/mobileLeadFormHelper';
+} from '../../utils/leadform/mobileLeadFormHelper';
 
 const COMMUNITY_FORM_GLOBAL = '__getVisibleCommunityForms';
 
@@ -414,7 +414,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
       COMMUNITY_FORM_GLOBAL,
       formIndex,
       {
-        emailPrefix: 'ssdas_community_mobile',
+        emailPrefix: 'qa-automation_community_mobile',
       },
     );
     assert.equal(

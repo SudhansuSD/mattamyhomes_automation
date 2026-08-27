@@ -7,7 +7,7 @@ import {
   fillValidLeadFormByIndex,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} from '../../utils/mobileLeadFormHelper';
+} from '../../utils/leadform/mobileLeadFormHelper';
 
 const PLAN_FORM_GLOBAL = '__getVisiblePlanForms';
 
@@ -509,7 +509,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
   /** Fills valid plan form by index. */
   async fillValidPlanFormByIndex(formIndex = 0) {
     const submitted = await fillValidLeadFormByIndex(this.driver, PLAN_FORM_GLOBAL, formIndex, {
-      emailPrefix: 'ssdas_plan_mobile',
+      emailPrefix: 'qa-automation_plan_mobile',
     });
     assert.equal(submitted, true, `Expected plan form at index ${formIndex} to submit valid data`);
   }

@@ -8,22 +8,31 @@ const ticketId = process.argv[2];
 const force = process.argv.includes('--force');
 
 if (!ticketId) {
-    console.error('Usage: npm run generate:from-jira -- <ticketid> [--force]');
-    process.exit(1);
+  console.error('Usage: npm run generate:from-jira -- <ticketid> [--force]');
+  process.exit(1);
 }
 
 const repoRoot = path.resolve(__dirname, '..');
 const forceFlag = force ? ' --force' : '';
 
 const steps: Array<{ label: string; command: string }> = [
-    { label: 'Fetch Jira requirement', command: `npx ts-node scripts/fetch-jira-requirement.ts ${ticketId}` },
-    { label: 'Analyze requirement', command: `npx ts-node scripts/analyze-jira-requirement.ts ${ticketId}` },
-    { label: 'Generate Playwright spec', command: `npx ts-node scripts/generate-playwright.ts ${ticketId}${forceFlag}` }
+  {
+    label: 'Fetch Jira requirement',
+    command: `npx ts-node scripts/fetch-jira-requirement.ts ${ticketId}`,
+  },
+  {
+    label: 'Analyze requirement',
+    command: `npx ts-node scripts/analyze-jira-requirement.ts ${ticketId}`,
+  },
+  {
+    label: 'Generate Playwright spec',
+    command: `npx ts-node scripts/generate-playwright.ts ${ticketId}${forceFlag}`,
+  },
 ];
 
 for (const step of steps) {
-    console.log(`\n> ${step.label}`);
-    execSync(step.command, { cwd: repoRoot, stdio: 'inherit' });
+  console.log(`\n> ${step.label}`);
+  execSync(step.command, { cwd: repoRoot, stdio: 'inherit' });
 }
 
 console.log(`\nDone. Review tests/${ticketId.toUpperCase()}.spec.ts before running it.`);

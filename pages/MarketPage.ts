@@ -1,7 +1,7 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
-import { escapeRegex, getNormalizedText } from '../utils/pageObjectUtils';
+import { escapeRegex, getNormalizedText } from '../utils/web/pageObjectUtils';
 import {
   clickSubmit,
   expectInvalidEmailErrorInForm,
@@ -11,7 +11,7 @@ import {
   getSubmitButton,
   getInvalidLeadData,
   getValidLeadData,
-} from '../utils/leadFormHelper';
+} from '../utils/leadform/leadFormHelper';
 import { BasePage } from './BasePage';
 
 export interface MarketConfig {
@@ -104,7 +104,7 @@ export class MarketPage extends BasePage {
   }
 
   /** find the market community cards section across supported page layouts. */
-  private async getCommunitySectionIfAvailable(): Promise<Locator | null> {
+  private async getCommunitySection(): Promise<Locator | null> {
     if (await this.communitySection.count()) {
       return this.communitySection.first();
     }
@@ -125,7 +125,7 @@ export class MarketPage extends BasePage {
   }
 
   /** find the Discover Our Homes section when it exists. */
-  private async getDiscoverOurHomesSectionIfAvailable(): Promise<Locator | null> {
+  private async getDiscoverOurHomesSection(): Promise<Locator | null> {
     await this.discoverOurHomesSection
       .waitFor({ state: 'attached', timeout: 5000 })
       .catch(() => undefined);
@@ -139,7 +139,7 @@ export class MarketPage extends BasePage {
 
   /** Get a visible community cards section and prepare it for card assertions. */
   private async getVisibleCommunitySection(): Promise<Locator | null> {
-    const communitySection = await this.getCommunitySectionIfAvailable();
+    const communitySection = await this.getCommunitySection();
 
     if (!communitySection || !(await this.isSectionVisible(communitySection))) {
       return null;
@@ -182,6 +182,48 @@ export class MarketPage extends BasePage {
           });
         });
       await this.waitForPageReady();
+
+      // navigate() applies this guard but goto() skipped it, so an unhydrated
+      // render left every section locator resolving to nothing.
+      await this.ensurePageRendered();
+
+      // A stale URL still "works": /florida/sarasota-bradenton answered 301 and
+      // dropped the query string, so the site fell back to its default country
+      // and failed much later as "header country selector should show USA".
+      const landedUrl = this.page.url();
+      const expectedCountry = location.queryParam.split('=')[1];
+
+      // "Did not load" is not "loaded somewhere else". A failed navigation
+      // leaves chrome-error://chromewebdata/, which has no country parameter
+      // either - reporting that as a stale URL points at the wrong file.
+      if (/^(chrome-error|about:blank)/i.test(landedUrl)) {
+        throw new Error(
+          [
+            `Navigation to ${relativeUrl} failed to load a page.`,
+            `  requested: ${targetUrl}`,
+            `  browser is on: ${landedUrl}`,
+            '',
+            'The browser reported a navigation error rather than serving the page.',
+            'This is a load failure - network, server, or a crashed renderer - not a',
+            'configuration problem. Re-run the single test to see whether it persists.',
+          ].join('\n'),
+        );
+      }
+
+      if (!new RegExp(`country=${expectedCountry}`, 'i').test(landedUrl)) {
+        throw new Error(
+          [
+            `Navigating to ${relativeUrl} lost the country parameter.`,
+            `  requested: ${targetUrl}`,
+            `  landed on: ${landedUrl}`,
+            '',
+            'A redirect discarded the query string, so the site is using its default',
+            'country rather than the one under test. Point the market url in',
+            'config/locations/locationConfig.ts at the destination this redirects to.',
+          ].join('\n'),
+        );
+      }
+
       await this.ensureConfiguredCountrySelected();
       await this.waitForPageReady();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
@@ -242,10 +284,13 @@ export class MarketPage extends BasePage {
   /** Checks that community cards exist and log their names and URLs. */
   async validateCommunityCards(): Promise<void> {
     await this.step('Validate community cards are listed', async () => {
-      const communitySection = await this.getVisibleCommunitySection();
+      const communitySection = await this.requireFeature(
+        await this.getVisibleCommunitySection(),
+        'market.communitySection',
+        'Community Cards section',
+      );
 
       if (!communitySection) {
-        await this.reportValue('Community Cards section not present');
         return;
       }
       const cards = this.getCommunityCards(communitySection);
@@ -260,10 +305,13 @@ export class MarketPage extends BasePage {
   /** Checks that each community card has a title, href, and image source when present. */
   async validateCommunityCardDetails(): Promise<void> {
     await this.step('Validate community card details', async () => {
-      const communitySection = await this.getVisibleCommunitySection();
+      const communitySection = await this.requireFeature(
+        await this.getVisibleCommunitySection(),
+        'market.communitySection',
+        'Community Cards section',
+      );
 
       if (!communitySection) {
-        await this.reportValue('Community Cards section not present');
         return;
       }
 
@@ -302,10 +350,13 @@ export class MarketPage extends BasePage {
   /** Checks that first community card navigates to its community page. */
   async validateFirstCommunityCardNavigation(): Promise<void> {
     await this.step('Validate first community card navigation', async () => {
-      const communitySection = await this.getVisibleCommunitySection();
+      const communitySection = await this.requireFeature(
+        await this.getVisibleCommunitySection(),
+        'market.communitySection',
+        'Community Cards section',
+      );
 
       if (!communitySection) {
-        await this.reportValue('Community Cards section not present');
         return;
       }
 
@@ -424,6 +475,7 @@ export class MarketPage extends BasePage {
       await fillLeadFormByFormId(form, valid, { selectCommunity: true });
 
       await this.submitLeadFormAndCaptureApi({
+        form: form,
         formName: `${marketName} market lead form`,
         submitButton: getSubmitButton(form),
         successModal: this.successDialogModal,
@@ -440,18 +492,22 @@ export class MarketPage extends BasePage {
     await this.step('Validate Discover Our Homes section links', async () => {
       await this.waitForPageReady();
       await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-      const section = await this.getDiscoverOurHomesSectionIfAvailable();
+      const section = await this.getDiscoverOurHomesSection();
 
       const isVisible = !!section && (await this.isSectionVisible(section));
+      const discoverSection = await this.requireFeature(
+        isVisible ? section : null,
+        'market.discoverOurHomesSection',
+        'Discover Our Homes section',
+      );
 
-      if (!isVisible) {
-        await this.reportValue(`Discover Our Homes section not present on ${this.page.url()}`);
+      if (!discoverSection) {
         return;
       }
 
-      await section.scrollIntoViewIfNeeded();
+      await discoverSection.scrollIntoViewIfNeeded();
       await this.waitForPageReady();
-      const links = section.locator('a');
+      const links = discoverSection.locator('a');
       const count = await links.count();
       await this.reportValue(`Discover Our Homes links found: ${count}`);
       for (let i = 0; i < count; i++) {

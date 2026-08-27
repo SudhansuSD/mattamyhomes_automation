@@ -2,8 +2,8 @@
   "leadForm": {
     "emailDomain": "ex2india.com",
     "validName": {
-      "firstName": "Sudhansu",
-      "lastName": "Das"
+      "firstName": "QAAutomation",
+      "lastName": "Test"
     },
     "invalidName": {
       "firstName": "Test",
@@ -19,15 +19,32 @@
       }
     },
     "mobile": {
-      "region": "usa",
-      "phone": "8135551212",
-      "zip": "33545",
-      "validName": {
-        "firstName": "Mobile",
-        "lastName": "Automation"
-      },
-      "communityPattern": "community|landmarke|wellen|park",
-      "countryPattern": "united states|usa"
+      "_comment": "Per-country mobile lead data. Was a single usa-only block, so a LOCATION=CAN mobile run filled a USA phone/ZIP and tried to select 'United States' as country of residence.",
+      "default": "usa",
+      "regions": {
+        "usa": {
+          "region": "usa",
+          "phone": "8135551212",
+          "zip": "33545",
+          "validName": {
+            "firstName": "Mobile",
+            "lastName": "Automation"
+          },
+          "communityPattern": "community|landmarke|wellen|park",
+          "countryPattern": "united states|usa"
+        },
+        "canada": {
+          "region": "canada",
+          "phone": "4165551212",
+          "zip": "L7R 0A1",
+          "validName": {
+            "firstName": "Mobile",
+            "lastName": "Automation"
+          },
+          "communityPattern": "community|yorkville|martha james|m2ad|mount pleasant",
+          "countryPattern": "canada"
+        }
+      }
     },
     "web": {
       "profiles": {
@@ -35,20 +52,20 @@
           "region": "usa",
           "phone": "4488559933",
           "zip": "34293",
-          "emailPrefix": "ssdas_",
+          "emailPrefix": "qa-automation_",
           "invalidPhone": "123456"
         },
         "communityGetInfo": {
           "region": "usa",
           "phone": "4488559933",
           "zip": "34293",
-          "emailPrefix": "ssdas_getinfo_"
+          "emailPrefix": "qa-automation_getinfo_"
         },
         "market": {
           "region": "usa",
           "phone": "4488559933",
           "zip": "34293",
-          "emailPrefix": "ssdas+market",
+          "emailPrefix": "qa-automation_market_",
           "invalidPhone": "123456",
           "invalidZip": "12345"
         },
@@ -56,45 +73,45 @@
           "region": "usa",
           "phone": "8135551212",
           "zip": "33545",
-          "emailPrefix": "ssdas+mpc"
+          "emailPrefix": "qa-automation_mpc_"
         },
         "mpcGetInfo": {
           "region": "usa",
           "phone": "8135551212",
           "zip": "33545",
-          "emailPrefix": "ssdas_mpc_getinfo_"
+          "emailPrefix": "qa-automation_mpc_getinfo_"
         },
         "qmi": {
           "region": "canada",
           "phone": "4165551212",
           "zip": "L7R 0A1",
-          "emailPrefix": "ssdas_qmi",
+          "emailPrefix": "qa-automation_qmi_",
           "invalidEmail": "not-an-email"
         },
         "condoCommunity": {
           "region": "canada",
           "phone": "4165551212",
           "zip": "L7R 0A1",
-          "emailPrefix": "ssdas+condo"
+          "emailPrefix": "qa-automation_condo_"
         },
         "condoPlan": {
           "region": "canada",
           "phone": "4165551212",
           "zip": "L7R 0A1",
-          "emailPrefix": "ssdas_condoplan_"
+          "emailPrefix": "qa-automation_condoplan_"
         },
         "planDetail": {
           "region": "canada",
           "phone": "4488559933",
           "zip": "34293",
-          "emailPrefix": "ssdas-",
+          "emailPrefix": "qa-automation_",
           "invalidPhone": "123456"
         },
         "promo": {
           "region": "usa",
           "phone": "4075551212",
           "zip": "32801",
-          "emailPrefix": "ssdas_promo_",
+          "emailPrefix": "qa-automation_promo_",
           "community": "Celebration - Island Village",
           "questions": "Automation validation for Hometown Heroes promo page."
         }

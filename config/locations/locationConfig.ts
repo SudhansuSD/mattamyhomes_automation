@@ -47,6 +47,10 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
           url: '/north-carolina/charlotte',
         },
         {
+          name: 'Clover',
+          url: '/south-carolina/clover',
+        },
+        {
           name: 'Dallas-Fort Worth',
           url: '/texas/dallas-fort-worth',
         },
@@ -87,8 +91,12 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
           url: '/north-carolina/raleigh',
         },
         {
+          name: 'Rock Hill',
+          url: '/south-carolina/rock-hill',
+        },
+        {
           name: 'Sarasota and Bradenton || Sarasota-Bradenton',
-          url: '/florida/sarasota-bradenton',
+          url: '/florida/sarasota',
         },
         {
           name: 'Tampa',
@@ -205,6 +213,10 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       ],
       markets: [
         {
+          name: 'Bradenton',
+          url: '/florida/bradenton',
+        },
+        {
           name: 'Charlotte',
           url: '/north-carolina/charlotte',
         },
@@ -250,7 +262,7 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
         },
         {
           name: 'Sarasota and Bradenton || Sarasota-Bradenton',
-          url: '/florida/sarasota-bradenton',
+          url: '/florida/sarasota',
         },
         {
           name: 'Tampa',
@@ -270,15 +282,15 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       communityPath: '/alberta/calgary/calgary/yorkville',
       condoCommunity: 'Martha James Condominiums',
       condoPlan: {
-        name: 'M2ad',
-        url: '/ontario/gta/burlington/martha-james-condominiums/m2ad',
+        name: 'MJ1A',
+        url: '/ontario/gta/burlington/martha-james-condominiums/mj1a',
         community: 'Martha James Condominiums',
         market: 'Greater Toronto Area',
       },
-      qmiAddress: '634 Newlove St.',
-      qmiPath: '/ontario/simcoe/innisfil/lakehaven/sawyer/634-newlove-st',
-      planName: 'Sawyer',
-      expectedPlanPath: '/ontario/simcoe/innisfil/lakehaven/sawyer',
+      qmiAddress: '55 Yorkstone Terrace SW',
+      qmiPath: '/alberta/calgary/calgary/yorkville/maclaren/55-yorkstone-terrace-sw',
+      planName: 'Maclaren',
+      expectedPlanPath: '/alberta/calgary/calgary/yorkville/maclaren',
       aboutUsLinks: [
         {
           name: 'About Us',

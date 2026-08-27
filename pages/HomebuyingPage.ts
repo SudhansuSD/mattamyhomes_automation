@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
-import { escapeRegex } from '../utils/pageObjectUtils';
+import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 // Homebuying Pages Object Model Covers the Homebuying section pages, driven by a per-path expectation map (mirrors AboutUsPage): - /homebuying/homebuying    (Journey / What to Expect) - /homebuying/financing     (Financing + MortgageCalculator) - /homebuying/shopping-tools(Shopping Tools + SavingsCalculator + Form)

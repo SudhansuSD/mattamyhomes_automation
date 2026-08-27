@@ -1,6 +1,6 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { SearchablePage } from './SearchablePage';
-import { escapeRegex, isLocatorVisible } from '../utils/pageObjectUtils';
+import { escapeRegex, isLocatorVisible } from '../utils/web/pageObjectUtils';
 import {
   clickSubmit,
   expectInvalidEmailErrorInForm,
@@ -12,7 +12,7 @@ import {
   GET_INFORMATION_CTA_TEXT,
   getSubmitButton,
   SUBMIT_BUTTON_SELECTOR,
-} from '../utils/leadFormHelper';
+} from '../utils/leadform/leadFormHelper';
 
 // Plan Detail Page – Page Object Model
 
@@ -118,10 +118,10 @@ export class PlanDetailPage extends SearchablePage {
       .first();
     this.closeModalBtn = page
       .locator('.ReactModal__Content, [role="dialog"]')
-      .locator('button[aria-label="Close"], button:has-text("Close"), button:has-text("CLOSE")')
+      .getByRole('button', { name: /^close$/i })
       .first();
     this.qmiSection = page.locator('#availablehomes');
-    this.viewAllQMIButton = this.qmiSection.locator('a:has-text("View all")');
+    this.viewAllQMIButton = this.qmiSection.getByRole('link', { name: /view all/i });
     this.qmiHomeslist = this.qmiSection.locator(
       'a[aria-label*="Floorplan"], a:has-text("Floorplan")',
     );
@@ -396,8 +396,27 @@ export class PlanDetailPage extends SearchablePage {
   }
 
   /** Checks that optional gallery media tabs render usable media when selected. */
-  async verifyGalleryMediaTabsIfAvailable(): Promise<void> {
-    await this.step('Verify gallery media tabs when available', async () => {
+  /**
+   * Verifies the plan's media gallery.
+   *
+   * The named tabs only render for media a plan actually has, so they are
+   * optional. The gallery itself is not - requiring a tab failed plans with a
+   * plain carousel while a plan with no gallery would have passed.
+   */
+  async verifyPlanMediaGallery(): Promise<void> {
+    await this.step('Verify plan media gallery', async () => {
+      const gallery = this.page
+        .locator(
+          '[role="region"][aria-label*="Images and videos" i], [role="region"][aria-label*="gallery" i]',
+        )
+        .first();
+
+      if (!(await this.isFeaturePresent(gallery, 'plan.mediaGallery', 'Plan media gallery'))) {
+        return;
+      }
+
+      await gallery.scrollIntoViewIfNeeded();
+
       const tabNames = [/^Videos$/i, /^360 Tours$/i, /^Photos$/i, /^Model Home$/i];
       let validatedTabs = 0;
 
@@ -408,7 +427,6 @@ export class PlanDetailPage extends SearchablePage {
           .first();
 
         if (!(await tab.isVisible({ timeout: 1500 }).catch(() => false))) {
-          await this.reportValue(`${tabName.source} gallery tab not present - skipping`);
           continue;
         }
 
@@ -428,11 +446,20 @@ export class PlanDetailPage extends SearchablePage {
         validatedTabs++;
       }
 
-      if (!validatedTabs) {
-        await this.reportValue('No optional plan gallery media tabs present - skipping validation');
-      } else {
+      if (validatedTabs) {
         await this.reportValue(`Validated ${validatedTabs} plan gallery media tab(s)`);
+        return;
       }
+
+      // No named tabs on this plan - it renders a plain carousel. Assert that
+      // the gallery actually shows media rather than returning having checked
+      // nothing, which is what the tab-only version did here.
+      await expect(
+        gallery.locator('img:visible, video:visible, iframe:visible').first(),
+        'Plan media gallery should render visible media',
+      ).toBeVisible({ timeout: 10000 });
+
+      await this.reportValue('Plan gallery renders a media carousel (no named media tabs)');
     });
   }
 
@@ -737,6 +764,7 @@ export class PlanDetailPage extends SearchablePage {
 
     await fillValidSideModalForm(form, 'planDetail');
     await this.submitLeadFormAndCaptureApi({
+      form: form,
       formName,
       submitButton: getSubmitButton(form),
       successModal: this.successDialogModal,

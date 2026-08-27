@@ -1,7 +1,25 @@
-import testData from '../data/test_data.json';
+import testData from '../../data/test_data.json';
+import { getLocationConfig } from '../../config/locations/locationConfig';
 
 const LEAD = testData.leadForm;
-const MOBILE = LEAD.mobile;
+
+/**
+ * Mobile lead data for the country being run.
+ *
+ * Was a single USA-only block, so a CAN run filled a Florida phone and ZIP and
+ * picked "United States" on a Canadian form. Resolved from LOCATION now.
+ */
+function resolveMobileRegion() {
+  const regions = LEAD.mobile.regions as Record<string, (typeof LEAD.mobile.regions)['usa']>;
+  const key = getLocationConfig().country === 'CAN' ? 'canada' : 'usa';
+
+  return regions[key] ?? regions[LEAD.mobile.default];
+}
+
+/** Mobile lead data for the country under test (USA or Canada). */
+export const MOBILE_LEAD_DATA = resolveMobileRegion();
+
+const MOBILE = MOBILE_LEAD_DATA;
 
 const VALID_FORM_DATA = {
   firstName: MOBILE.validName.firstName,

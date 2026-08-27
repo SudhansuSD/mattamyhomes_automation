@@ -1,5 +1,11 @@
 import { expect, Locator, Page } from '@playwright/test';
-import testData from '../data/test_data.json';
+import testData from '../../data/test_data.json';
+import { getLocationConfig, type LocationKey } from '../../config/locations/locationConfig';
+import {
+  buildMissingLeadFieldsMessage,
+  getExpectedLeadFormFields,
+  type LeadFormField,
+} from '../../config/features/leadFormSchema';
 
 // Shared Lead-Form Helpers (Web / Playwright) Common, reusable lead-form primitives and the centralized form test data used across the desktop page objects. Keeping these here removes the per-page duplication of fill / select / consent / submit / validation logic.
 
@@ -47,7 +53,11 @@ function resolveLocation(profile: WebProfile): { country: string; phone: string;
 
 /** Build a unique, valid lead email from a profile prefix. */
 export function buildValidEmail(emailPrefix: string): string {
-  return `${emailPrefix}${Date.now()}@${LEAD.emailDomain}`;
+  const base = emailPrefix.replace(/\+/g, '_').replace(/[._-]+$/, '');
+
+  const tag = `${Date.now()}`;
+
+  return `${base}_${tag}@${LEAD.emailDomain}`.replace(/_{2,}/g, '_');
 }
 
 /** Get the raw web lead-form profile entry. */
@@ -62,6 +72,10 @@ export function getValidLeadData(profile: LeadFormProfileKey): LeadFieldData {
 
   return {
     firstName: LEAD.validName.firstName,
+    // Run id lives in the EMAIL only. Appending it to the surname produced
+    // "DoNotContact-local<id>", which the site rejects with "Invalid Last name" -
+    // it broke every lead submission test. The plus-addressed email already
+    // gives the CRM a per-run handle, so the name does not need one.
     lastName: LEAD.validName.lastName,
     email: buildValidEmail(entry.emailPrefix),
     phone: location.phone,
@@ -661,6 +675,49 @@ export async function fillExtraLeadFieldsIfPresent(
   attempt?: number,
 ): Promise<ExtraLeadFields> {
   return fillExtraLeadFields(form, attempt);
+}
+
+/**
+ * Fails when a lead form is missing the fields its country declares.
+ *
+ * Checked before submit: a form that lost its budget dropdown still submits and
+ * still shows a success message, it just sends the CRM a thinner lead.
+ */
+export async function assertLeadFormShape(form: Locator, formName: string): Promise<void> {
+  const location = getLocationConfig().country as LocationKey;
+
+  // Probe the FORM, do not take the caller's word for it. The four dropdowns are
+  // the only thing fillExtraLeadFields returns, so a signature that accepted
+  // values would have reported comments and country-of-residence missing on
+  // every USA form. Locators mirror the ones used to fill each field.
+  const probes: Record<LeadFormField, Locator> = {
+    comments: form
+      .getByRole('textbox', { name: /additional questions|comment|message|special requirement/i })
+      .or(form.locator('textarea')),
+    bedroomCount: findSelectByLabel(form, /bedroom/i, 'bedroom'),
+    desiredMoveDate: findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move'),
+    newBudget: findSelectByLabel(form, /budget/i, 'budget'),
+    firstTimeHomeBuyer: findSelectByLabel(form, /first.?time/i, 'firsttime'),
+    countryOfResidence: findSelectByLabel(form, /country of residence/i, 'country'),
+  };
+
+  const expected = getExpectedLeadFormFields(location, formName);
+  const missing: LeadFormField[] = [];
+
+  for (const field of expected) {
+    const present = await probes[field]
+      .count()
+      .then((count) => count > 0)
+      .catch(() => false);
+
+    if (!present) {
+      missing.push(field);
+    }
+  }
+
+  if (missing.length) {
+    throw new Error(buildMissingLeadFieldsMessage(formName, location, missing));
+  }
 }
 
 /** Fill whichever of the four extra dropdowns are present; returns the values chosen ('' for any absent field). */

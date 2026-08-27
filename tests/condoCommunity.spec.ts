@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoCommunityPage } from '../pages/CondoCommunityPage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 // Condos are a Canada-only offering, so this suite always uses CAN data and
 // CondoCommunityPage always drives the Canadian site — running it under
@@ -67,7 +67,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
 
     test(`@regression | ${location.country} | Validate gallery modal opens, navigates media, and closes when available`, async () => {
       await test.step('Validate gallery modal opens, navigates media, and closes when available', async () => {
-        await condoCommunityPage.verifyGalleryModalIfAvailable();
+        await condoCommunityPage.verifyGalleryModal();
       });
     });
   });
@@ -120,7 +120,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
           'Skipping Get Information form lead submission on PROD environment.',
         );
 
-        test(`@regression @STAGE | ${location.country} | Validate condo community sideModalForm successful submission`, async () => {
+        test(`@regression @lead-submit @STAGE | ${location.country} | Validate condo community sideModalForm successful submission`, async () => {
           await test.step('Validate condo community sideModalForm successful submission', async () => {
             await condoCommunityPage.verifySideModalFormSuccessSubmission();
           });
@@ -153,7 +153,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
           'Skipping primary condo form lead submission on PROD environment.',
         );
 
-        test(`@regression @STAGE | ${location.country} | Validate primary condo form successful submission`, async () => {
+        test(`@regression @lead-submit @STAGE | ${location.country} | Validate primary condo form successful submission`, async () => {
           await test.step('Validate primary condo form successful submission', async () => {
             await condoCommunityPage.verifyPrimaryFormSuccessSubmission();
           });
@@ -186,7 +186,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
           'Skipping footer condo form lead submission on PROD environment.',
         );
 
-        test(`@regression @STAGE | ${location.country} | Validate footer condo form successful submission`, async () => {
+        test(`@regression @lead-submit @STAGE | ${location.country} | Validate footer condo form successful submission`, async () => {
           await test.step('Validate footer condo form successful submission', async () => {
             await condoCommunityPage.verifyFooterFormSuccessSubmission();
           });

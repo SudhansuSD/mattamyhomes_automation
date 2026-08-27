@@ -1,6 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import ExcelJS from 'exceljs';
+import {
+  appendShardRow,
+  clearShards,
+  getShardDir,
+  readShards,
+  writeWorkbookWithRetry,
+} from './evidenceShardStore';
 
 // Anchor output to the repo root so the file lands in the same place whether the
 // run was launched from the IDE, a plain terminal, or CI (cwd-independent).
@@ -32,11 +39,52 @@ const WORKSHEET_COLUMNS = [
   { header: 'Notes', key: 'notes', width: 40 },
 ] as const;
 
-export async function appendLeadApiCapture(row: LeadApiCaptureRow): Promise<string> {
-  const outputFile = process.env.LEAD_API_CAPTURE_XLSX
+/** Absolute path of the workbook this run writes to (LEAD_API_CAPTURE_XLSX overrides). */
+export function getLeadApiCaptureOutputFile(): string {
+  return process.env.LEAD_API_CAPTURE_XLSX
     ? path.resolve(REPO_ROOT, process.env.LEAD_API_CAPTURE_XLSX)
     : DEFAULT_OUTPUT_FILE;
+}
 
+function shardDir(): string {
+  return getShardDir(getLeadApiCaptureOutputFile(), 'lead-api');
+}
+
+/**
+ * Records one captured lead API call.
+ *
+ * Appends to this worker's shard instead of rewriting the shared workbook.
+ * Returns the workbook path so callers can report where it will land.
+ */
+export async function appendLeadApiCapture(row: LeadApiCaptureRow): Promise<string> {
+  const outputFile = getLeadApiCaptureOutputFile();
+
+  appendShardRow(shardDir(), { outputFile }, row);
+
+  return outputFile;
+}
+
+/**
+ * Merges every worker shard into the xlsx, then clears them.
+ *
+ * Runs once from globalTeardown so there is a single writer. Existing content
+ * is read first, so a multi-location run accumulates into one file.
+ */
+export async function mergeLeadApiCaptures(): Promise<{
+  outputFile: string;
+  rowsMerged: number;
+} | null> {
+  const dir = shardDir();
+  const { rows, meta } = readShards<LeadApiCaptureRow>(dir);
+
+  if (!rows.length) {
+    return null;
+  }
+
+  // Workers finish out of order; capture time is the meaningful sequence.
+  rows.sort((left, right) => left.capturedAt.localeCompare(right.capturedAt));
+
+  const outputFile = meta?.outputFile ?? getLeadApiCaptureOutputFile();
   fs.mkdirSync(path.dirname(outputFile), { recursive: true });
 
   const workbook = new ExcelJS.Workbook();
@@ -60,11 +108,18 @@ export async function appendLeadApiCapture(row: LeadApiCaptureRow): Promise<stri
     });
   }
 
-  worksheet.addRow(row);
+  for (const row of rows) {
+    worksheet.addRow(row);
+  }
+
   worksheet.getColumn('responseData').alignment = { wrapText: true, vertical: 'top' };
   worksheet.getColumn('pageUrl').alignment = { wrapText: true, vertical: 'top' };
   worksheet.getColumn('requestUrl').alignment = { wrapText: true, vertical: 'top' };
 
-  await workbook.xlsx.writeFile(outputFile);
-  return outputFile;
+  const writtenFile = await writeWorkbookWithRetry(workbook, outputFile);
+
+  // Only after the write succeeded - a killed run keeps its shards for next time.
+  clearShards(dir);
+
+  return { outputFile: writtenFile, rowsMerged: rows.length };
 }

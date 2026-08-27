@@ -22,7 +22,7 @@ import {
   DESIGN_STUDIO_NAV_BY_COUNTRY,
   isPathExposedForCountry,
 } from '../config/navigation/countryNavigation';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const COUNTRIES: readonly LocationKey[] = ['USA', 'CAN'];
 

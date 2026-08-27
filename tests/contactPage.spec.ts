@@ -7,7 +7,7 @@ import { test } from '@playwright/test';
 import { CONTACT_COUNTRIES, ContactPage } from '../pages/ContactPage';
 import { Header } from '../pages/Header';
 import { HomePage } from '../pages/HomePage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 // Location-agnostic: covers both countries itself, so a multi-location run
 // executes it once — see config/locations/locationAgnosticSpecs.ts.

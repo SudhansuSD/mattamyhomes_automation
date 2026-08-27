@@ -78,3 +78,5 @@ tests/sideModalFormEvidence.spec.ts
 
 # ---- Keep .env.example tracked even though .env* is ignored above -----------
 !.env.example
+
+*/visualRegression.spec.ts-snapshots

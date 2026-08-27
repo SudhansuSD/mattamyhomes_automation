@@ -5,7 +5,7 @@
 
 import { test } from '@playwright/test';
 import { CUSTOMER_CARE_COUNTRIES, CustomerCarePage } from '../pages/CustomerCarePage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 // Location-agnostic: covers both countries itself, so a multi-location run
 // executes it once — see config/locations/locationAgnosticSpecs.ts.

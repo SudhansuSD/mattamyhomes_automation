@@ -5,7 +5,7 @@ import {
   getPathnameFromHref,
   isIgnorableHref,
   isLocatorVisible,
-} from '../utils/pageObjectUtils';
+} from '../utils/web/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
 import {
   clickSubmit,
@@ -22,7 +22,7 @@ import {
   getValidLeadData,
   GET_INFORMATION_CTA_TEXT,
   SUBMIT_BUTTON_SELECTOR,
-} from '../utils/leadFormHelper';
+} from '../utils/leadform/leadFormHelper';
 
 const TIMEOUT = {
   short: 10000,
@@ -323,12 +323,13 @@ export class CondoCommunityPage extends SearchablePage {
     await this.step('Verify available floorplans section', async () => {
       await this.waitForPageReady();
 
-      const section = await this.getAvailableFloorplansSectionIfAvailable();
+      const section = await this.requireFeature(
+        await this.getAvailableFloorplansSection(),
+        'condoCommunity.availableFloorplansSection',
+        'Explore available floorplans section',
+      );
 
       if (!section) {
-        await this.reportValue(
-          'Explore available floorplans section not present after DOM load - skipping validation',
-        );
         return;
       }
 
@@ -344,10 +345,15 @@ export class CondoCommunityPage extends SearchablePage {
   }
 
   /** Checks that optional gallery modal opens, navigates media, and closes correctly. */
-  async verifyGalleryModalIfAvailable(): Promise<void> {
+  async verifyGalleryModal(): Promise<void> {
     await this.step('Verify gallery modal if available', async () => {
-      if (!(await isLocatorVisible(this.gallerySection, 5000))) {
-        await this.reportValue('Condo community gallery not present - skipping modal validation');
+      if (
+        !(await this.isFeaturePresent(
+          this.gallerySection,
+          'condoCommunity.galleryModal',
+          'Condo community gallery',
+        ))
+      ) {
         return;
       }
 
@@ -472,6 +478,7 @@ export class CondoCommunityPage extends SearchablePage {
         selectPlan: true,
       });
       await this.submitLeadFormAndCaptureApi({
+        form: form,
         formName: 'Get Information condo sideModalForm',
         submitButton: this.getSubmitButton(form),
         successModal: this.successDialogModal,
@@ -593,6 +600,7 @@ export class CondoCommunityPage extends SearchablePage {
 
     await this.fillLeadFormWithValidData(form);
     await this.submitLeadFormAndCaptureApi({
+      form: form,
       formName,
       submitButton: this.getSubmitButton(form),
       successModal: this.successDialogModal,
@@ -705,12 +713,8 @@ export class CondoCommunityPage extends SearchablePage {
 
   /** navigate gallery modal media when next/previous controls are available. */
   private async navigateGalleryModalMediaIfAvailable(): Promise<void> {
-    const nextButton = this.galleryModal
-      .locator('button[aria-label*="Next" i], button:has-text("Next")')
-      .first();
-    const previousButton = this.galleryModal
-      .locator('button[aria-label*="Previous" i], button:has-text("Previous")')
-      .first();
+    const nextButton = this.galleryModal.getByRole('button', { name: /next/i }).first();
+    const previousButton = this.galleryModal.getByRole('button', { name: /previous/i }).first();
     const initialMediaKey = await this.getVisibleGalleryModalMediaKey();
 
     if (await isLocatorVisible(nextButton, 3000)) {
@@ -883,7 +887,7 @@ export class CondoCommunityPage extends SearchablePage {
   // Floorplan Section Helpers
 
   /** find the available floorplans section when it exists. */
-  private async getAvailableFloorplansSectionIfAvailable(): Promise<Locator | null> {
+  private async getAvailableFloorplansSection(): Promise<Locator | null> {
     const heading = this.page
       .getByRole('heading', {
         name: TEXT.availableFloorplansHeading,

@@ -8,7 +8,7 @@
 import { test } from '@playwright/test';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { SearchPage } from '../pages/SearchPage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const location = getLocationConfig();
 

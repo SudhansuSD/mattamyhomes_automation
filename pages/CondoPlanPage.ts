@@ -1,7 +1,7 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { SearchablePage } from './SearchablePage';
 import { getLocationConfig } from '../config/locations/locationConfig';
-import { escapeRegex, isIgnorableHref } from '../utils/pageObjectUtils';
+import { escapeRegex, isIgnorableHref } from '../utils/web/pageObjectUtils';
 import {
   clickSubmit,
   expectInvalidEmailErrorInForm,
@@ -14,7 +14,7 @@ import {
   getSubmitButton,
   selectOptionIfPresent,
   SUBMIT_BUTTON_SELECTOR,
-} from '../utils/leadFormHelper';
+} from '../utils/leadform/leadFormHelper';
 
 const TIMEOUT = {
   short: 10000,
@@ -320,16 +320,19 @@ export class CondoPlanPage extends SearchablePage {
   }
 
   /** Checks that the Show More button works without navigating away. */
-  async verifyShowMoreFloorplansIfPresent(): Promise<void> {
+  async verifyShowMoreFloorplans(): Promise<void> {
     await this.step('Verify Show More floorplans', async () => {
-      const showMore = this.page
-        .getByRole('button', {
-          name: /show more/i,
-        })
-        .first();
+      // Not "View all" - that link navigates to search, while this check exists
+      // to prove the in-place expander keeps you on the plan URL.
+      const showMore = this.page.getByRole('button', { name: /show more/i }).first();
 
-      if (!(await showMore.isVisible().catch(() => false))) {
-        await this.reportValue('Show More floorplans button not present - skipping validation');
+      if (
+        !(await this.isFeaturePresent(
+          showMore,
+          'condoPlan.showMoreFloorplans',
+          'Show More floorplans button',
+        ))
+      ) {
         return;
       }
 
@@ -450,6 +453,7 @@ export class CondoPlanPage extends SearchablePage {
       const formUrl = this.page.url();
 
       await this.submitLeadFormAndCaptureApi({
+        form: form,
         formName: 'Get Information condo plan side modal form',
         submitButton: getSubmitButton(form),
         successModal: this.successDialogModal,

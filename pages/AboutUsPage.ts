@@ -1,5 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test';
-import { escapeRegex } from '../utils/pageObjectUtils';
+import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 import { HeaderNavigationLink } from './Header';
 
@@ -197,7 +197,7 @@ export class AboutUsPage extends BasePage {
   /** Checks community involvement functionality. */
   async validateCommunityInvolvementFunctionality(): Promise<void> {
     await this.step('Validate Community Involvement functionality', async () => {
-      await this.validateShowMoreIfPresent();
+      await this.validateShowMore();
       await this.validateExternalLinkIfPresent(/petergilganfoundation\.org/i);
     });
   }
@@ -237,7 +237,7 @@ export class AboutUsPage extends BasePage {
       await this.validateVisibleHref(/\/dfsmedia\/.+fact-sheet/i);
       await this.validateVisibleHref(/^mailto:bondholders@mattamycorp\.com$/i);
       await this.validateVisibleHref(/^mailto:media@mattamycorp\.com$/i);
-      await this.validateInvestorFormIfPresent();
+      await this.validateInvestorForm();
     });
   }
 
@@ -245,7 +245,9 @@ export class AboutUsPage extends BasePage {
   async validateCareersFunctionality(): Promise<void> {
     await this.step('Validate Careers functionality', async () => {
       await this.validateLinkIfPresent(/\/about\/careers\/early-careers/i);
-      await this.validateShowMoreIfPresent();
+
+      // No SHOW MORE check: the only one on /about/careers belongs to the
+      // embedded third-party job board, not to us.
 
       const nextSlideButton = this.main.getByRole('button', { name: /Next slide/i }).first();
 
@@ -279,10 +281,14 @@ export class AboutUsPage extends BasePage {
   }
 
   /** Checks show more if present. */
-  private async validateShowMoreIfPresent(): Promise<void> {
+  private async validateShowMore(): Promise<void> {
     const showMoreButton = this.main.getByRole('button', { name: /SHOW MORE/i }).first();
 
-    if (!(await showMoreButton.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (
+      !(await this.isFeaturePresent(showMoreButton, 'about.showMore', 'SHOW MORE button', {
+        timeout: 3000,
+      }))
+    ) {
       return;
     }
 
@@ -298,10 +304,12 @@ export class AboutUsPage extends BasePage {
   }
 
   /** Checks investor form if present. */
-  private async validateInvestorFormIfPresent(): Promise<void> {
+  private async validateInvestorForm(): Promise<void> {
     const form = this.main.locator('form').first();
 
-    if (!(await form.isVisible({ timeout: 3000 }).catch(() => false))) {
+    if (
+      !(await this.isFeaturePresent(form, 'about.investorForm', 'Investor form', { timeout: 3000 }))
+    ) {
       return;
     }
 

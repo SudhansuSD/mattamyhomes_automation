@@ -8,7 +8,7 @@ import { test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { PlanDetailPage } from '../pages/PlanDetailPage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const location = getLocationConfig();
 const { envName } = getEnvConfig();
@@ -83,9 +83,9 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
       });
     });
 
-    test(`@regression | ${location.country} | Validate plan gallery media tabs when present`, async () => {
-      await test.step('Verify plan gallery media tabs when present', async () => {
-        await planPage.verifyGalleryMediaTabsIfAvailable();
+    test(`@regression | ${location.country} | Validate plan media gallery renders media`, async () => {
+      await test.step('Verify plan media gallery renders media', async () => {
+        await planPage.verifyPlanMediaGallery();
       });
     });
   });
@@ -115,7 +115,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
         'Skipping plan detail form lead submission on PROD environment.',
       );
 
-      test(`@regression @STAGE | ${location.country} | Validate plan detail side modal form successful submission`, async () => {
+      test(`@regression @lead-submit @STAGE | ${location.country} | Validate plan detail side modal form successful submission`, async () => {
         await planPage.verifySideModalFormSuccessSubmission();
       });
     });

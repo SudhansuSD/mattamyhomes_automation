@@ -5,7 +5,7 @@
 
 import { test } from '@playwright/test';
 import { STATIC_LEGAL_PAGES, StaticLegalPage } from '../pages/StaticLegalPage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 // Location-agnostic pages — a multi-location run executes this once; see
 // config/locations/locationAgnosticSpecs.ts.

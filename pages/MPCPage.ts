@@ -1,6 +1,6 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { escapeRegex, getLastPathSegment, getMediaSource } from '../utils/pageObjectUtils';
+import { escapeRegex, getLastPathSegment, getMediaSource } from '../utils/web/pageObjectUtils';
 import {
   clickSubmit,
   expectInvalidEmailErrorInForm,
@@ -13,7 +13,7 @@ import {
   getSubmitButton,
   getValidLeadData,
   LeadFieldData,
-} from '../utils/leadFormHelper';
+} from '../utils/leadform/leadFormHelper';
 import { BasePage } from './BasePage';
 
 export interface MPCConfig {
@@ -404,10 +404,15 @@ export class MPCPage extends BasePage {
   }
 
   /** Checks gallery content and navigation when the optional gallery is available. */
-  async validateImageGalleryIfAvailable(): Promise<void> {
+  async validateImageGallery(): Promise<void> {
     await this.step('Validate image gallery (if available)', async () => {
-      if (!(await this.isVisible(this.imageGallerySection, 5000))) {
-        await this.reportValue('MPC image gallery not present - skipping validation');
+      if (
+        !(await this.isFeaturePresent(
+          this.imageGallerySection,
+          'mpc.imageGallery',
+          'MPC image gallery',
+        ))
+      ) {
         return;
       }
 
@@ -504,9 +509,7 @@ export class MPCPage extends BasePage {
 
   /** navigate gallery modal media when next/previous controls are available. */
   private async navigateGalleryModalMediaIfAvailable(): Promise<void> {
-    const nextButton = this.galleryModal
-      .locator('button[aria-label*="Next" i], button:has-text("Next")')
-      .first();
+    const nextButton = this.galleryModal.getByRole('button', { name: /next/i }).first();
     const previousButton = this.galleryModal
       .locator(
         'button[aria-label*="Previous" i], button[aria-label*="Prev" i], button:has-text("Previous"), button:has-text("Prev")',
@@ -689,6 +692,7 @@ export class MPCPage extends BasePage {
 
       await this.fillGetInformationFormWithValidData(form);
       await this.submitLeadFormAndCaptureApi({
+        form: form,
         formName: 'Get Information MPC sideModalForm',
         submitButton: getSubmitButton(form),
         successModal: this.successDialogModal,
@@ -774,6 +778,7 @@ export class MPCPage extends BasePage {
       await this.fillCommunityUpdateFormFields(fields, valid);
 
       await this.submitLeadFormAndCaptureApi({
+        form: form,
         formName: 'MPC community update form',
         submitButton: fields.submit,
         successModal: this.successDialogModal,

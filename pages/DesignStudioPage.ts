@@ -1,5 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test';
-import { escapeRegex } from '../utils/pageObjectUtils';
+import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 // Design Studio Page Object Model Covers the /design-studio marketing page (ContentHero, ProductOverview, Market Selector and TitleCTA components).

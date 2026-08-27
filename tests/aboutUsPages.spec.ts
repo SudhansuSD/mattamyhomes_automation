@@ -9,7 +9,7 @@ import { TOP_LEVEL_STATIC_LINKS_BY_COUNTRY } from '../config/navigation/countryN
 import { AboutUsPage } from '../pages/AboutUsPage';
 import { Header } from '../pages/Header';
 import { HomePage } from '../pages/HomePage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);
@@ -27,7 +27,7 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
   });
 
   test.describe('Header Menu Validation', () => {
-    test(`@smoke @regression | ${location.country} | About Us header menu links should be visible`, async ({
+    test(`@chrome-only @smoke @regression | ${location.country} | About Us header menu links should be visible`, async ({
       page,
     }, testInfo) => {
       test.skip(
@@ -51,7 +51,7 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
 
   test.describe('About Us Page Validation', () => {
     for (const aboutLink of location.aboutUsLinks) {
-      test(`@regression | ${location.country} | ${aboutLink.name} page should load with valid UI and functionality`, async ({
+      test(`@chrome-only @regression | ${location.country} | ${aboutLink.name} page should load with valid UI and functionality`, async ({
         page,
       }, testInfo) => {
         test.skip(
@@ -82,7 +82,7 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
   // those via their top-level link so coverage matches what the country displays.
   test.describe('Top-Level Static Page Validation', () => {
     for (const topLink of topLevelStaticLinks) {
-      test(`@regression | ${location.country} | ${topLink.name} top-level page should load with valid UI`, async ({
+      test(`@chrome-only @regression | ${location.country} | ${topLink.name} top-level page should load with valid UI`, async ({
         page,
       }, testInfo) => {
         test.skip(

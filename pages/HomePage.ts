@@ -312,6 +312,123 @@ export class HomePage extends SearchablePage {
   }
 
   // Checks each market card exposes a valid link and a successfully loaded image.
+  /**
+   * Opens every market card from the home page and checks where it lands.
+   *
+   * The rest of the market coverage navigates to URLs held in locationConfig,
+   * which is how those go stale unnoticed. These links come from the site, so
+   * they cannot drift from the content.
+   */
+  async validateEachMarketCardOpens(): Promise<void> {
+    await this.step('Open each market card from the home page', async () => {
+      await this.waitForPageReady();
+      await this.page.waitForSelector('#cards .slick-slide', { timeout: 15000 });
+
+      const slides = await this.getMarketSlides();
+      const cards = this.getUniqueMarketSlides(
+        slides.filter((slide) => !slide.isCloned && slide.href),
+      );
+
+      expect(cards.length, 'Home page should expose market cards to open').toBeGreaterThan(0);
+      await this.reportValue(`Market cards to open: ${cards.length}`);
+
+      const failures: string[] = [];
+      // Header reads USA / CANADA; the query param is USA / CAN.
+      const expectedCountry = this.location.country === 'USA' ? 'USA' : 'CANADA';
+
+      for (const [index, card] of cards.entries()) {
+        const label = card.marketName || card.href;
+
+        await this.step(`Open market card ${index + 1}/${cards.length}: ${label}`, async () => {
+          await this.navigate();
+
+          const link = this.page.locator(`#cards a[href="${card.href}"]`).first();
+
+          // The slick carousel parks inactive slides outside the viewport, where
+          // even a forced click fails with "Element is outside of the viewport" -
+          // force skips the actionability checks but Playwright still needs
+          // coordinates to dispatch at. A DOM click still exercises the real
+          // anchor and its href, which is what this journey is checking.
+          await link.scrollIntoViewIfNeeded().catch(() => undefined);
+          await link.click({ force: true, timeout: 5000 }).catch(async () => {
+            await link.dispatchEvent('click');
+          });
+          await this.waitForPageReady();
+          await this.ensurePageRendered();
+
+          const landedUrl = this.page.url();
+
+          if (!landedUrl.includes(card.href)) {
+            failures.push(`${label}: expected to land on ${card.href}, got ${landedUrl}`);
+            return;
+          }
+
+          // Country context, not the query string. Card hrefs are bare paths, so
+          // an in-site click never carries ?country= - the site keeps the country
+          // in session state. Asserting the URL param here failed all 18 cards
+          // on the first run, which is the check being wrong, not the site.
+          // What actually matters is that the country survived the navigation.
+          const countrySelector = this.page
+            .locator('button[aria-label^="Select your country."]')
+            .first();
+
+          const countrySelectorPresent = await countrySelector
+            .waitFor({ state: 'visible', timeout: 5000 })
+            .then(() => true)
+            .catch(() => false);
+
+          if (countrySelectorPresent) {
+            // Poll, do not sample. The header renders its default before client
+            // state hydrates, so a single read right after navigation catches a
+            // transient CANADA on the way to USA - that read failed 3 of 18
+            // markets while the other 15 happened to settle first.
+            let shown = '';
+            const settled = await expect
+              .poll(
+                async () => {
+                  shown = `${await countrySelector.getAttribute('aria-label').catch(() => '')} ${await countrySelector.innerText().catch(() => '')}`;
+                  return new RegExp(expectedCountry, 'i').test(shown);
+                },
+                { timeout: 10000 },
+              )
+              .toBe(true)
+              .then(() => true)
+              .catch(() => false);
+
+            if (!settled) {
+              failures.push(
+                `${label}: country still reads "${shown.trim()}" 10s after opening the card (${landedUrl})`,
+              );
+              return;
+            }
+          }
+
+          // waitFor, not isVisible: isVisible() ignores its timeout option and
+          // answers immediately, so this was sampling the heading mid-render and
+          // failing a different three markets on every run. BasePage documents
+          // the same trap on dismissPromoPopupIfPresent.
+          const heading = this.page.getByRole('heading', { level: 1 }).first();
+          const headingRendered = await heading
+            .waitFor({ state: 'visible', timeout: 15000 })
+            .then(() => true)
+            .catch(() => false);
+
+          if (!headingRendered) {
+            failures.push(`${label}: market page rendered no level-1 heading (${landedUrl})`);
+            return;
+          }
+
+          await this.reportValue(`Opened ${label}`, landedUrl);
+        });
+      }
+
+      expect(
+        failures,
+        `Market cards that failed to open correctly: ${failures.join('\n')}`,
+      ).toEqual([]);
+    });
+  }
+
   async validateMarketCardMediaAndLinks(): Promise<void> {
     await this.step('Validate market card media and links', async () => {
       await this.waitForPageReady();

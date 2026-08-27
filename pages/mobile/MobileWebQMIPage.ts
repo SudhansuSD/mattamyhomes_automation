@@ -7,7 +7,7 @@ import {
   fillValidLeadFormByIndex,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} from '../../utils/mobileLeadFormHelper';
+} from '../../utils/leadform/mobileLeadFormHelper';
 
 const QMI_FORM_GLOBAL = '__getVisibleQmiForms';
 
@@ -947,7 +947,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
   async fillValidQmiFormByIndex(formIndex = 0) {
     await this.installQmiFormFinder();
     return fillValidLeadFormByIndex(this.driver, QMI_FORM_GLOBAL, formIndex, {
-      emailPrefix: 'ssdas_qmi_mobile',
+      emailPrefix: 'qa-automation_qmi_mobile',
     });
   }
 }

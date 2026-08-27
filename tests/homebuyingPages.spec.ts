@@ -8,7 +8,7 @@ import { test } from '@playwright/test';
 import { getLocationConfig, getLocationKey } from '../config/locations/locationConfig';
 import { isPathExposedForCountry } from '../config/navigation/countryNavigation';
 import { HOMEBUYING_PAGES, HomebuyingPage } from '../pages/HomebuyingPage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);

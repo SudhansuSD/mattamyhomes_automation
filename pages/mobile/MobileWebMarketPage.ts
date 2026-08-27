@@ -7,11 +7,13 @@ import testData from '../../data/test_data.json';
 import {
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} from '../../utils/mobileLeadFormHelper';
+  MOBILE_LEAD_DATA,
+} from '../../utils/leadform/mobileLeadFormHelper';
 
 const MARKET_FORM_GLOBAL = '__getVisibleMarketLeadForms';
 const LEAD_DATA = testData.leadForm;
-const MOBILE_LEAD_DATA = LEAD_DATA.mobile;
+// Resolved per LOCATION by the helper - do not read leadForm.mobile directly,
+// it is keyed by country now.
 
 export class MobileWebMarketPage extends MobileWebHomePage {
   marketPageReady: boolean;
@@ -703,7 +705,7 @@ export class MobileWebMarketPage extends MobileWebHomePage {
 
     const email = options.invalidEmail
       ? LEAD_DATA.invalidEmail
-      : `ssdas_market_mobile_${Date.now()}@${LEAD_DATA.emailDomain}`;
+      : `qa-automation_market_mobile_${Date.now()}@${LEAD_DATA.emailDomain}`;
     const config = {
       firstName: options.invalidEmail
         ? LEAD_DATA.invalidName.firstName
