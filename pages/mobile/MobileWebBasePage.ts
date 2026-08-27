@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { getMobilePlatform, getUserAgentPatterns } from '../../utils/mobilePlatform';
+import { getLocationConfig, type LocationKey } from '../../config/locations/locationConfig';
+import { resolveFeature } from '../../config/features/featureExpectations';
 import {
   assertLeadFormSubmissionSuccess,
   getLeadFormErrorSnapshot,
-} from '../../utils/mobileLeadFormHelper';
+} from '../../utils/leadform/mobileLeadFormHelper';
 
 export class MobileWebBasePage {
   driver: MobileBrowser;
@@ -921,5 +923,27 @@ export class MobileWebBasePage {
   /** A section/feature that is absent, so its check is skipped. */
   logSkip(message) {
     this.logMobileStep('SKIP', message);
+  }
+
+  /**
+   * Decides what a missing feature means, rather than assuming "skip".
+   *
+   * Reads the same declarations as BasePage.requireFeature, so a feature
+   * required on desktop cannot quietly be optional on mobile.
+   */
+  async requireFeature(value, feature, description) {
+    const { value: resolved, skipMessage } = resolveFeature(
+      value,
+      feature,
+      description,
+      getLocationConfig().country as LocationKey,
+      await this.driver.getUrl(),
+    );
+
+    if (skipMessage) {
+      this.logSkip(skipMessage);
+    }
+
+    return resolved;
   }
 }

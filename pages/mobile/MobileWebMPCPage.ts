@@ -7,7 +7,7 @@ import {
   fillValidLeadFormByIndex,
   installVisibleLeadFormFinder,
   submitVisibleLeadFormByIndex,
-} from '../../utils/mobileLeadFormHelper';
+} from '../../utils/leadform/mobileLeadFormHelper';
 
 const MPC_FORM_GLOBAL = '__getVisibleMpcLeadForms';
 
@@ -341,7 +341,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
   }
 
   /** Checks image gallery if available. */
-  async validateImageGalleryIfAvailable() {
+  async validateImageGallery() {
     await this.openMpc();
 
     const gallery = await this.driver.execute(() => {
@@ -409,8 +409,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
       };
     });
 
-    if (!gallery.found) {
-      this.logSkip('MPC image gallery not present on mobile - skipping validation');
+    if (!(await this.requireFeature(gallery.found, 'mpc.imageGallery', 'MPC image gallery'))) {
       return;
     }
 
@@ -838,7 +837,7 @@ export class MobileWebMPCPage extends MobileWebHomePage {
     await this.installLeadFormFinder();
     return fillValidLeadFormByIndex(this.driver, MPC_FORM_GLOBAL, formIndex, {
       communityPattern: 'wellen|sunstone|community|park',
-      emailPrefix: 'ssdas_mpc_mobile',
+      emailPrefix: 'qa-automation_mpc_mobile',
     });
   }
 }

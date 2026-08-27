@@ -32,7 +32,7 @@
     "pages/mobile",
     "tests/mobile",
     "utils/mobilePlatform.ts",
-    "utils/mobileLeadFormHelper.ts",
+    "utils/leadform/mobileLeadFormHelper.ts",
     "wdio.mobile.conf.ts"
   ]
 }

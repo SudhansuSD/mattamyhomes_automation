@@ -26,6 +26,7 @@ const locationSuffix = locationPassTotal > 1 && location ? `/${location.toUpperC
 
 // Location-agnostic specs are ignored after pass 0 so later passes do not write
 // duplicate Allure entries for specs that are not location-specific.
+
 const isLaterLocationPass = getNumberEnv('LOCATION_PASS_INDEX', 0) > 0;
 const testIgnore = ['appium/**', 'mobile/**'];
 if (isLaterLocationPass) {
@@ -34,13 +35,23 @@ if (isLaterLocationPass) {
 
 type Project = NonNullable<PlaywrightTestConfig['projects']>[number];
 const desktopViewport = { width: 1920, height: 1080 };
+
+// Renderer-stability flags. These pages ship 350-600KB of SSR HTML and running
+// more than one at a time surfaced as "page.goto: Page crashed" rather than as
+// a test failure - the renderer being killed, not the product breaking.
+
+const chromiumStabilityArgs = [
+  '--disable-dev-shm-usage',
+  '--disable-features=site-per-process,IsolateOrigins',
+];
+
 const projectsByBrowser = {
   chromium: {
     name: 'Chrome',
     use: {
       browserName: 'chromium',
       launchOptions: {
-        args: isHeadless ? [] : ['--start-maximized'],
+        args: isHeadless ? chromiumStabilityArgs : ['--start-maximized', ...chromiumStabilityArgs],
       },
     },
   },
@@ -65,7 +76,7 @@ const projects = [projectsByBrowser[getBrowserProjectKey()]];
 const reporter: ReporterDescription[] = [
   // Ahead of allure-playwright on purpose: it appends the hung-action detail to
   // the test error, and reporters share the TestResult in registration order.
-  ['./utils/timeoutDiagnosticsReporter.ts'],
+  ['./utils/reporting/timeoutDiagnosticsReporter.ts'],
   ['list'],
   [
     'allure-playwright',
@@ -86,7 +97,9 @@ export default defineConfig({
   testIgnore,
   outputDir: `test-results${locationSuffix}`,
   globalSetup: './scripts/playwrightGlobalSetup.ts',
-  globalTeardown: isCI ? undefined : './scripts/playwrightGlobalTeardown.ts',
+  // Registered under CI too: teardown is what merges the per-worker lead-API
+  // capture shards into the xlsx. It skips the Allure HTML build on CI itself.
+  globalTeardown: './scripts/playwrightGlobalTeardown.ts',
   use: {
     headless: isHeadless,
     viewport: isHeadless ? desktopViewport : null,
@@ -100,13 +113,16 @@ export default defineConfig({
   },
   // Govern web-first assertions centrally instead of scattering magic timeouts.
   expect: { timeout: 15_000 },
-  workers: isCI ? 2 : 1,
-  fullyParallel: false,
-  // Per-test budget. Kept at two minutes so a wedged page fails fast: a hung
-  // action cannot be interrupted, and the longer the budget the longer the
-  // post-timeout teardown of a dead browser drags the suite out. Raise
-  // exceptional cases with test.describe.configure() or test.setTimeout()
-  // instead of increasing the global suite cost.
+  /*
+   * Parallel by default. This was serial because the lead-API evidence workbook
+   * is written in teardown, and parallel writes would corrupt it. That is now
+   * handled by the playwrightGlobalTeardown.ts merge, so parallelism is safe.
+   */
+  workers: getNumberEnv('PW_WORKERS', 1),
+  fullyParallel: true,
+  /*
+   * Per-test budget. Kept at two minutes so a wedged page fails fast and does not consume the full CI job budget.
+   */
   timeout: 5 * 60 * 1000,
   // Keep retries opt-in so staging instability remains visible in Allure trends.
   retries: Math.max(0, Math.trunc(getNumberEnv('PW_RETRIES', 0))),

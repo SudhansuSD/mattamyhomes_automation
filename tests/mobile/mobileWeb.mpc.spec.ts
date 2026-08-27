@@ -12,9 +12,7 @@ describe('Mattamy Homes mobile web - MPC page on mobile (Android/iOS)', function
 
   beforeEach(async function () {
     location = getLocationConfig();
-    mpc = location.country === 'USA' && Array.isArray(location.mpc)
-      ? location.mpc[0]
-      : undefined;
+    mpc = location.country === 'USA' && Array.isArray(location.mpc) ? location.mpc[0] : undefined;
 
     if (!mpc) {
       this.skip();
@@ -54,7 +52,7 @@ describe('Mattamy Homes mobile web - MPC page on mobile (Android/iOS)', function
     });
 
     it('TC-03 | @regression | Validate image gallery if available', async () => {
-      await mpcPage.validateImageGalleryIfAvailable();
+      await mpcPage.validateImageGallery();
     });
   });
 

@@ -9,7 +9,7 @@ import { getLocationConfig, getLocationKey } from '../config/locations/locationC
 import { RESOURCE_MENU_BY_COUNTRY } from '../config/navigation/countryNavigation';
 import { Header } from '../pages/Header';
 import { HomePage } from '../pages/HomePage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);
@@ -61,7 +61,7 @@ test.describe(`Header Navigation - ${location.country}`, () => {
     });
   });
 
-  test(`@smoke @regression | ${location.country} | ${menuConfig.menuName} mega-menu should expose expected links`, async ({
+  test(`@chrome-only @smoke @regression | ${location.country} | ${menuConfig.menuName} mega-menu should expose expected links`, async ({
     page,
   }, testInfo) => {
     test.skip(

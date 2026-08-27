@@ -11,7 +11,7 @@ import { test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoPlanPage } from '../pages/CondoPlanPage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 // Condos are a Canada-only offering, so this suite always uses CAN data and
 // CondoPlanPage always drives the Canadian site — running it under LOCATION=USA
@@ -90,7 +90,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
 
     test(`@regression | ${location.country} | Validate Show More floorplans control when present`, async () => {
       await test.step('Validate Show More floorplans control when present', async () => {
-        await condoPlanPage.verifyShowMoreFloorplansIfPresent();
+        await condoPlanPage.verifyShowMoreFloorplans();
       });
     });
   });
@@ -143,7 +143,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
         'Skipping condo plan form lead submission on PROD environment.',
       );
 
-      test(`@regression @STAGE | ${location.country} | Validate Get Information side modal form successful submission`, async () => {
+      test(`@regression @lead-submit @STAGE | ${location.country} | Validate Get Information side modal form successful submission`, async () => {
         await test.step('Validate Get Information side modal form successful submission', async () => {
           await condoPlanPage.verifySideModalFormSuccessfulSubmission();
         });

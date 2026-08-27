@@ -7,7 +7,7 @@ import {
   getSlugTextPattern,
   isLocatorVisible,
   toTitleCase,
-} from '../utils/pageObjectUtils';
+} from '../utils/web/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
 import {
   clickSubmit,
@@ -20,7 +20,7 @@ import {
   GET_INFORMATION_CTA_TEXT,
   getSubmitButton,
   SUBMIT_BUTTON_SELECTOR,
-} from '../utils/leadFormHelper';
+} from '../utils/leadform/leadFormHelper';
 
 // QMI Page Object Model
 
@@ -121,10 +121,14 @@ export class QMIPage extends SearchablePage {
     this.communitySitemapSection = this.getSectionByHeading(/Explore the community/i);
     this.homeDesignDetailsSection = this.getSectionByHeading(/Home Design Details/i);
     this.homeFeaturesSection = this.getSectionByHeading(/Home Features/i);
+    // The site does not head this block consistently - USA QMI pages call it
+    // "New Home Gallery", not "Sales Office" - so match all the variants.
     this.salesOfficeSection = page
       .locator('section')
       .filter({
-        has: page.getByRole('heading', { name: /Showhome Parade|Sales Office/i }),
+        has: page.getByRole('heading', {
+          name: /Showhome Parade|Sales Office|Sales Centre|New Home Gallery/i,
+        }),
       })
       .first();
     this.relatedQmiSection = this.getSectionByHeading(/Quick Move-In Homes ready when you are/i);
@@ -375,13 +379,13 @@ export class QMIPage extends SearchablePage {
   /** Checks that sales office section includes contact links, map link, and form submit button. */
   async verifySalesOfficeAndContactForm(): Promise<void> {
     await this.step('Verify sales office & contact form', async () => {
-      const salesOfficeSection = await this.getSalesOfficeSectionIfAvailable();
+      const salesOfficeSection = await this.requireFeature(
+        await this.getSalesOfficeSection(),
+        'qmi.salesOfficeSection',
+        'Sales Office section',
+      );
 
-      if (!salesOfficeSection) {
-        await this.reportValue(
-          'Sales Office section not present - skipping sales office validation',
-        );
-      } else {
+      if (salesOfficeSection) {
         await salesOfficeSection.scrollIntoViewIfNeeded();
         await expect(salesOfficeSection).toBeVisible({
           timeout: QMIPage.PAGE_LOAD_TIMEOUT,
@@ -390,7 +394,7 @@ export class QMIPage extends SearchablePage {
           /Hours|Open|Closed|Sales Office|Showhome Parade/i,
         );
         await this.verifySalesOfficePhone(salesOfficeSection);
-        await this.verifySalesOfficeMapLinkIfPresent(salesOfficeSection);
+        await this.verifySalesOfficeMapLink(salesOfficeSection);
       }
 
       await expect(this.getInformationCta).toBeVisible();
@@ -454,6 +458,7 @@ export class QMIPage extends SearchablePage {
 
       await this.fillLeadFormWithValidData(form);
       await this.submitLeadFormAndCaptureApi({
+        form: form,
         formName: 'QMI Get Information side modal form',
         submitButton: getSubmitButton(form),
         successModal: this.successDialogModal,
@@ -606,7 +611,7 @@ export class QMIPage extends SearchablePage {
   }
 
   /** find the sales office section across supported QMI page layouts. */
-  private async getSalesOfficeSectionIfAvailable(): Promise<Locator | null> {
+  private async getSalesOfficeSection(): Promise<Locator | null> {
     await this.salesOfficeSection
       .waitFor({ state: 'attached', timeout: 5000 })
       .catch(() => undefined);
@@ -615,7 +620,9 @@ export class QMIPage extends SearchablePage {
       return this.salesOfficeSection;
     }
 
-    const salesOfficeHeading = this.page.getByText(/Showhome Parade|Sales Office/i).first();
+    const salesOfficeHeading = this.page
+      .getByText(/Showhome Parade|Sales Office|Sales Centre|New Home Gallery/i)
+      .first();
 
     await salesOfficeHeading.waitFor({ state: 'attached', timeout: 5000 }).catch(() => undefined);
 
@@ -639,14 +646,20 @@ export class QMIPage extends SearchablePage {
   }
 
   /** verify a map link when the sales office layout exposes one. */
-  private async verifySalesOfficeMapLinkIfPresent(salesOfficeSection: Locator): Promise<void> {
+  private async verifySalesOfficeMapLink(salesOfficeSection: Locator): Promise<void> {
     const mapLink = salesOfficeSection
       .locator('a[href*="google.com/maps"], a[href*="maps.google"], a[href*="/maps"]')
       .first();
 
-    if (await mapLink.count()) {
-      await expect(mapLink).toBeVisible();
+    if (
+      !(await this.isFeaturePresent(mapLink, 'qmi.salesOfficeMapLink', 'Sales Office map link', {
+        state: 'attached',
+      }))
+    ) {
+      return;
     }
+
+    await expect(mapLink).toBeVisible();
   }
 
   /** locate the related QMI card address/title within a single card. */

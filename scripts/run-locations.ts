@@ -18,6 +18,7 @@
  * `npm test -- --grep @smoke --project=Chrome` keeps working.
  */
 import { spawnSync } from 'node:child_process';
+import { getBrowserProjectKey } from '../config/browserSelection';
 import process from 'node:process';
 import { loadEnv, isCI } from '../config/env';
 import { getLocationsToRun } from '../config/locations/locationConfig';
@@ -59,6 +60,16 @@ function runLocation(location: string, index: number, total: number, args: strin
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const locations = getLocationsToRun();
+
+  // Deselect Chrome-only tests on firefox/webkit rather than reporting them as
+  // skipped - "36 selected" is clearer than "42 passed, 6 skipped".
+  if (
+    getBrowserProjectKey() !== 'chromium' &&
+    !args.some((arg) => arg.startsWith('--grep-invert'))
+  ) {
+    args.push('--grep-invert', '@chrome-only');
+    console.log('[browser] Non-Chrome run — deselecting @chrome-only tests.');
+  }
 
   if (locations.length > 1) {
     console.log(`[locations] No LOCATION set — running all locations: ${locations.join(', ')}`);

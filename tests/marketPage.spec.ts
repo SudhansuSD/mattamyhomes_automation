@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { MarketPage } from '../pages/MarketPage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const { envName } = getEnvConfig();
 const location = getLocationConfig();
@@ -118,7 +118,7 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
       test.describe('Lead form submission', () => {
         test.skip(envName === 'PROD', 'Skipping lead form submission on PROD environment.');
 
-        test(`@regression @STAGE | ${location.country} | Validate lead form successful submission and API response`, async () => {
+        test(`@regression @lead-submit @STAGE | ${location.country} | Validate lead form successful submission and API response`, async () => {
           await test.step(`Submit lead form with valid data and validate API for ${configuredMarket.name}`, async () => {
             await marketPage.submitLeadFormSuccessfully(configuredMarket.name);
           });

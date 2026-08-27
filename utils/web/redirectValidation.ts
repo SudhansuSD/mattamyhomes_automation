@@ -1,5 +1,5 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
+import { getEnvConfig } from '../../config/environments/envConfig';
 import { escapeRegex } from './pageObjectUtils';
 
 export type RedirectCase = {

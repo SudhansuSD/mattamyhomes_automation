@@ -5,7 +5,7 @@ import {
   getConsentCheckbox,
   getLeadProfile,
   getValidLeadData,
-} from '../utils/leadFormHelper';
+} from '../utils/leadform/leadFormHelper';
 import { BasePage } from './BasePage';
 
 type PromoLeadData = {

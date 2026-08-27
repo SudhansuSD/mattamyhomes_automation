@@ -8,7 +8,7 @@ import { test } from '@playwright/test';
 import { getLocationConfig, getLocationKey } from '../config/locations/locationConfig';
 import { Footer } from '../pages/Footer';
 import { HomePage } from '../pages/HomePage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 // The footer checks below are structural — footer visible with a Privacy Policy
 // link, social hrefs absolute, newsletter rejects a bad email — and use no

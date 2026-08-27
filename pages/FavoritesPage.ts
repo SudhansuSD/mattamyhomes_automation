@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
-import { escapeRegex } from '../utils/pageObjectUtils';
+import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 // Favorites ("Homes I Love") Page Object Model Covers the /favorites page (SearchFavorites component) and the cross-page "save a home" workflow driven by the heart/favorite toggle rendered on search / community / plan / QMI cards.

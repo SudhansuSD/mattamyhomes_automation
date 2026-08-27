@@ -1,0 +1,117 @@
+# Mattamy Homes Automation Framework
+
+End-to-end suite for the Mattamy Homes site. Desktop web is Playwright +
+TypeScript; mobile web is WebdriverIO + Appium. Reporting is Allure (desktop /
+mobile / merged) plus an emailed HTML summary.
+
+See [README.md](README.md) for setup and the full command list. This file covers
+the conventions to follow when changing code here.
+
+## Commands
+
+```bash
+npm test                  # all desktop tests, every configured location
+npm run test:ci           # @ci subset - fastest sanity check
+npm run test:smoke        # @smoke
+npm run test:regression   # @regression
+npm run test:mobile:android
+
+npm run typecheck         # desktop + mobile; both must pass
+npm run lint
+npm run format
+```
+
+`npm run typecheck` and `npm run lint` are the CI quality gates and run before
+browsers are installed. Run both before handing work back.
+
+## Layout
+
+| Path | What lives there |
+| --- | --- |
+| `tests/` | Specs. Thin - orchestration and assertions only |
+| `pages/` | Desktop page objects (`BasePage` -> `SearchablePage` -> page) |
+| `pages/mobile/` | Mobile page objects (`MobileWebBasePage` -> page) |
+| `support/` | Page-object collaborators (overlays, media audit, lead-form flow) |
+| `utils/reporting/` | Allure steps, metadata, timeout diagnostics reporter |
+| `utils/evidence/` | Sharded evidence stores merged into xlsx at teardown |
+| `utils/leadform/` | Lead-form fill/submit helpers (desktop + mobile) |
+| `utils/web/` | Page-object helpers, redirect and accessibility checks |
+| `utils/` | Remaining cross-cutting helpers (Jira client, mobile platform) |
+| `config/` | Environment, location, browser, and feature-expectation config |
+| `scripts/` | Runners, Allure/report generation, Jira + generation pipeline |
+
+## Conventions
+
+**Every page-object method gets a one-line comment above it.** Describe what it
+does, not how. Longer comments are for explaining *why* a non-obvious approach
+was chosen - the existing ones record real debugging outcomes and are worth
+matching in tone.
+
+**Report through Allure, never `console.log`.** Use `step()` and `reportValue()`
+from `utils/reporting/allureReporter` (exposed as `this.step` / `this.reportValue` on
+`BasePage`). A diagnostic worth keeping belongs in the report; one that is not
+should be deleted.
+
+**Specs are section-wise.** Group with nested `test.describe` blocks per page
+area, and put the tags plus the location in the title:
+
+```ts
+test(`@smoke @regression | ${location.country} | Home page should load correctly`, ...)
+```
+
+**Mobile specs mirror the desktop ones.** Same section structure, search flows
+start from the home page, and failures are hard failures.
+
+**Never navigate off-site.** For third-party links, assert `href`/`target` and
+dismiss any modal - do not click through.
+
+**Do not add hard waits.** `page.waitForTimeout` as a blind pre-assertion sleep
+is not acceptable; use `expect.poll`, a web-first assertion, or
+`BasePage.waitForPageReady()`, which waits for the DOM to go quiet. A bounded
+polling interval inside a loop is fine. This matters: paying blind waits
+repeatedly once took the suite from 3.2h to 5.8h.
+
+**A missing element is not a reason to pass.** Do not write
+`if (!visible) return;` in a validation method. Call
+`this.isFeaturePresent(...)` or `this.requireFeature(...)` and declare genuinely
+absent features in `config/features/featureExpectations.ts`. Absence must be a
+recorded decision, not a runtime shrug. Guards for environmental noise - cookie
+banners, promo overlays, closing a dialog - stay conditional and keep their
+`IfPresent` names.
+
+**Evidence workbooks are written once, in teardown.** Never read-modify-write an
+`.xlsx` from a test: workers race and ExcelJS corrupts the zip. Append rows via
+`utils/evidence/evidenceShardStore` and merge in `scripts/playwrightGlobalTeardown.ts`.
+
+**`utils/scenarioMapper.ts` is intentionally retained** even though nothing
+imports it. Do not remove it as dead code.
+
+## Test data
+
+Lead-form data comes from `data/test_data.json` via `utils/leadform/leadFormHelper`.
+Submissions on STAGE create real CRM records, so names and email prefixes must
+stay obviously automated (`QAAutomation` / `DoNotContact`, `qa-automation_*`) and
+emails must stay unique per run. Never put a real person's details in here.
+
+## Environments and locations
+
+`ENV` selects STAGE or PROD; `LOCATION` selects USA or CAN, and `ALL` runs one
+pass per country. Specs read `getLocationConfig()` rather than hardcoding.
+Country-specific page objects pin themselves with `locationOverride` - MPC is
+USA-only, condo community and condo plan are CAN-only.
+
+Anything that submits a live lead form must be STAGE-only:
+
+```ts
+test.skip(envName === 'PROD', 'Lead submissions must run only on STAGE.');
+```
+
+## Untracked evidence specs
+
+`tests/formSubmissionEvidence.spec.ts`,
+`tests/formProfaneSubmissionEvidence.spec.ts`,
+`tests/scheduleAVisitCanadaFormEvidence.spec.ts`, and
+`tests/sideModalFormEvidence.spec.ts` are in `.gitignore` on purpose - they are
+one-off client-evidence runs, not part of the committed suite. Keep the files on
+disk; do not commit them and do not delete them. They submit live forms, so
+check what they will send before running one.

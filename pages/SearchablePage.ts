@@ -1,7 +1,7 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
-import { escapeRegex, isLocatorVisible } from '../utils/pageObjectUtils';
+import { escapeRegex, isLocatorVisible } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 export type SearchType =

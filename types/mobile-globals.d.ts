@@ -2,7 +2,7 @@
 // installs at runtime.
 //
 // - The `__getVisible*` functions are injected into the page by
-//   utils/mobileLeadFormHelper (installVisibleLeadFormFinder) and then called
+//   utils/leadform/mobileLeadFormHelper (installVisibleLeadFormFinder) and then called
 //   from inside `driver.execute()` browser callbacks.
 // - `__mobileSpecStep` is set on the Node globalThis by the WDIO `before` hook so
 //   page objects can route step logs into the per-spec log + Allure.
@@ -19,9 +19,7 @@ declare global {
   }
 
   // eslint-disable-next-line no-var
-  var __mobileSpecStep:
-    | ((kind: string, message: string, status?: unknown) => void)
-    | undefined;
+  var __mobileSpecStep: ((kind: string, message: string, status?: unknown) => void) | undefined;
 
   /**
    * Permissive structural view of the WebdriverIO Browser used as the mobile page
@@ -40,15 +38,11 @@ declare global {
     keys(value: string | string[]): Promise<void>;
     waitUntil(
       condition: () => boolean | Promise<boolean>,
-      options?: { timeout?: number; timeoutMsg?: string; interval?: number }
+      options?: { timeout?: number; timeoutMsg?: string; interval?: number },
     ): Promise<unknown>;
     getWindowSize(): Promise<{ width: number; height: number }>;
     reloadSession(...args: any[]): Promise<unknown>;
-    setTimeout(timeouts: {
-      implicit?: number;
-      pageLoad?: number;
-      script?: number;
-    }): Promise<void>;
+    setTimeout(timeouts: { implicit?: number; pageLoad?: number; script?: number }): Promise<void>;
     takeScreenshot(): Promise<string>;
     sessionId: string;
     options: any;

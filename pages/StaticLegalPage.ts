@@ -1,6 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { escapeRegex } from '../utils/pageObjectUtils';
+import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 export type StaticLegalPageLink = {

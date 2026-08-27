@@ -6,7 +6,7 @@
 import { test } from '@playwright/test';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { HomePage } from '../pages/HomePage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const location = getLocationConfig();
 const condoCommunity = 'condoCommunity' in location ? location.condoCommunity : undefined;
@@ -43,7 +43,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
       });
     });
 
-    test(`@smoke @regression | ${location.country} | Validate hero video autoplay on Home Page`, async ({}, testInfo) => {
+    test(`@chrome-only @smoke @regression | ${location.country} | Validate hero video autoplay on Home Page`, async ({}, testInfo) => {
       test.skip(
         testInfo.project.name !== 'Chrome',
         'Hero autoplay video is validated on the desktop home page.',
@@ -113,6 +113,15 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     test(`@regression | ${location.country} | Validate market cards on Home Page`, async () => {
       await test.step('Verify market cards are visible and correctly linked', async () => {
         await homePage.validateMarketCards();
+      });
+    });
+
+    test(`@regression | ${location.country} | Open each market card from Home Page and validate`, async () => {
+      // One navigation per market, so it needs more than the 5 min default.
+      test.setTimeout(15 * 60 * 1000);
+
+      await test.step('Open every market card and verify where it lands', async () => {
+        await homePage.validateEachMarketCardOpens();
       });
     });
 

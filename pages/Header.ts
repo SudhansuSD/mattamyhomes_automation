@@ -1,5 +1,5 @@
 import { Page, Locator, expect } from '@playwright/test';
-import { escapeRegex } from '../utils/pageObjectUtils';
+import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 export type HeaderNavigationLink = {

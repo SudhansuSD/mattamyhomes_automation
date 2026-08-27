@@ -8,7 +8,7 @@ import { expect, test } from '@playwright/test';
 import { getLocationConfig, getLocationKey } from '../config/locations/locationConfig';
 import { FavoritesPage } from '../pages/FavoritesPage';
 import { SearchPage } from '../pages/SearchPage';
-import { annotate, Severity } from '../utils/allureMeta';
+import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);

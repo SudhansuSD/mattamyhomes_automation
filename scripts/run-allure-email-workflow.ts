@@ -31,7 +31,9 @@ async function runWorkflow(): Promise<void> {
   const testResult = await runNpmScript('test:allure');
 
   if (testResult.exitCode !== 0) {
-    console.warn(`Playwright completed with exit code ${testResult.exitCode}. Continuing report generation and email.`);
+    console.warn(
+      `Playwright completed with exit code ${testResult.exitCode}. Continuing report generation and email.`,
+    );
   }
 
   const generateResult = await runNpmScript('allure:generate');
