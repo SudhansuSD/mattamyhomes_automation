@@ -13,7 +13,7 @@ import {
 const COMMUNITY_FORM_GLOBAL = '__getVisibleCommunityForms';
 
 export class MobileWebCommunityPage extends MobileWebHomePage {
-  /** Checks the community search flow. */
+  /** Checks a community search lands on the right community page. */
   async verifySearchByCommunity(expectedCommunity = getLocationConfig().community) {
     await this.waitForPageReady();
     await this.waitForBodyText(
@@ -27,7 +27,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     this.assertNoErrorPage(snapshot);
   }
 
-  /** Checks the core page sections. */
+  /** Checks every core section of the community page is present. */
   async verifyCoreSections() {
     await this.waitForBodyText(
       /available homes|quick move-in|map|contact|sales|directions|amenities|overview/i,
@@ -69,7 +69,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks the overview, address, market, and attributes. */
+  /** Checks the community's overview, address, market and key attributes. */
   async verifyOverviewAddressMarketAndAttributes(
     expectedCommunity = getLocationConfig().community,
   ) {
@@ -126,7 +126,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     assert.equal(snapshot.hasAttributes, true, 'Expected community key attributes on mobile');
   }
 
-  /** Checks that the QMI card belongs to the current community. */
+  /** Checks a quick move-in card really belongs to this community. */
   async verifyQmiCardCommunityNameMatchesCurrentCommunity(
     expectedCommunity = getLocationConfig().community,
   ) {
@@ -194,7 +194,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks all navigation links. */
+  /** Checks every in-page navigation link points somewhere real. */
   async verifyAllNavigationLinks() {
     await this.waitForPageReady();
 
@@ -218,7 +218,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks the Available Homes navigation. */
+  /** Checks the Available Homes link jumps to its section. */
   async verifyAvailableHomesNavigation() {
     const result = await this.clickFirstCommunityLink(
       /quick-move-in|available-home|\d{1,}-/i,
@@ -235,7 +235,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     await this.waitForPageReady();
   }
 
-  /** Checks the Plans navigation. */
+  /** Checks the Plans link jumps to its section. */
   async verifyPlansNavigation() {
     const location = getLocationConfig();
     const planPattern = new RegExp(
@@ -254,7 +254,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     await this.waitForPageReady();
   }
 
-  /** Clicks first community link. */
+  /** Taps the first community link matching the pattern. */
   async clickFirstCommunityLink(pattern, label) {
     const clicked = await this.driver.execute(
       ({ source, flags, label }) => {
@@ -306,7 +306,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     return clicked;
   }
 
-  /** Checks primary form required-field errors. */
+  /** Submits the primary form empty and checks the required-field errors appear. */
   async validatePrimaryFormEmptyErrors() {
     await this.waitForCommunityForm();
     await this.submitVisibleFormByIndex(0);
@@ -319,7 +319,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks footer form required-field errors. */
+  /** Submits the footer form empty and checks the required-field errors appear. */
   async validateFooterFormEmptyErrors() {
     await this.waitForCommunityForm();
     await this.submitVisibleFormByIndex(1);
@@ -332,7 +332,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks primary form invalid email address. */
+  /** Checks the primary form rejects an invalid email address. */
   async validatePrimaryFormInvalidEmail() {
     await this.waitForCommunityForm();
     await this.fillInvalidEmailFormByIndex(0);
@@ -346,7 +346,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks footer form invalid email address. */
+  /** Checks the footer form rejects an invalid email address. */
   async validateFooterFormInvalidEmail() {
     await this.waitForCommunityForm();
     await this.fillInvalidEmailFormByIndex(1);
@@ -360,17 +360,17 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks that the primary form submits successfully. */
+  /** Fills the primary form with valid data and checks it submits. */
   async verifyPrimaryFormSuccessSubmission() {
     await this.submitCommunityFormSuccessfully(0, 'primary community form');
   }
 
-  /** Checks that the footer form submits successfully. */
+  /** Fills the footer form with valid data and checks it submits. */
   async verifyFooterFormSuccessSubmission() {
     await this.submitCommunityFormSuccessfully(1, 'footer community form');
   }
 
-  /** Submits community form successfully. */
+  /** Fills a community form with valid data and checks it submits. */
   async submitCommunityFormSuccessfully(formIndex, formName) {
     const { envName } = getEnvConfig();
 
@@ -383,7 +383,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Submits visible form by index. */
+  /** Submits the visible form at this index. */
   async submitVisibleFormByIndex(formIndex = 0) {
     const submitted = await submitVisibleLeadFormByIndex(
       this.driver,
@@ -393,7 +393,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     assert.equal(submitted, true, `Expected visible community form at index ${formIndex}`);
   }
 
-  /** Fills invalid email address form by index. */
+  /** Fills the form at this index with a deliberately bad email address. */
   async fillInvalidEmailFormByIndex(formIndex = 0) {
     const filled = await fillInvalidEmailLeadFormByIndex(
       this.driver,
@@ -407,7 +407,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Fills valid form by index. */
+  /** Fills the form at this index with valid lead data. */
   async fillValidFormByIndex(formIndex = 0) {
     const submitted = await fillValidLeadFormByIndex(
       this.driver,
@@ -424,7 +424,7 @@ export class MobileWebCommunityPage extends MobileWebHomePage {
     );
   }
 
-  /** Waits until community form. */
+  /** Waits until a community lead form is on screen. */
   async waitForCommunityForm() {
     await this.waitForBodyText(
       /sign up for community updates|first name|last name|email|zip\/postal code|submit/i,

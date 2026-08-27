@@ -93,7 +93,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.equal(currentPath, location.qmiPath, `Expected QMI URL path to be ${location.qmiPath}`);
   }
 
-  /** Checks the hero section. */
+  /** Checks the hero shows the heading, address and summary stats. */
   async verifyHeroSection(address = getLocationConfig().qmiAddress) {
     await this.waitForQmiPage(address);
 
@@ -161,7 +161,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.equal(snapshot.hasMedia, true, 'Expected QMI hero media on mobile');
   }
 
-  /** Checks the hero home facts. */
+  /** Checks the hero lists beds, baths, square footage and price. */
   async verifyHeroHomeFacts() {
     await this.waitForQmiPage();
 
@@ -215,7 +215,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.equal(form.hasSubmit, true, 'Expected opened QMI lead form to include a submit button');
   }
 
-  /** Checks the gallery. */
+  /** Checks the gallery shows media and its controls work. */
   async verifyGallery() {
     await this.waitForQmiPage();
 
@@ -293,7 +293,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.ok(gallery.mediaCount > 0, 'Expected QMI gallery or hero images on mobile');
   }
 
-  /** Checks the floor plan section. */
+  /** Checks the floor plan section is visible. */
   async verifyFloorPlan() {
     await this.verifyOptionalSection(
       /floor ?plan/i,
@@ -302,7 +302,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks the interactive floor plan. */
+  /** Checks the interactive floor plan renders its content. */
   async verifyInteractiveFloorPlan() {
     await this.verifyOptionalSection(
       /interactive floorplan/i,
@@ -311,7 +311,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks the community sitemap. */
+  /** Checks the community sitemap renders its content. */
   async verifyCommunitySitemap() {
     await this.verifyOptionalSection(
       /explore the community|site ?map|community map/i,
@@ -320,7 +320,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks the home design details. */
+  /** Checks the home design details section says something real. */
   async verifyHomeDesignDetails() {
     await this.verifyOptionalSection(
       /home design details|design details/i,
@@ -329,7 +329,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks the home features. */
+  /** Checks the home features section says something real. */
   async verifyHomeFeatures() {
     await this.verifyOptionalSection(
       /home features|features/i,
@@ -338,7 +338,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks the sales office and contact form context. */
+  /** Checks the sales office shows its contact details and form. */
   async verifySalesOfficeAndContactForm() {
     await this.waitForQmiPage();
 
@@ -367,7 +367,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     }
   }
 
-  /** Checks related quick move-in homes. */
+  /** Checks the related quick move-in homes list cards with real content. */
   async verifyRelatedQuickMoveInHomes() {
     this.logValidate('Validate related QMI homes section');
     const result = await this.getRelatedQuickMoveInHomesSnapshot();
@@ -395,7 +395,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     }
   }
 
-  /** Checks the QMI form fields. */
+  /** Checks the lead form shows its fields. */
   async validateQmiFormFields() {
     const form = await this.getVisibleQmiForm();
 
@@ -412,7 +412,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.equal(form.hasSubmit, true, 'Expected QMI form submit button on mobile');
   }
 
-  /** Checks QMI form required-field errors. */
+  /** Submits the form empty and checks the required-field errors appear. */
   async validateQmiFormRequiredErrors() {
     const submitted = await this.submitVisibleQmiFormByIndex(0);
 
@@ -464,7 +464,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     await this.assertSubmissionSuccess('Expected successful submission confirmation for QMI form');
   }
 
-  /** Checks the mortgage popup. */
+  /** Checks the mortgage calculator opens and closes again. */
   async verifyMortgagePopup() {
     await this.waitForQmiPage();
 
@@ -538,7 +538,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks breadcrumb navigation. */
+  /** Checks the breadcrumb walks state, community and address in the right order. */
   async verifyBreadcrumbNavigation() {
     this.logValidate('Validate QMI breadcrumb URL context');
     await this.waitForQmiPage();
@@ -589,7 +589,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     }
   }
 
-  /** Checks breadcrumb links. */
+  /** Checks the breadcrumb links point back to the right community and plan. */
   async verifyBreadcrumbLinks() {
     this.logValidate('Validate QMI breadcrumb links when rendered');
     await this.waitForQmiPage();
@@ -661,7 +661,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.match(result.text, new RegExp(this.escapeRegExp(location.qmiAddress), 'i'));
   }
 
-  /** Checks plan-name link navigation. */
+  /** Taps the plan name and checks it opens that plan's page. */
   async verifyPlanNameLinkNavigation() {
     this.logValidate('Validate QMI plan name link navigation');
     await this.waitForQmiPage();
@@ -775,7 +775,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     assert.match(result.text, contentPattern);
   }
 
-  /** Captures a snapshot of the section. */
+  /** Captures the section matching the pattern, with its heading and text. */
   async getSectionSnapshot(pattern) {
     await this.waitForQmiPage();
 
@@ -816,7 +816,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Captures the related quick move-in homes. */
+  /** Captures the related quick move-in cards, with their addresses and links. */
   async getRelatedQuickMoveInHomesSnapshot() {
     await this.waitForQmiPage();
 
@@ -905,7 +905,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     );
   }
 
-  /** Finds the visible QMI lead form. */
+  /** Returns the lead form currently on screen. */
   async getVisibleQmiForm() {
     await this.waitForQmiPage();
     await this.installQmiFormFinder();
@@ -923,7 +923,7 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     });
   }
 
-  /** Installs the shared QMI form finder. */
+  /** Installs the shared in-page helper that finds visible lead forms. */
   async installQmiFormFinder() {
     await installVisibleLeadFormFinder(this.driver, {
       containerSelectors: 'section, div, [role="group"]',
@@ -931,19 +931,19 @@ export class MobileWebQMIPage extends MobileWebHomePage {
     });
   }
 
-  /** Submits visible QMI form by index. */
+  /** Submits the visible lead form at this index. */
   async submitVisibleQmiFormByIndex(formIndex = 0) {
     await this.installQmiFormFinder();
     return submitVisibleLeadFormByIndex(this.driver, QMI_FORM_GLOBAL, formIndex);
   }
 
-  /** Fills invalid email address QMI form by index. */
+  /** Fills the form at this index with a deliberately bad email address. */
   async fillInvalidEmailQmiFormByIndex(formIndex = 0) {
     await this.installQmiFormFinder();
     return fillInvalidEmailLeadFormByIndex(this.driver, QMI_FORM_GLOBAL, formIndex);
   }
 
-  /** Fills valid QMI form by index. */
+  /** Fills the form at this index with valid lead data. */
   async fillValidQmiFormByIndex(formIndex = 0) {
     await this.installQmiFormFinder();
     return fillValidLeadFormByIndex(this.driver, QMI_FORM_GLOBAL, formIndex, {

@@ -51,28 +51,28 @@ export class Header extends BasePage {
 
   // Actions
 
-  /** Clicks find your home. */
+  /** Clicks the Find Your Dream Home link in the header. */
   async clickFindYourHome(): Promise<void> {
     await this.step('Click Find Your Dream Home', async () => {
       await this.clickElement(this.findYourHomeLink);
     });
   }
 
-  /** Clicks about us. */
+  /** Clicks the About link in the header. */
   async clickAboutUs(): Promise<void> {
     await this.step('Click About', async () => {
       await this.clickElement(this.aboutUsLink);
     });
   }
 
-  /** Clicks contact us. */
+  /** Clicks the Contact Us link in the header. */
   async clickContactUs(): Promise<void> {
     await this.step('Click Contact Us', async () => {
       await this.clickElement(this.contactUsLink);
     });
   }
 
-  /** Opens about us menu. */
+  /** Opens the About Us flyout and waits for its links to finish rendering. */
   async openAboutUsMenu(expectedLinkCount?: number): Promise<void> {
     await this.step('Open About Us menu', async () => {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
@@ -102,14 +102,14 @@ export class Header extends BasePage {
 
   // Find Your Home Link Validation
 
-  /** Gets the national promotion dialog locator. */
+  /** Returns the national promotion popup dialog. */
   private get nationalPromotionDialog(): Locator {
     return this.page
       .locator('.ReactModal__Content[role="dialog"][aria-label="National promotion"]')
       .first();
   }
 
-  /** Closes national promotion dialog. */
+  /** Closes the national promotion popup, falling back to Escape if it has no close button. */
   private async closeNationalPromotionDialog(dialog: Locator): Promise<void> {
     const closeButton = dialog
       .locator(
@@ -133,7 +133,7 @@ export class Header extends BasePage {
     await this.reportValue('National promotion popup closed');
   }
 
-  /** Registers national promotion handler. */
+  /** Registers a one-time handler so the promo popup is closed whenever it appears. */
   private async registerNationalPromotionHandler(): Promise<void> {
     if (this.promoPopupHandlerRegistered) {
       return;
@@ -145,7 +145,7 @@ export class Header extends BasePage {
     this.promoPopupHandlerRegistered = true;
   }
 
-  /** Checks the Find Your Home links. */
+  /** Checks the Find Your Dream Home flyout lists the links this country expects. */
   async verifyFindYourHomeLinks(): Promise<void> {
     await this.step('Verify Find Your Dream Home links', async () => {
       await this.registerNationalPromotionHandler();
@@ -224,7 +224,7 @@ export class Header extends BasePage {
 
   // About Us Link Validation
 
-  /** Gets visible about us menu links. */
+  /** Opens the About Us flyout and returns its links, one per unique href. */
   async getVisibleAboutUsMenuLinks(expectedLinkCount?: number): Promise<HeaderNavigationLink[]> {
     return this.step('Get visible About Us menu links', async () => {
       await this.openAboutUsMenu(expectedLinkCount);
@@ -248,7 +248,7 @@ export class Header extends BasePage {
     });
   }
 
-  /** Checks the About Us menu links. */
+  /** Checks the About Us flyout lists exactly the configured links, in any order. */
   async verifyAboutUsMenuLinks(expectedLinks: readonly HeaderNavigationLink[]): Promise<void> {
     await this.step('Verify About Us menu links', async () => {
       const actualLinks = await this.getVisibleAboutUsMenuLinks(expectedLinks.length);
@@ -287,7 +287,7 @@ export class Header extends BasePage {
     });
   }
 
-  /** Checks the About Us links. */
+  /** Walks every About Us link, confirming each one opens its page and comes back. */
   async verifyAboutUsLinks(expectedLinks: readonly HeaderNavigationLink[]): Promise<void> {
     await this.step('Verify About Us links navigation', async () => {
       await this.verifyAboutUsMenuLinks(expectedLinks);
@@ -329,7 +329,7 @@ export class Header extends BasePage {
     });
   }
 
-  /** Clicks about us menu link. */
+  /** Clicks one About Us flyout link and waits for its page to load. */
   async clickAboutUsMenuLink(expectedLink: HeaderNavigationLink): Promise<void> {
     await this.step(`Click About Us menu link: ${expectedLink.name}`, async () => {
       const menuLink = this.getAboutUsMenuLink(expectedLink);
@@ -348,7 +348,7 @@ export class Header extends BasePage {
     });
   }
 
-  /** Gets about us menu link. */
+  /** Returns the About Us flyout link with this name and href. */
   private getAboutUsMenuLink(expectedLink: HeaderNavigationLink): Locator {
     return this.aboutUsMenuLinks
       .filter({ hasText: new RegExp(`^\\s*${escapeRegex(expectedLink.name)}\\s*$`, 'i') })

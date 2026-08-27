@@ -69,7 +69,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.match(await this.driver.getUrl(), new RegExp(this.escapeRegExp(expectedUrlPart), 'i'));
   }
 
-  /** Checks the plan hero summary. */
+  /** Checks the hero summary names this plan and shows its specs. */
   async verifyHeroSummaryForPlan(planName = getLocationConfig().planName) {
     await this.waitForPlanPage(planName);
     const hero = await this.driver.execute(() => {
@@ -208,7 +208,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks the gallery. */
+  /** Checks the gallery shows media and its controls work. */
   async verifyGallery() {
     await this.waitForPlanPage();
     const snapshot = await this.getPlanSourceSnapshot();
@@ -312,7 +312,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.match(result.text, /hours|directions|call|office|gallery/i);
   }
 
-  /** Checks the plan detail form. */
+  /** Checks the plan lead form shows its fields. */
   async verifyPlanDetailForm() {
     await this.waitForPlanForm();
     const snapshot = await this.getPlanSourceSnapshot();
@@ -339,7 +339,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.match(form.text, /zip|postal/i);
   }
 
-  /** Checks plan detail form required-field errors. */
+  /** Submits the plan form empty and checks the required-field errors appear. */
   async validatePlanDetailFormEmptyErrors() {
     await this.waitForPlanForm();
     const snapshot = await this.getPlanSourceSnapshot();
@@ -361,7 +361,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks plan detail form invalid email address. */
+  /** Checks the plan form rejects an invalid email address. */
   async validatePlanDetailFormInvalidEmail() {
     await this.waitForPlanForm();
     const snapshot = await this.getPlanSourceSnapshot();
@@ -384,7 +384,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks that the plan detail form submits successfully. */
+  /** Fills the plan form with valid data and checks it submits. */
   async verifyPlanDetailFormSuccessSubmission() {
     const { envName } = getEnvConfig();
 
@@ -435,7 +435,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     assert.match(result.text, contentPattern);
   }
 
-  /** Captures a snapshot of the section. */
+  /** Captures the section matching the pattern, with its heading and text. */
   async getSectionSnapshot(pattern) {
     await this.waitForPlanPage();
 
@@ -470,7 +470,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Waits until the plan form is ready. */
+  /** Waits until the plan lead form is on screen and usable. */
   async waitForPlanForm() {
     await this.waitForPlanPage();
     const snapshot = await this.getPlanSourceSnapshot();
@@ -490,13 +490,13 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     });
   }
 
-  /** Submits visible plan form by index. */
+  /** Submits the visible plan form at this index. */
   async submitVisiblePlanFormByIndex(formIndex = 0) {
     const submitted = await submitVisibleLeadFormByIndex(this.driver, PLAN_FORM_GLOBAL, formIndex);
     assert.equal(submitted, true, `Expected visible plan form at index ${formIndex}`);
   }
 
-  /** Fills invalid email address plan form by index. */
+  /** Fills the plan form at this index with a deliberately bad email address. */
   async fillInvalidEmailPlanFormByIndex(formIndex = 0) {
     const filled = await fillInvalidEmailLeadFormByIndex(this.driver, PLAN_FORM_GLOBAL, formIndex);
     assert.equal(
@@ -506,7 +506,7 @@ export class MobileWebPlanPage extends MobileWebHomePage {
     );
   }
 
-  /** Fills valid plan form by index. */
+  /** Fills the plan form at this index with valid lead data. */
   async fillValidPlanFormByIndex(formIndex = 0) {
     const submitted = await fillValidLeadFormByIndex(this.driver, PLAN_FORM_GLOBAL, formIndex, {
       emailPrefix: 'qa-automation_plan_mobile',

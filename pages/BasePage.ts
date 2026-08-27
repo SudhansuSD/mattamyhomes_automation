@@ -41,11 +41,8 @@ export class BasePage {
   /**
    * Country this page object is pinned to, if any.
    *
-   * Some pages only exist for one country — MPC is USA-only, condo community
-   * and condo plan are Canada-only. Those page objects pin their country here
-   * so they navigate, select the header country, and read location data for
-   * that country no matter which LOCATION the run was launched with.
-   * Left undefined, every lookup resolves from LOCATION exactly as before.
+   * Some pages exist in one country only - MPC is USA-only, the condo pages are
+   * Canada-only - so they pin it here and ignore whatever LOCATION the run used.
    */
   protected readonly locationOverride?: LocationKey;
 
@@ -79,7 +76,7 @@ export class BasePage {
 
   // Navigation
 
-  /** Opens the configured page URL. */
+  /** Opens this page object's URL and clears the usual overlays on arrival. */
   async navigate(overrideLocation?: LocationKey): Promise<void> {
     const { baseURL, envName } = getEnvConfig();
     const location = getLocationConfig(overrideLocation ?? this.locationOverride);
@@ -120,30 +117,25 @@ export class BasePage {
 
       await this.acceptCookiesIfPresent();
 
-      // 🔹 Use common load handler instead of inline wait
+      // Use the shared load handler rather than an inline wait.
       await this.waitForPageReady();
 
-      // Recover from the intermittent blank/unhydrated render (empty page where
-      // the shell loaded but the SPA never painted) before handing control back.
+      // Recover from a blank render before handing control back.
       await this.ensurePageRendered();
 
-      // Clear the National-promotion overlay here, centrally, rather than in each
-      // page object that happens to remember: it renders a beat AFTER navigation
-      // as a full-screen dialog and intercepts pointer events, so every flow that
-      // navigates and then clicks needs it gone. appearTimeout gives it that beat
-      // to show up; when it never appears this costs nothing beyond the wait.
+      // Clear the National-promotion overlay centrally, not in each page object: it
+      // appears a beat after navigation as a full-screen dialog and swallows clicks.
+      // appearTimeout gives it that beat; when it never shows, the wait is all it costs.
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 
   /**
-   * Guards against the intermittent blank/unhydrated render seen on some
-   * navigations: the HTML shell loads (so the title is set and verifyPageLoaded
-   * passes) but the SPA never paints, leaving an empty page where every
-   * downstream locator times out. Confirms the header actually rendered and
-   * reloads a few times if not, re-accepting the cookie banner after a fresh
-   * render. Never throws - if it still hasn't rendered after the retries the
-   * downstream assertions surface the failure as before.
+   * Reloads the page when the app never painted.
+   *
+   * The HTML shell can load - so the title is right and the page looks fine -
+   * while the SPA renders nothing, leaving every locator to time out. Never
+   * throws: if it is still blank after the retries, the normal assertions say so.
    */
   async ensurePageRendered(): Promise<void> {
     const maxAttempts = 3;
@@ -164,9 +156,8 @@ export class BasePage {
           `Page rendered blank (attempt ${attempt}); reloading`,
           this.page.url(),
         );
-        // reload can abort ("net::ERR_ABORTED; maybe frame was detached?") when
-        // the SPA kicks off its own navigation mid-reload - swallow it and let
-        // the next attempt re-check, rather than failing the whole test.
+        // The reload can abort when the SPA starts its own navigation mid-reload.
+        // Swallow it and let the next attempt re-check rather than failing the test.
         await this.page
           .reload({ waitUntil: 'domcontentloaded', timeout: 90_000 })
           .catch(() => undefined);
@@ -178,24 +169,19 @@ export class BasePage {
 
   // Common Load Stabilization
 
-  /**
-   * Waits until the page has stopped rendering.
-   */
+  /** Waits until the page has stopped rendering. */
   async waitForPageReady(): Promise<void> {
-    // Arm the overlay auto-dismiss handlers here rather than only in navigate():
-    // several pages goto() directly or are reached through the search flow, and
-    // those never went through navigate(), so they ran unprotected. Guarded
-    // internally, so repeat calls cost a boolean check.
+    // Arm the overlay handlers here, not just in navigate(): pages reached by a
+    // direct goto() or through search never went through navigate(), so they ran
+    // unprotected. Guarded inside, so repeat calls cost a boolean check.
     await this.registerConsentDialogHandlers();
 
     await this.page.waitForLoadState('domcontentloaded');
 
-    // Wait for 'load' ONCE per document, not on every call. The SPA attaches its
-    // handlers around 'load', so this is what stops clicks landing on an
-    // unhydrated page - but on pages whose media/analytics never fire 'load' the
-    // wait costs its full timeout, and waitForPageReady runs ~20x per test. Paying
-    // that repeatedly took the suite from 3.2h to 5.8h. Hydration only needs
-    // waiting for once per URL, so remember what we already waited on.
+    // Wait for 'load' once per document, not on every call. The SPA hydrates
+    // around 'load', so this is what stops clicks landing on a dead page - but on
+    // pages that never fire it the wait costs its full timeout, and this method
+    // runs ~20x per test. Paying that every time took the suite from 3.2h to 5.8h.
     const currentUrl = this.page.url();
 
     if (this.loadStateWaitedForUrl !== currentUrl) {
@@ -211,9 +197,8 @@ export class BasePage {
     label = 'page footer',
     timeout = 15_000,
   ): Promise<void> {
-    // Not every page renders a <footer> tag - the market pages use
-    // <div role="contentinfo">, where a tag-only locator never resolves and the
-    // scroll below just times out.
+    // Not every page uses a <footer> tag - the market pages use
+    // <div role="contentinfo">, where a tag-only locator never resolves.
     const footer = this.page.locator('footer, [role="contentinfo"]').first();
 
     await this.waitForPageReady();
@@ -224,26 +209,13 @@ export class BasePage {
   }
 
   /**
-   * Adaptive settle pause used after discrete actions (clicks, typing, tab
-   * switches) where the old code had a blind `waitForTimeout(ms)`.
+   * Waits for the page to go quiet after a click or a keystroke, instead of
+   * sleeping blindly.
    *
-   * Instead of always sleeping the full duration, it waits until the DOM stops
-   * mutating for a short quiet window (SPA-friendly — does not rely on network
-   * idle, which this SPA may never reach). It returns as soon as rendering
-   * settles, never waits longer than the old fixed pause, and never throws —
-   * so call sites behave exactly as before when the page keeps mutating (the
-   * pause simply caps out at `ms`).
-   *
-   * `quietWindowMs` is how long the DOM must stay unchanged before this returns;
-   * `waitForPageReady` passes a longer one because it runs right after
-   * navigation, where the SPA can pause mid-render.
-   *
-   * The `ms` cap is enforced from Node, not only by the in-page timers: those
-   * timers cannot fire while the renderer's main thread is blocked, and
-   * `page.evaluate` has no timeout of its own (unlike actions, which get
-   * `actionTimeout`). A busy or dying renderer therefore used to hang here for
-   * as long as the test had left - one plan-detail run burned its whole 5-minute
-   * budget inside a single `settle(3000)`.
+   * Returns as soon as the DOM stops changing for `quietWindowMs`, and never
+   * waits longer than `ms`. That cap is enforced from Node as well as in the
+   * page, because in-page timers stop firing while the renderer is busy - one
+   * run burned its whole 5-minute budget inside a single `settle(3000)`.
    */
   protected async settle(
     ms: number,
@@ -278,9 +250,8 @@ export class BasePage {
       )
       .catch(() => undefined);
 
-    // Deliberately not awaiting domQuiet on its own: whichever finishes first
-    // wins, and the loser is already .catch()-guarded so a still-pending
-    // evaluate cannot surface as an unhandled rejection later.
+    // Not awaited on its own: whichever finishes first wins, and the loser is
+    // already .catch()-guarded so it cannot surface as an unhandled rejection.
     let deadline: NodeJS.Timeout | undefined;
 
     await Promise.race([
@@ -299,21 +270,17 @@ export class BasePage {
     await this.media.validateAllMediaReturns200(pageName);
   }
 
-  // Allure Step Reporting Thin instance wrappers over the shared helpers in utils/reporting/allureReporter so page objects can call this.step(...) / this.reportValue(...). Specs import the standalone functions directly.
+  // Allure reporting - thin wrappers over utils/reporting/allureReporter so page
+  // objects can call this.step(...). Specs import the standalone functions.
 
-  /**
-   * Runs an action inside a named Allure step so it shows as a labeled node in
-   * the report tree (instead of an unnamed body with a large stdout dump).
-   * Returns whatever the wrapped action returns.
-   */
+  /** Runs an action as a named Allure step and returns whatever it returns. */
   protected async step<T>(name: string, body: () => Promise<T> | T): Promise<T> {
     return reportStep(name, body);
   }
 
   /**
-   * Records an informational message (optionally with a value) as a standalone
-   * named Allure step. Use this in place of console.log for diagnostics worth
-   * surfacing in the report; drop purely decorative logs entirely.
+   * Records a message, and optionally a value, as its own Allure step. Use this
+   * instead of console.log - a diagnostic not worth reporting is not worth keeping.
    */
   protected async reportValue(message: string, value?: unknown): Promise<void> {
     await reportValue(message, value);
@@ -333,10 +300,9 @@ export class BasePage {
   ): Promise<boolean> {
     const { timeout = 5000, state = 'visible' } = options;
 
-    // waitFor for both states. isVisible() ignores its timeout option and answers
-    // immediately, so the visible branch used to sample the DOM the instant it
-    // was called - a section still rendering read as absent and, now that absence
-    // is a hard failure, that turned a slow render into a red test.
+    // waitFor for both states. isVisible() ignores its timeout and answers straight
+    // away, so a section still rendering read as absent - and absence is now a hard
+    // failure, which turned a slow render into a red test.
     const present = await locator
       .first()
       .waitFor({ state, timeout })
@@ -372,14 +338,11 @@ export class BasePage {
   }
 
   /**
-   * Returns the first candidate locator that is currently usable.
+   * Returns the first candidate locator that works, falling back down the list.
    *
-   * Self-healing is deliberately limited to explicit fallback selectors. When
-   * no fallback matches, the primary locator is returned so the original test
-   * failure remains visible.
-   *
-   * Every heal is reported as selector drift: healing keeps the run green, but
-   * it means the app changed, and that has to end up somewhere a human looks.
+   * When nothing matches, the primary locator comes back so the test still fails
+   * on the real selector. Every heal is reported as selector drift: a run kept
+   * green by a fallback still means the app changed, and someone has to see that.
    */
   protected async healLocator(
     label: string,
@@ -430,7 +393,7 @@ export class BasePage {
 
   // Shared Assertions
 
-  /** Checks that the page loaded. */
+  /** Checks we actually landed on a page and not about:blank. */
   protected async assertPageLoaded(label = 'Page should be loaded'): Promise<void> {
     await test.step(label, async () => {
       await this.waitForPageReady();
@@ -438,7 +401,7 @@ export class BasePage {
     });
   }
 
-  /** Checks the page title. */
+  /** Checks the browser tab title. */
   protected async assertPageTitle(
     expectedTitle: string | RegExp,
     label = 'Page title should match expected value',
@@ -448,7 +411,7 @@ export class BasePage {
     });
   }
 
-  /** Checks the page URL. */
+  /** Checks the current URL. */
   protected async assertPageUrl(
     expectedUrl: string | RegExp,
     label = 'Page URL should match expected value',
@@ -459,7 +422,7 @@ export class BasePage {
     });
   }
 
-  /** Checks that the page URL contains the expected value. */
+  /** Checks the current URL contains this fragment. */
   protected async assertPageUrlContains(
     expectedUrlPart: string,
     label = `Page URL should contain: ${expectedUrlPart}`,
@@ -468,7 +431,7 @@ export class BasePage {
     await this.assertPageUrl(new RegExp(escapeRegex(expectedUrlPart), 'i'), label, timeout);
   }
 
-  /** Checks that the page URL does not match an unexpected value. */
+  /** Checks we did not end up on an unexpected URL. */
   protected async assertPageUrlDoesNotMatch(
     unexpectedUrl: string | RegExp,
     label = 'Page URL should not match unexpected value',
@@ -478,7 +441,7 @@ export class BasePage {
     });
   }
 
-  /** Checks that the element is visible. */
+  /** Checks an element is visible on screen. */
   protected async assertVisible(
     locator: Locator,
     label = 'Element should be visible',
@@ -489,7 +452,7 @@ export class BasePage {
     });
   }
 
-  /** Checks that the element is attached to the DOM. */
+  /** Checks an element is in the DOM, whether or not it is on screen. */
   protected async assertAttached(
     locator: Locator,
     label = 'Element should be attached',
@@ -500,7 +463,7 @@ export class BasePage {
     });
   }
 
-  /** Checks that the text contains the expected value. */
+  /** Checks an element's text contains what we expect. */
   protected async assertTextContains(
     locator: Locator,
     expectedText: string | RegExp,
@@ -512,7 +475,7 @@ export class BasePage {
     });
   }
 
-  /** Checks the text exactly. */
+  /** Checks an element's text matches exactly. */
   protected async assertText(
     locator: Locator,
     expectedText: string | RegExp,
@@ -524,7 +487,7 @@ export class BasePage {
     });
   }
 
-  /** Checks that the page body contains the expected text. */
+  /** Checks the text appears somewhere on the page. */
   protected async assertBodyContains(
     expectedText: string | RegExp,
     label = 'Page body should contain expected text',
@@ -533,7 +496,7 @@ export class BasePage {
     await this.assertTextContains(this.page.locator('body'), expectedText, label, timeout);
   }
 
-  /** Checks that the page heading is visible. */
+  /** Checks the page shows an H1. */
   protected async assertHeadingVisible(
     expectedName?: string | RegExp,
     label = 'Page heading should be visible',
@@ -546,7 +509,7 @@ export class BasePage {
     await this.assertVisible(heading, label, timeout);
   }
 
-  /** Checks that the page heading contains the expected text. */
+  /** Checks the H1 says what we expect. */
   protected async assertHeadingContains(
     expectedText: string | RegExp,
     label = 'Page heading should contain expected text',
@@ -555,7 +518,7 @@ export class BasePage {
     await this.assertTextContains(this.page.locator('h1').first(), expectedText, label, timeout);
   }
 
-  /** Checks an element attribute. */
+  /** Checks an element's attribute value. */
   protected async assertAttribute(
     locator: Locator,
     attributeName: string,
@@ -568,7 +531,7 @@ export class BasePage {
     });
   }
 
-  /** Checks the locator count. */
+  /** Checks how many elements the locator matches. */
   protected async assertCount(
     locator: Locator,
     expectedCount: number,
@@ -587,7 +550,7 @@ export class BasePage {
     expect(value, label).toBeTruthy();
   }
 
-  /** Checks that the actual value is greater than the minimum. */
+  /** Checks a number is above the minimum we expect. */
   protected assertGreaterThan(
     actual: number,
     minimum: number,
@@ -658,10 +621,9 @@ export class BasePage {
       .getByRole('button', { name: new RegExp(`^${expectedCountry}$`, 'i') })
       .last();
 
-    // Fail here, naming the real cause. This used to skip silently when the
-    // option never rendered, so the run fell through to the poll below and
-    // reported "Header country selector should show USA" - which reads as the
-    // switch not taking effect, when in fact the dropdown never opened.
+    // Fail here, naming the real cause. This used to skip quietly when the option
+    // never rendered, so the poll below reported "selector should show USA" - which
+    // reads as the switch not taking, when the dropdown never opened at all.
     await expect(
       expectedCountryButton,
       `${expectedCountry} option should appear in the country selector after opening it ` +
@@ -688,7 +650,7 @@ export class BasePage {
 
   // Scroll Handler
 
-  /** Scrolls to the requested page position. */
+  /** Scrolls an element to the middle of the screen and lets the page settle. */
   protected async scrollTo(locator: Locator): Promise<void> {
     await locator.waitFor({ state: 'attached', timeout: 10000 });
 
@@ -704,19 +666,19 @@ export class BasePage {
   }
   // Helper
 
-  /** Builds full URL. */
+  /** Turns a relative href into a full URL against the current page. */
   protected buildFullUrl(relativeUrl: string | null): string {
     return buildAbsoluteUrl(relativeUrl, this.page.url());
   }
 
-  /** Formats price. */
+  /** Formats a number as a currency price. */
   protected formatPrice(price: number): string {
     return formatCurrencyPrice(price);
   }
 
-  // Utils (NEW - stable reusable helpers)
+  // Utils
 
-  /** Clicks element. */
+  /** Scrolls an element into view, clicks it, and waits for the page to settle. */
   protected async clickElement(locator: Locator): Promise<void> {
     await locator.scrollIntoViewIfNeeded();
 
@@ -727,13 +689,11 @@ export class BasePage {
   }
 
   /**
-   * Scrolls a target to the middle of the viewport before interacting with it.
+   * Scrolls a target to the middle of the viewport before clicking it.
    *
-   * Playwright's own scroll puts the element just inside the viewport, which on
-   * these pages can leave it underneath the fixed quick-action bar
-   * (#detailsBlockBar) - the bar then intercepts the click. Centering the target
-   * keeps it clear of both the sticky header and any sticky footer, so the click
-   * lands on the element itself instead of needing `force` to punch through.
+   * Playwright's own scroll stops as soon as the element is just inside the
+   * viewport, where the sticky quick-action bar can still cover it and swallow
+   * the click. Centring keeps it clear of both the sticky header and footer.
    */
   protected async scrollIntoCenter(locator: Locator): Promise<void> {
     await locator
@@ -742,7 +702,7 @@ export class BasePage {
     await this.settle(300);
   }
 
-  /** Checks whether section visible. */
+  /** Returns whether a section is visible, without failing when it is not. */
   protected async isSectionVisible(locator: Locator, timeout = 7000): Promise<boolean> {
     try {
       await expect(locator).toBeVisible({ timeout });
@@ -757,7 +717,7 @@ export class BasePage {
     return normalizeComparableText(text);
   }
 
-  /** Formats price to ui label. */
+  /** Formats a price the way the site labels it. */
   protected formatPriceToUiLabel(price: number): string {
     return formatPriceLabel(price);
   }

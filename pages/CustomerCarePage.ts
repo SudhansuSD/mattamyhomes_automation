@@ -193,7 +193,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Checks that the page loaded. */
+  /** Checks the Customer Care page loaded with the right title, URL and country selected. */
   async verifyPageLoaded(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Verify Customer Care page loaded (${config.locationKey})`, async () => {
       await this.assertPageTitle(
@@ -230,7 +230,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Checks the area list. */
+  /** Checks every configured market area is listed and labelled for screen readers. */
   async validateAreaList(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Validate Customer Care area list (${config.locationKey})`, async () => {
       const areaButtons = this.getAreaButtons();
@@ -268,7 +268,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Checks the selected area details. */
+  /** Opens one area and checks its support details appear. */
   async validateAreaDetails(area: CustomerCareArea): Promise<void> {
     await this.step(`Validate Customer Care area details: ${area.name}`, async () => {
       const button = this.getAreaButton(area.name);
@@ -285,7 +285,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Checks the resource links. */
+  /** Checks each warranty and checklist resource link is on the page. */
   async validateResourceLinks(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Validate Customer Care resource links (${config.locationKey})`, async () => {
       for (const resourceLink of config.resourceLinks) {
@@ -312,7 +312,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Checks the U.S. emergency support content. */
+  /** Checks the US page explains what to do for each kind of emergency. */
   async validateUsEmergencySupportContent(): Promise<void> {
     await this.step('Validate US emergency support content', async () => {
       const emergencyHeadings = [
@@ -336,7 +336,9 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Checks the U.S. service request form. */
+  /**
+   * Checks the US service request form shows every field it should, marked required where expected.
+   */
   async validateUsServiceRequestForm(): Promise<void> {
     await this.step('Validate US service request form fields', async () => {
       await this.assertVisible(
@@ -372,7 +374,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Checks the U.S. required-field validation. */
+  /** Checks the browser rejects a blank US service request form, field by field. */
   async validateUsRequiredFieldValidation(): Promise<void> {
     await this.step('Validate US service request required-field validation', async () => {
       const validationState = await this.serviceRequestForm.evaluate(
@@ -404,7 +406,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Checks the Canada support sections. */
+  /** Checks the Canadian page shows its warranty and after-hours support sections. */
   async validateCanadaSupportSections(): Promise<void> {
     await this.step('Validate Canada support sections', async () => {
       const expectedHeadings = [
@@ -423,12 +425,12 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Gets the area buttons. */
+  /** Returns every visible area button. */
   private getAreaButtons(): Locator {
     return this.main.locator('button[aria-label^="View contact details of"]:visible');
   }
 
-  /** Gets the selected area button. */
+  /** Returns the area button with this exact name. */
   private getAreaButton(areaName: string): Locator {
     return this.getAreaButtons()
       .filter({
@@ -437,7 +439,7 @@ export class CustomerCarePage extends BasePage {
       .first();
   }
 
-  /** Prevents production form submission during validation. */
+  /** Blocks any form submit on PROD, so a stray click can never raise a real service request. */
   private async preventProdFormSubmission(): Promise<void> {
     await this.page.addInitScript(() => {
       const win = window as typeof window & {
@@ -483,7 +485,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Captures the service request field states. */
+  /** Reads each service request field in one pass: does it exist, is it required, is it visible. */
   private async getServiceRequestFieldStates(fields: readonly ServiceRequestField[]): Promise<
     Array<{
       label: string;

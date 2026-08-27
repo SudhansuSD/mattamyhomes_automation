@@ -132,12 +132,12 @@ export class CondoPlanPage extends SearchablePage {
     this.successDialogModal = page.locator('.ReactModal__Content');
   }
 
-  /** Finds all visible navigation and content links. */
+  /** Every visible navigation and content link on the page. */
   private get navLinks(): Locator {
     return this.page.locator('a[href]');
   }
 
-  /** Finds Get Information modal form rendered in a modal, drawer, or sidebar. */
+  /** The Get Information form, wherever it opens - modal, drawer or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
     return (
       this.page
@@ -161,12 +161,12 @@ export class CondoPlanPage extends SearchablePage {
     );
   }
 
-  /** Finds modal form success message. */
+  /** The thank-you message shown after the form is submitted. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(TEXT.successMessage).last();
   }
 
-  /** Checks that condo plan search lands on the configured condo plan URL with a visible H1. */
+  /** Checks a condo plan search lands on the right plan page. */
   async verifySearchByCondoPlan(): Promise<void> {
     await this.step('Verify search lands on condo plan URL', async () => {
       const location = this.location as ReturnType<typeof getLocationConfig> & {
@@ -189,7 +189,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that condo plan page has loaded with the expected heading. */
+  /** Checks the condo plan page loaded with its expected heading. */
   async verifyPageLoaded(expectedPlanName = 'M2ad'): Promise<void> {
     await this.step(`Verify condo plan page loaded ('${expectedPlanName}')`, async () => {
       await expect(this.heading).toBeVisible({ timeout: TIMEOUT.long });
@@ -197,7 +197,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that current URL and browser title match the expected condo plan details. */
+  /** Checks the URL and tab title match the condo plan we asked for. */
   async verifyUrlAndTitle(plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify URL and title', async () => {
       await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(plan.url)}\\/?$`, 'i'));
@@ -205,7 +205,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that breadcrumb contains market, city, community, and plan context. */
+  /** Checks the breadcrumb walks market, city, community and plan. */
   async verifyBreadcrumb(plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify breadcrumb context', async () => {
       if (await this.breadcrumb.count()) {
@@ -230,7 +230,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that hero summary contains plan name, specs, and plan type. */
+  /** Checks the hero summary shows the plan's name, specs and type. */
   async verifyHeroSummary(plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify hero summary', async () => {
       await expect(this.heading).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
@@ -245,7 +245,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that main Condo Plan Details copy is present and meaningful. */
+  /** Checks the Condo Plan Details section says something real. */
   async verifyCondoPlanDetailsContent(): Promise<void> {
     await this.step('Verify condo plan details content', async () => {
       await expect(this.page.getByRole('heading', { name: TEXT.condoPlanDetails })).toBeVisible({
@@ -258,7 +258,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that floorplan image exists and has a non-empty source. */
+  /** Checks the floorplan image is there and has a real source. */
   async verifyFloorplanImage(): Promise<void> {
     await this.step('Verify floorplan image', async () => {
       await expect(this.floorplanImage).toBeVisible({ timeout: TIMEOUT.medium });
@@ -266,7 +266,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that mortgage calculator section and CTA are visible, without opening/submitting any form. */
+  /** Checks the mortgage calculator and its CTA are visible, without opening the form. */
   async verifyMortgageCalculatorCta(): Promise<void> {
     await this.step('Verify mortgage calculator CTA', async () => {
       await expect(this.mortgageCalculatorSection).toBeVisible({ timeout: TIMEOUT.short });
@@ -274,14 +274,14 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that support headline below mortgage calculator is visible. */
+  /** Checks the support headline under the mortgage calculator is visible. */
   async verifySupportHeadline(): Promise<void> {
     await this.step('Verify support headline', async () => {
       await expect(this.body).toContainText(TEXT.supportHeadline, { timeout: TIMEOUT.short });
     });
   }
 
-  /** Checks that related floorplans and View All CTA are present and valid. */
+  /** Checks the related floorplans and their View All link. */
   async verifyAvailableFloorplans(_plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify available floorplans', async () => {
       await expect(this.availableFloorplansSection).toBeVisible({ timeout: TIMEOUT.medium });
@@ -319,7 +319,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that the Show More button works without navigating away. */
+  /** Checks Show More reveals more content without leaving the page. */
   async verifyShowMoreFloorplans(): Promise<void> {
     await this.step('Verify Show More floorplans', async () => {
       // Not "View all" - that link navigates to search, while this check exists
@@ -343,7 +343,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that sales/contact office content, map link, and phone link are valid. */
+  /** Checks the sales office details, map link and phone link. */
   async verifyContactUsSection(): Promise<void> {
     await this.step('Verify Contact Us section', async () => {
       await expect(this.contactSection).toBeVisible({ timeout: TIMEOUT.short });
@@ -394,7 +394,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that visible page links have usable href values. */
+  /** Checks every visible link points somewhere real. */
   async verifyNavigationLinks(): Promise<void> {
     await this.step('Verify navigation links have usable hrefs', async () => {
       const linkCount = await this.navLinks.count();
@@ -418,7 +418,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that an empty condo plan side modal form shows required-field validation. */
+  /** Submits the empty side modal form and checks the required-field errors appear. */
   async validateSideModalFormRequiredErrors(): Promise<void> {
     await this.step('Validate Get Information side modal form required errors', async () => {
       const form = await this.getAvailableSideModalForm();
@@ -427,7 +427,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that condo plan side modal form rejects invalid email addresses. */
+  /** Checks the side modal form rejects an invalid email address. */
   async validateSideModalFormInvalidEmail(): Promise<void> {
     await this.step('Validate Get Information side modal form invalid email', async () => {
       const form = await this.getAvailableSideModalForm();
@@ -440,7 +440,7 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Checks that condo plan Get Information side modal form can be submitted successfully. */
+  /** Fills the side modal form with valid data and checks it submits. */
   async verifySideModalFormSuccessfulSubmission(): Promise<void> {
     await this.step('Submit Get Information side modal form successfully', async () => {
       const form = await this.getAvailableSideModalForm();
@@ -464,14 +464,14 @@ export class CondoPlanPage extends SearchablePage {
     });
   }
 
-  /** Open the side modal lead form and return it (for external evidence capture). */
+  /** Opens the side modal lead form and returns it, for evidence runs. */
   async openSideModalLeadForm(
     formName = 'Get Information condo plan side modal form',
   ): Promise<Locator> {
     return this.getAvailableSideModalForm(formName);
   }
 
-  /** Get the visible Get Information side modal form, asserting its submit button is usable. */
+  /** Returns the Get Information side modal form once its submit button is usable. */
   private async getAvailableSideModalForm(
     formName = 'Get Information condo plan side modal form',
   ): Promise<Locator> {
@@ -485,7 +485,7 @@ export class CondoPlanPage extends SearchablePage {
     return form;
   }
 
-  /** open the Get Information side modal form and return the visible container. */
+  /** Opens the Get Information side modal and returns the form. */
   private async openSideModalForm(
     formName = 'Get Information condo plan side modal form',
   ): Promise<Locator> {

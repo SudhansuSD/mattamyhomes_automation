@@ -53,7 +53,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     this.assertNoErrorPage(snapshot);
   }
 
-  /** Checks hero section. */
+  /** Checks the hero shows its heading, copy and search box. */
   async validateHeroSection() {
     const snapshot = await this.waitForHomeContent();
 
@@ -227,7 +227,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     );
   }
 
-  /** Searches for a market. */
+  /** Searches for a market from the home page search box. */
   async searchByMarket(market = getLocationConfig().market) {
     const location = getLocationConfig();
     if (this.shouldUseHomeAutocomplete()) {
@@ -251,7 +251,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return true;
   }
 
-  /** Checks the market search flow. */
+  /** Checks a market search lands on the right market page. */
   async verifySearchByMarket(expectedMarket = getLocationConfig().market) {
     const currentUrl = await this.driver.getUrl();
     const normalizedUrl = this.normalizeText(currentUrl);
@@ -276,7 +276,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     }
   }
 
-  /** Searches for a community. */
+  /** Searches for a community from the home page search box. */
   async searchByCommunity(community = getLocationConfig().community) {
     const location = getLocationConfig();
     const communityPath = this.getCommunityPath(location);
@@ -292,7 +292,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return true;
   }
 
-  /** Checks the community search flow. */
+  /** Checks a community search lands on the right community page. */
   async verifySearchByCommunity(expectedCommunity = getLocationConfig().community) {
     await this.waitForPageReady();
     await this.waitForBodyText(
@@ -307,7 +307,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     this.assertNoErrorPage(snapshot);
   }
 
-  /** Searches for a quick move-in home. */
+  /** Searches for a quick move-in home by address. */
   async searchByQMI(address = getLocationConfig().qmiAddress) {
     const location = getLocationConfig();
     const didSearch = await this.searchFromHomeAutocompleteWithRetry(address, 'qmi', {
@@ -322,7 +322,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return true;
   }
 
-  /** Checks the QMI search flow. */
+  /** Checks a quick move-in search lands on the right home. */
   async verifySearchByQMI(expectedAddress = getLocationConfig().qmiAddress) {
     await this.waitForPageReady();
     const location = getLocationConfig();
@@ -360,7 +360,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     }
   }
 
-  /** Searches for a plan. */
+  /** Searches for a plan by name from the home page search box. */
   async searchByPlan(planName = getLocationConfig().planName) {
     const location = getLocationConfig();
     const preferredPlanPath = location.expectedPlanPath || location.expectedPlanUrlPart;
@@ -433,7 +433,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     await this.waitForPageReady();
   }
 
-  /** Ensures search starts from home page. */
+  /** Makes sure the search starts from the home page, navigating there if needed. */
   async ensureSearchStartsFromHomePage() {
     const currentUrl = await this.driver.getUrl().catch(() => '');
 
@@ -467,7 +467,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     }
   }
 
-  /** Checks the plan search flow. */
+  /** Checks a plan search lands on the right plan page. */
   async verifySearchByPlan(expectedUrlPart = getLocationConfig().expectedPlanUrlPart) {
     await this.waitForPageReady();
     const snapshot = await this.getSnapshot();
@@ -476,7 +476,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     this.assertNoErrorPage(snapshot);
   }
 
-  /** Checks market cards. */
+  /** Checks the market cards match the markets we have configured. */
   async validateMarketCards() {
     const snapshot = await this.waitForHomeContent();
 
@@ -874,7 +874,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     return false;
   }
 
-  /** Builds the expected community path. */
+  /** Builds the URL path the configured community should live at. */
   getCommunityPath(location = getLocationConfig()) {
     return (
       location.communityPath ||
@@ -882,7 +882,7 @@ export class MobileWebHomePage extends MobileWebBasePage {
     );
   }
 
-  /** Determines whether the home autocomplete flow should be used. */
+  /** Decides whether this run should search through the home page autocomplete. */
   shouldUseHomeAutocomplete() {
     return String(process.env.APPIUM_USE_HOME_AUTOCOMPLETE || '').toLowerCase() === 'true';
   }

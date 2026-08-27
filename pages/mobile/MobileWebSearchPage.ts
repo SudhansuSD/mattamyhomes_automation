@@ -10,7 +10,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     await this.openSearchByMarket(getLocationConfig().market);
   }
 
-  /** Opens search by market. */
+  /** Opens the search results for a market. */
   async openSearchByMarket(market = getLocationConfig().market) {
     const location = getLocationConfig();
     const params = new URLSearchParams({
@@ -27,13 +27,13 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     await this.waitForSearchPage();
   }
 
-  /** Searches for a market. */
+  /** Searches for a market from the search box. */
   async searchByMarket(market = getLocationConfig().market) {
     await this.openSearchByMarket(market);
     return true;
   }
 
-  /** Checks the market search flow. */
+  /** Checks a market search lands on results for that market. */
   async verifySearchByMarket(expectedMarket = getLocationConfig().market) {
     const currentUrl = await this.driver.getUrl();
     const params = new URL(currentUrl).searchParams;
@@ -43,7 +43,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     assert.equal(this.normalizeText(metro), this.normalizeText(expectedMarket));
   }
 
-  /** Waits until search page. */
+  /** Waits until the search page has loaded its results. */
   async waitForSearchPage() {
     await this.driver.waitUntil(
       async () => {
@@ -161,7 +161,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     });
   }
 
-  /** Checks the search results. */
+  /** Opens a tab and checks it settles on either result cards or a no-results message. */
   async verifyResults(tabName) {
     await this.openTab(tabName);
     await this.waitForSearchPage();
@@ -179,7 +179,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks result cards required details. */
+  /** Checks every card on a tab has a name, location, image and detail link. */
   async validateResultCardsRequiredDetails(tabName) {
     await this.verifyResults(tabName);
     const snapshot = await this.getSearchSnapshot();
@@ -201,14 +201,14 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
   }
 
-  /** Checks all result cards required details. */
+  /** Runs the required-details check on every tab. */
   async validateAllResultCardsRequiredDetails() {
     for (const tab of RESULT_TABS) {
       await this.validateResultCardsRequiredDetails(tab);
     }
   }
 
-  /** Checks result card CTA navigation. */
+  /** Opens the first few cards on a tab and checks each detail page matches its card. */
   async validateResultCardCtaNavigation(tabName, cardsToValidate = 2) {
     await this.verifyResults(tabName);
     const snapshot = await this.getSearchSnapshot();
@@ -238,14 +238,14 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
   }
 
-  /** Checks all result card CTA navigation. */
+  /** Runs the card-to-detail-page check on every tab. */
   async validateAllResultCardCtaNavigation() {
     for (const tab of RESULT_TABS) {
       await this.validateResultCardCtaNavigation(tab);
     }
   }
 
-  /** Filters by price. */
+  /** Applies a minimum and maximum price from the price filter. */
   async filterByPrice(minPrice, maxPrice) {
     await this.applyFilterControl(/price/i, [
       this.formatPriceLabel(minPrice),
@@ -253,7 +253,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     ]);
   }
 
-  /** Checks price range across tabs. */
+  /** Checks every tab's card prices stay inside the filtered range. */
   async validatePriceRangeAcrossTabs(minPrice, maxPrice) {
     for (const tab of RESULT_TABS) {
       await this.verifyResults(tab);
@@ -275,12 +275,12 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
   }
 
-  /** Filters by bedrooms and bathrooms. */
+  /** Applies the minimum bedrooms and bathrooms from the Beds & Baths filter. */
   async filterByBedroomsAndBathrooms(minBeds, minBaths) {
     await this.applyFilterControl(/beds|bath/i, [`${minBeds} Bedrooms`, `${minBaths} Bathrooms`]);
   }
 
-  /** Checks beds baths across tabs. */
+  /** Checks every tab's cards meet the bed and bath minimums. */
   async validateBedsBathsAcrossTabs(minBeds, minBaths) {
     for (const tab of RESULT_TABS) {
       await this.verifyResults(tab);
@@ -307,7 +307,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
   }
 
-  /** Checks clear reset filters behavior. */
+  /** Filters, resets, and checks the results go back to how they started. */
   async validateClearResetFiltersBehavior() {
     await this.verifyResults('Communities');
     const before = await this.getVisibleCardSignature();
@@ -329,7 +329,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks community sort options. */
+  /** Checks the Communities tab offers its sort options. */
   async validateCommunitySortOptions() {
     await this.validateSortOptions(
       'Communities',
@@ -338,17 +338,17 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Checks plan sort options. */
+  /** Checks the Plans tab offers its sort options. */
   async validatePlanSortOptions() {
     await this.validateSortOptions('Plans', ['$ - $$$', 'Sq. Ft.', 'A - Z']);
   }
 
-  /** Checks QMI sort options. */
+  /** Checks the Quick Move-Ins tab offers its sort options. */
   async validateQMISortOptions() {
     await this.validateSortOptions('Quick Move-Ins', ['Date', '$ - $$$', 'Sq. Ft.', 'A - Z']);
   }
 
-  /** Checks sort options. */
+  /** Opens the sort menu and checks it offers every option this tab should have. */
   async validateSortOptions(tabName, required, optional = []) {
     await this.openTab(tabName);
     const options = await this.openSortAndGetOptions();
@@ -373,7 +373,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     }
   }
 
-  /** Checks sorting behavior. */
+  /** Walks every sort option on a tab and checks the cards re-order correctly. */
   async validateSortingBehavior(tabName) {
     await this.openTab(tabName);
     const options = await this.openSortAndGetOptions();
@@ -402,7 +402,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     assert.ok(before || after, `${tabName} sort behavior should leave readable result state`);
   }
 
-  /** Opens sort and get options. */
+  /** Opens the sort menu and returns the options it offers. */
   async openSortAndGetOptions() {
     const opened = await this.driver.execute(() => {
       const isVisible = (element) => {
@@ -476,7 +476,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     await this.waitForSearchSignatureChange(before, `filter ${filterPattern}`);
   }
 
-  /** Gets visible sort option labels. */
+  /** Returns the sort option labels currently on screen. */
   async getSortOptionLabels() {
     return this.driver.execute(() =>
       Array.from(
@@ -487,7 +487,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Waits until search state to update after a filter or sort action. */
+  /** Waits for the results to change after a filter or sort. */
   async waitForSearchSignatureChange(before, label) {
     await this.waitForMobileCondition(async () => {
       const after = await this.getVisibleCardSignature();
@@ -497,7 +497,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     });
   }
 
-  /** Reads the visible card numbers. */
+  /** Reads the numbers - prices, square footage - off the visible cards. */
   async getCardNumbers(pattern) {
     const snapshot = await this.getSearchSnapshot();
     const numbers = [];
@@ -515,7 +515,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     return numbers;
   }
 
-  /** Builds a signature for the visible result cards. */
+  /** Builds a short fingerprint of the visible cards, so we can tell when results change. */
   async getVisibleCardSignature() {
     const snapshot = await this.getSearchSnapshot();
     return (
@@ -528,7 +528,7 @@ export class MobileWebSearchPage extends MobileWebHomePage {
     );
   }
 
-  /** Formats a price label for the mobile filters. */
+  /** Formats a price the way the mobile filter labels it. */
   formatPriceLabel(value) {
     if (value >= 1000000) {
       return `$${value / 1000000}M`;

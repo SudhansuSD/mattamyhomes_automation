@@ -56,7 +56,7 @@ export class SearchPage extends SearchablePage {
     ]);
   }
 
-  /** Gets tab locator. */
+  /** Returns the results tab with this name. */
   private getTabLocator(tabName: string) {
     const nameRegex = new RegExp(tabName, 'i');
 
@@ -76,7 +76,7 @@ export class SearchPage extends SearchablePage {
 
   private dropdownOption = (text: string) => this.page.getByText(text);
 
-  /** Opens filter. */
+  /** Opens a filter dropdown by its button label. */
   private async openFilter(label: string): Promise<void> {
     const button = this.filterButton(label);
 
@@ -140,7 +140,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Waits until results to load. */
+  /** Waits until either result cards or the no-results message appear. */
   private async waitForResultsToLoad(): Promise<void> {
     await Promise.race([
       this.page.waitForSelector('#ProductInfo:visible', { timeout: 15000 }).catch(() => undefined),
@@ -167,7 +167,7 @@ export class SearchPage extends SearchablePage {
       .first();
   }
 
-  /** Canonicalizes search URL. */
+  /** Sorts a search URL's query params so two URLs can be compared reliably. */
   private canonicalizeSearchUrl(rawUrl: string): string {
     const url = new URL(rawUrl);
     url.searchParams.sort();
@@ -175,7 +175,7 @@ export class SearchPage extends SearchablePage {
     return `${url.origin}${url.pathname}?${url.searchParams.toString()}`;
   }
 
-  /** Gets card count. */
+  /** Waits for results, then returns how many cards are showing. */
   private async getCardCount(): Promise<number> {
     await this.waitForResultsToLoad();
     return (await this.resultCards()).count();
@@ -188,12 +188,12 @@ export class SearchPage extends SearchablePage {
     return count;
   }
 
-  /** Normalizes sort option. */
+  /** Lower-cases a sort label and collapses its whitespace, for comparison. */
   private normalizeSortOption(text: string): string {
     return text.replace(/\s+/g, ' ').trim().toLowerCase();
   }
 
-  /** Builds a signature for the visible result cards. */
+  /** Builds a short fingerprint of the first few cards, so we can tell when results change. */
   private async getVisibleCardSignature(): Promise<string> {
     const cards = await this.resultCards();
     const count = await cards.count();
@@ -213,7 +213,7 @@ export class SearchPage extends SearchablePage {
     return visibleTexts.join('|');
   }
 
-  /** Gets displayed result count. */
+  /** Reads the "N available" count the page reports for a tab. */
   private async getDisplayedResultCount(tabName: ResultsTab): Promise<number | null> {
     const resultLabel = tabName === 'Quick Move-Ins' ? 'quick move-ins' : tabName.toLowerCase();
     const statusPattern = new RegExp(`\\d+\\s+${escapeRegex(resultLabel)}\\s+available`, 'i');
@@ -227,7 +227,10 @@ export class SearchPage extends SearchablePage {
     return Number.isFinite(count) ? count : null;
   }
 
-  /** Gets sortable card count. */
+  /**
+   * Returns how many cards to sort-check - the rendered cards, capped by the count the page
+   * reports.
+   */
   private async getSortableCardCount(tabName: ResultsTab, availableCards: number): Promise<number> {
     const displayedCount = await this.getDisplayedResultCount(tabName);
 
@@ -238,7 +241,7 @@ export class SearchPage extends SearchablePage {
     return Math.min(availableCards, displayedCount);
   }
 
-  /** Gets product type for tab. */
+  /** Maps a results tab to the product type the site uses in its URLs. */
   private getProductTypeForTab(tabName: ResultsTab): string {
     switch (tabName) {
       case 'Plans':
@@ -251,13 +254,13 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Recovers search results. */
+  /** Gives the results a chance to settle after they came back empty. */
   private async recoverSearchResults(tabName: ResultsTab): Promise<void> {
     await this.reportValue(`Recovering ${tabName} search results from current page state`);
     await this.waitForPageReady();
   }
 
-  /** Parses sq. ft. value. */
+  /** Pulls the square footage out of a card's text. */
   private parseSqFtValue(text: string): number | null {
     const match = text.match(/([\d,]+(?:\s*-\s*[\d,]+)?)\s*Sq\.?\s*Ft/i);
 
@@ -274,7 +277,7 @@ export class SearchPage extends SearchablePage {
     return values[0] ?? null;
   }
 
-  /** Gets card text lines. */
+  /** Splits a card's text into trimmed, non-empty lines. */
   private getCardTextLines(text: string): string[] {
     return text
       .split('\n')
@@ -282,7 +285,7 @@ export class SearchPage extends SearchablePage {
       .filter(Boolean);
   }
 
-  /** Gets location line. */
+  /** Picks out the "City, State" or "City, Community" line from a card. */
   private getLocationLine(lines: string[], tabName: ResultsTab): string {
     const locationPattern =
       tabName === 'Communities'
@@ -304,7 +307,7 @@ export class SearchPage extends SearchablePage {
     return card.locator(SearchPage.CARD_TITLE_SELECTOR).first();
   }
 
-  /** Gets result card container. */
+  /** Returns the card's outer container - the one holding both its image and its details. */
   private async getResultCardContainer(card: Locator): Promise<Locator> {
     const container = card.locator('xpath=ancestor::*[.//img and .//*[@id="ProductInfo"]][1]');
 
@@ -315,7 +318,7 @@ export class SearchPage extends SearchablePage {
     return card;
   }
 
-  /** Checks card image. */
+  /** Checks a card shows an image with a real source. */
   private async validateCardImage(
     card: Locator,
     cardIndex: number,
@@ -333,7 +336,7 @@ export class SearchPage extends SearchablePage {
     );
   }
 
-  /** Checks card details link. */
+  /** Checks a card links to a detail page rather than back into search. */
   private async validateCardDetailsLink(
     card: Locator,
     cardIndex: number,
@@ -349,7 +352,7 @@ export class SearchPage extends SearchablePage {
     ).toMatch(/^\/(?!search(?:\?|$)).+/);
   }
 
-  /** Gets card details. */
+  /** Reads a card's title, location line and link, failing if any is missing. */
   private async getCardDetails(
     card: Locator,
     tabName: ResultsTab,
@@ -379,7 +382,7 @@ export class SearchPage extends SearchablePage {
     };
   }
 
-  /** Checks detail page matches card. */
+  /** Opens a card's detail page in a new tab and checks it shows the same name and location. */
   private async validateDetailPageMatchesCard(
     tabName: ResultsTab,
     cardIndex: number,
@@ -423,7 +426,7 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Checks card location line. */
+  /** Checks a card's location line has both parts, and returns it. */
   private validateCardLocationLine(
     lines: string[],
     tabName: ResultsTab,
@@ -450,7 +453,7 @@ export class SearchPage extends SearchablePage {
 
   // Price Utilities (Production Ready)
 
-  /** Gets all prices. */
+  /** Returns the price shown on every result card. */
   async getAllPrices(): Promise<number[]> {
     const cards = await this.resultCards();
     const count = await cards.count();
@@ -491,7 +494,7 @@ export class SearchPage extends SearchablePage {
 
   // Filter by price
 
-  /** Filters by price. */
+  /** Applies a minimum and maximum price from the price dropdown. */
   async filterByPrice(minPrice: number, maxPrice: number): Promise<void> {
     const minPriceLabel = this.formatPriceToUiLabel(minPrice);
     const maxPriceLabel = this.formatPriceToUiLabel(maxPrice);
@@ -513,7 +516,7 @@ export class SearchPage extends SearchablePage {
 
   // Validation: Price Range
 
-  /** Checks price range across tabs. */
+  /** Runs the price-range check on every tab and reports all failures together. */
   async validatePriceRangeAcrossTabs(min: number, max: number): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
     const allFailures: string[] = [];
@@ -543,7 +546,7 @@ export class SearchPage extends SearchablePage {
 
   // Validation: Price on each card
 
-  /** Checks price range. */
+  /** Checks each card's price falls inside the filtered range, returning the ones that do not. */
   async validatePriceRange(
     minValue: number,
     maxValue: number,
@@ -587,7 +590,7 @@ export class SearchPage extends SearchablePage {
 
   // Filter by beds and baths
 
-  /** Filters by bedrooms and bathrooms. */
+  /** Applies the minimum bedrooms and bathrooms from the Beds & Baths filter. */
   async filterByBedroomsAndBathrooms(minBeds: number, minBaths: number): Promise<void> {
     await this.step(
       `Apply beds & baths filter: ${minBeds}+ Bedrooms, ${minBaths}+ Bathrooms`,
@@ -696,7 +699,7 @@ export class SearchPage extends SearchablePage {
     return chosen.value;
   }
 
-  /** Resets filters. */
+  /** Clicks Reset and waits for the default results to come back. */
   async resetFilters(): Promise<void> {
     await this.step('Reset all filters', async () => {
       await expect(this.resetFiltersButton).toBeVisible({ timeout: 15000 });
@@ -705,7 +708,9 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Checks clear reset filters behavior. */
+  /**
+   * Filters, resets, and checks the results, filter label and URL all go back to how they started.
+   */
   async validateClearResetFiltersBehavior(): Promise<void> {
     await this.verifyResults('Communities');
 
@@ -747,7 +752,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Checks no results state. */
+  /** Filters down to something nothing matches and checks the no-results message appears. */
   async validateNoResultsState(): Promise<void> {
     await this.step('Apply unavailable criteria and verify no-results state', async () => {
       // Order matters, and not for a cosmetic reason: the site only offers the
@@ -787,7 +792,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Checks combined filters persist in URL state. */
+  /** Applies price and beds/baths together and checks the URL keeps them across a reload. */
   async validateCombinedFiltersPersistInUrlState(
     minPrice: number,
     maxPrice: number,
@@ -831,7 +836,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Checks filter browser history navigation. */
+  /** Checks the browser back and forward buttons step out of and back into a filtered search. */
   async validateFilterBrowserHistoryNavigation(minPrice: number, maxPrice: number): Promise<void> {
     await this.verifyResults('Communities');
 
@@ -870,7 +875,7 @@ export class SearchPage extends SearchablePage {
   }
   // Validation: Beds & Baths
 
-  /** Checks beds baths across tabs. */
+  /** Runs the beds/baths check on every tab and reports all mismatches together. */
   async validateBedsBathsAcrossTabs(minBeds: number, minBaths: number): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
     const allMismatches: string[] = [];
@@ -891,7 +896,7 @@ export class SearchPage extends SearchablePage {
   }
   // Validation: Beds & Baths on each card
 
-  /** Checks beds baths. */
+  /** Checks each card meets the bed and bath minimums, returning the ones that do not. */
   async validateBedsBaths(
     minBeds: number,
     minBaths: number,
@@ -947,7 +952,7 @@ export class SearchPage extends SearchablePage {
 
   // Results Validation
 
-  /** Checks the search results. */
+  /** Opens a tab and checks it settles on either result cards or a no-results message. */
   async verifyResults(tabName: ResultsTab): Promise<void> {
     await this.step(`Verify ${tabName} results load`, async () => {
       await this.openTab(tabName);
@@ -1008,7 +1013,7 @@ export class SearchPage extends SearchablePage {
   }
   // Result Card Required Details Validation
 
-  /** Checks result cards required details. */
+  /** Checks every card on a tab has a name, location, image and detail link. */
   async validateResultCardsRequiredDetails(tabName: ResultsTab): Promise<void> {
     await this.verifyResults(tabName);
 
@@ -1033,7 +1038,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Checks all result cards required details. */
+  /** Runs the required-details check on every tab. */
   async validateAllResultCardsRequiredDetails(): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
 
@@ -1042,7 +1047,7 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Checks result card CTA navigation. */
+  /** Opens the first few cards on a tab and checks each detail page matches its card. */
   async validateResultCardCtaNavigation(tabName: ResultsTab, cardsToValidate = 3): Promise<void> {
     await this.verifyResults(tabName);
 
@@ -1073,7 +1078,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Checks all result card CTA navigation. */
+  /** Runs the card-to-detail-page check on every tab. */
   async validateAllResultCardCtaNavigation(cardsToValidatePerTab = 3): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
 
@@ -1084,7 +1089,7 @@ export class SearchPage extends SearchablePage {
 
   // Sort Options Validation
 
-  /** Checks sort options. */
+  /** Opens the sort menu and checks it offers every option this tab should have. */
   async validateSortOptions(
     tabName: ResultsTab,
     required: string[],
@@ -1114,7 +1119,7 @@ export class SearchPage extends SearchablePage {
 
   // Tab-Specific Sorting
 
-  /** Checks community sort options. */
+  /** Checks the Communities tab offers its sort options. */
   async validateCommunitySortOptions(): Promise<void> {
     await this.validateSortOptions(
       'Communities',
@@ -1123,18 +1128,18 @@ export class SearchPage extends SearchablePage {
     );
   }
 
-  /** Checks plan sort options. */
+  /** Checks the Plans tab offers its sort options. */
   async validatePlanSortOptions(): Promise<void> {
     await this.validateSortOptions('Plans', ['$ - $$$', 'Sq. Ft.', 'A - Z']);
   }
 
-  /** Checks QMI sort options. */
+  /** Checks the Quick Move-Ins tab offers its sort options. */
   async validateQMISortOptions(): Promise<void> {
     await this.validateSortOptions('Quick Move-Ins', ['Date', '$ - $$$', 'Sq. Ft.', 'A - Z']);
   }
   // SORTABLE DATA EXTRACTION
 
-  /** Gets sortable prices. */
+  /** Returns the prices of the cards covered by the sort check. */
   async getSortablePrices(tabName: ResultsTab): Promise<number[]> {
     const cards = await this.resultCards();
     const count = await this.getSortableCardCount(tabName, await cards.count());
@@ -1156,7 +1161,7 @@ export class SearchPage extends SearchablePage {
   }
   // SORT ACTION
 
-  /** Selects sort option. */
+  /** Picks a sort option from the sort menu and waits for results to re-order. */
   async selectSortOption(tabName: ResultsTab, option: string): Promise<void> {
     await this.step(`Select sort option '${option}' on ${tabName}`, async () => {
       await this.openTab(tabName);
@@ -1180,7 +1185,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Gets sortable sq. ft. */
+  /** Returns the square footage of the cards covered by the sort check. */
   async getSortableSqFt(tabName: ResultsTab): Promise<number[]> {
     const cards = await this.resultCards();
     const count = await this.getSortableCardCount(tabName, await cards.count());
@@ -1201,7 +1206,7 @@ export class SearchPage extends SearchablePage {
     return values;
   }
 
-  /** Gets sortable titles. */
+  /** Returns the titles of the cards covered by the sort check. */
   async getSortableTitles(tabName: ResultsTab): Promise<string[]> {
     const cards = await this.resultCards();
     const count = await this.getSortableCardCount(tabName, await cards.count());
@@ -1225,7 +1230,7 @@ export class SearchPage extends SearchablePage {
 
   // SORT VALIDATION HELPERS
 
-  /** Checks ascending numbers. */
+  /** Fails if the numbers are not in ascending order, naming every position that is out. */
   private validateAscendingNumbers(actual: number[], label: string): void {
     const failures: string[] = [];
 
@@ -1247,7 +1252,7 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Checks alphabetical. */
+  /** Fails if the values are not in alphabetical order. */
   private validateAlphabetical(actual: string[], label: string): void {
     const expected = [...actual].sort((a, b) => a.localeCompare(b));
 
@@ -1256,7 +1261,7 @@ export class SearchPage extends SearchablePage {
 
   // ACTUAL CARD SORTING VALIDATION
 
-  /** Checks price sorting. */
+  /** Sorts by price and checks the cards really come back cheapest first. */
   async validatePriceSorting(tabName: ResultsTab): Promise<void> {
     await this.selectSortOption(tabName, '$ - $$$');
 
@@ -1268,7 +1273,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Checks sq. ft. sorting. */
+  /** Sorts by square footage and checks the cards really come back smallest first. */
   async validateSqFtSorting(tabName: ResultsTab): Promise<void> {
     await this.selectSortOption(tabName, 'Sq. Ft.');
 
@@ -1280,7 +1285,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Checks A-Z sorting. */
+  /** Sorts A-Z and checks the card titles really come back in order. */
   async validateAZSorting(tabName: ResultsTab): Promise<void> {
     await this.selectSortOption(tabName, 'A - Z');
 
@@ -1292,7 +1297,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /** Gets sort validation configs. */
+  /** Returns the sort orders worth checking on this tab. */
   private getSortValidationConfigs(tabName: ResultsTab): SortValidationConfig[] {
     const commonConfigs: SortValidationConfig[] = [
       { option: '$ - $$$', criterion: 'price', label: 'Price' },
@@ -1310,7 +1315,7 @@ export class SearchPage extends SearchablePage {
     ];
   }
 
-  /** Gets sortable values. */
+  /** Returns the card values for one sort criterion - price, square footage or title. */
   private async getSortableValues(
     tabName: ResultsTab,
     criterion: SortCriterion,
@@ -1327,7 +1332,7 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Checks sortable values. */
+  /** Checks the values are in order, alphabetically for titles and ascending otherwise. */
   private validateSortableValues(
     values: number[] | string[],
     config: SortValidationConfig,
@@ -1348,7 +1353,7 @@ export class SearchPage extends SearchablePage {
 
   // HIGH-LEVEL SORTING TEST METHODS
 
-  /** Checks sorting behavior. */
+  /** Walks every sort option on a tab and checks the cards re-order correctly. */
   async validateSortingBehavior(tabName: ResultsTab): Promise<void> {
     const configs = this.getSortValidationConfigs(tabName);
 
@@ -1362,17 +1367,17 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /** Checks community sorting behavior. */
+  /** Runs the sorting checks on the Communities tab. */
   async validateCommunitySortingBehavior(): Promise<void> {
     await this.validateSortingBehavior('Communities');
   }
 
-  /** Checks plan sorting behavior. */
+  /** Runs the sorting checks on the Plans tab. */
   async validatePlanSortingBehavior(): Promise<void> {
     await this.validateSortingBehavior('Plans');
   }
 
-  /** Checks QMI sorting behavior. */
+  /** Runs the sorting checks on the Quick Move-Ins tab. */
   async validateQMISortingBehavior(): Promise<void> {
     await this.validateSortingBehavior('Quick Move-Ins');
   }

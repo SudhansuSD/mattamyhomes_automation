@@ -20,28 +20,28 @@ export interface MarketConfig {
 }
 
 export class MarketPage extends BasePage {
-  /** Finds main market page heading. */
+  /** The market page's main heading. */
   readonly heading: Locator;
 
-  /** Finds market hero/header section. */
+  /** The hero banner at the top of the market page. */
   readonly heroSection: Locator;
 
-  /** Finds community cards section. */
+  /** The section holding the community cards. */
   readonly communitySection: Locator;
 
-  /** Finds market lead form container. */
+  /** The market lead form. */
   readonly leadForm: Locator;
 
-  /** Finds Discover Our Homes section heading. */
+  /** The Discover Our Homes section heading. */
   readonly discoverOurHomesSection: Locator;
 
-  /** Finds search links for plans and quick move-in homes. */
+  /** The links into plan and quick move-in search results. */
   readonly marketSearchLinks: Locator;
 
-  /** Finds React modal shown after successful form submission. */
+  /** The confirmation modal shown after a successful submission. */
   readonly successDialogModal: Locator;
 
-  /** Setup: initialize market page locators. */
+  /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
 
@@ -63,20 +63,20 @@ export class MarketPage extends BasePage {
 
   // UTIL HELPERS
 
-  /** Get community card list items that contain links. */
+  /** Returns the community cards - the list items that actually link somewhere. */
   private getCommunityCards(section = this.communitySection): Locator {
     return section.locator('li').filter({
       has: this.page.locator('a[href]'),
     });
   }
 
-  /** extract a community card title. */
+  /** Returns a community card's title text. */
   private async getCommunityCardTitle(card: Locator): Promise<string> {
     const title = card.locator('h2, h3, h4, a div.block, a').first();
     return getNormalizedText(title);
   }
 
-  /** build a heading matcher from configured market aliases. */
+  /** Builds a heading matcher that accepts any of the market's configured aliases. */
   private getMarketNamePattern(marketName: string): RegExp {
     const aliases = marketName
       .split('||')
@@ -92,7 +92,7 @@ export class MarketPage extends BasePage {
     return new RegExp(`(?:${escapedAliases.join('|')})`, 'i');
   }
 
-  /** build URL matcher including known canonical redirects. */
+  /** Builds a URL matcher that also accepts the market's known redirect targets. */
   private getMarketUrlPattern(market: MarketConfig): RegExp {
     const paths = [market.url];
 
@@ -103,7 +103,10 @@ export class MarketPage extends BasePage {
     return new RegExp(`(?:${paths.map((path) => escapeRegex(path)).join('|')})(?:\\?.*)?$`, 'i');
   }
 
-  /** find the market community cards section across supported page layouts. */
+  /**
+   * Finds the community cards section, falling back to the Explore Communities heading on older
+   * layouts.
+   */
   private async getCommunitySection(): Promise<Locator | null> {
     if (await this.communitySection.count()) {
       return this.communitySection.first();
@@ -124,7 +127,7 @@ export class MarketPage extends BasePage {
     return communityHeading.locator('xpath=ancestor::*[.//li][1]');
   }
 
-  /** find the Discover Our Homes section when it exists. */
+  /** Returns the Discover Our Homes section, or null when the market has none. */
   private async getDiscoverOurHomesSection(): Promise<Locator | null> {
     await this.discoverOurHomesSection
       .waitFor({ state: 'attached', timeout: 5000 })
@@ -137,7 +140,7 @@ export class MarketPage extends BasePage {
     return this.discoverOurHomesSection.locator('xpath=ancestor::section[1]');
   }
 
-  /** Get a visible community cards section and prepare it for card assertions. */
+  /** Returns the community cards section scrolled into view, or null when it is not shown. */
   private async getVisibleCommunitySection(): Promise<Locator | null> {
     const communitySection = await this.getCommunitySection();
 
@@ -150,20 +153,20 @@ export class MarketPage extends BasePage {
     return communitySection;
   }
 
-  /** scroll a section into view and wait for the page to stabilize. */
+  /** Scrolls a section into view and waits for the page to settle. */
   private async prepareSection(section: Locator): Promise<void> {
     await section.scrollIntoViewIfNeeded();
     await this.waitForPageReady();
   }
 
-  /** Finds lead form success confirmation message. */
+  /** The thank-you message shown after the lead form is submitted. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last();
   }
 
   // NAVIGATION
 
-  /** Runs the action to navigate directly to a market page using its relative URL. */
+  /** Opens a market page straight from its relative URL. */
   async navigateToMarket(relativeUrl: string): Promise<void> {
     await this.step(`Navigate to market page: ${relativeUrl}`, async () => {
       const { baseURL } = getEnvConfig();
@@ -232,7 +235,7 @@ export class MarketPage extends BasePage {
 
   // MARKET PAGE VALIDATION
 
-  /** Checks that market page URL and heading match expected market configuration. */
+  /** Checks the URL and heading match the market we asked for. */
   async verifyMarketPage(market: MarketConfig): Promise<void> {
     await this.step(`Verify market page: ${market.name}`, async () => {
       await this.waitForPageReady();
@@ -252,7 +255,7 @@ export class MarketPage extends BasePage {
     });
   }
 
-  /** Checks that market hero content, hero image, and search CTAs are present. */
+  /** Checks the hero shows its copy, image and search CTAs. */
   async validateHeroContent(market: MarketConfig): Promise<void> {
     await this.step(`Validate market hero content: ${market.name}`, async () => {
       await this.assertVisible(
@@ -281,7 +284,7 @@ export class MarketPage extends BasePage {
 
   // COMMUNITY CARDS (DETAILED)
 
-  /** Checks that community cards exist and log their names and URLs. */
+  /** Checks the market lists communities and records their names and URLs. */
   async validateCommunityCards(): Promise<void> {
     await this.step('Validate community cards are listed', async () => {
       const communitySection = await this.requireFeature(
@@ -302,7 +305,7 @@ export class MarketPage extends BasePage {
     });
   }
 
-  /** Checks that each community card has a title, href, and image source when present. */
+  /** Checks each community card has a title, a link and a loaded image. */
   async validateCommunityCardDetails(): Promise<void> {
     await this.step('Validate community card details', async () => {
       const communitySection = await this.requireFeature(
@@ -347,7 +350,7 @@ export class MarketPage extends BasePage {
     });
   }
 
-  /** Checks that first community card navigates to its community page. */
+  /** Clicks the first community card and checks it opens that community's page. */
   async validateFirstCommunityCardNavigation(): Promise<void> {
     await this.step('Validate first community card navigation', async () => {
       const communitySection = await this.requireFeature(
@@ -381,12 +384,12 @@ export class MarketPage extends BasePage {
 
   // LEAD FORM VALIDATION
 
-  /** Checks how the market lead form handles invalid data. */
+  /** Checks the market lead form rejects invalid data. */
   async validateLeadForm(marketName: string): Promise<void> {
     await this.validateLeadFormInvalidData(marketName);
   }
 
-  /** Get the visible market lead form; specs own any intentional skips. */
+  /** Returns the market lead form scrolled into view, failing if the page has none. */
   private async getAvailableLeadForm(marketName: string): Promise<Locator> {
     await this.waitForFooterSectionVisible(`the market lead form on ${marketName}`);
 
@@ -407,7 +410,7 @@ export class MarketPage extends BasePage {
     return form;
   }
 
-  /** Get all fields used by the market lead form. */
+  /** Returns every field of the market lead form in one object. */
   private getLeadFormFields(form: Locator) {
     return {
       community: form.getByRole('combobox', { name: /Community of Interest/i }),
@@ -421,7 +424,7 @@ export class MarketPage extends BasePage {
     };
   }
 
-  /** assert every market lead form field is visible. */
+  /** Checks every market lead form field is visible. */
   private async expectLeadFormFieldsVisible(
     fields: ReturnType<MarketPage['getLeadFormFields']>,
   ): Promise<void> {
@@ -430,7 +433,7 @@ export class MarketPage extends BasePage {
     }
   }
 
-  /** Checks that market lead form shows required errors when submitted empty. */
+  /** Submits the empty lead form and checks the required-field errors appear. */
   async validateLeadFormRequiredErrors(marketName: string): Promise<void> {
     await this.step(`Validate lead form required errors: ${marketName}`, async () => {
       const form = await this.getAvailableLeadForm(marketName);
@@ -445,7 +448,7 @@ export class MarketPage extends BasePage {
     });
   }
 
-  /** Checks that market lead form rejects invalid email address data. */
+  /** Checks the lead form rejects an invalid email address. */
   async validateLeadFormInvalidData(marketName: string): Promise<void> {
     await this.step(`Validate lead form invalid data: ${marketName}`, async () => {
       const form = await this.getAvailableLeadForm(marketName);
@@ -462,7 +465,7 @@ export class MarketPage extends BasePage {
     });
   }
 
-  /** Checks that market lead form can be submitted successfully. */
+  /** Fills the lead form with valid data and checks it submits. */
   async submitLeadFormSuccessfully(marketName: string): Promise<void> {
     await this.step(`Submit lead form successfully: ${marketName}`, async () => {
       const form = await this.getAvailableLeadForm(marketName);
@@ -487,7 +490,7 @@ export class MarketPage extends BasePage {
 
   // DISCOVER OUR HOMES
 
-  /** Checks that Discover Our Homes links point to the expected search result types. */
+  /** Checks the Discover Our Homes links point at the right search results. */
   async validateDiscoverOurHomesSection(): Promise<void> {
     await this.step('Validate Discover Our Homes section links', async () => {
       await this.waitForPageReady();
@@ -528,7 +531,7 @@ export class MarketPage extends BasePage {
     });
   }
 
-  /** Checks that market search links include both plan and QMI search result links. */
+  /** Checks the market links to both plan and quick move-in search results. */
   async validateMarketSearchLinks(): Promise<void> {
     await this.step('Validate market search links', async () => {
       const count = await this.marketSearchLinks.count();

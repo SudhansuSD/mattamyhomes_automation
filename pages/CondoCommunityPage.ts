@@ -70,27 +70,27 @@ export class CondoCommunityPage extends SearchablePage {
 
   // Page Locators
 
-  /** Finds main page H1 heading. */
+  /** The page's main heading. */
   private get heading(): Locator {
     return this.page.getByRole('heading', { level: 1 });
   }
 
-  /** Finds full page body content. */
+  /** The whole page body. */
   private get body(): Locator {
     return this.page.locator('body');
   }
 
-  /** Finds primary hero or app root container. */
+  /** The hero banner at the top of the page. */
   private get hero(): Locator {
     return this.page.locator('main, #root').first();
   }
 
-  /** Finds all page navigation and CTA links. */
+  /** Every navigation and CTA link on the page. */
   private get navLinks(): Locator {
     return this.page.locator('a[href]');
   }
 
-  /** Finds register/contact action buttons and links. */
+  /** The register and contact buttons and links. */
   private get registerOrContactButtons(): Locator {
     return this.page.locator('a, button').filter({ hasText: TEXT.cta });
   }
@@ -113,7 +113,7 @@ export class CondoCommunityPage extends SearchablePage {
     return getHeroInformationCta(this.page).or(headingScopedCta).first();
   }
 
-  /** Finds possible condo lead forms on the page. */
+  /** The condo lead forms on the page. */
   private get condoForms(): Locator {
     return this.page
       .locator(`form${CondoCommunityPage.NOT_IN_DIALOG}`)
@@ -121,7 +121,7 @@ export class CondoCommunityPage extends SearchablePage {
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
-  /** Finds form containers used when the page does not render form tags. */
+  /** The form wrappers used on pages that render no <form> tag. */
   private get condoFormContainers(): Locator {
     return this.page
       .locator(
@@ -139,17 +139,17 @@ export class CondoCommunityPage extends SearchablePage {
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
-  /** Finds React modal shown after successful form submission. */
+  /** The confirmation modal shown after a successful submission. */
   private get successDialogModal(): Locator {
     return this.page.locator('.ReactModal__Content');
   }
 
-  /** Finds lead form success confirmation message. */
+  /** The thank-you message shown after the form is submitted. */
   private get formSuccessMessage(): Locator {
     return this.page.getByText(TEXT.successMessage).last();
   }
 
-  /** Finds Get Information lead form rendered in a modal, drawer, or sidebar. */
+  /** The Get Information form, wherever it opens - modal, drawer or sidebar. */
   private get leadFormDialogOrSidebar(): Locator {
     return this.page
       .locator(
@@ -161,17 +161,17 @@ export class CondoCommunityPage extends SearchablePage {
       );
   }
 
-  /** Finds optional condo community media gallery section. */
+  /** The media gallery section, which not every condo community has. */
   private get gallerySection(): Locator {
     return this.page.locator('#gallery').first();
   }
 
-  /** Finds button that opens the full gallery modal. */
+  /** The button that opens the full gallery modal. */
   private get galleryModalOpenButton(): Locator {
     return this.gallerySection.locator('button[aria-label="Community Gallery"]').first();
   }
 
-  /** Finds visible gallery modal/dialog after opening media. */
+  /** The gallery modal, once media has been opened. */
   private get galleryModal(): Locator {
     return this.page
       .locator('.ReactModal__Content:visible, [role="dialog"]:visible')
@@ -179,7 +179,7 @@ export class CondoCommunityPage extends SearchablePage {
       .last();
   }
 
-  /** Finds close button inside the visible gallery modal. */
+  /** The gallery modal's close button. */
   private get galleryModalCloseButton(): Locator {
     return this.galleryModal
       .locator(
@@ -188,24 +188,24 @@ export class CondoCommunityPage extends SearchablePage {
       .first();
   }
 
-  /** Finds in-page gallery next button. */
+  /** The in-page gallery's next button. */
   private get galleryNextButton(): Locator {
     return this.gallerySection.locator('button[aria-label*="Next slide" i]').first();
   }
 
-  /** Finds in-page gallery previous button. */
+  /** The in-page gallery's previous button. */
   private get galleryPreviousButton(): Locator {
     return this.gallerySection.locator('button[aria-label*="Previous slide" i]').first();
   }
 
   // Search and Page Load
 
-  /** Runs the action to search for a condo community from the home page search box. */
+  /** Searches for a condo community from the home page search box. */
   async searchByCondoCommunity(condoCommunity: string): Promise<void> {
     await super.searchByCondoCommunity(condoCommunity);
   }
 
-  /** Checks that condo community search redirects to the expected community page. */
+  /** Checks the search lands on the right condo community page. */
   async verifySearchByCondoCommunity(expectedCommunity: string): Promise<void> {
     await this.step(`Verify condo community search redirects to ${expectedCommunity}`, async () => {
       await this.waitForPageReady();
@@ -218,7 +218,7 @@ export class CondoCommunityPage extends SearchablePage {
 
   // Page Content Validation
 
-  /** Checks that hero area contains expected community and condo-related content. */
+  /** Checks the hero names this community and reads as condo content. */
   async verifyHeroContent(expectedCommunity: string): Promise<void> {
     await this.step(`Verify hero content for ${expectedCommunity}`, async () => {
       await this.expectHeadingContains(expectedCommunity);
@@ -227,7 +227,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that page includes visible condo community content section headings. */
+  /** Checks the page shows its content section headings. */
   async verifyCondoPageSections(): Promise<void> {
     await this.step('Verify condo community section headings', async () => {
       const sectionHeadings = this.page.getByRole('heading', {
@@ -246,7 +246,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that page includes condo-specific copy and condo-related navigation. */
+  /** Checks the page carries condo-specific copy and navigation. */
   async verifyCondoSpecificContent(): Promise<void> {
     await this.step('Verify condo-specific content and navigation', async () => {
       await expect(this.body).toContainText(TEXT.condo, { timeout: TIMEOUT.short });
@@ -262,7 +262,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that all navigation links have usable href values. */
+  /** Checks every navigation link points somewhere real. */
   async verifyAllNavigationLinks(): Promise<void> {
     await this.step('Verify all navigation links have usable href', async () => {
       const linkCount = await this.navLinks.count();
@@ -289,7 +289,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that primary register/contact CTA is present and visible. */
+  /** Checks the main register or contact CTA is on screen. */
   async verifyPrimaryCtas(): Promise<void> {
     await this.step('Verify primary register/contact CTA', async () => {
       const ctaCount = await this.registerOrContactButtons.count();
@@ -304,7 +304,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that page includes suite or floorplan-related content. */
+  /** Checks the page talks about suites or floorplans. */
   async verifySuiteOrFloorplanContent(): Promise<void> {
     await this.step('Verify suite or floorplan content', async () => {
       const suiteContent = this.page.locator('section, div').filter({
@@ -318,7 +318,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that available floorplans section contains floorplan links and a working View All CTA. */
+  /** Checks the floorplans section lists plans and its View All link works. */
   async verifyAvailableFloorplansSection(expectedCommunity: string): Promise<void> {
     await this.step('Verify available floorplans section', async () => {
       await this.waitForPageReady();
@@ -344,7 +344,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that optional gallery modal opens, navigates media, and closes correctly. */
+  /** Checks the gallery opens, moves between media and closes again. */
   async verifyGalleryModal(): Promise<void> {
     await this.step('Verify gallery modal if available', async () => {
       if (
@@ -408,21 +408,21 @@ export class CondoCommunityPage extends SearchablePage {
 
   // Public Form Validation
 
-  /** Checks that primary condo form fields and submit button are visible. */
+  /** Checks the primary condo form shows its fields and submit button. */
   async validatePrimaryFormFields(): Promise<void> {
     await this.step('Validate primary condo form fields', async () => {
       await this.validateFormFieldsByIndex(0, 'Primary condo form');
     });
   }
 
-  /** Checks that footer condo form fields and submit button are visible. */
+  /** Checks the footer condo form shows its fields and submit button. */
   async validateFooterFormFields(): Promise<void> {
     await this.step('Validate footer condo form fields', async () => {
       await this.validateFormFieldsByIndex(1, 'Footer condo form');
     });
   }
 
-  /** Checks that the Get Information CTA opens the condo side modal. */
+  /** Checks the Get Information CTA opens the side modal form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
       await expect(
@@ -437,7 +437,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that the condo side modal shows its form fields. */
+  /** Checks the side modal form shows its fields. */
   async verifySideModalFormFields(): Promise<void> {
     await this.step('Validate Get Information sideModalForm fields', async () => {
       const form = await this.getAvailableGetInformationForm();
@@ -449,7 +449,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that the condo side modal shows required-field errors. */
+  /** Submits the empty side modal form and checks the required-field errors appear. */
   async validateSideModalFormRequiredErrors(): Promise<void> {
     await this.step('Validate Get Information sideModalForm empty errors', async () => {
       const form = await this.getAvailableGetInformationForm();
@@ -458,7 +458,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that the condo side modal rejects an invalid email address. */
+  /** Checks the side modal form rejects an invalid email address. */
   async validateSideModalFormInvalidEmail(): Promise<void> {
     await this.step('Validate Get Information sideModalForm invalid email', async () => {
       const form = await this.getAvailableGetInformationForm();
@@ -468,7 +468,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that the condo side modal form submits successfully. */
+  /** Fills the side modal form with valid data and checks it submits. */
   async verifySideModalFormSuccessSubmission(): Promise<void> {
     await this.step('Submit Get Information condo sideModalForm successfully', async () => {
       const form = await this.getAvailableGetInformationForm();
@@ -488,52 +488,52 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks that default required-field validation errors on the primary condo form. */
+  /** Submits the primary condo form empty and checks the required-field errors appear. */
   async validateRequiredFieldErrors(): Promise<void> {
     await this.validatePrimaryFormRequiredErrors();
   }
 
-  /** Checks that primary condo form shows required-field validation errors. */
+  /** Submits the primary condo form empty and checks the required-field errors appear. */
   async validatePrimaryFormRequiredErrors(): Promise<void> {
     await this.step('Validate primary condo form required errors', async () => {
       await this.validateRequiredFieldErrorsByIndex(0, 'Primary condo form');
     });
   }
 
-  /** Checks that footer condo form shows required-field validation errors. */
+  /** Submits the footer condo form empty and checks the required-field errors appear. */
   async validateFooterFormRequiredErrors(): Promise<void> {
     await this.step('Validate footer condo form required errors', async () => {
       await this.validateRequiredFieldErrorsByIndex(1, 'Footer condo form');
     });
   }
 
-  /** Checks that default invalid-email validation on the primary condo form. */
+  /** Checks the primary condo form rejects an invalid email address. */
   async validateInvalidEmailError(): Promise<void> {
     await this.validatePrimaryFormInvalidEmailError();
   }
 
-  /** Checks that primary condo form rejects invalid email addresses. */
+  /** Checks the primary condo form rejects an invalid email address. */
   async validatePrimaryFormInvalidEmailError(): Promise<void> {
     await this.step('Validate primary condo form invalid email', async () => {
       await this.validateInvalidEmailErrorByIndex(0, 'Primary condo form');
     });
   }
 
-  /** Checks that footer condo form rejects invalid email addresses. */
+  /** Checks the footer condo form rejects an invalid email address. */
   async validateFooterFormInvalidEmailError(): Promise<void> {
     await this.step('Validate footer condo form invalid email', async () => {
       await this.validateInvalidEmailErrorByIndex(1, 'Footer condo form');
     });
   }
 
-  /** Checks that primary condo form can be submitted successfully. */
+  /** Fills the primary condo form with valid data and checks it submits. */
   async verifyPrimaryFormSuccessSubmission(): Promise<void> {
     await this.step('Submit primary condo form successfully', async () => {
       await this.submitSuccessfulFormByIndex(0, 'Primary condo form');
     });
   }
 
-  /** Checks that footer condo form can be submitted successfully. */
+  /** Fills the footer condo form with valid data and checks it submits. */
   async verifyFooterFormSuccessSubmission(): Promise<void> {
     await this.step('Submit footer condo form successfully', async () => {
       await this.submitSuccessfulFormByIndex(1, 'Footer condo form');
@@ -542,7 +542,7 @@ export class CondoCommunityPage extends SearchablePage {
 
   // Private Form Validation Helpers
 
-  /** Check visible fields for a form selected by index. */
+  /** Checks the form at this index shows its fields. */
   private async validateFormFieldsByIndex(formIndex: number, formName: string): Promise<void> {
     const form = await this.getAvailableForm(formIndex, formName);
 
@@ -559,7 +559,7 @@ export class CondoCommunityPage extends SearchablePage {
     await expect(this.getSubmitButton(form)).toBeVisible({ timeout: TIMEOUT.short });
   }
 
-  /** trigger and validate required-field errors for a form selected by index. */
+  /** Submits the form at this index empty and checks the required-field errors appear. */
   private async validateRequiredFieldErrorsByIndex(
     formIndex: number,
     formName: string,
@@ -575,7 +575,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** trigger and validate invalid-email errors for a form selected by index. */
+  /** Checks the form at this index rejects an invalid email address. */
   private async validateInvalidEmailErrorByIndex(
     formIndex: number,
     formName: string,
@@ -592,7 +592,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** submit a form selected by index with valid lead data. */
+  /** Fills the form at this index with valid data and checks it submits. */
   private async submitSuccessfulFormByIndex(formIndex: number, formName: string): Promise<void> {
     const form = await this.getAvailableForm(formIndex, formName);
 
@@ -610,7 +610,7 @@ export class CondoCommunityPage extends SearchablePage {
     await this.reportValue(`${formName} successful submission validated`);
   }
 
-  /** click the available lead-form CTA when the sidebar/modal is not already open. */
+  /** Clicks the lead form CTA, unless the form is already open. */
   private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
     if (await this.hasVisibleFields(this.leadFormDialogOrSidebar.first())) {
       return;
@@ -683,7 +683,7 @@ export class CondoCommunityPage extends SearchablePage {
     return this.getAvailableGetInformationForm(formName);
   }
 
-  /** find the Get Information lead form after opening its CTA. */
+  /** Returns the Get Information form once its CTA has opened it. */
   private async getAvailableGetInformationForm(
     formName = 'Get Information condo form',
   ): Promise<Locator> {
@@ -711,7 +711,7 @@ export class CondoCommunityPage extends SearchablePage {
     return form;
   }
 
-  /** navigate gallery modal media when next/previous controls are available. */
+  /** Steps through the gallery modal with its next/previous controls, when it has them. */
   private async navigateGalleryModalMediaIfAvailable(): Promise<void> {
     const nextButton = this.galleryModal.getByRole('button', { name: /next/i }).first();
     const previousButton = this.galleryModal.getByRole('button', { name: /previous/i }).first();
@@ -745,7 +745,7 @@ export class CondoCommunityPage extends SearchablePage {
     ).toBeTruthy();
   }
 
-  /** navigate the in-page gallery carousel when a modal is not available. */
+  /** Steps through the in-page carousel when there is no gallery modal. */
   private async navigateInPageGalleryMediaIfAvailable(): Promise<void> {
     const initialMediaKey = await this.getVisibleInPageGalleryMediaKey();
 
@@ -771,7 +771,7 @@ export class CondoCommunityPage extends SearchablePage {
     ).toBeTruthy();
   }
 
-  /** close the gallery modal with its close button or Escape fallback. */
+  /** Closes the gallery modal, falling back to Escape when there is no close button. */
   private async closeGalleryModal(): Promise<void> {
     if (await isLocatorVisible(this.galleryModalCloseButton, 3000)) {
       await this.galleryModalCloseButton.click();
@@ -784,7 +784,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Get the first visible media source rendered in the gallery modal. */
+  /** Returns the source of the first media showing in the gallery modal. */
   private async getVisibleGalleryModalMediaKey(): Promise<string> {
     const media = this.galleryModal
       .locator('img:visible, video:visible, iframe:visible, picture:visible')
@@ -793,19 +793,19 @@ export class CondoCommunityPage extends SearchablePage {
     return (await isLocatorVisible(media, 3000)) ? getMediaSource(media) : '';
   }
 
-  /** Get the first visible media source rendered in the in-page gallery. */
+  /** Returns the source of the first media showing in the in-page gallery. */
   private async getVisibleInPageGalleryMediaKey(): Promise<string> {
     const media = this.gallerySection.locator('img:visible').first();
 
     return (await isLocatorVisible(media, 3000)) ? getMediaSource(media) : '';
   }
 
-  /** fill lead form with data that should fail email validation. */
+  /** Fills the form with a deliberately bad email address. */
   private async fillLeadFormWithInvalidEmail(form: Locator): Promise<void> {
     await fillLeadFormFields(form, getInvalidLeadData('condoCommunity'), { emailName: /email/i });
   }
 
-  /** Get true when a container has at least one visible form field. */
+  /** Returns whether a container holds at least one visible form field. */
   private async hasVisibleFields(container: Locator): Promise<boolean> {
     if (!(await container.isVisible().catch(() => false))) {
       return false;
@@ -828,14 +828,14 @@ export class CondoCommunityPage extends SearchablePage {
     return false;
   }
 
-  /** identify CTA buttons rendered inside an existing lead form. */
+  /** Returns the CTA buttons that sit inside a lead form. */
   private async isInsideFormContainer(locator: Locator): Promise<boolean> {
     return locator
       .evaluate((element, selector) => Boolean(element.closest(selector)), FORM_CONTAINER_SELECTOR)
       .catch(() => false);
   }
 
-  /** fill lead form with valid data for successful submission. */
+  /** Fills the form with valid lead data. */
   private async fillLeadFormWithValidData(form: Locator): Promise<void> {
     // Check the form id first, then fill: Canada forms also get the four extra fields.
     await fillLeadFormByFormId(form, getValidLeadData('condoCommunity'), {
@@ -845,7 +845,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** find an available condo form by index. */
+  /** Returns the condo form at this index once it is usable. */
   private async getAvailableForm(formIndex: number, formName: string): Promise<Locator | null> {
     const matchingForms =
       (await this.condoForms.count()) > 0 ? this.condoForms : this.condoFormContainers;
@@ -871,12 +871,15 @@ export class CondoCommunityPage extends SearchablePage {
     return form;
   }
 
-  /** locate submit button inside a specific condo form. */
+  /** Returns a condo form's submit button. */
   private getSubmitButton(form: Locator): Locator {
     return getLeadFormSubmitButton(form);
   }
 
-  /** click this page's submit button (broader label match) without waiting on third-party requests. */
+  /**
+   * Clicks this page's submit button - it takes a looser label - without waiting on the third-party
+   * request behind it.
+   */
   private async clickSubmit(form: Locator): Promise<void> {
     await clickSubmit(this.page, form, TIMEOUT.short, {
       submitButton: this.getSubmitButton(form),
@@ -886,7 +889,7 @@ export class CondoCommunityPage extends SearchablePage {
 
   // Floorplan Section Helpers
 
-  /** find the available floorplans section when it exists. */
+  /** Returns the available floorplans section, or null when the page has none. */
   private async getAvailableFloorplansSection(): Promise<Locator | null> {
     const heading = this.page
       .getByRole('heading', {
@@ -909,7 +912,7 @@ export class CondoCommunityPage extends SearchablePage {
     return heading.locator('xpath=ancestor::div[1]');
   }
 
-  /** Check and log available floorplan links inside a section. */
+  /** Checks the floorplan links in a section and records them in the report. */
   private async verifyAvailableFloorplanLinks(
     section: Locator,
     condoCommunityPath: string,
@@ -971,7 +974,7 @@ export class CondoCommunityPage extends SearchablePage {
     await this.reportValue(`Validated ${floorplanLinkCount} condo floorplan link(s)`);
   }
 
-  /** Check and follow the available floorplans View All link. */
+  /** Follows the floorplans View All link and checks where it lands. */
   private async verifyAvailableFloorplansViewAll(
     section: Locator,
     expectedCommunity: string,
@@ -1021,7 +1024,7 @@ export class CondoCommunityPage extends SearchablePage {
 
   // Shared Helpers
 
-  /** assert a field is visible only when present in the form. */
+  /** Checks a field is visible, but only when the form renders it. */
   private async expectFieldIfPresent(field: Locator, label: string): Promise<void> {
     if (await field.count()) {
       await expect(field.first(), `${label} field should be visible`).toBeVisible({
@@ -1030,12 +1033,12 @@ export class CondoCommunityPage extends SearchablePage {
     }
   }
 
-  /** assert the H1 contains expected text. */
+  /** Checks the main heading contains this text. */
   private async expectHeadingContains(expectedText: string): Promise<void> {
     await expect(this.heading).toContainText(new RegExp(escapeRegex(expectedText), 'i'));
   }
 
-  /** derive a readable plan name from a floorplan URL. */
+  /** Builds a readable plan name from a floorplan URL. */
   private getPlanNameFromHref(href: string): string {
     const pathname = getPathnameFromHref(href, this.page.url());
     const slug = pathname.split('/').filter(Boolean).pop();

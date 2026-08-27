@@ -95,7 +95,7 @@ export class MobileWebBasePage {
     }
   }
 
-  /** Waits until mobile browser navigation leaves native/blank Chrome state and has usable DOM. */
+  /** Waits until Chrome leaves its blank startup page and the DOM is usable. */
   async waitForMobileNavigation(targetUrl, beforeUrl = '', timeout = 30000) {
     const expectedPath = new URL(targetUrl, 'https://placeholder.local').pathname;
 
@@ -264,7 +264,7 @@ export class MobileWebBasePage {
     await this.removeCookieOverlays();
   }
 
-  /** Closes cookie preferences if visible. */
+  /** Closes the cookie preferences panel when it is showing. */
   async closeCookiePreferencesIfVisible() {
     const closed = await this.driver.execute(() => {
       const modalText = document.body?.innerText || '';
@@ -368,7 +368,7 @@ export class MobileWebBasePage {
     });
   }
 
-  /** Dismisses promo popup if present. */
+  /** Dismisses the promo popup when one is showing. */
   async dismissPromoPopupIfPresent() {
     await this.acceptCookiesIfVisible();
 
@@ -425,13 +425,13 @@ export class MobileWebBasePage {
     }
   }
 
-  /** Dismisses blocking overlays if present. */
+  /** Clears anything sitting over the page and blocking taps. */
   async dismissBlockingOverlaysIfPresent() {
     await this.acceptCookiesIfVisible();
     await this.dismissPromoPopupIfPresent();
   }
 
-  /** Attempts to dismiss a promotional popup. */
+  /** Tries each known way of closing a promo popup. */
   async tryDismissPromoPopup() {
     return this.driver.execute(() => {
       const isVisible = (element) => {
@@ -547,7 +547,7 @@ export class MobileWebBasePage {
     });
   }
 
-  /** Clicks visible by text. */
+  /** Clicks the first visible element whose text matches. */
   async clickVisibleByText(pattern: RegExp, selectors: string[] = ['button', 'a'], label?: string) {
     const clicked = await this.driver.execute(
       ({ source, flags, selectors }) => {
@@ -596,7 +596,7 @@ export class MobileWebBasePage {
     });
   }
 
-  /** Waits until a short-lived condition after a script-driven interaction. */
+  /** Waits for a short-lived condition after a script-driven interaction. */
   async waitForMobileCondition(condition, timeoutMsg, timeout = 10000) {
     await this.driver.waitUntil(condition, {
       timeout,
@@ -632,7 +632,7 @@ export class MobileWebBasePage {
     assert.doesNotMatch(snapshot.bodyText, /404|page not found|server error/i);
   }
 
-  /** Checks that the browser user agent matches the configured mobile platform (Android Chrome / iOS Safari). */
+  /** Checks the user agent matches the platform we are running - Android Chrome or iOS Safari. */
   expectMobileUserAgent(userAgent) {
     const platform = getMobilePlatform();
     const { device, browser } = getUserAgentPatterns();
@@ -865,7 +865,7 @@ export class MobileWebBasePage {
     await assertLeadFormSubmissionSuccess(this.driver, message, timeout);
   }
 
-  /** Logs mobile step. */
+  /** Writes one mobile step line to the report. */
   logMobileStep(kind: string, message: string, status?: unknown) {
     const cleanMessage = String(message || '')
       .replace(/\s+/g, ' ')
@@ -885,7 +885,7 @@ export class MobileWebBasePage {
 
   // READABLE STEP LOG VOCABULARY Produces concise action-narrative lines, e.g.: Clicked on: 15 Year Loan Clicked (script) on: featured quick move-in home card 15-year term: $2519 → $2854 Opened QMI detail: https://...
 
-  /** Generic action line. */
+  /** Logs a plain action line. */
   logStep(message) {
     this.logMobileStep('ACTION', message);
   }

@@ -64,7 +64,7 @@ export class AboutUsPage extends BasePage {
     this.footer = page.locator('#footer, section[id="footer"]').first();
   }
 
-  /** Checks about page. */
+  /** Runs the full About page check: shell, content, link hrefs, then any page-specific extras. */
   async validateAboutPage(link: HeaderNavigationLink): Promise<void> {
     await this.step(`Validate About page: ${link.name}`, async () => {
       const expectation = ABOUT_PAGE_EXPECTATIONS[link.url];
@@ -119,7 +119,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Checks page shell. */
+  /** Checks the title, route, header, main and footer are all in place. */
   async validatePageShell(
     link: HeaderNavigationLink,
     expectation: AboutPageExpectation,
@@ -153,7 +153,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Checks page content. */
+  /** Checks the page renders real text, plus the headings, links and buttons it should have. */
   async validatePageContent(expectation: AboutPageExpectation): Promise<void> {
     await this.step('Validate page content, headings, links and buttons', async () => {
       await expect
@@ -194,7 +194,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Checks community involvement functionality. */
+  /** Checks the Community Involvement extras: SHOW MORE and the foundation link. */
   async validateCommunityInvolvementFunctionality(): Promise<void> {
     await this.step('Validate Community Involvement functionality', async () => {
       await this.validateShowMore();
@@ -202,7 +202,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Checks sustainability functionality. */
+  /** Checks the Sustainability page links to its report and its two sub-pages. */
   async validateSustainabilityFunctionality(): Promise<void> {
     await this.step('Validate Sustainability functionality', async () => {
       await this.validateVisibleHref(/sustainabilityreport|assetstream|dfsmedia/i);
@@ -211,7 +211,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Checks media and investor functionality. */
+  /** Checks the news releases, fact sheet, contact emails and investor form. */
   async validateMediaAndInvestorFunctionality(): Promise<void> {
     await this.step('Validate Media and Investor Relations functionality', async () => {
       const releaseLinks = this.main.locator('a[href*="mediaroom.com"]:visible');
@@ -241,7 +241,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Checks careers functionality. */
+  /** Checks the Careers extras: early-careers link, photo carousel and Apply Today. */
   async validateCareersFunctionality(): Promise<void> {
     await this.step('Validate Careers functionality', async () => {
       await this.validateLinkIfPresent(/\/about\/careers\/early-careers/i);
@@ -280,7 +280,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /** Checks show more if present. */
+  /** Clicks SHOW MORE and confirms it reveals more links instead of losing any. */
   private async validateShowMore(): Promise<void> {
     const showMoreButton = this.main.getByRole('button', { name: /SHOW MORE/i }).first();
 
@@ -303,7 +303,7 @@ export class AboutUsPage extends BasePage {
       .toBeGreaterThanOrEqual(visibleLinksBefore);
   }
 
-  /** Checks investor form if present. */
+  /** Checks the investor form has required fields and a Submit button. */
   private async validateInvestorForm(): Promise<void> {
     const form = this.main.locator('form').first();
 
@@ -320,7 +320,7 @@ export class AboutUsPage extends BasePage {
     await expect(form.getByRole('button', { name: /^SUBMIT$/i })).toBeVisible();
   }
 
-  /** Checks visible links have destinations. */
+  /** Fails if any visible link on the page is missing its href. */
   private async validateVisibleLinksHaveDestinations(): Promise<void> {
     const linksWithoutHref = await this.main
       .locator('a:visible')
@@ -335,21 +335,21 @@ export class AboutUsPage extends BasePage {
     );
   }
 
-  /** Checks external link if present. */
+  /** Checks an outbound link's href, but only when the page renders one. */
   private async validateExternalLinkIfPresent(hrefPattern: RegExp): Promise<void> {
     if (await this.hasVisibleLinkMatching(hrefPattern)) {
       await this.validateVisibleHref(hrefPattern);
     }
   }
 
-  /** Checks link if present. */
+  /** Checks a link's href, but only when the page renders one. */
   private async validateLinkIfPresent(hrefPattern: RegExp): Promise<void> {
     if (await this.hasAnyLinkMatching(hrefPattern)) {
       await this.validateVisibleHref(hrefPattern);
     }
   }
 
-  /** Checks visible href. */
+  /** Waits until some link on the page has an href matching the pattern. */
   private async validateVisibleHref(hrefPattern: RegExp): Promise<void> {
     await expect
       .poll(async () => this.hasAnyLinkMatching(hrefPattern), {
@@ -359,7 +359,7 @@ export class AboutUsPage extends BasePage {
       .toBeTruthy();
   }
 
-  /** Checks whether visible link matching. */
+  /** Returns true when a visible link's href matches the pattern. */
   private async hasVisibleLinkMatching(pattern: RegExp): Promise<boolean> {
     return this.main.locator('a[href]:visible').evaluateAll(
       (links, regexInput) => {
@@ -371,7 +371,7 @@ export class AboutUsPage extends BasePage {
     );
   }
 
-  /** Checks whether any link matching. */
+  /** Returns true when any link's href matches the pattern, visible or not. */
   private async hasAnyLinkMatching(pattern: RegExp): Promise<boolean> {
     return this.main.locator('a[href]').evaluateAll(
       (links, regexInput) => {
@@ -404,12 +404,12 @@ export class AboutUsPage extends BasePage {
     );
   }
 
-  /** Gets visible main content length. */
+  /** Returns how many characters of text the main area is showing. */
   private async getVisibleMainContentLength(): Promise<number> {
     return (await this.getMainText()).length;
   }
 
-  /** Gets main text. */
+  /** Returns the main area's text with whitespace collapsed. */
   private async getMainText(): Promise<string> {
     return this.main.evaluate((main) => (main.textContent || '').replace(/\s+/g, ' ').trim());
   }

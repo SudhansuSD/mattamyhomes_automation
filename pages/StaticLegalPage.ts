@@ -122,7 +122,7 @@ export class StaticLegalPage extends BasePage {
     this.footer = page.locator('#footer, section[id="footer"], footer').first();
   }
 
-  /** Opens static page. */
+  /** Opens the legal/static page, clearing the cookie banner and promo popup on the way in. */
   async navigateToStaticPage(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Navigate to ${config.name}`, async () => {
       const { baseURL, envName } = getEnvConfig();
@@ -148,7 +148,7 @@ export class StaticLegalPage extends BasePage {
     });
   }
 
-  /** Checks page shell. */
+  /** Checks the title, route, header, content area and footer are all in place. */
   async validatePageShell(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Validate page shell: ${config.name}`, async () => {
       await this.assertPageTitle(
@@ -177,7 +177,7 @@ export class StaticLegalPage extends BasePage {
     });
   }
 
-  /** Checks static content. */
+  /** Checks the page renders real text, its expected headings and its expected wording. */
   async validateStaticContent(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Validate static content: ${config.name}`, async () => {
       await expect
@@ -203,7 +203,7 @@ export class StaticLegalPage extends BasePage {
     });
   }
 
-  /** Checks required links. */
+  /** Checks every visible link has an href and the required destinations are present. */
   async validateRequiredLinks(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Validate required links: ${config.name}`, async () => {
       await this.validateVisibleLinksHaveDestinations();
@@ -221,7 +221,7 @@ export class StaticLegalPage extends BasePage {
     });
   }
 
-  /** Checks no forms or submit actions. */
+  /** Checks the page stays read-only - no forms, no submit buttons. */
   async validateNoFormsOrSubmitActions(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Validate no forms or submit actions: ${config.name}`, async () => {
       await this.assertCount(
@@ -237,7 +237,7 @@ export class StaticLegalPage extends BasePage {
     });
   }
 
-  /** Prevents production form submission during validation. */
+  /** Blocks any form submit on PROD, so a stray click can never post real data. */
   private async preventProdFormSubmission(): Promise<void> {
     await this.page.addInitScript(() => {
       const win = window as typeof window & {
@@ -270,7 +270,7 @@ export class StaticLegalPage extends BasePage {
     });
   }
 
-  /** Checks visible links have destinations. */
+  /** Fails if any visible link on the page is missing its href. */
   private async validateVisibleLinksHaveDestinations(): Promise<void> {
     const linksWithoutHref = await this.contentRoot
       .locator('a:visible')
@@ -285,7 +285,7 @@ export class StaticLegalPage extends BasePage {
     );
   }
 
-  /** Checks whether visible link matching. */
+  /** Returns true when a visible link's href matches the pattern. */
   private async hasVisibleLinkMatching(pattern: RegExp): Promise<boolean> {
     return this.contentRoot.locator('a[href]:visible').evaluateAll(
       (links, regexInput) => {
@@ -297,14 +297,14 @@ export class StaticLegalPage extends BasePage {
     );
   }
 
-  /** Gets visible page text. */
+  /** Returns the page text with whitespace collapsed. */
   private async getVisiblePageText(): Promise<string> {
     const text = await this.contentRoot.innerText({ timeout: 15000 });
 
     return text.replace(/\s+/g, ' ').trim();
   }
 
-  /** Gets visible content length. */
+  /** Returns how many characters of text the page is actually showing, skipping hidden nodes. */
   private async getVisibleContentLength(): Promise<number> {
     return this.contentRoot.evaluate((root) => {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);

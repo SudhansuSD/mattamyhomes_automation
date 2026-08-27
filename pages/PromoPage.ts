@@ -54,7 +54,7 @@ export class PromoPage extends BasePage {
     this.successDialogModal = page.locator('.ReactModal__Content').last();
   }
 
-  /** Opens hometown heroes promo. */
+  /** Opens the USA Hometown Heroes promo page and clears anything covering it. */
   async navigateToHometownHeroesPromo(): Promise<void> {
     await this.step('Navigate to Hometown Heroes promo', async () => {
       const { baseURL, envName } = getEnvConfig();
@@ -75,7 +75,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Checks that the page loaded. */
+  /** Checks the promo page loaded with its expected title, heading and form. */
   async verifyPageLoaded(): Promise<void> {
     await this.step('Verify Hometown Heroes promo page loaded', async () => {
       await this.assertPageUrl(
@@ -108,7 +108,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Checks the promo form fields. */
+  /** Checks every field the promo form should offer is on screen. */
   async verifyPromoFormFields(): Promise<void> {
     await this.step('Verify promo form fields', async () => {
       await this.scrollToForm();
@@ -141,7 +141,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Checks required field errors. */
+  /** Submits the empty form and checks each required field reports its error. */
   async validateRequiredFieldErrors(): Promise<void> {
     await this.step('Validate required field errors', async () => {
       await this.scrollToForm();
@@ -158,7 +158,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Checks invalid email address error. */
+  /** Submits a bad email and checks either the page or the browser rejects it. */
   async validateInvalidEmailError(): Promise<void> {
     await this.step('Validate invalid email error', async () => {
       await this.scrollToForm();
@@ -193,7 +193,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Checks that the form submits successfully. */
+  /** Fills the form with valid data, submits it, and checks the confirmation. */
   async verifySuccessfulSubmission(): Promise<void> {
     await this.step('Verify successful form submission', async () => {
       await this.scrollToForm();
@@ -266,7 +266,7 @@ export class PromoPage extends BasePage {
       .first();
   }
 
-  /** Scrolls to the lead form section. */
+  /** Waits for the promo form and scrolls it into view. */
   private async scrollToForm(): Promise<void> {
     await this.promoForm.waitFor({
       state: 'attached',
@@ -275,7 +275,7 @@ export class PromoPage extends BasePage {
     await this.promoForm.scrollIntoViewIfNeeded();
   }
 
-  /** Fills the promo form. */
+  /** Fills every promo field and ticks the consent boxes. */
   private async fillPromoForm(leadData: PromoLeadData): Promise<void> {
     await this.communityField.selectOption({ label: leadData.community });
     await this.firstNameField.fill(leadData.firstName);
@@ -292,7 +292,7 @@ export class PromoPage extends BasePage {
     }
   }
 
-  /** Builds valid lead data for the promo form. */
+  /** Builds a valid set of promo lead data from the shared test data. */
   private buildValidLeadData(): PromoLeadData {
     const data = getValidLeadData('promo');
     const profile = getLeadProfile('promo');
@@ -309,7 +309,7 @@ export class PromoPage extends BasePage {
     };
   }
 
-  /** Gets the required-field error locator. */
+  /** Returns the "<field> is Required" message for one field. */
   private requiredError(fieldName: RegExp): Locator {
     return this.promoForm
       .locator('div:visible, span:visible, p:visible, label:visible')
@@ -319,14 +319,14 @@ export class PromoPage extends BasePage {
       .first();
   }
 
-  /** Expects a form field to be visible when present. */
+  /** Checks an optional field is visible, but only when the form renders it. */
   private async expectFieldIfPresent(field: Locator): Promise<void> {
     if (await field.count()) {
       await this.assertVisible(field, 'Optional promo form field should be visible when present');
     }
   }
 
-  /** Dismisses blocking overlays. */
+  /** Clears the cookie banner, country picker and privacy panel that can sit over the form. */
   private async dismissBlockingOverlays(): Promise<void> {
     await this.acceptCookiesIfPresent();
 

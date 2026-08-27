@@ -167,7 +167,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Checks that the page loaded. */
+  /** Checks the Contact page loaded with the right title, URL and country selected. */
   async verifyPageLoaded(config: ContactCountryConfig): Promise<void> {
     await this.step(`Verify Contact page loaded (${config.locationKey})`, async () => {
       await this.waitForPageReady();
@@ -196,7 +196,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Checks the area list. */
+  /** Checks every configured market area is listed and labelled for screen readers. */
   async validateAreaList(config: ContactCountryConfig): Promise<void> {
     await this.step(`Validate Contact area list (${config.locationKey})`, async () => {
       const areaButtons = this.getAreaButtons();
@@ -228,7 +228,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Checks the selected area details. */
+  /** Opens one area and checks its contact actions appear. */
   async validateAreaDetails(area: ContactArea): Promise<void> {
     await this.step(`Validate Contact area details: ${area.name}`, async () => {
       await this.assertVisible(
@@ -257,7 +257,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Checks the corporate office email links. */
+  /** Checks each corporate office shows its label and a working mailto link. */
   async validateCorporateOfficeEmails(): Promise<void> {
     await this.step('Validate corporate office emails', async () => {
       await this.assertVisible(
@@ -289,7 +289,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Checks the footer and social links. */
+  /** Checks the footer links and this country's social media links. */
   async validateFooterAndSocialLinks(config: ContactCountryConfig): Promise<void> {
     await this.step(`Validate footer and social links (${config.locationKey})`, async () => {
       await this.assertVisible(this.footer, 'Contact page footer should be visible', 15_000);
@@ -355,12 +355,12 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Gets the area buttons. */
+  /** Returns every visible area button. */
   private getAreaButtons(): Locator {
     return this.main.locator('button[aria-label^="View contact details of"]:visible');
   }
 
-  /** Gets the selected area button. */
+  /** Returns the area button with this exact name. */
   private getAreaButton(areaName: string): Locator {
     return this.getAreaButtons()
       .filter({
@@ -369,7 +369,7 @@ export class ContactPage extends BasePage {
       .first();
   }
 
-  /** Clicks an area button. */
+  /** Clicks an area button, retrying while the list re-renders underneath us. */
   private async clickAreaButton(areaName: string): Promise<void> {
     for (let attempt = 1; attempt <= 3; attempt++) {
       const areaButton = this.getAreaButton(areaName);
@@ -389,7 +389,7 @@ export class ContactPage extends BasePage {
     throw new Error(`Unable to select contact area: ${areaName}`);
   }
 
-  /** Converts text to title case. */
+  /** Turns an ALL-CAPS area name into the title case the page displays. */
   private toTitleCase(value: string): string {
     return value
       .toLowerCase()
