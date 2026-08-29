@@ -1,5 +1,8 @@
 import { test } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { MPCConfig, MPCPage } from '../pages/MPCPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
@@ -8,7 +11,6 @@ import { annotate, Severity } from '../utils/reporting/allureMeta';
 // USA data and MPCPage always drives the USA site — running it under LOCATION=CAN
 // (or with no LOCATION at all) still exercises MPC instead of skipping it.
 const location = getLocationConfig('USA');
-const { envName } = getEnvConfig();
 const mpc = ('mpc' in location ? location.mpc?.[0] : undefined) as MPCConfig | undefined;
 
 test.describe(`MPC page tests - ${location.country}`, () => {
@@ -124,10 +126,7 @@ test.describe(`MPC page tests - ${location.country}`, () => {
       });
 
       test.describe('Get Information form submission', () => {
-        test.skip(
-          envName === 'PROD',
-          'Skipping Get Information form lead submission on PROD environment.',
-        );
+        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
         test(`@regression @lead-submit @STAGE | ${location.country} | Validate MPC sideModalForm successful submission`, async () => {
           await test.step('Validate MPC sideModalForm successful submission', async () => {
@@ -157,10 +156,7 @@ test.describe(`MPC page tests - ${location.country}`, () => {
       });
 
       test.describe('Community update form submission', () => {
-        test.skip(
-          envName === 'PROD',
-          'Skipping community update form lead submission on PROD environment.',
-        );
+        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
         test(`@regression @STAGE | ${location.country} | Validate successful community update submission`, async () => {
           await test.step('Validate successful community update submission', async () => {

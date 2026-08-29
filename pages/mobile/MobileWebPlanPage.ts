@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { MobileWebHomePage } from './MobileWebHomePage';
-import { getEnvConfig } from '../../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 import {
   fillInvalidEmailLeadFormByIndex,
@@ -386,9 +389,11 @@ export class MobileWebPlanPage extends MobileWebHomePage {
 
   /** Fills the plan form with valid data and checks it submits. */
   async verifyPlanDetailFormSuccessSubmission() {
-    const { envName } = getEnvConfig();
-
-    assert.notEqual(envName, 'PROD', 'Plan detail form success submission must not run on PROD');
+    assert.equal(
+      isLeadSubmissionBlocked(),
+      false,
+      getLeadSubmissionSkipReason() ?? 'Lead submissions are paused.',
+    );
 
     await this.waitForPlanForm();
     const snapshot = await this.getPlanSourceSnapshot();

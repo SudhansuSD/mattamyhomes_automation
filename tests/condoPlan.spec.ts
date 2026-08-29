@@ -8,7 +8,10 @@
  */
 
 import { test } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoPlanPage } from '../pages/CondoPlanPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
@@ -17,7 +20,6 @@ import { annotate, Severity } from '../utils/reporting/allureMeta';
 // CondoPlanPage always drives the Canadian site — running it under LOCATION=USA
 // (or with no LOCATION) still exercises condo plans instead of skipping.
 const location = getLocationConfig('CAN');
-const { envName } = getEnvConfig();
 const condoPlan = 'condoPlan' in location ? location.condoPlan : undefined;
 
 test.describe(`Condo Plan Page - ${location.country}`, () => {
@@ -138,10 +140,7 @@ test.describe(`Condo Plan Page - ${location.country}`, () => {
     });
 
     test.describe('Community updates form submission', () => {
-      test.skip(
-        envName === 'PROD',
-        'Skipping condo plan form lead submission on PROD environment.',
-      );
+      test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
       test(`@regression @lead-submit @STAGE | ${location.country} | Validate Get Information side modal form successful submission`, async () => {
         await test.step('Validate Get Information side modal form successful submission', async () => {

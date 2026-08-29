@@ -4,11 +4,12 @@
  */
 
 import { test } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../config/environments/leadSubmissionPolicy';
 import { PromoPage } from '../pages/PromoPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
-
-const { envName } = getEnvConfig();
 
 // USA-only promo. A multi-location run covers it in the USA pass, which always
 // runs first — see config/locations/locationAgnosticSpecs.ts.
@@ -56,7 +57,7 @@ test.describe('Hometown Heroes Promo Page Tests - USA', () => {
   });
 
   test.describe('Promo form submission', () => {
-    test.skip(envName === 'PROD', 'Skipping promo form lead submission on PROD environment.');
+    test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
     test(`@regression @lead-submit @STAGE @promo-form-submit | USA | Validate promo form successful submission`, async () => {
       await test.step('Submit promo form with valid data and verify success message', async () => {

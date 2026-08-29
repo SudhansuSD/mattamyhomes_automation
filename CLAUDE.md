@@ -100,11 +100,20 @@ pass per country. Specs read `getLocationConfig()` rather than hardcoding.
 Country-specific page objects pin themselves with `locationOverride` - MPC is
 USA-only, condo community and condo plan are CAN-only.
 
-Anything that submits a live lead form must be STAGE-only:
+**Live lead submissions are currently paused on every environment, STAGE
+included.** STAGE submissions create real CRM records, so the pause lives in
+`config/environments/leadSubmissionPolicy.ts` rather than in a runner flag -
+`npm run test:no-submit` only protected the runs that remembered to use it.
+Guard anything that submits a live form through that module, never by testing
+`envName` directly:
 
 ```ts
-test.skip(envName === 'PROD', 'Lead submissions must run only on STAGE.');
+test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 ```
+
+A single run can opt back in with `ALLOW_LEAD_SUBMISSION=true`; PROD stays
+blocked regardless. Only flip `LEAD_SUBMISSIONS_PAUSED` back to `false` when the
+client asks for submissions to resume.
 
 ## Untracked evidence specs
 

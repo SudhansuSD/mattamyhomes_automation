@@ -5,13 +5,15 @@
  */
 
 import { test } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { PlanDetailPage } from '../pages/PlanDetailPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const location = getLocationConfig();
-const { envName } = getEnvConfig();
 
 test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
   let planPage: PlanDetailPage;
@@ -110,10 +112,7 @@ test.describe(`Plan Detail Page Tests - ${location.country}`, () => {
     });
 
     test.describe('Plan detail form submission', () => {
-      test.skip(
-        envName === 'PROD',
-        'Skipping plan detail form lead submission on PROD environment.',
-      );
+      test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
       test(`@regression @lead-submit @STAGE | ${location.country} | Validate plan detail side modal form successful submission`, async () => {
         await planPage.verifySideModalFormSuccessSubmission();

@@ -1,11 +1,13 @@
 import { test } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CommunityPage } from '../pages/CommunityPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const location = getLocationConfig();
-const { envName } = getEnvConfig();
 
 test.describe(`Community Detail - ${location.community}`, () => {
   let communityPage: CommunityPage;
@@ -107,10 +109,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
       });
 
       test.describe('Get Information form submission', () => {
-        test.skip(
-          envName === 'PROD',
-          'Skipping Get Information form lead submission on PROD environment.',
-        );
+        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
         test(`@regression @lead-submit @STAGE | ${location.country} | Validate community sideModalForm successful submission`, async () => {
           await test.step('Validate community sideModalForm successful submission', async () => {
@@ -134,7 +133,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
       });
 
       test.describe('Primary form submission', () => {
-        test.skip(envName === 'PROD', 'Skipping primary form lead submission on PROD environment.');
+        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
         test(`@regression @lead-submit @STAGE | ${location.country} | Validate primary form successful submission`, async () => {
           await test.step('Validate primary form successful submission', async () => {
@@ -158,7 +157,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
       });
 
       test.describe('Footer form submission', () => {
-        test.skip(envName === 'PROD', 'Skipping footer form lead submission on PROD environment.');
+        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
         test(`@regression @lead-submit @STAGE | ${location.country} | Validate footer form successful submission`, async () => {
           await test.step('Validate footer form successful submission', async () => {

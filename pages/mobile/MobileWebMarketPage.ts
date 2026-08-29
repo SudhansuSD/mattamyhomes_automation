@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { MobileWebHomePage } from './MobileWebHomePage';
-import { getEnvConfig } from '../../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 import { getMobilePlatformLabel } from '../../utils/mobilePlatform';
 import testData from '../../data/test_data.json';
@@ -615,9 +618,11 @@ export class MobileWebMarketPage extends MobileWebHomePage {
 
   /** Submits the market lead form with valid data and asserts the success confirmation. */
   async submitLeadFormSuccessfully(market = this.getConfiguredMarket()) {
-    const { envName } = getEnvConfig();
-
-    assert.notEqual(envName, 'PROD', 'Market lead form submission must not run on PROD');
+    assert.equal(
+      isLeadSubmissionBlocked(),
+      false,
+      getLeadSubmissionSkipReason() ?? 'Lead submissions are paused.',
+    );
 
     await this.openMarket(market);
     await this.getMarketLeadForm();

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { MobileWebHomePage } from './MobileWebHomePage';
-import { getEnvConfig } from '../../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 import {
   fillInvalidEmailLeadFormByIndex,
@@ -555,9 +558,11 @@ export class MobileWebMPCPage extends MobileWebHomePage {
 
   /** Checks that the Get Information form submits successfully. */
   async verifyGetInformationFormSuccessSubmission() {
-    const { envName } = getEnvConfig();
-
-    assert.notEqual(envName, 'PROD', 'Get Information success submission must not run on PROD');
+    assert.equal(
+      isLeadSubmissionBlocked(),
+      false,
+      getLeadSubmissionSkipReason() ?? 'Lead submissions are paused.',
+    );
 
     await this.openMpc();
     await this.openGetInformationForm();

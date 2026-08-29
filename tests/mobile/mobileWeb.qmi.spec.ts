@@ -1,5 +1,5 @@
 import { MobileWebQMIPage } from '../../pages/mobile/MobileWebQMIPage';
-import { getEnvConfig } from '../../config/environments/envConfig';
+import { isLeadSubmissionBlocked } from '../../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 
 describe('Mattamy Homes mobile web - QMI detail page on mobile (Android/iOS)', function () {
@@ -7,7 +7,6 @@ describe('Mattamy Homes mobile web - QMI detail page on mobile (Android/iOS)', f
 
   let qmiPage;
   let location;
-  const { envName } = getEnvConfig();
 
   beforeEach(async () => {
     qmiPage = new MobileWebQMIPage();
@@ -64,7 +63,7 @@ describe('Mattamy Homes mobile web - QMI detail page on mobile (Android/iOS)', f
     });
 
     it('TC-04 | @regression @STAGE @qmi-form-submit | Validate QMI form successful submission', async function () {
-      if (envName === 'PROD') {
+      if (isLeadSubmissionBlocked()) {
         this.skip();
       }
 

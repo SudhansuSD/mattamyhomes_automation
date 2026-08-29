@@ -1,5 +1,5 @@
 import { MobileWebPlanPage } from '../../pages/mobile/MobileWebPlanPage';
-import { getEnvConfig } from '../../config/environments/envConfig';
+import { isLeadSubmissionBlocked } from '../../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 
 describe('Mattamy Homes mobile web - plan detail page on mobile (Android/iOS)', function () {
@@ -7,7 +7,6 @@ describe('Mattamy Homes mobile web - plan detail page on mobile (Android/iOS)', 
 
   let planPage;
   let location;
-  const { envName } = getEnvConfig();
 
   beforeEach(async () => {
     planPage = new MobileWebPlanPage();
@@ -48,7 +47,7 @@ describe('Mattamy Homes mobile web - plan detail page on mobile (Android/iOS)', 
     });
 
     it('TC-03 | @regression @STAGE | Validate plan detail form successful submission', async function () {
-      if (envName === 'PROD') {
+      if (isLeadSubmissionBlocked()) {
         this.skip();
       }
 

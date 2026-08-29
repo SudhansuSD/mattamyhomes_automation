@@ -1,5 +1,8 @@
 import { test } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoCommunityPage } from '../pages/CondoCommunityPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
@@ -8,7 +11,6 @@ import { annotate, Severity } from '../utils/reporting/allureMeta';
 // CondoCommunityPage always drives the Canadian site — running it under
 // LOCATION=USA (or with no LOCATION) still exercises condos instead of skipping.
 const location = getLocationConfig('CAN');
-const { envName } = getEnvConfig();
 const condoCommunity = 'condoCommunity' in location ? location.condoCommunity : undefined;
 
 test.describe(`Condo Community Detail - ${location.country}`, () => {
@@ -115,10 +117,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       });
 
       test.describe('Get Information form submission', () => {
-        test.skip(
-          envName === 'PROD',
-          'Skipping Get Information form lead submission on PROD environment.',
-        );
+        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
         test(`@regression @lead-submit @STAGE | ${location.country} | Validate condo community sideModalForm successful submission`, async () => {
           await test.step('Validate condo community sideModalForm successful submission', async () => {
@@ -148,10 +147,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       });
 
       test.describe('Primary condo form submission', () => {
-        test.skip(
-          envName === 'PROD',
-          'Skipping primary condo form lead submission on PROD environment.',
-        );
+        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
         test(`@regression @lead-submit @STAGE | ${location.country} | Validate primary condo form successful submission`, async () => {
           await test.step('Validate primary condo form successful submission', async () => {
@@ -181,10 +177,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       });
 
       test.describe('Footer condo form submission', () => {
-        test.skip(
-          envName === 'PROD',
-          'Skipping footer condo form lead submission on PROD environment.',
-        );
+        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
         test(`@regression @lead-submit @STAGE | ${location.country} | Validate footer condo form successful submission`, async () => {
           await test.step('Validate footer condo form successful submission', async () => {

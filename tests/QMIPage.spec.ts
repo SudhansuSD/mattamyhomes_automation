@@ -5,13 +5,15 @@
  */
 
 import { test } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
+import {
+  getLeadSubmissionSkipReason,
+  isLeadSubmissionBlocked,
+} from '../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { QMIPage } from '../pages/QMIPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const location = getLocationConfig();
-const { envName } = getEnvConfig();
 
 test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
   let qmiPage: QMIPage;
@@ -122,7 +124,7 @@ test.describe(`QMI Detail Page Tests - ${location.country}`, () => {
     });
 
     test.describe('QMI form submission', () => {
-      test.skip(envName === 'PROD', 'Skipping QMI form lead submission on PROD environment.');
+      test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
       test(`@regression @lead-submit @STAGE @qmi-form-submit | ${location.country} | Validate QMI side modal form successful submission`, async () => {
         await test.step('Submit QMI form with valid data and verify success message', async () => {

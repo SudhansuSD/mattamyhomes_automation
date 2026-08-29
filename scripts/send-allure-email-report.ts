@@ -53,6 +53,10 @@ type AllureReportTestCase = {
   name?: string;
   fullName?: string;
   status?: TestStatus;
+  /** True on a superseded attempt. Allure writes every attempt to `data/test-results`, but counts only the final one. */
+  isRetry?: boolean;
+  /** How many superseded attempts this final result has; above zero means the test only settled on a retry. */
+  retriesCount?: number;
   error?: AllureReportError;
   steps?: AllureReportStep[];
   setup?: AllureReportStep[];
@@ -68,6 +72,8 @@ type ExecutionSummary = {
   passed: number;
   failed: number;
   skipped: number;
+  /** Tests that failed an attempt but settled green - counted as passed, so they need their own line. */
+  flaky: number;
   passPercentage: number;
   environment: string;
   browser: string;
@@ -100,6 +106,13 @@ const CODE_FRAGMENT_PATTERN =
   /expect\(|locator\(|page\.[a-z]+\(|=>|\$\{|<\/?[a-z][^>]*>|\)\.(?:first|last|nth)\(/i;
 const chartCid = 'test-summary-chart';
 const RUN_TYPE_LABEL = 'runType';
+/**
+ * CI runners are UTC, so an unlabelled timestamp read as an hour - and for the 03:30 UTC nightly,
+ * a whole calendar day - off from when the run was actually seen. Stamp the report in Central
+ * time and keep the CST/CDT label, which also makes the daylight-saving shift visible rather
+ * than looking like the schedule moved on its own.
+ */
+const REPORT_TIME_ZONE = 'America/Chicago';
 const RUN_TYPE_BY_KEY: Record<string, string> = {
   ci: 'CI',
   smoke: 'Smoke',
@@ -322,6 +335,15 @@ function getReportFailureMessage(testCase: AllureReportTestCase): string {
   return error ? summarizeErrorText(error.message ?? '', error.trace ?? '') : '';
 }
 
+/**
+ * Final attempts only. Allure writes one file per attempt into `data/test-results` and marks the
+ * superseded ones `isRetry`, while `statistic.json` counts final attempts alone - so including
+ * retries here listed scenarios under "Failed" that the counts reported as passed.
+ */
+function getVisibleTestCases(testCases: AllureReportTestCase[]): AllureReportTestCase[] {
+  return testCases.filter((testCase) => !testCase.isRetry);
+}
+
 function getReportFailedTests(testCases: AllureReportTestCase[]): ExecutionSummary['failedTests'] {
   return testCases
     .filter((testCase) => testCase.status === 'failed' || testCase.status === 'broken')
@@ -357,6 +379,24 @@ function getRunTypeFromLabels(results: Array<Pick<AllureResult, 'labels'>>): str
   }
 
   return getRunTypeFromEnv();
+}
+
+/**
+ * Run timestamp in Central time, labelled. Falls back to a labelled UTC stamp if the runtime
+ * ships without the timezone data - a missing timestamp must never cost us the whole email.
+ */
+function getExecutionDateTime(): string {
+  const now = new Date();
+
+  try {
+    return now.toLocaleString('en-US', {
+      timeZone: REPORT_TIME_ZONE,
+      timeZoneName: 'short',
+    });
+  } catch (error) {
+    console.warn(`Unable to format the execution time as ${REPORT_TIME_ZONE}:`, error);
+    return `${now.toLocaleString('en-US', { timeZone: 'UTC' })} UTC`;
+  }
 }
 
 function getPassPercentage(passed: number, failed: number, broken: number): number {
@@ -395,7 +435,14 @@ function dedupeRetries(results: AllureResult[]): AllureResult[] {
 }
 
 function buildSummaryFromCounts(
-  counts: { passed: number; failed: number; broken: number; skipped: number; total: number },
+  counts: {
+    passed: number;
+    failed: number;
+    broken: number;
+    skipped: number;
+    flaky: number;
+    total: number;
+  },
   failedTests: ExecutionSummary['failedTests'],
   runType: string,
 ): ExecutionSummary {
@@ -407,10 +454,11 @@ function buildSummaryFromCounts(
     passed: counts.passed,
     failed,
     skipped: counts.skipped,
+    flaky: counts.flaky,
     passPercentage,
     environment: getEnvConfig().envName,
     browser: getBrowserDisplayName(),
-    executionDateTime: new Date().toLocaleString('en-US'),
+    executionDateTime: getExecutionDateTime(),
     reportUrl: getEnv('ALLURE_REPORT_URL', ''),
     reportSiteUrl: getEnv('ALLURE_REPORT_SITE_URL', ''),
     buildNumber: getEnv('BUILD_NUMBER', getEnv('GITHUB_RUN_NUMBER', '')),
@@ -427,7 +475,7 @@ function buildSummaryFromReport(): ExecutionSummary | null {
     return null;
   }
 
-  const testCases = readAllureReportTestCases();
+  const testCases = getVisibleTestCases(readAllureReportTestCases());
 
   return buildSummaryFromCounts(
     {
@@ -435,6 +483,9 @@ function buildSummaryFromReport(): ExecutionSummary | null {
       failed: statistic.failed ?? 0,
       broken: statistic.broken ?? 0,
       skipped: statistic.skipped ?? 0,
+      flaky: testCases.filter(
+        (testCase) => (testCase.retriesCount ?? 0) > 0 && testCase.status === 'passed',
+      ).length,
       total: statistic.total,
     },
     getReportFailedTests(testCases),
@@ -442,8 +493,21 @@ function buildSummaryFromReport(): ExecutionSummary | null {
   );
 }
 
+/** Attempts recorded per test, so a retried-then-green test can be reported as flaky rather than silently passed. */
+function countAttemptsByTest(results: AllureResult[]): Map<string, number> {
+  const attempts = new Map<string, number>();
+
+  for (const result of results) {
+    const key = getResultKey(result);
+    attempts.set(key, (attempts.get(key) ?? 0) + 1);
+  }
+
+  return attempts;
+}
+
 function buildSummaryFromResults(results: AllureResult[]): ExecutionSummary {
   const finalResults = dedupeRetries(results);
+  const attemptsByTest = countAttemptsByTest(results);
   const passed = finalResults.filter((result) => result.status === 'passed').length;
   const failedCount = finalResults.filter((result) => result.status === 'failed').length;
   const broken = finalResults.filter((result) => result.status === 'broken').length;
@@ -466,6 +530,10 @@ function buildSummaryFromResults(results: AllureResult[]): ExecutionSummary {
       failed: failedCount,
       broken,
       skipped,
+      flaky: finalResults.filter(
+        (result) =>
+          result.status === 'passed' && (attemptsByTest.get(getResultKey(result)) ?? 1) > 1,
+      ).length,
       total,
     },
     failedTests,
@@ -539,6 +607,10 @@ function renderSummaryRows(summary: ExecutionSummary): string {
     ['Passed Tests', summary.passed],
     ['Failed Tests', summary.failed],
     ['Skipped Tests', summary.skipped],
+    // Only worth a row when it happened - a permanent "Flaky Tests: 0" reads as noise.
+    ...(summary.flaky
+      ? [['Flaky Tests (passed on retry)', summary.flaky] as [string, number]]
+      : []),
     ['Pass Percentage', `${summary.passPercentage}%`],
     ['Environment', summary.environment],
     ['Browser', summary.browser],
@@ -855,6 +927,7 @@ export async function sendAllureEmailReport(): Promise<void> {
     passed: summary.passed,
     failed: summary.failed,
     skipped: summary.skipped,
+    flaky: summary.flaky,
     passPercentage: summary.passPercentage,
     environment: summary.environment,
     browser: summary.browser,

@@ -1,5 +1,5 @@
 import { MobileWebMarketPage } from '../../pages/mobile/MobileWebMarketPage';
-import { getEnvConfig } from '../../config/environments/envConfig';
+import { isLeadSubmissionBlocked } from '../../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 
 describe('Mattamy Homes mobile web - Market page on mobile (Android/iOS)', function () {
@@ -8,7 +8,6 @@ describe('Mattamy Homes mobile web - Market page on mobile (Android/iOS)', funct
   let location;
   let configuredMarket;
   let marketPage;
-  const { envName } = getEnvConfig();
 
   beforeEach(function () {
     location = getLocationConfig();
@@ -98,7 +97,7 @@ describe('Mattamy Homes mobile web - Market page on mobile (Android/iOS)', funct
       });
 
       it('TC-04 | @regression @STAGE | Validate market lead form successful submission', async function () {
-        if (envName === 'PROD') {
+        if (isLeadSubmissionBlocked()) {
           this.skip();
         }
 

@@ -1,5 +1,5 @@
 import { MobileWebMPCPage } from '../../pages/mobile/MobileWebMPCPage';
-import { getEnvConfig } from '../../config/environments/envConfig';
+import { isLeadSubmissionBlocked } from '../../config/environments/leadSubmissionPolicy';
 import { getLocationConfig } from '../../config/locations/locationConfig';
 
 describe('Mattamy Homes mobile web - MPC page on mobile (Android/iOS)', function () {
@@ -8,7 +8,6 @@ describe('Mattamy Homes mobile web - MPC page on mobile (Android/iOS)', function
   let location;
   let mpc;
   let mpcPage;
-  const { envName } = getEnvConfig();
 
   beforeEach(async function () {
     location = getLocationConfig();
@@ -80,7 +79,7 @@ describe('Mattamy Homes mobile web - MPC page on mobile (Android/iOS)', function
     });
 
     it('TC-04 | @regression @STAGE | Validate Get Information form successful submission', async function () {
-      if (envName === 'PROD') {
+      if (isLeadSubmissionBlocked()) {
         this.skip();
       }
 
