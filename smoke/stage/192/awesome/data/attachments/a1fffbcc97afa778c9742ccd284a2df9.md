@@ -1,0 +1,1230 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: communityPage.spec.ts >> Community Detail - Landmarke >> Lead Form >> Get Information Form Validation >> @smoke @regression | USA | Validate community sideModalForm fields
+- Location: tests/communityPage.spec.ts:93:11
+
+# Error details
+
+```
+TimeoutError: locator.click: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator('#HeaderPlanPage button').filter({ hasText: /^\s*(?:Get Information|Stay Updated)\s*$/i }).first()
+    - locator resolved to <button tabindex="0" color="action-blue" textcolor="action-blue" aria-label="Stay updated about this community" class="Button__StyledButton-sc-dz2fra-0 gDZzVX inline-block uppercase font-trade-gothic-20 py-4 px-8 tracking-wide w-full md:w-auto content-center h-60-mattamy text-white bg-action-blue hover:bg-mattamy-blue cursor-pointer text-lg">…</button>
+  - attempting click action
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div role="dialog" aria-modal="true" class="flex justify-center items-center bg-black-faded w-screen h-screen">…</div> from <div class="ReactModalPortal">…</div> subtree intercepts pointer events
+    - retrying click action
+    - waiting 20ms
+    2 × waiting for element to be visible, enabled and stable
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - done scrolling
+      - <div role="dialog" aria-modal="true" class="flex justify-center items-center bg-black-faded w-screen h-screen">…</div> from <div class="ReactModalPortal">…</div> subtree intercepts pointer events
+    - retrying click action
+      - waiting 100ms
+    55 × waiting for element to be visible, enabled and stable
+       - element is visible, enabled and stable
+       - scrolling into view if needed
+       - done scrolling
+       - <div role="dialog" aria-modal="true" class="flex justify-center items-center bg-black-faded w-screen h-screen">…</div> from <div class="ReactModalPortal">…</div> subtree intercepts pointer events
+     - retrying click action
+       - waiting 500ms
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic:
+    - link "Skip to main content" [ref=e2] [cursor=pointer]
+    - link "Skip to footer" [ref=e3] [cursor=pointer]
+  - region "notification" [ref=e5]:
+    - paragraph [ref=e8]: test
+    - button "Close notification banner" [ref=e9] [cursor=pointer]:
+      - img "Close Icon" [ref=e10]
+  - generic [ref=e13]:
+    - banner [ref=e14]:
+      - generic [ref=e15]:
+        - link "Landmarke Mattamy logo in San Tan Valley Arizona by Mattamy Homes. Go to HomePage" [ref=e16] [cursor=pointer]:
+          - /url: /
+          - figure [ref=e17]:
+            - img "Landmarke Mattamy logo in San Tan Valley Arizona by Mattamy Homes" [ref=e18]
+        - navigation [ref=e19]
+        - generic [ref=e20]:
+          - button "Go to Favorites Page" [ref=e21] [cursor=pointer]:
+            - img "Favorite Icon" [ref=e22]
+          - button "Select your country. CANADA country is selected" [ref=e27] [cursor=pointer]:
+            - generic [ref=e29]: CANADA
+            - img [ref=e31]
+    - main [ref=e33]:
+      - generic [ref=e35]:
+        - generic [ref=e36]:
+          - heading [level=2] [ref=e37]: Landmarke
+          - generic [ref=e38]:
+            - link [ref=e39] [cursor=pointer]:
+              - /url: https://maps.google.com/maps?cid=662989070378364335
+              - img [ref=e40]
+              - generic [ref=e42]:
+                - text: 38389 N. Sandpiper Court, San Tan Valley AZ 85140
+                - img [ref=e43]
+            - link [ref=e46] [cursor=pointer]:
+              - /url: tel:6029008591
+              - img [ref=e47]
+              - generic [ref=e49]: 602-900-8591
+            - link [ref=e50] [cursor=pointer]:
+              - /url: mailto:landmarke.phx@mattamycorp.com
+              - img [ref=e51]
+              - generic [ref=e54]: landmarke.phx@mattamycorp.com
+        - generic [ref=e55]:
+          - link [ref=e56] [cursor=pointer]:
+            - generic [ref=e57]: Schedule Appointment
+          - link [ref=e58] [cursor=pointer]:
+            - generic [ref=e59]: Get Information
+      - generic [ref=e62]:
+        - paragraph [ref=e63]: Now Selling
+        - generic [ref=e64]:
+          - heading "Landmarke" [level=1] [ref=e65]
+          - button "Add to favorites" [ref=e67] [cursor=pointer]:
+            - img [ref=e68]
+        - generic [ref=e70]: Now Selling! Masterfully designed single-family homes in a premier East Valley location.
+        - button "Stay updated about this community" [ref=e71] [cursor=pointer]:
+          - generic [ref=e72]: Get Information
+      - region "Sales center contact and quick links" [ref=e75]:
+        - generic [ref=e76]:
+          - generic [ref=e77]: New Home Gallery
+          - generic [ref=e78]:
+            - generic [ref=e79]: 38389 N. Sandpiper Court, San Tan Valley, AZ 85140
+            - generic [ref=e80]: 602-900-8591
+          - generic [ref=e81]:
+            - link "Call 602-900-8591" [ref=e82] [cursor=pointer]:
+              - /url: tel:6029008591
+              - img "Call Icon" [ref=e83]
+            - link "Email landmarke.phx@mattamycorp.com" [ref=e85] [cursor=pointer]:
+              - /url: mailto:landmarke.phx@mattamycorp.com
+              - img "Mail Icon" [ref=e86]
+            - button "Hours" [ref=e89] [cursor=pointer]
+            - link "Get directions to sales center, opens in new tab" [ref=e90] [cursor=pointer]:
+              - /url: https://maps.google.com/maps?cid=662989070378364335
+              - img "Map Location Icon" [ref=e91]
+              - generic [ref=e93]: Directions
+            - button "Schedule an Appointment" [ref=e94] [cursor=pointer]
+          - dialog:
+            - generic:
+              - generic: Mon
+              - generic:
+                - generic: 10:00am - 6:00pm
+              - generic: Tue
+              - generic:
+                - generic: 10:00am - 6:00pm
+              - generic: Wed
+              - generic:
+                - generic: 1:00pm - 6:00pm
+              - generic: Thu
+              - generic:
+                - generic: 10:00am - 6:00pm
+              - generic: Fri
+              - generic:
+                - generic: 10:00am - 6:00pm
+              - generic: Sat
+              - generic:
+                - generic: 10:00am - 6:00pm
+              - generic: Sun
+              - generic:
+                - generic: 10:00am - 6:00pm
+        - generic [ref=e95]:
+          - generic [ref=e96]:
+            - heading "Discover our homes" [level=3] [ref=e97]
+            - paragraph [ref=e98]: Explore floorplans and quick move-in homes ready for you.
+          - generic [ref=e99]:
+            - link "View 11 Floorplans" [ref=e100] [cursor=pointer]:
+              - /url: /search?productType=plan&metro=Phoenix&country=USA&community=Landmarke &hideMap=true
+            - link "View 21 Quick Move-Ins" [ref=e101] [cursor=pointer]:
+              - /url: /search?productType=qmi&metro=Phoenix&country=USA&community=Landmarke &hideMap=true
+      - generic [ref=e103]:
+        - generic [ref=e106]:
+          - heading "Designed For the Way You Live" [level=2] [ref=e107]
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - generic [ref=e110]: Coming soon to San Tan Valley, AZ! Offering brand new single-family homes from our Sapphire and Ruby Collection in a premier East Valley location. Explore single and two story floorplans spanning from 1,837 to over 3,700 square feet, that offer maximum livability and comfort. The centralized community park will offer expansive open tur...
+              - button "Show more" [expanded] [ref=e111] [cursor=pointer]: More+
+            - paragraph
+            - paragraph
+        - generic [ref=e113]:
+          - paragraph [ref=e114]: Home Details
+          - generic [ref=e115]:
+            - img [ref=e116]
+            - generic [ref=e118]:
+              - generic [ref=e119]: Home Types
+              - generic [ref=e120]: Single Family
+          - generic [ref=e121]:
+            - generic [ref=e122]:
+              - img [ref=e123]
+              - generic [ref=e125]:
+                - generic [ref=e126]: Bedrooms
+                - generic [ref=e127]: 3 - 4
+            - generic [ref=e128]:
+              - img [ref=e129]
+              - generic [ref=e131]:
+                - generic [ref=e132]: Full Bathrooms
+                - generic [ref=e133]: 2 - 3
+            - generic [ref=e134]:
+              - img [ref=e135]
+              - generic [ref=e148]:
+                - generic [ref=e149]: Half Bathrooms
+                - generic [ref=e150]: "1"
+            - generic [ref=e151]:
+              - img [ref=e152]
+              - generic [ref=e154]:
+                - generic [ref=e155]: Sq. Ft.
+                - generic [ref=e156]: 1837 - 3798
+            - generic [ref=e157]:
+              - img [ref=e158]
+              - generic [ref=e168]:
+                - generic [ref=e169]: Stories
+                - generic [ref=e170]: 1 - 2
+            - generic [ref=e171]:
+              - img [ref=e172]
+              - generic [ref=e179]:
+                - generic [ref=e180]: Garages
+                - generic [ref=e181]: 2 - 3
+      - generic [ref=e187]:
+        - generic [ref=e188]:
+          - heading "Sign Up For Community Updates" [level=3] [ref=e189]
+          - generic [ref=e191]: Required fields are marked with *
+          - separator [ref=e192]
+        - group [ref=e193]:
+          - generic [ref=e194]:
+            - textbox "username" [ref=e195]:
+              - /placeholder: ""
+            - textbox "company" [ref=e196]:
+              - /placeholder: ""
+            - generic [ref=e197]:
+              - generic [ref=e198]: First name *
+              - textbox "First name" [ref=e200]:
+                - /placeholder: ""
+            - generic [ref=e201]:
+              - generic [ref=e202]: Last name *
+              - textbox "Last name" [ref=e204]:
+                - /placeholder: ""
+            - generic [ref=e205]:
+              - generic [ref=e206]: Email *
+              - textbox "Email" [ref=e208]:
+                - /placeholder: ""
+            - generic [ref=e209]:
+              - generic [ref=e210]: Country of Residence *
+              - generic [ref=e211]:
+                - combobox "Country of Residence" [ref=e212] [cursor=pointer]:
+                  - option [disabled] [selected]
+                  - option "Canada"
+                  - option "United States"
+                  - option "Other"
+                - generic:
+                  - img
+            - generic [ref=e213]:
+              - generic [ref=e214]: Zip/Postal Code *
+              - textbox "Zip/Postal Code" [ref=e216]:
+                - /placeholder: ""
+            - generic [ref=e217]:
+              - generic [ref=e218]: Phone number
+              - textbox "Phone number" [ref=e220]:
+                - /placeholder: ""
+            - generic [ref=e221]:
+              - generic [ref=e222]: When do you want to move into your home?
+              - generic [ref=e223]:
+                - combobox "When do you want to move into your home?" [ref=e224] [cursor=pointer]:
+                  - option [disabled] [selected]
+                  - option "0-3 Months"
+                  - option "3-6 Months"
+                  - option "6-12 Months"
+                  - option "12+ Months"
+                - generic:
+                  - img
+            - generic [ref=e225]:
+              - generic [ref=e226]: How many bedrooms do you need?
+              - generic [ref=e227]:
+                - combobox "How many bedrooms do you need?" [ref=e228] [cursor=pointer]:
+                  - option [disabled] [selected]
+                  - option "1"
+                  - option "2"
+                  - option "3"
+                  - option "4"
+                  - option "5+"
+                - generic:
+                  - img
+            - generic [ref=e229]:
+              - generic [ref=e230]: What is your budget?
+              - generic [ref=e231]:
+                - combobox "What is your budget?" [ref=e232] [cursor=pointer]:
+                  - option [disabled] [selected]
+                  - option "$200,000 - $299,000"
+                  - option "$300,000 - $399,000"
+                  - option "$400,000 - $499,000"
+                  - option "$500,000 - $599,000"
+                  - option "$600,000 - $699,000"
+                  - option "$700,000 - $799,000"
+                  - option "$800,000 - $899,000"
+                  - option "$900,000 - $999,000"
+                  - option "$1M - $1.25M"
+                  - option "$1.25M - $1.5M"
+                  - option "$1.5M - $2M"
+                  - option "$2M+"
+                - generic:
+                  - img
+            - generic [ref=e234] [cursor=pointer]:
+              - checkbox "I am a Real Estate Agent" [ref=e235]
+              - generic [ref=e236]: I am a Real Estate Agent
+            - generic [ref=e238] [cursor=pointer]:
+              - 'checkbox "By entering my phone number and/or email address and checking the box, I confirm I would like to receive promotional emails and/or text messages (SMS) from Mattamy Homes and its affiliates. Msg/data rates may apply. Consent is not a condition of purchase. I can opt out anytime (i.e. SMS: reply STOP or use any other method described in our SMS Privacy Policy ; email: use unsubscribe link). Mattamy and our providers may collect campaign engagement data to improve our marketing efforts. For more information, see our Privacy Policy , SMS Privacy Policy , SMS Terms of Service , and/or Contact Us ." [ref=e239]'
+              - generic [ref=e240]:
+                - text: "By entering my phone number and/or email address and checking the box, I confirm I would like to receive promotional emails and/or text messages (SMS) from Mattamy Homes and its affiliates. Msg/data rates may apply. Consent is not a condition of purchase. I can opt out anytime (i.e. SMS: reply STOP or use any other method described in our"
+                - link "SMS Privacy Policy" [ref=e241]:
+                  - /url: /sms-privacy-policy
+                - text: "; email: use unsubscribe link). Mattamy and our providers may collect campaign engagement data to improve our marketing efforts. For more information, see our"
+                - link "Privacy Policy" [ref=e242]:
+                  - /url: /privacy-policy
+                - text: ","
+                - link "SMS Privacy Policy" [ref=e243]:
+                  - /url: /sms-privacy-policy
+                - text: ","
+                - link "SMS Terms of Service" [ref=e244]:
+                  - /url: /sms-terms-of-service
+                - text: ", and/or"
+                - link "Contact Us" [ref=e245]:
+                  - /url: /contact-us
+                - text: .
+            - button "SUBMIT" [ref=e247] [cursor=pointer]
+      - generic [ref=e250]:
+        - generic [ref=e252]:
+          - heading "Quick Move-In Homes ready when you are" [level=2] [ref=e253]
+          - generic [ref=e254]: If time is of the essence, then our Quick Move-In Homes are for you.
+          - link "View all" [ref=e256] [cursor=pointer]:
+            - /url: /search?productType=qmi&metro=Phoenix&country=USA&community=Landmarke &hideMap=true
+            - generic [ref=e257]: View all
+        - generic [ref=e258]:
+          - generic [ref=e259]:
+            - generic [ref=e262] [cursor=pointer]:
+              - generic [ref=e264]:
+                - paragraph [ref=e265]:
+                  - paragraph [ref=e267]: Self-Tour
+                - paragraph [ref=e270]: Ready Now
+                - paragraph [ref=e272]: $429,999
+                - img "Elevation Front with garage, door and window" [ref=e273]
+                - button "Mark as favorite" [ref=e274]:
+                  - img "Favorite Icon" [ref=e275]
+              - link "Landmarke Aqua Floorplan | Single Family 839 W RIPARIAN DR 1,837 Sq. Ft. 3 Beds 2 Baths 0 Half Bath 2 Car Garage" [ref=e277]:
+                - /url: /arizona/phoenix/san-tan-valley/landmarke-50s/aqua/839-w-riparian-dr
+                - generic [ref=e278]: Aqua Floorplan | Single Family
+                - generic [ref=e279]: 839 W RIPARIAN DR
+                - generic [ref=e280]:
+                  - paragraph [ref=e283]: 1,837 Sq. Ft.
+                  - generic [ref=e284]:
+                    - paragraph [ref=e285]: 3 Beds
+                    - generic [ref=e286]: "|"
+                    - paragraph [ref=e287]: 2 Baths
+                  - paragraph [ref=e290]: 2 Car Garage
+            - generic [ref=e293] [cursor=pointer]:
+              - generic [ref=e295]:
+                - paragraph [ref=e298]: Ready Now
+                - paragraph [ref=e300]: $472,648
+                - img "Elevation Front with garage, window, door and exterior stone" [ref=e301]
+                - button "Mark as favorite" [ref=e302]:
+                  - img "Favorite Icon" [ref=e303]
+              - link "Landmarke Aqua Floorplan | Single Family 793 W RIPARIAN DR 1,837 Sq. Ft. 3 Beds 2 Baths 0 Half Bath 2 Car Garage" [ref=e305]:
+                - /url: /arizona/phoenix/san-tan-valley/landmarke-50s/aqua/793-w-riparian-dr
+                - generic [ref=e306]: Aqua Floorplan | Single Family
+                - generic [ref=e307]: 793 W RIPARIAN DR
+                - generic [ref=e308]:
+                  - paragraph [ref=e311]: 1,837 Sq. Ft.
+                  - generic [ref=e312]:
+                    - paragraph [ref=e313]: 3 Beds
+                    - generic [ref=e314]: "|"
+                    - paragraph [ref=e315]: 2 Baths
+                  - paragraph [ref=e318]: 2 Car Garage
+            - generic [ref=e321] [cursor=pointer]:
+              - generic [ref=e323]:
+                - paragraph [ref=e324]:
+                  - paragraph [ref=e326]: Self-Tour
+                - paragraph [ref=e329]: Ready Now
+                - paragraph [ref=e331]: $487,040
+                - img "Elevation Front with garage and window" [ref=e332]
+                - button "Mark as favorite" [ref=e333]:
+                  - img "Favorite Icon" [ref=e334]
+              - link "Landmarke Azure Floorplan | Single Family 823 W RIPARIAN DR 2,064 Sq. Ft. 3 Beds 2 Baths 0 Half Bath 3 Car Garage" [ref=e336]:
+                - /url: /arizona/phoenix/san-tan-valley/landmarke-50s/azure/823-w-riparian-dr
+                - generic [ref=e337]: Azure Floorplan | Single Family
+                - generic [ref=e338]: 823 W RIPARIAN DR
+                - generic [ref=e339]:
+                  - paragraph [ref=e342]: 2,064 Sq. Ft.
+                  - generic [ref=e343]:
+                    - paragraph [ref=e344]: 3 Beds
+                    - generic [ref=e345]: "|"
+                    - paragraph [ref=e346]: 2 Baths
+                  - paragraph [ref=e349]: 3 Car Garage
+            - generic [ref=e352] [cursor=pointer]:
+              - generic [ref=e354]:
+                - paragraph [ref=e357]: Ready Now
+                - paragraph [ref=e359]: $493,402
+                - img "Elevation Front with window, garage and door" [ref=e360]
+                - button "Mark as favorite" [ref=e361]:
+                  - img "Favorite Icon" [ref=e362]
+              - link "Landmarke Aqua Floorplan | Single Family 760 W RIPARIAN DR 1,837 Sq. Ft. 3 Beds 2 Baths 0 Half Bath 2 Car Garage" [ref=e364]:
+                - /url: /arizona/phoenix/san-tan-valley/landmarke-50s/aqua/760-w-riparian-dr
+                - generic [ref=e365]: Aqua Floorplan | Single Family
+                - generic [ref=e366]: 760 W RIPARIAN DR
+                - generic [ref=e367]:
+                  - paragraph [ref=e370]: 1,837 Sq. Ft.
+                  - generic [ref=e371]:
+                    - paragraph [ref=e372]: 3 Beds
+                    - generic [ref=e373]: "|"
+                    - paragraph [ref=e374]: 2 Baths
+                  - paragraph [ref=e377]: 2 Car Garage
+            - generic [ref=e380] [cursor=pointer]:
+              - generic [ref=e382]:
+                - paragraph [ref=e385]: Ready Now
+                - paragraph [ref=e387]: $507,970
+                - img "Elevation Front with garage and window" [ref=e388]
+                - button "Mark as favorite" [ref=e389]:
+                  - img "Favorite Icon" [ref=e390]
+              - link "Landmarke Azure Floorplan | Single Family 779 W RIPARIAN DR 2,064 Sq. Ft. 3 Beds 2 Baths 0 Half Bath 3 Car Garage" [ref=e392]:
+                - /url: /arizona/phoenix/san-tan-valley/landmarke-50s/azure/779-w-riparian-dr
+                - generic [ref=e393]: Azure Floorplan | Single Family
+                - generic [ref=e394]: 779 W RIPARIAN DR
+                - generic [ref=e395]:
+                  - paragraph [ref=e398]: 2,064 Sq. Ft.
+                  - generic [ref=e399]:
+                    - paragraph [ref=e400]: 3 Beds
+                    - generic [ref=e401]: "|"
+                    - paragraph [ref=e402]: 2 Baths
+                  - paragraph [ref=e405]: 3 Car Garage
+            - generic [ref=e408] [cursor=pointer]:
+              - generic [ref=e410]:
+                - paragraph [ref=e413]: Ready Now
+                - paragraph [ref=e415]: $520,000
+                - img "Elevation Front with garage, window and exterior stone" [ref=e416]
+                - button "Mark as favorite" [ref=e417]:
+                  - img "Favorite Icon" [ref=e418]
+              - link "Landmarke Blush Floorplan | Single Family 312 W FLAX DR 2,471 Sq. Ft. 3 Beds 2 Baths 1 Half Bath 3 Car Garage" [ref=e420]:
+                - /url: /arizona/phoenix/san-tan-valley/landmarke-50s/blush/312-w-flax-dr
+                - generic [ref=e421]: Blush Floorplan | Single Family
+                - generic [ref=e422]: 312 W FLAX DR
+                - generic [ref=e423]:
+                  - paragraph [ref=e426]: 2,471 Sq. Ft.
+                  - generic [ref=e427]:
+                    - paragraph [ref=e428]: 3 Beds
+                    - generic [ref=e429]: "|"
+                    - paragraph [ref=e430]: 2 Baths
+                  - generic [ref=e431]:
+                    - paragraph [ref=e432]: 1 Half Bath
+                    - generic [ref=e433]: "|"
+                    - paragraph [ref=e435]: 3 Car Garage
+          - button "SHOW MORE" [ref=e437] [cursor=pointer]:
+            - paragraph [ref=e439]: SHOW MORE
+      - generic [ref=e442]:
+        - heading "Schedule an appointment" [level=2] [ref=e443]
+        - generic [ref=e444]:
+          - button "IN-PERSON" [ref=e446] [cursor=pointer]:
+            - generic [ref=e447]: IN-PERSON
+          - button "VIRTUAL" [ref=e448] [cursor=pointer]:
+            - generic [ref=e449]: VIRTUAL
+      - generic [ref=e451]:
+        - heading "Your destination - for work, play and life" [level=2] [ref=e452]
+        - generic [ref=e453]:
+          - article [ref=e454]:
+            - heading "Outdoor Amenities" [level=3] [ref=e456]
+            - paragraph [ref=e457]: Enjoy proposed outdoor covered gathering spaces.
+          - article [ref=e458]:
+            - heading "Open space" [level=3] [ref=e460]
+            - paragraph [ref=e461]: Stretch out in the open turf areas around the community.
+          - article [ref=e462]:
+            - heading "Play Structures" [level=3] [ref=e464]
+            - paragraph [ref=e465]: Spend some time at one of the communities shaded play structures.
+          - article [ref=e466]:
+            - heading "Sports Court" [level=3] [ref=e468]
+            - paragraph [ref=e469]: Enjoy a friendly game of bocce ball on one of the proposed courts.
+          - article [ref=e470]:
+            - heading "Walking Trails" [level=3] [ref=e472]
+            - paragraph [ref=e473]: Enjoy over a mile of walking trails meandering through the community.
+      - generic [ref=e474]:
+        - generic [ref=e478]:
+          - img "energystar poy graphic" [ref=e483]
+          - generic [ref=e486]:
+            - heading "Proudly Named an ENERGY STAR® Partner of the Year" [level=2] [ref=e487]
+            - generic [ref=e488]: Mattamy Homes Phoenix is proud to be named an ENERGY STAR® Partner of the Year, the highest level of recognition given by the EPA. Learn more about how Mattamy is building energy-efficient homes across Phoenix.
+            - link "Energy Star Award Winner" [ref=e490] [cursor=pointer]:
+              - /url: https://mattamyhomes.com/arizona/phoenix/energystar-partner-2024
+              - generic [ref=e491]: Energy Star Award Winner
+        - generic [ref=e495]:
+          - img "hers flyer phoenix" [ref=e500]
+          - generic [ref=e503]:
+            - heading "HERS Index" [level=2] [ref=e504]
+            - generic [ref=e506]:
+              - paragraph [ref=e507]: The Home Energy Rating System (HERS) is the industry standard scoring system that measures a home’s energy efficiency on a scale from zero to 150. A typical existing home score is 130 and a typical new home is 100.
+              - paragraph [ref=e508]: Landmarke has an average HERS score of 51. The lower the HERS score the more you save! Click below to learn more.
+            - link "Learn More. Opens in new tab" [ref=e510] [cursor=pointer]:
+              - /url: https://dam.mattamyhomes.com/digizuitecore/legacyservice/api/assetstream/107359/10061.pdf
+              - generic [ref=e511]:
+                - text: Learn More
+                - img [ref=e512]
+      - generic [ref=e516]:
+        - heading "Thoughtfully designed with you in mind" [level=2] [ref=e517]
+        - generic [ref=e518]: Explore the community or model homes by selecting from the options below.
+        - generic [ref=e520]:
+          - radiogroup "Content type" [ref=e522]:
+            - radio "Community Gallery" [checked] [ref=e523] [cursor=pointer]:
+              - paragraph [ref=e524]: Community Gallery
+            - generic [ref=e525]: "|"
+            - radio "Cobalt" [ref=e526] [cursor=pointer]:
+              - paragraph [ref=e527]: Cobalt
+            - generic [ref=e528]: "|"
+            - radio "Garnet" [ref=e529] [cursor=pointer]:
+              - paragraph [ref=e530]: Garnet
+            - generic [ref=e531]: "|"
+            - radio "Mahogany" [ref=e532] [cursor=pointer]:
+              - paragraph [ref=e533]: Mahogany
+            - generic [ref=e534]: "|"
+            - radio "Pacific" [ref=e535] [cursor=pointer]:
+              - paragraph [ref=e536]: Pacific
+            - paragraph [ref=e537]: Slide has changed view to 0
+          - generic [ref=e538]:
+            - generic [ref=e540]:
+              - button "Previous slide of Gallery" [ref=e542] [cursor=pointer]:
+                - img [ref=e543]
+              - generic [ref=e546]:
+                - button [ref=e551] [cursor=pointer]
+                - button "Monument" [ref=e556] [cursor=pointer]
+                - button [ref=e561] [cursor=pointer]
+                - button [ref=e566] [cursor=pointer]
+                - button [ref=e571] [cursor=pointer]
+                - button [ref=e576] [cursor=pointer]
+                - button [ref=e581] [cursor=pointer]
+                - button [ref=e586] [cursor=pointer]
+                - button [ref=e591] [cursor=pointer]
+                - button [ref=e596] [cursor=pointer]
+                - button [ref=e601] [cursor=pointer]
+                - button [ref=e606] [cursor=pointer]
+                - button [ref=e611] [cursor=pointer]
+                - button [ref=e616] [cursor=pointer]
+                - button [ref=e621] [cursor=pointer]
+                - button [ref=e626] [cursor=pointer]
+                - button [ref=e631] [cursor=pointer]
+                - button [ref=e636] [cursor=pointer]
+                - button [ref=e641] [cursor=pointer]
+                - button [ref=e646] [cursor=pointer]
+                - button [ref=e651] [cursor=pointer]
+              - button "Next slide of Gallery" [ref=e653] [cursor=pointer]:
+                - img [ref=e654]
+            - generic [ref=e656]: Exterior 1
+            - paragraph [ref=e658]:
+              - generic [ref=e659]: Slide number
+              - text: 1/19
+      - generic [ref=e661]:
+        - heading "Conveniently located to fit your needs" [level=2] [ref=e662]
+        - generic [ref=e663]:
+          - article [ref=e664]:
+            - heading "Dining" [level=3] [ref=e666]
+            - paragraph [ref=e667]:
+              - generic [ref=e668]: You’re never far from a variety of great restaurants, cafes and eateries.
+          - article [ref=e669]:
+            - heading "Schools" [level=3] [ref=e671]
+            - paragraph [ref=e672]:
+              - generic [ref=e673]: Great selection of local public schools as well as top-rated Charter Schools.
+          - article [ref=e674]:
+            - heading "Entertainment" [level=3] [ref=e676]
+            - paragraph [ref=e677]: Enjoy the areas Agritainment destinations like Schnepf Farms, Queen Creek Olive Mill and Hayden Flour Mill.
+          - article [ref=e678]:
+            - heading "Conveniences" [level=3] [ref=e680]
+            - paragraph [ref=e681]: Enjoy close proximity to everyday conveniences and necessities like grocery stores, drugstores and more.
+          - article [ref=e682]:
+            - heading "Location" [level=3] [ref=e684]
+            - paragraph [ref=e685]: Premier east valley location, near major employers and great access to SR-24 connecting to Loop 202.
+          - article [ref=e686]:
+            - heading "Medical centers" [level=3] [ref=e688]
+            - paragraph [ref=e689]:
+              - generic [ref=e690]: Rest assured knowing you’re close by great medical centers like Banner Ironwood, just over 1 mile away.
+          - article [ref=e691]:
+            - heading "Outdoor recreation" [level=3] [ref=e693]
+            - paragraph [ref=e694]: Outdoor enthusiasts will enjoy the natural setting, close to parks, bike trails, golf courses and more.
+          - article [ref=e695]:
+            - heading "Retail" [level=3] [ref=e697]
+            - paragraph [ref=e698]:
+              - generic [ref=e699]: Nearby Queen Creek Marketplace, Queen Creek District, and Cornerstone at Queen Creek for your retail needs.
+      - generic [ref=e701]:
+        - heading "Explore the community" [level=2] [ref=e702]
+        - generic [ref=e703]: Take a closer look at the community sitemap and get familiar with our available offerings.
+        - generic [ref=e704]:
+          - button "Resize Iframe" [ref=e705] [cursor=pointer]:
+            - img "Resize Icon" [ref=e706]
+          - iframe [ref=e711]:
+            - generic [ref=f27e3]:
+              - generic [ref=f27e5]:
+                - generic [ref=f27e11]:
+                  - button "Hide UI" [ref=f27e12] [cursor=pointer]:
+                    - img [ref=f27e14]
+                  - button "Reset" [ref=f27e15] [cursor=pointer]:
+                    - img [ref=f27e17]
+                  - button "Print" [ref=f27e18] [cursor=pointer]:
+                    - img [ref=f27e20]
+                  - generic [ref=f27e21]:
+                    - button "Increase Zoom" [ref=f27e22] [cursor=pointer]:
+                      - img [ref=f27e24]
+                    - button "Decrease Zoom" [ref=f27e25] [cursor=pointer]:
+                      - img [ref=f27e27]
+                  - generic "position controls" [ref=f27e29]:
+                    - button "move map up" [ref=f27e30] [cursor=pointer]
+                    - generic [ref=f27e32]:
+                      - button "move map left" [ref=f27e33] [cursor=pointer]
+                      - button "move map right" [ref=f27e36] [cursor=pointer]
+                    - button "move map down" [ref=f27e38] [cursor=pointer]
+                - generic [ref=f27e40]:
+                  - generic [ref=f27e41]:
+                    - generic [ref=f27e42]:
+                      - img [ref=f27e44]
+                      - generic [ref=f27e45]:
+                        - text: Landmarke
+                        - text: SITE MAP
+                    - generic [ref=f27e46]:
+                      - generic [ref=f27e47]: "Neighborhood:"
+                      - combobox "Select Neighborhood" [disabled] [ref=f27e48]:
+                        - generic [ref=f27e49]:
+                          - generic [ref=f27e51]: Ruby Collection
+                          - img [ref=f27e54]
+                  - generic [ref=f27e55]:
+                    - generic [ref=f27e57]:
+                      - button "Homesite Search" [ref=f27e58] [cursor=pointer]
+                      - button "Homesite Details"
+                    - generic [ref=f27e60]:
+                      - generic [ref=f27e63]:
+                        - generic [ref=f27e64]:
+                          - generic [ref=f27e65]:
+                            - heading "Homesite Status" [level=2] [ref=f27e66]
+                            - generic [ref=f27e67]: All
+                          - button "Collapse Homesite Status" [ref=f27e68] [cursor=pointer]:
+                            - img [ref=f27e70]
+                        - generic [ref=f27e73]:
+                          - generic [ref=f27e75]:
+                            - img [ref=f27e77]
+                            - generic [ref=f27e78]: Show All
+                            - checkbox "Show All" [checked] [ref=f27e81] [cursor=pointer]
+                          - generic [ref=f27e82]:
+                            - generic [ref=f27e83]:
+                              - generic [ref=f27e85]: Quick Move-In
+                              - generic [ref=f27e86]: "13"
+                              - checkbox "Quick Move-In" [checked] [ref=f27e89] [cursor=pointer]
+                            - generic [ref=f27e90]:
+                              - generic [ref=f27e92]: Quick Start Home
+                              - generic [ref=f27e93]: "0"
+                              - checkbox "Quick Start Home" [checked] [ref=f27e96] [cursor=pointer]
+                            - generic [ref=f27e97]:
+                              - generic [ref=f27e99]: Available
+                              - generic [ref=f27e100]: "83"
+                              - checkbox "Available" [checked] [ref=f27e103] [cursor=pointer]
+                            - generic [ref=f27e104]:
+                              - generic [ref=f27e106]: Sold
+                              - generic [ref=f27e107]: "78"
+                              - checkbox "Sold" [checked] [ref=f27e110] [cursor=pointer]
+                            - generic [ref=f27e111]:
+                              - generic [ref=f27e113]: Future
+                              - generic [ref=f27e114]: "76"
+                              - checkbox "Future" [checked] [ref=f27e117] [cursor=pointer]
+                            - generic [ref=f27e118]:
+                              - generic [ref=f27e120]: Models
+                              - generic [ref=f27e121]: "4"
+                              - checkbox "Models" [checked] [ref=f27e124] [cursor=pointer]
+                      - generic [ref=f27e127]:
+                        - generic [ref=f27e128]:
+                          - generic [ref=f27e129]:
+                            - checkbox [ref=f27e132] [cursor=pointer]
+                            - heading "Tag Filter" [level=2] [ref=f27e133]
+                          - button "Collapse Tag Filter" [ref=f27e134] [cursor=pointer]:
+                            - img [ref=f27e136]
+                        - combobox "Select a tag" [ref=f27e140]:
+                          - generic [ref=f27e141] [cursor=pointer]:
+                            - generic [ref=f27e142]: Select a tag
+                            - img [ref=f27e145]
+                  - button "Close Side Menu" [ref=f27e147] [cursor=pointer]:
+                    - img [ref=f27e149]
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+      - generic [ref=e713]:
+        - heading "Building Better" [level=2] [ref=e714]
+        - generic [ref=e716]: We build homes that provide additional comfort and greater savings thanks to innovative solutions.
+        - generic [ref=e717]:
+          - button "Resize Iframe" [ref=e718] [cursor=pointer]:
+            - img "Resize Icon" [ref=e719]
+          - iframe [ref=e724]:
+            - generic [ref=f10e3]:
+              - generic [ref=f10e5]:
+                - generic [ref=f10e7]:
+                  - img [ref=f10e8]
+                  - generic:
+                    - button "HERS-Rated Homes" [ref=f10e10] [cursor=pointer]:
+                      - img [ref=f10e12]
+                    - button "ENERGY STAR® Certified Homes" [ref=f10e14] [cursor=pointer]:
+                      - img [ref=f10e16]
+                    - button "ENERGY STAR® Certified Appliances" [ref=f10e18] [cursor=pointer]:
+                      - img [ref=f10e20]
+                    - button "WaterSense Low-Flow Fixtures" [ref=f10e22] [cursor=pointer]:
+                      - img [ref=f10e24]
+                    - button "Radiant Barrier" [ref=f10e26] [cursor=pointer]:
+                      - img [ref=f10e28]
+                    - button "Low Water-Use Landscaping" [ref=f10e30] [cursor=pointer]:
+                      - img [ref=f10e32]
+                    - button "Low VOC Materials" [ref=f10e34] [cursor=pointer]:
+                      - img [ref=f10e36]
+                    - button "PEX Plumbing" [ref=f10e38] [cursor=pointer]:
+                      - img [ref=f10e40]
+                    - button "Sealed Insulated Ducts" [ref=f10e42] [cursor=pointer]:
+                      - img [ref=f10e44]
+                    - button "MERV 8 Air Filters" [ref=f10e46] [cursor=pointer]:
+                      - img [ref=f10e48]
+                    - button "100% LED Light Bulbs*" [ref=f10e50] [cursor=pointer]:
+                      - img [ref=f10e52]
+                    - button "Independent Energy Inspection and Testing Program" [ref=f10e54] [cursor=pointer]:
+                      - img [ref=f10e56]
+                    - button "EcoBee® Smart Thermostat with Amazon Alexa" [ref=f10e58] [cursor=pointer]:
+                      - img [ref=f10e60]
+                    - button "Insulated Garage Doors" [ref=f10e62] [cursor=pointer]:
+                      - img [ref=f10e64]
+                    - button "Dual-Pane Low-E Windows" [ref=f10e66] [cursor=pointer]:
+                      - img [ref=f10e68]
+                    - button "Fresh Air Supply" [ref=f10e70] [cursor=pointer]:
+                      - img [ref=f10e72]
+                    - button "Right-Sized Climate Insulation" [ref=f10e74] [cursor=pointer]:
+                      - img [ref=f10e76]
+                    - button "Right-Sized Heating and Cooling System" [ref=f10e78] [cursor=pointer]:
+                      - img [ref=f10e80]
+                    - button "Disclaimer" [ref=f10e82] [cursor=pointer]:
+                      - img [ref=f10e84]
+                - generic [ref=f10e85]:
+                  - generic [ref=f10e87]:
+                    - img [ref=f10e89]
+                    - generic [ref=f10e90]: BUILDING BETTER
+                  - generic [ref=f10e94]:
+                    - generic [ref=f10e95]:
+                      - generic [ref=f10e96]:
+                        - img [ref=f10e98]
+                        - heading "At Mattamy, we’re proud to build homes that provide additional comfort and greater savings thanks to innovative, high-efficiency features that are also better for the environment. This means, you’ll enjoy lower utility bills, a healthier living environment, and a reduced carbon footprint." [level=2] [ref=f10e99]
+                      - button "Collapse" [ref=f10e100] [cursor=pointer]:
+                        - img [ref=f10e102]
+                    - list [ref=f10e106]:
+                      - listitem [ref=f10e107]:
+                        - button "HERS-Rated Homes" [ref=f10e108] [cursor=pointer]:
+                          - generic [ref=f10e109]:
+                            - heading "HERS-Rated Homes" [level=3] [ref=f10e110]
+                            - paragraph [ref=f10e112]: All homes achieve a HERS rating of 58 or lower, making them at least 42% more energy efficient than industry standards of new build homes. Ask your New Home Counselor for community and plan-specific HERS ratings.
+                      - listitem [ref=f10e113]:
+                        - button "ENERGY STAR® Certified Homes" [ref=f10e114] [cursor=pointer]:
+                          - generic [ref=f10e115]:
+                            - heading "ENERGY STAR® Certified Homes" [level=3] [ref=f10e116]
+                            - paragraph [ref=f10e118]: All homes are ENERGY STAR® certified, making them more energy efficient than standard construction.
+                      - listitem [ref=f10e119]:
+                        - button "ENERGY STAR® Certified Appliances" [ref=f10e120] [cursor=pointer]:
+                          - generic [ref=f10e121]:
+                            - heading "ENERGY STAR® Certified Appliances" [level=3] [ref=f10e122]
+                            - paragraph [ref=f10e124]: Enjoy appliances from the Whirlpool® family that look great, feature incredible performance, and will help you save on your utility bill.
+                      - listitem [ref=f10e125]:
+                        - button "WaterSense Low-Flow Fixtures" [ref=f10e126] [cursor=pointer]:
+                          - generic [ref=f10e127]:
+                            - heading "WaterSense Low-Flow Fixtures" [level=3] [ref=f10e128]
+                            - paragraph [ref=f10e130]: Faucets, toilets, and more designed to reduce water waste.
+                      - listitem [ref=f10e131]:
+                        - button "Radiant Barrier" [ref=f10e132] [cursor=pointer]:
+                          - generic [ref=f10e133]:
+                            - heading "Radiant Barrier" [level=3] [ref=f10e134]
+                            - paragraph [ref=f10e136]: Attic material that reflects heat, lowering cooling costs and increasing your home’s comfort.
+                      - listitem [ref=f10e137]:
+                        - button "Low Water-Use Landscaping" [ref=f10e138] [cursor=pointer]:
+                          - generic [ref=f10e139]:
+                            - heading "Low Water-Use Landscaping" [level=3] [ref=f10e140]
+                            - paragraph [ref=f10e142]: Mattamy installs landscaping that is not only beautiful, but also mindful of the amount of water needed to maintain it, saving this previous resource and your water bill.
+                      - listitem [ref=f10e143]:
+                        - button "Low VOC Materials" [ref=f10e144] [cursor=pointer]:
+                          - generic [ref=f10e145]:
+                            - heading "Low VOC Materials" [level=3] [ref=f10e146]
+                            - paragraph [ref=f10e148]: Using materials with low VOC throughout your home helps reduce the amount of toxic chemicals these materials and finishes emit.
+                      - listitem [ref=f10e149]:
+                        - button "PEX Plumbing" [ref=f10e150] [cursor=pointer]:
+                          - generic [ref=f10e151]:
+                            - heading "PEX Plumbing" [level=3] [ref=f10e152]
+                            - paragraph [ref=f10e154]: Resists scale build-up and doesn’t pit or corrode when exposed to acidic water. Its tubing also doesn’t transfer heat as readily as copper, conserving energy.
+                      - listitem [ref=f10e155]:
+                        - button "Sealed Insulated Ducts" [ref=f10e156] [cursor=pointer]:
+                          - generic [ref=f10e157]:
+                            - heading "Sealed Insulated Ducts" [level=3] [ref=f10e158]
+                            - paragraph [ref=f10e160]: Sealing and insulating ducts helps reduce air leakage, which increases heating and cooling system efficiency, lowering your energy bills.
+                      - listitem [ref=f10e161]:
+                        - button "MERV 8 Air Filters" [ref=f10e162] [cursor=pointer]:
+                          - generic [ref=f10e163]:
+                            - heading "MERV 8 Air Filters" [level=3] [ref=f10e164]
+                            - paragraph [ref=f10e166]: Removes more particles from your home’s air than lower-rated air filters, creating a healthier living environment.
+                      - listitem [ref=f10e167]:
+                        - button "100% LED Light Bulbs*" [ref=f10e168] [cursor=pointer]:
+                          - generic [ref=f10e169]:
+                            - heading "100% LED Light Bulbs*" [level=3] [ref=f10e170]
+                            - paragraph [ref=f10e172]: Light bulbs that consume less electricity and emit less heat, that also last significantly longer than other types of light bulbs.
+                      - listitem [ref=f10e173]:
+                        - button "Independent Energy Inspection and Testing Program" [ref=f10e174] [cursor=pointer]:
+                          - generic [ref=f10e175]:
+                            - heading "Independent Energy Inspection and Testing Program" [level=3] [ref=f10e176]
+                            - paragraph [ref=f10e178]: Rest assured knowing that your home has been inspected and tested by a trained third-party energy rater.
+                      - listitem [ref=f10e179]:
+                        - button "EcoBee® Smart Thermostat with Amazon Alexa" [ref=f10e180] [cursor=pointer]:
+                          - generic [ref=f10e181]:
+                            - heading "EcoBee® Smart Thermostat with Amazon Alexa" [level=3] [ref=f10e182]
+                            - paragraph [ref=f10e184]: Control your home’s temperature, as well as other smart-enabled home products, with your voice or your smartphone. EcoBee® thermostats are ENERGY STAR® certified.
+                      - listitem [ref=f10e185]:
+                        - button "Insulated Garage Doors" [ref=f10e186] [cursor=pointer]:
+                          - generic [ref=f10e187]:
+                            - heading "Insulated Garage Doors" [level=3] [ref=f10e188]
+                            - paragraph [ref=f10e190]: A more durable door that helps save energy by moderating the temperature in your garage, reducing the energy needed to heat and cool the rest of your home.
+                      - listitem [ref=f10e191]:
+                        - button "Dual-Pane Low-E Windows" [ref=f10e192] [cursor=pointer]:
+                          - generic [ref=f10e193]:
+                            - heading "Dual-Pane Low-E Windows" [level=3] [ref=f10e194]
+                            - paragraph [ref=f10e196]: A clear coating applied to the inside of window glass that reflects heat, keeping your home’s temperature more consistent, while also protecting your decor from UV fading.
+                      - listitem [ref=f10e197]:
+                        - button "Fresh Air Supply" [ref=f10e198] [cursor=pointer]:
+                          - generic [ref=f10e199]:
+                            - heading "Fresh Air Supply" [level=3] [ref=f10e200]
+                            - paragraph [ref=f10e202]: All homes have an ENERGY STAR®-compliant mechanical ventilation system that provides outside air to reduce indoor air pollutants.
+                      - listitem [ref=f10e203]:
+                        - button "Right-Sized Climate Insulation" [ref=f10e204] [cursor=pointer]:
+                          - generic [ref=f10e205]:
+                            - heading "Right-Sized Climate Insulation" [level=3] [ref=f10e206]
+                            - paragraph [ref=f10e208]: All homes are built using the appropriately sized insulation ratings in your walls and attic to weather the extreme Arizona climate.
+                      - listitem [ref=f10e209]:
+                        - button "Right-Sized Heating and Cooling System" [ref=f10e210] [cursor=pointer]:
+                          - generic [ref=f10e211]:
+                            - heading "Right-Sized Heating and Cooling System" [level=3] [ref=f10e212]
+                            - paragraph [ref=f10e214]: Heating and cooling equipment and associated duct work are sized and installed correctly to maximize comfort and performance.
+                      - listitem [ref=f10e215]:
+                        - button "Disclaimer" [ref=f10e216] [cursor=pointer]:
+                          - generic [ref=f10e217]:
+                            - heading "Disclaimer" [level=3] [ref=f10e218]
+                            - generic [ref=f10e219]:
+                              - paragraph [ref=f10e220]:
+                                - strong [ref=f10e222]: "*Within conditioned living space. May not include decorative fixtures, ceiling fans and/or other decorative lighting."
+                              - paragraph [ref=f10e223]:
+                                - strong [ref=f10e225]: "Mattamy Homes reserves the right to substitute equipment, products, parts, appliances, brand names and materials with items of equal or higher value and quality. All statements above reflect Mattamy Homes built within the Phoenix Metro area only. Savings and performance claims are not a guarantee of actual savings and performance. Actual energy savings/performance of any home or any of its features may vary widely, depending in part on location, occupant behavior and changes in energy provider rates and programs. Please speak with a Mattamy Homes New Home Counselor for full details. ROC #249191B."
+                  - button "Close Side Menu" [ref=f10e227] [cursor=pointer]:
+                    - img [ref=f10e229]
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+      - generic [ref=e729]:
+        - img "Downtown_Phoenix_2050x1600" [ref=e734]
+        - generic [ref=e737]:
+          - heading "Mattamy Homes in Phoenix" [level=2] [ref=e738]
+          - generic [ref=e739]: Phoenix, Arizona’s sunny skies, trendsetting neighborhoods and endless outdoor adventures have made it one of the fastest-growing areas.
+          - link "Learn More" [ref=e741] [cursor=pointer]:
+            - /url: /arizona/phoenix
+            - generic [ref=e742]: Learn More
+      - generic [ref=e748]:
+        - generic [ref=e749]:
+          - heading "Sign Up For Community Updates" [level=3] [ref=e750]
+          - generic [ref=e752]: Required fields are marked with *
+          - separator [ref=e753]
+        - group [ref=e754]:
+          - generic [ref=e755]:
+            - textbox "username" [ref=e756]:
+              - /placeholder: ""
+            - textbox "company" [ref=e757]:
+              - /placeholder: ""
+            - generic [ref=e758]:
+              - generic [ref=e759]: First name *
+              - textbox "First name" [ref=e761]:
+                - /placeholder: ""
+            - generic [ref=e762]:
+              - generic [ref=e763]: Last name *
+              - textbox "Last name" [ref=e765]:
+                - /placeholder: ""
+            - generic [ref=e766]:
+              - generic [ref=e767]: Email *
+              - textbox "Email" [ref=e769]:
+                - /placeholder: ""
+            - generic [ref=e770]:
+              - generic [ref=e771]: Country of Residence *
+              - generic [ref=e772]:
+                - combobox "Country of Residence" [ref=e773] [cursor=pointer]:
+                  - option [disabled] [selected]
+                  - option "Canada"
+                  - option "United States"
+                  - option "Other"
+                - generic:
+                  - img
+            - generic [ref=e774]:
+              - generic [ref=e775]: Zip/Postal Code *
+              - textbox "Zip/Postal Code" [ref=e777]:
+                - /placeholder: ""
+            - generic [ref=e778]:
+              - generic [ref=e779]: Phone number
+              - textbox "Phone number" [ref=e781]:
+                - /placeholder: ""
+            - generic [ref=e782]:
+              - generic [ref=e783]: When do you want to move into your home?
+              - generic [ref=e784]:
+                - combobox "When do you want to move into your home?" [ref=e785] [cursor=pointer]:
+                  - option [disabled] [selected]
+                  - option "0-3 Months"
+                  - option "3-6 Months"
+                  - option "6-12 Months"
+                  - option "12+ Months"
+                - generic:
+                  - img
+            - generic [ref=e786]:
+              - generic [ref=e787]: How many bedrooms do you need?
+              - generic [ref=e788]:
+                - combobox "How many bedrooms do you need?" [ref=e789] [cursor=pointer]:
+                  - option [disabled] [selected]
+                  - option "1"
+                  - option "2"
+                  - option "3"
+                  - option "4"
+                  - option "5+"
+                - generic:
+                  - img
+            - generic [ref=e790]:
+              - generic [ref=e791]: What is your budget?
+              - generic [ref=e792]:
+                - combobox "What is your budget?" [ref=e793] [cursor=pointer]:
+                  - option [disabled] [selected]
+                  - option "$200,000 - $299,000"
+                  - option "$300,000 - $399,000"
+                  - option "$400,000 - $499,000"
+                  - option "$500,000 - $599,000"
+                  - option "$600,000 - $699,000"
+                  - option "$700,000 - $799,000"
+                  - option "$800,000 - $899,000"
+                  - option "$900,000 - $999,000"
+                  - option "$1M - $1.25M"
+                  - option "$1.25M - $1.5M"
+                  - option "$1.5M - $2M"
+                  - option "$2M+"
+                - generic:
+                  - img
+            - generic [ref=e795] [cursor=pointer]:
+              - checkbox "I am a Real Estate Agent" [ref=e796]
+              - generic [ref=e797]: I am a Real Estate Agent
+            - generic [ref=e799] [cursor=pointer]:
+              - 'checkbox "By entering my phone number and/or email address and checking the box, I confirm I would like to receive promotional emails and/or text messages (SMS) from Mattamy Homes and its affiliates. Msg/data rates may apply. Consent is not a condition of purchase. I can opt out anytime (i.e. SMS: reply STOP or use any other method described in our SMS Privacy Policy ; email: use unsubscribe link). Mattamy and our providers may collect campaign engagement data to improve our marketing efforts. For more information, see our Privacy Policy , SMS Privacy Policy , SMS Terms of Service , and/or Contact Us ." [ref=e800]'
+              - generic [ref=e801]:
+                - text: "By entering my phone number and/or email address and checking the box, I confirm I would like to receive promotional emails and/or text messages (SMS) from Mattamy Homes and its affiliates. Msg/data rates may apply. Consent is not a condition of purchase. I can opt out anytime (i.e. SMS: reply STOP or use any other method described in our"
+                - link "SMS Privacy Policy" [ref=e802]:
+                  - /url: /sms-privacy-policy
+                - text: "; email: use unsubscribe link). Mattamy and our providers may collect campaign engagement data to improve our marketing efforts. For more information, see our"
+                - link "Privacy Policy" [ref=e803]:
+                  - /url: /privacy-policy
+                - text: ","
+                - link "SMS Privacy Policy" [ref=e804]:
+                  - /url: /sms-privacy-policy
+                - text: ","
+                - link "SMS Terms of Service" [ref=e805]:
+                  - /url: /sms-terms-of-service
+                - text: ", and/or"
+                - link "Contact Us" [ref=e806]:
+                  - /url: /contact-us
+                - text: .
+            - button "SUBMIT" [ref=e808] [cursor=pointer]
+    - contentinfo "footer" [ref=e809]:
+      - generic [ref=e811]:
+        - generic [ref=e812]:
+          - generic [ref=e813]:
+            - heading "Explore" [level=2] [ref=e814]
+            - list [ref=e816]:
+              - listitem [ref=e817]:
+                - link "Find My Home" [ref=e818] [cursor=pointer]:
+                  - /url: /search
+              - listitem [ref=e819]:
+                - link "Design Studio" [ref=e820] [cursor=pointer]:
+                  - /url: /design-studio
+              - listitem [ref=e821]:
+                - link "Customer Care" [ref=e822] [cursor=pointer]:
+                  - /url: /customer-care
+          - generic [ref=e824]:
+            - heading "About Mattamy" [level=2] [ref=e825]
+            - list [ref=e827]:
+              - listitem [ref=e828]:
+                - link "About Us" [ref=e829] [cursor=pointer]:
+                  - /url: /about/about-mattamy
+              - listitem [ref=e830]:
+                - link "Contact Us" [ref=e831] [cursor=pointer]:
+                  - /url: /contact
+              - listitem [ref=e832]:
+                - link "Careers" [ref=e833] [cursor=pointer]:
+                  - /url: /about/careers
+              - listitem [ref=e834]:
+                - link "Media and Investor Relations" [ref=e835] [cursor=pointer]:
+                  - /url: /about/media-and-investor-relations
+          - generic [ref=e837]:
+            - heading "Connect With Us" [level=2] [ref=e838]
+            - generic [ref=e840]:
+              - link "Facebook (opens in a new tab)" [ref=e841] [cursor=pointer]:
+                - /url: https://www.facebook.com/MattamyHomesUSA
+                - img [ref=e842]
+              - link "Instagram (opens in a new tab)" [ref=e844] [cursor=pointer]:
+                - /url: https://www.instagram.com/mattamyhomesusa/
+                - img [ref=e845]
+              - link "Youtube (opens in a new tab)" [ref=e847] [cursor=pointer]:
+                - /url: https://www.youtube.com/user/MattamyHomesOnline
+                - img [ref=e848]
+              - link "Pinterest (opens in a new tab)" [ref=e850] [cursor=pointer]:
+                - /url: https://www.pinterest.com/mattamyhomes/
+                - img [ref=e851]
+              - link "Linkedin (opens in a new tab)" [ref=e853] [cursor=pointer]:
+                - /url: https://www.linkedin.com/company/mattamy-homes
+                - img [ref=e854]
+        - generic [ref=e857]:
+          - paragraph [ref=e858]:
+            - link "Accessibility" [ref=e859] [cursor=pointer]:
+              - /url: /accessibility
+              - text: Accessibility
+              - generic [ref=e860]: "|"
+            - button "Cookie Settings" [ref=e861] [cursor=pointer]:
+              - text: Cookie Settings
+              - generic [ref=e862]: "|"
+            - link "Legal Disclaimers" [ref=e863] [cursor=pointer]:
+              - /url: /legal-disclaimers
+              - text: Legal Disclaimers
+              - generic [ref=e864]: "|"
+            - link "Privacy Policy" [ref=e865] [cursor=pointer]:
+              - /url: /privacy-policies
+              - text: Privacy Policy
+              - generic [ref=e866]: "|"
+            - link "Terms and Conditions" [ref=e867] [cursor=pointer]:
+              - /url: /terms-and-conditions
+              - text: Terms and Conditions
+              - generic [ref=e868]: "|"
+            - link "About Us" [ref=e869] [cursor=pointer]:
+              - /url: /about/about-mattamy
+          - paragraph [ref=e870]: Copyright © 2025 Mattamy Homes. All rights reserved.
+  - dialog [ref=e872]:
+    - dialog [ref=e874]:
+      - generic [ref=e875]:
+        - generic [ref=e876]: Welcome to Mattamy Homes
+        - generic [ref=e877]: Please tell us which country you are looking for a new home in.
+        - generic [ref=e878]:
+          - button "CANADA" [ref=e879] [cursor=pointer]:
+            - generic [ref=e880]: CANADA
+          - button "USA" [ref=e881] [cursor=pointer]:
+            - generic [ref=e882]: USA
+```
+
+# Test source
+
+```ts
+  800  |     return forms.nth(1);
+  801  |   }
+  802  | 
+  803  |   /** Clicks the Get Information CTA, unless the form is already open. */
+  804  |   private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
+  805  |     const cta = await this.resolveGetInformationCta();
+  806  | 
+  807  |     if (!cta || !(await cta.isVisible({ timeout: 5000 }).catch(() => false))) {
+  808  |       return;
+  809  |     }
+  810  | 
+  811  |     const previousUrl = this.page.url();
+  812  | 
+  813  |     await cta.scrollIntoViewIfNeeded();
+  814  |     await cta.click();
+  815  |     await this.waitForPageReady();
+  816  | 
+  817  |     await this.settle(1000);
+  818  |     expect(
+  819  |       this.page.url(),
+  820  |       `Community lead-form CTA should keep the flow on page, not redirect from ${previousUrl}`,
+  821  |     ).not.toMatch(/\/contact\/?($|[?#])/i);
+  822  |   }
+  823  | 
+  824  |   /**
+  825  |    * Resolves a named in-page form and asserts it is usable.
+  826  |    *
+  827  |    * Always returns a form or throws - callers do not need a null check.
+  828  |    */
+  829  |   private async getAvailableForm(
+  830  |     resolveForm: () => Promise<Locator>,
+  831  |     formName: string,
+  832  |   ): Promise<Locator> {
+  833  |     await this.dismissPromoPopupIfPresent({ appearTimeout: 3000 });
+  834  |     // A promo that mounted after that window leaves `#root` aria-hidden, and the
+  835  |     // in-page form lookups below would then resolve to nothing.
+  836  |     await this.ensurePageInAccessibilityTree();
+  837  | 
+  838  |     let form = await resolveForm();
+  839  | 
+  840  |     if (!(await form.count())) {
+  841  |       // Some layouts only render the in-page form after the lead-form CTA runs.
+  842  |       await this.openLeadFormFromGetInformationCtaIfPresent();
+  843  |       form = await resolveForm();
+  844  |     }
+  845  | 
+  846  |     if (!(await form.count())) {
+  847  |       throw new Error(`${formName} not present on the community page`);
+  848  |     }
+  849  | 
+  850  |     // This scroll has a purpose (unlike the cosmetic ones removed elsewhere): the
+  851  |     // footer form sits ~10,000px down and only hydrates once it enters the
+  852  |     // viewport, so submitting without scrolling clicks a button whose React
+  853  |     // handler is not attached yet and silently does nothing.
+  854  |     await form.scrollIntoViewIfNeeded({ timeout: 10_000 });
+  855  |     await this.settle(1000);
+  856  | 
+  857  |     await expect(getSubmitButton(form), `${formName} submit button should be visible`).toBeVisible({
+  858  |       timeout: 10000,
+  859  |     });
+  860  | 
+  861  |     return form;
+  862  |   }
+  863  | 
+  864  |   /**
+  865  |    * Clicks the Get Information / Stay Updated CTA that opens the side modal form.
+  866  |    *
+  867  |    * The side modal is only rendered as a result of that click, so a missing or
+  868  |    * unclickable CTA is a hard failure here rather than something the caller
+  869  |    * later reports as a form that "did not open". Skipped only when a side modal
+  870  |    * is already open (the locator is visible-filtered, so that is real).
+  871  |    */
+  872  |   private async openSideModalFromGetInformationCta(formName: string): Promise<void> {
+  873  |     if (await this.leadFormDialogOrSidebar.count()) {
+  874  |       return;
+  875  |     }
+  876  | 
+  877  |     // The National-promotion overlay is a full-screen dialog that sits on top of
+  878  |     // the CTA and swallows the click. Dismiss it rather than clicking through it
+  879  |     // with force, so a genuinely unreachable CTA still fails.
+  880  |     await this.dismissPromoPopupIfPresent({ appearTimeout: 3000 });
+  881  | 
+  882  |     const cta = await this.resolveGetInformationCta();
+  883  | 
+  884  |     if (!cta) {
+  885  |       throw new Error(
+  886  |         `No Get Information / Stay Updated CTA found on the community page to open ${formName}`,
+  887  |       );
+  888  |     }
+  889  | 
+  890  |     await expect(
+  891  |       cta,
+  892  |       `Get Information CTA should be visible before opening ${formName}`,
+  893  |     ).toBeVisible({ timeout: 15000 });
+  894  | 
+  895  |     const previousUrl = this.page.url();
+  896  | 
+  897  |     // No manual scroll and no force: click() auto-scrolls and runs the
+  898  |     // actionability checks, so a CTA covered by an overlay/banner fails here
+  899  |     // with a call log instead of silently "clicking" and breaking downstream.
+> 900  |     await cta.click();
+       |               ^ TimeoutError: locator.click: Timeout 30000ms exceeded.
+  901  |     await this.waitForPageReady();
+  902  |     await this.settle(1000);
+  903  | 
+  904  |     expect(
+  905  |       this.page.url(),
+  906  |       `Community lead-form CTA should keep the flow on page, not redirect from ${previousUrl}`,
+  907  |     ).not.toMatch(/\/contact\/?($|[?#])/i);
+  908  |   }
+  909  | 
+  910  |   /** Returns the Get Information form once its CTA has opened it. */
+  911  |   private async getAvailableGetInformationForm(
+  912  |     formName = 'Get Information community form',
+  913  |   ): Promise<Locator | null> {
+  914  |     await this.openSideModalFromGetInformationCta(formName);
+  915  |     await this.ensurePageInAccessibilityTree();
+  916  | 
+  917  |     const modalFormCount = await expect
+  918  |       .poll(() => this.leadFormDialogOrSidebar.count(), {
+  919  |         message: `${formName} sidebar/modal should be open after clicking the Get Information CTA`,
+  920  |         timeout: 15000,
+  921  |       })
+  922  |       .toBeGreaterThan(0)
+  923  |       .then(() => this.leadFormDialogOrSidebar.count())
+  924  |       .catch(() => 0);
+  925  | 
+  926  |     if (!modalFormCount) {
+  927  |       throw new Error(`${formName} sidebar/modal form did not open`);
+  928  |     }
+  929  | 
+  930  |     const modalForm = this.leadFormDialogOrSidebar.first();
+  931  |     const submitButton = getSubmitButton(modalForm);
+  932  | 
+  933  |     await this.waitForPageReady();
+  934  | 
+  935  |     await expect(
+  936  |       submitButton,
+  937  |       `${formName} submit button should be visible inside sidebar/modal`,
+  938  |     ).toBeVisible({ timeout: 10000 });
+  939  | 
+  940  |     return modalForm;
+  941  |   }
+  942  | 
+  943  |   /** Picks the country of residence, when the form asks for one. */
+  944  |   private async selectCountryOfResidenceIfPresent(form: Locator): Promise<void> {
+  945  |     const countryOfResidence = form
+  946  |       .getByRole('combobox', {
+  947  |         name: /country of residence/i,
+  948  |       })
+  949  |       .first();
+  950  | 
+  951  |     if (!(await countryOfResidence.count())) {
+  952  |       return;
+  953  |     }
+  954  | 
+  955  |     const preferredCountry = this.location.country === 'USA' ? 'United States' : 'Canada';
+  956  | 
+  957  |     const selectedPreferred = await countryOfResidence
+  958  |       .selectOption({ label: preferredCountry })
+  959  |       .then(() => true)
+  960  |       .catch(() => false);
+  961  | 
+  962  |     if (!selectedPreferred) {
+  963  |       await countryOfResidence.selectOption({ index: 1 }).catch(() => undefined);
+  964  |     }
+  965  |   }
+  966  | 
+  967  |   /** Checks the consent checkbox when it is present. */
+  968  |   private async checkConsentIfPresent(form: Locator): Promise<void> {
+  969  |     await checkConsentIfPresent(form);
+  970  |   }
+  971  | 
+  972  |   /** Fills the community lead form with the given data. */
+  973  |   private async fillCommunityLeadForm(form: Locator, leadData: LeadFieldData): Promise<void> {
+  974  |     await fillIfPresent(form.getByRole('textbox', { name: /first name/i }), leadData.firstName);
+  975  |     await fillIfPresent(form.getByRole('textbox', { name: /last name/i }), leadData.lastName);
+  976  |     await fillIfPresent(form.getByRole('textbox', { name: /^email/i }), leadData.email);
+  977  |     await fillIfPresent(form.getByRole('textbox', { name: /phone/i }), leadData.phone);
+  978  |     await fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), leadData.zip);
+  979  |     await this.selectCountryOfResidenceIfPresent(form);
+  980  |     // Four extra dropdowns (Bedroom Count, Desired Move Date, New Budget, First Time Home Buyer):
+  981  |     // optional on US / custom forms and required on Canada forms, so filled whenever present.
+  982  |     await fillExtraLeadFieldsIfPresent(form);
+  983  |     await this.checkConsentIfPresent(form);
+  984  |   }
+  985  | 
+  986  |   /** Checks the Get Information CTA opens a lead form. */
+  987  |   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
+  988  |     await this.step('Verify Get Information CTA opens lead form', async () => {
+  989  |       // The CTA visibility check and the click both live in
+  990  |       // getAvailableGetInformationForm - the side modal exists only after that
+  991  |       // click, so resolving the CTA twice here would just double the 15s poll.
+  992  |       const form = await this.getAvailableGetInformationForm(
+  993  |         'Get Information community sideModalForm',
+  994  |       );
+  995  | 
+  996  |       if (!form) {
+  997  |         return;
+  998  |       }
+  999  | 
+  1000 |       await expect(form, 'Get Information community sideModalForm should be visible').toBeVisible({
+```
