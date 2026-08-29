@@ -1,0 +1,327 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: homebuyingPages.spec.ts >> Homebuying Pages - CAN >> Homebuying Journey >> @smoke @regression | CAN | Homebuying Journey page should load with valid shell and content
+- Location: tests/homebuyingPages.spec.ts:40:9
+
+# Error details
+
+```
+Error: Homebuying Journey should keep the global footer mounted
+
+expect(locator).toBeAttached() failed
+
+Locator: locator('#footer, section[id="footer"], footer').first()
+Expected: attached
+Timeout: 15000ms
+Error: element(s) not found
+
+Call log:
+  - Homebuying Journey should keep the global footer mounted with timeout 15000ms
+  - waiting for locator('#footer, section[id="footer"], footer').first()
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "Mattamy logo. Go to HomePage" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - figure [ref=e7]:
+          - img "Mattamy logo" [ref=e8]
+      - button "Navigation menu." [ref=e9] [cursor=pointer]:
+        - img [ref=e10]
+  - main [ref=e12]:
+    - generic [ref=e15]:
+      - heading "Your New Home Journey" [level=1] [ref=e16]
+      - generic [ref=e17]: We understand that buying a new home is not only exciting, but one of the biggest decisions you will make.
+      - link "Navigate to more information on this page." [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+    - generic [ref=e22]:
+      - heading "Making it happen" [level=2] [ref=e23]
+      - generic [ref=e25]: Here are the 6 easy steps of our homebuying process.
+    - generic [ref=e30]:
+      - generic [ref=e34]:
+        - generic [ref=e35]:
+          - generic [ref=e36] [cursor=pointer]:
+            - text: ←
+            - button "Previous slide on Multiblock" [ref=e37]:
+              - img [ref=e38]
+          - generic [ref=e41]:
+            - img [ref=e45]
+            - img "Lifestyle with sofa" [ref=e49]
+            - img [ref=e53]
+            - img [ref=e57]
+          - generic [ref=e58] [cursor=pointer]:
+            - text: →
+            - button "Next slide of Multiblock" [ref=e59]:
+              - img [ref=e60]
+        - paragraph [ref=e63]: 1/2
+      - log [ref=e66]:
+        - generic [ref=e67]:
+          - heading "The benefits of owning" [level=2] [ref=e68]
+          - generic [ref=e69]: Imagine the money you spend on rent going toward a beautiful, brand-new home in a thriving community, reflecting your personal taste and improving your lifestyle. We’ll help you determine a budget and select floorplans for your space and living needs. Experience the openness, airiness and flow we design into every space and you’ll picture your own lifestyle becoming roomier ... brighter ... better. Start building equity and earning tax benefits while avoiding outdated styling and rent increases.
+          - link "Explore Options" [ref=e71] [cursor=pointer]:
+            - /url: https://mattamyhomes.com/homebuying/shopping-tools
+            - generic [ref=e72]: Explore Options
+    - generic [ref=e76]:
+      - img "Lifestyle" [ref=e82]
+      - generic [ref=e86]:
+        - heading "Mattamy has you covered" [level=2] [ref=e87]
+        - generic [ref=e88]: With both Mattamy Home Funding and Mattamy Insurance Agency available right here under the Mattamy Homes roof, you reap the benefits of greatly improved convenience, communication and cost. Your mortgage loan and insurance plan are precisely, professionally tailored to your exact home and situation. The result? Ultimate peace of mind.
+        - link "Learn More" [ref=e90] [cursor=pointer]:
+          - /url: https://mattamyhomes.com/homebuying/financing
+          - generic [ref=e91]: Learn More
+    - generic [ref=e95]:
+      - img "Lifestyle" [ref=e101]
+      - generic [ref=e105]:
+        - heading "Find the Mattamy design that moves you" [level=2] [ref=e106]
+        - generic [ref=e107]: You know you want more space, light and air — but how will that look, and how will it feel to live in? We’ve got lots of options, all thoughtfully designed from listening to our customer feedback. Explore our communities, each built in the most exciting cities and towns. Browse our home designs and Architect’s Choice Options to find the floorplan that’s perfect for you.
+        - link "Find Your Dream Home" [ref=e109] [cursor=pointer]:
+          - /url: https://mattamyhomes.com
+          - generic [ref=e110]: Find Your Dream Home
+    - generic [ref=e114]:
+      - img "swatches" [ref=e120]
+      - generic [ref=e124]:
+        - heading "Personalize using our curated design choices" [level=2] [ref=e125]
+        - generic [ref=e126]: A house isn’t a home without that personal touch. Our Design Studio experts have curated a collection of styles, finishes and fixtures that will reflect your tastes perfectly.
+        - link "Learn More" [ref=e128] [cursor=pointer]:
+          - /url: https://mattamyhomes.com/design-studio
+          - generic [ref=e129]: Learn More
+    - generic [ref=e133]:
+      - img "Lifestyle" [ref=e139]
+      - generic [ref=e143]:
+        - heading "The construction process" [level=2] [ref=e144]
+        - generic [ref=e145]: Here’s where Mattamy turns your dream into a reality. From foundation to rooftop, our experts use the most modern construction techniques to build a beautiful, energy-efficient home. We stay in close contact with you, providing updates at every milestone.
+    - generic [ref=e149]:
+      - img "Lifestyle" [ref=e155]
+      - generic [ref=e159]:
+        - heading "We're with you throughout your new home journey" [level=2] [ref=e160]
+        - generic [ref=e161]: When you select Mattamy Homes as your homebuilder, we are committed to your satisfaction from purchase to well beyond move-in day. Our warranty program covers you, and our customer care team is here if you need us.
+        - link "Learn More" [ref=e163] [cursor=pointer]:
+          - /url: /customer-care
+          - generic [ref=e164]: Learn More
+    - generic [ref=e166]:
+      - heading "We’ve simplified every step" [level=2] [ref=e167]
+      - generic [ref=e168]: Since 1978, we’ve helped homeowners find their dream homes by listening to them in order to create the best experience possible. From finding your home to personalizing your home to financing your home – Mattamy understands.
+    - generic [ref=e171]:
+      - heading "FAQs" [level=2] [ref=e172]
+      - link "FAQs View FAQs" [ref=e175] [cursor=pointer]:
+        - /url: /homebuying/homebuying/FAQs
+        - generic [ref=e176]: View FAQs
+```
+
+# Test source
+
+```ts
+  362 |       const locator = candidate.locator;
+  363 |       const count = await locator.count().catch(() => 0);
+  364 | 
+  365 |       if (count < minimumCount) {
+  366 |         continue;
+  367 |       }
+  368 | 
+  369 |       const isUsable = await locator
+  370 |         .first()
+  371 |         .waitFor({ state, timeout })
+  372 |         .then(() => true)
+  373 |         .catch(() => false);
+  374 | 
+  375 |       if (!isUsable) {
+  376 |         continue;
+  377 |       }
+  378 | 
+  379 |       if (index > 0) {
+  380 |         await reportSelectorDrift(label, primary.selector, candidate.selector);
+  381 |       }
+  382 | 
+  383 |       return locator;
+  384 |     }
+  385 | 
+  386 |     await this.reportValue(
+  387 |       `Self-healing fallback not found: ${label}`,
+  388 |       `Using primary selector so the test fails normally: ${primary.selector}`,
+  389 |     );
+  390 | 
+  391 |     return primary.locator;
+  392 |   }
+  393 | 
+  394 |   // Shared Assertions
+  395 | 
+  396 |   /** Checks we actually landed on a page and not about:blank. */
+  397 |   protected async assertPageLoaded(label = 'Page should be loaded'): Promise<void> {
+  398 |     await test.step(label, async () => {
+  399 |       await this.waitForPageReady();
+  400 |       await expect(this.page, label).not.toHaveURL(/about:blank/i);
+  401 |     });
+  402 |   }
+  403 | 
+  404 |   /** Checks the browser tab title. */
+  405 |   protected async assertPageTitle(
+  406 |     expectedTitle: string | RegExp,
+  407 |     label = 'Page title should match expected value',
+  408 |   ): Promise<void> {
+  409 |     await test.step(label, async () => {
+  410 |       await expect(this.page, label).toHaveTitle(expectedTitle);
+  411 |     });
+  412 |   }
+  413 | 
+  414 |   /** Checks the current URL. */
+  415 |   protected async assertPageUrl(
+  416 |     expectedUrl: string | RegExp,
+  417 |     label = 'Page URL should match expected value',
+  418 |     timeout = 60_000,
+  419 |   ): Promise<void> {
+  420 |     await test.step(label, async () => {
+  421 |       await expect(this.page, label).toHaveURL(expectedUrl, { timeout });
+  422 |     });
+  423 |   }
+  424 | 
+  425 |   /** Checks the current URL contains this fragment. */
+  426 |   protected async assertPageUrlContains(
+  427 |     expectedUrlPart: string,
+  428 |     label = `Page URL should contain: ${expectedUrlPart}`,
+  429 |     timeout = 60_000,
+  430 |   ): Promise<void> {
+  431 |     await this.assertPageUrl(new RegExp(escapeRegex(expectedUrlPart), 'i'), label, timeout);
+  432 |   }
+  433 | 
+  434 |   /** Checks we did not end up on an unexpected URL. */
+  435 |   protected async assertPageUrlDoesNotMatch(
+  436 |     unexpectedUrl: string | RegExp,
+  437 |     label = 'Page URL should not match unexpected value',
+  438 |   ): Promise<void> {
+  439 |     await test.step(label, async () => {
+  440 |       await expect(this.page, label).not.toHaveURL(unexpectedUrl);
+  441 |     });
+  442 |   }
+  443 | 
+  444 |   /** Checks an element is visible on screen. */
+  445 |   protected async assertVisible(
+  446 |     locator: Locator,
+  447 |     label = 'Element should be visible',
+  448 |     timeout = 10_000,
+  449 |   ): Promise<void> {
+  450 |     await test.step(label, async () => {
+  451 |       await expect(locator, label).toBeVisible({ timeout });
+  452 |     });
+  453 |   }
+  454 | 
+  455 |   /** Checks an element is in the DOM, whether or not it is on screen. */
+  456 |   protected async assertAttached(
+  457 |     locator: Locator,
+  458 |     label = 'Element should be attached',
+  459 |     timeout = 10_000,
+  460 |   ): Promise<void> {
+  461 |     await test.step(label, async () => {
+> 462 |       await expect(locator, label).toBeAttached({ timeout });
+      |                                    ^ Error: Homebuying Journey should keep the global footer mounted
+  463 |     });
+  464 |   }
+  465 | 
+  466 |   /** Checks an element's text contains what we expect. */
+  467 |   protected async assertTextContains(
+  468 |     locator: Locator,
+  469 |     expectedText: string | RegExp,
+  470 |     label = 'Element should contain expected text',
+  471 |     timeout = 10_000,
+  472 |   ): Promise<void> {
+  473 |     await test.step(label, async () => {
+  474 |       await expect(locator, label).toContainText(expectedText, { timeout });
+  475 |     });
+  476 |   }
+  477 | 
+  478 |   /** Checks an element's text matches exactly. */
+  479 |   protected async assertText(
+  480 |     locator: Locator,
+  481 |     expectedText: string | RegExp,
+  482 |     label = 'Element text should match expected value',
+  483 |     timeout = 10_000,
+  484 |   ): Promise<void> {
+  485 |     await test.step(label, async () => {
+  486 |       await expect(locator, label).toHaveText(expectedText, { timeout });
+  487 |     });
+  488 |   }
+  489 | 
+  490 |   /** Checks the text appears somewhere on the page. */
+  491 |   protected async assertBodyContains(
+  492 |     expectedText: string | RegExp,
+  493 |     label = 'Page body should contain expected text',
+  494 |     timeout = 10_000,
+  495 |   ): Promise<void> {
+  496 |     await this.assertTextContains(this.page.locator('body'), expectedText, label, timeout);
+  497 |   }
+  498 | 
+  499 |   /** Checks the page shows an H1. */
+  500 |   protected async assertHeadingVisible(
+  501 |     expectedName?: string | RegExp,
+  502 |     label = 'Page heading should be visible',
+  503 |     timeout = 20_000,
+  504 |   ): Promise<void> {
+  505 |     const heading = expectedName
+  506 |       ? this.page.getByRole('heading', { level: 1, name: expectedName }).first()
+  507 |       : this.page.locator('h1').first();
+  508 | 
+  509 |     await this.assertVisible(heading, label, timeout);
+  510 |   }
+  511 | 
+  512 |   /** Checks the H1 says what we expect. */
+  513 |   protected async assertHeadingContains(
+  514 |     expectedText: string | RegExp,
+  515 |     label = 'Page heading should contain expected text',
+  516 |     timeout = 20_000,
+  517 |   ): Promise<void> {
+  518 |     await this.assertTextContains(this.page.locator('h1').first(), expectedText, label, timeout);
+  519 |   }
+  520 | 
+  521 |   /** Checks an element's attribute value. */
+  522 |   protected async assertAttribute(
+  523 |     locator: Locator,
+  524 |     attributeName: string,
+  525 |     expectedValue: string | RegExp,
+  526 |     label = `${attributeName} attribute should match expected value`,
+  527 |     timeout = 10_000,
+  528 |   ): Promise<void> {
+  529 |     await test.step(label, async () => {
+  530 |       await expect(locator, label).toHaveAttribute(attributeName, expectedValue, { timeout });
+  531 |     });
+  532 |   }
+  533 | 
+  534 |   /** Checks how many elements the locator matches. */
+  535 |   protected async assertCount(
+  536 |     locator: Locator,
+  537 |     expectedCount: number,
+  538 |     label = `Element count should be ${expectedCount}`,
+  539 |     timeout = 10_000,
+  540 |   ): Promise<void> {
+  541 |     await test.step(label, async () => {
+  542 |       await expect(locator, label).toHaveCount(expectedCount, { timeout });
+  543 |     });
+  544 |   }
+  545 | 
+  546 |   protected assertTruthy<T>(
+  547 |     value: T,
+  548 |     label = 'Expected value should be present',
+  549 |   ): asserts value is NonNullable<T> {
+  550 |     expect(value, label).toBeTruthy();
+  551 |   }
+  552 | 
+  553 |   /** Checks a number is above the minimum we expect. */
+  554 |   protected assertGreaterThan(
+  555 |     actual: number,
+  556 |     minimum: number,
+  557 |     label = `Expected value should be greater than ${minimum}`,
+  558 |   ): void {
+  559 |     expect(actual, label).toBeGreaterThan(minimum);
+  560 |   }
+  561 | 
+  562 |   // Cookie Handling — implemented by support/OverlayManager
+```
