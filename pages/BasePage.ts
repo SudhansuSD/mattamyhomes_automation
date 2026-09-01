@@ -1,4 +1,4 @@
-import { expect, Locator, Page, test } from '@playwright/test';
+import { expect, Locator, Page, type Response as PlaywrightResponse, test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 import { resolveFeature, type FeatureKey } from '../config/features/featureExpectations';
@@ -12,9 +12,12 @@ import {
 } from '../utils/reporting/allureReporter';
 import {
   buildFullUrl as buildAbsoluteUrl,
+  DESKTOP_HEADER_MIN_WIDTH,
   escapeRegex,
   formatPrice as formatCurrencyPrice,
   formatPriceToUiLabel as formatPriceLabel,
+  getFooter,
+  MOBILE_NAV_TOGGLE_SELECTOR,
   normalizeComparableText,
 } from '../utils/web/pageObjectUtils';
 
@@ -85,8 +88,9 @@ export class BasePage {
 
     await test.step(`Open Mattamy Homes home page for ${location.country} in ${envName}`, async () => {
       await this.registerConsentDialogHandlers();
+      let response: PlaywrightResponse | null = null;
       try {
-        await this.page.goto(targetUrl, {
+        response = await this.page.goto(targetUrl, {
           waitUntil: 'domcontentloaded',
           timeout: 90_000,
         });
@@ -106,7 +110,7 @@ export class BasePage {
 
         if (!reachedTarget || !domIsUsable) {
           await this.reportValue('Page not usable after navigation; retrying', targetUrl);
-          await this.page.goto(targetUrl, {
+          response = await this.page.goto(targetUrl, {
             waitUntil: 'domcontentloaded',
             timeout: 90_000,
           });
@@ -114,6 +118,11 @@ export class BasePage {
           await this.reportValue('Navigation timed out after render; continuing from', currentUrl);
         }
       }
+
+      // Checked outside the try: a 4xx/5xx is not a navigation timeout, and
+      // letting the catch above swallow it is what turns a server error into a
+      // misleading locator failure much later in the test.
+      this.expectNavigationServed(response, targetUrl);
 
       await this.acceptCookiesIfPresent();
 
@@ -128,6 +137,47 @@ export class BasePage {
       // appearTimeout gives it that beat; when it never shows, the wait is all it costs.
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
+  }
+
+  /**
+   * Fails the test when the server did not actually serve the page.
+   *
+   * A 4xx/5xx still renders a document, so an unchecked navigation leaves the
+   * suite hunting for content on the browser's error page and reporting
+   * "element(s) not found" 15s later instead of naming the status.
+   *
+   * A null response means a same-document navigation, which has no response of
+   * its own and nothing to check.
+   */
+  protected expectNavigationServed(response: PlaywrightResponse | null, url: string): void {
+    if (!response) {
+      return;
+    }
+
+    expect(
+      response.status(),
+      `${url} should be served without a client/server error before its content is validated`,
+    ).toBeLessThan(400);
+  }
+
+  /**
+   * Opens a URL and checks the server served it.
+   *
+   * The shared entry point for page objects that navigate straight to their own
+   * URL instead of going through {@link navigate}.
+   */
+  protected async gotoAndVerifyResponse(
+    url: string,
+    options: { waitUntil?: 'domcontentloaded' | 'load' | 'commit'; timeout?: number } = {},
+  ): Promise<PlaywrightResponse | null> {
+    const response = await this.page.goto(url, {
+      waitUntil: options.waitUntil ?? 'domcontentloaded',
+      timeout: options.timeout ?? 90_000,
+    });
+
+    this.expectNavigationServed(response, url);
+
+    return response;
   }
 
   /**
@@ -148,7 +198,7 @@ export class BasePage {
         .catch(() => false);
 
       if (rendered) {
-        return;
+        break;
       }
 
       if (attempt < maxAttempts) {
@@ -165,6 +215,61 @@ export class BasePage {
         await this.waitForPageReady().catch(() => undefined);
       }
     }
+
+    // A visible <header> is not enough on its own: the SSR HTML ships a
+    // mobile-only header shell that satisfies the check above while the desktop
+    // navigation, and the country selector's real value, are still missing. An
+    // un-hydrated shell otherwise surfaces as unrelated-looking locator timeouts
+    // across the suite rather than as one cause.
+    if (!(await this.waitForShellHydrated())) {
+      await this.reportValue(
+        'Page shell did not hydrate - header is still the mobile SSR shell, so desktop navigation and the country selector are unreliable',
+        this.page.url(),
+      );
+    }
+  }
+
+  /**
+   * True when the page is narrower than the site's header breakpoint.
+   *
+   * Read from the page rather than from the project name or `viewportSize()`:
+   * the site decides its own layout from `window.innerWidth`, and a headed run
+   * configured with `viewport: null` reports no size at all.
+   */
+  protected async isMobileHeaderViewport(): Promise<boolean> {
+    // Falls back to the desktop width, not 0: every desktop project is at least
+    // this wide, so an unreadable page is treated as desktop rather than
+    // silently skipping the desktop-only checks that depend on this.
+    const viewportWidth = await this.page
+      .evaluate(() => window.innerWidth)
+      .catch(() => DESKTOP_HEADER_MIN_WIDTH);
+
+    return viewportWidth < DESKTOP_HEADER_MIN_WIDTH;
+  }
+
+  /**
+   * Waits for the header shell to hydrate. Returns whether it did.
+   *
+   * Deliberately non-throwing: this runs on every navigation, and callers that
+   * actually validate the header assert on it themselves. Everything else just
+   * gets the cause recorded in the report instead of a downstream locator
+   * timeout that names the wrong thing.
+   */
+  protected async waitForShellHydrated(timeout = 8_000): Promise<boolean> {
+    // Below the site's own header breakpoint the mobile toggle IS the header, so
+    // there is no desktop navigation to wait for.
+    if (await this.isMobileHeaderViewport()) {
+      return true;
+    }
+
+    // 'hidden' also passes for a detached element, so if the product renames the
+    // toggle this degrades to "assume hydrated" rather than stalling every
+    // navigation for the full timeout.
+    return this.page
+      .locator(MOBILE_NAV_TOGGLE_SELECTOR)
+      .waitFor({ state: 'hidden', timeout })
+      .then(() => true)
+      .catch(() => false);
   }
 
   // Common Load Stabilization
@@ -197,9 +302,7 @@ export class BasePage {
     label = 'page footer',
     timeout = 15_000,
   ): Promise<void> {
-    // Not every page uses a <footer> tag - the market pages use
-    // <div role="contentinfo">, where a tag-only locator never resolves.
-    const footer = this.page.locator('footer, [role="contentinfo"]').first();
+    const footer = getFooter(this.page);
 
     await this.waitForPageReady();
     await expect(footer, `Footer should be visible before validating ${label}`).toBeVisible({

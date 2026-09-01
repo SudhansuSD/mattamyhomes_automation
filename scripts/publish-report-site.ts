@@ -28,7 +28,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
-import { DESKTOP_ALLURE_HISTORY_FILE, DESKTOP_ALLURE_REPORT_DIR, REPO_ROOT } from './allurePaths';
+import {
+  DESKTOP_ALLURE_HISTORY_FILE,
+  DESKTOP_ALLURE_REPORT_DIR,
+  MERGED_ALLURE_HISTORY_FILE,
+  MOBILE_ALLURE_HISTORY_FILE,
+  REPO_ROOT,
+} from './allurePaths';
 import { loadEnv, getEnv, getNumberEnv } from '../config/env';
 import { getBrowserDisplayName } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
@@ -462,6 +468,33 @@ function getHistoryFileName(runType: string, environment: string): string {
   return `desktop-${slugify(runType, 'full')}-${slugify(environment, 'stage')}.jsonl`;
 }
 
+const HISTORY_FILE_BY_MODE: Record<string, string> = {
+  desktop: DESKTOP_ALLURE_HISTORY_FILE,
+  mobile: MOBILE_ALLURE_HISTORY_FILE,
+  merged: MERGED_ALLURE_HISTORY_FILE,
+};
+
+/**
+ * The local history file the published report reads and extends.
+ *
+ * One trend chain per run type + environment, owned by whichever report stream
+ * gets published. REPORT_HISTORY_MODE has to name the same stream as
+ * REPORT_SOURCE_DIR, or the published report extends a chain nothing wrote to
+ * and its trend charts show a single point.
+ */
+function resolveHistoryFile(): string {
+  const mode = getEnv('REPORT_HISTORY_MODE', 'desktop').trim().toLowerCase();
+  const historyFile = HISTORY_FILE_BY_MODE[mode];
+
+  if (!historyFile) {
+    throw new Error(
+      `Unsupported REPORT_HISTORY_MODE="${mode}". Use ${Object.keys(HISTORY_FILE_BY_MODE).join(', ')}.`,
+    );
+  }
+
+  return historyFile;
+}
+
 function resolveSiteDir(): string {
   return path.resolve(REPO_ROOT, getEnv('REPORT_SITE_DIR', 'gh-pages-site'));
 }
@@ -485,8 +518,10 @@ export function restoreReportHistory(): void {
     return;
   }
 
-  fs.mkdirSync(path.dirname(DESKTOP_ALLURE_HISTORY_FILE), { recursive: true });
-  fs.copyFileSync(source, DESKTOP_ALLURE_HISTORY_FILE);
+  const historyFile = resolveHistoryFile();
+
+  fs.mkdirSync(path.dirname(historyFile), { recursive: true });
+  fs.copyFileSync(source, historyFile);
   console.log(
     `[report-site] Restored ${runType} / ${environment} trend history from the report site.`,
   );
@@ -494,16 +529,15 @@ export function restoreReportHistory(): void {
 
 /** Write the history Allure just extended back into the site, beside the build. */
 function saveReportHistory(siteDir: string, runType: string, environment: string): void {
-  if (!fs.existsSync(DESKTOP_ALLURE_HISTORY_FILE)) {
+  const historyFile = resolveHistoryFile();
+
+  if (!fs.existsSync(historyFile)) {
     return;
   }
 
   const historyDir = path.join(siteDir, HISTORY_DIR);
   fs.mkdirSync(historyDir, { recursive: true });
-  fs.copyFileSync(
-    DESKTOP_ALLURE_HISTORY_FILE,
-    path.join(historyDir, getHistoryFileName(runType, environment)),
-  );
+  fs.copyFileSync(historyFile, path.join(historyDir, getHistoryFileName(runType, environment)));
 }
 
 /** Expose a value to later workflow steps via $GITHUB_OUTPUT. */

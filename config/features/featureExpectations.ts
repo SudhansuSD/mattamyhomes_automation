@@ -90,7 +90,7 @@ export function buildMissingFeatureMessage(
 /**
  * The present / optional / missing decision.
  *
- * No Playwright or WebdriverIO types here on purpose, so desktop and mobile
+ * No Playwright types here on purpose, so desktop and mobile
  * share one rule instead of two copies that drift apart. Returns the value when
  * present, null when declared optional, throws when required and missing.
  */

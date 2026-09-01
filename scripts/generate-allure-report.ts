@@ -17,6 +17,7 @@ import { loadEnv, getEnv } from '../config/env';
 import { getBrowserDisplayName } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationsToRun } from '../config/locations/locationConfig';
+import { LOCATION_AGNOSTIC_SPEC_GLOBS } from '../config/locations/locationAgnosticSpecs';
 
 loadEnv();
 
@@ -26,6 +27,23 @@ const CATEGORIES_SOURCE = path.resolve(REPO_ROOT, 'config', 'allure', 'categorie
 const ALLURE_CONFIG_FILE = path.resolve(REPO_ROOT, 'allurerc.mjs');
 const ALLURE_HISTORY_FILE_NAME = 'history.jsonl';
 const RUN_TYPE_LABEL = 'runType';
+const PARENT_SUITE_LABEL = 'parentSuite';
+const EPIC_LABEL = 'epic';
+const SUITE_LABEL = 'suite';
+const AGNOSTIC_LOCATION = 'ALL';
+
+/** Platform each results directory belongs to, as the report tree labels it. */
+const PLATFORM_BY_RESULTS_DIR: Array<{ dir: string; platform: string }> = [
+  { dir: MOBILE_ALLURE_RESULTS_DIR, platform: 'Mobile' },
+  { dir: DESKTOP_ALLURE_RESULTS_DIR, platform: 'Web' },
+];
+
+function getPlatformForResultsDir(resultsDir: string): string {
+  return (
+    PLATFORM_BY_RESULTS_DIR.find((entry) => path.resolve(entry.dir) === path.resolve(resultsDir))
+      ?.platform ?? 'Web'
+  );
+}
 const RUN_TYPE_BY_KEY: Record<string, string> = {
   ci: 'CI',
   smoke: 'Smoke',
@@ -48,6 +66,33 @@ function hasAllureResults(resultsDir: string): boolean {
   }
 
   return fs.readdirSync(resultsDir).some((fileName) => fileName.endsWith('-result.json'));
+}
+
+/** How each report stream names itself in its title and Suite row. */
+const SUITE_NAME_BY_MODE: Record<ReportMode, string> = {
+  desktop: 'desktop',
+  mobile: 'mobile',
+  merged: 'web + mobile',
+};
+
+/** The browser(s) a report covers, named per its platform. */
+function getBrowserLabel(label: string): string {
+  const mobileBrowser = () => getBrowserDisplayName(getEnv('MOBILE_BROWSER', 'mobile-safari'));
+
+  if (label === 'mobile') {
+    return mobileBrowser();
+  }
+
+  if (label === 'merged') {
+    return `${getBrowserDisplayName()} + ${mobileBrowser()}`;
+  }
+
+  return getBrowserDisplayName();
+}
+
+/** Human-readable name of the report stream a report dir holds. */
+function getSuiteName(label: string): string {
+  return SUITE_NAME_BY_MODE[label as ReportMode] ?? label;
 }
 
 /** Read the framework version from package.json for the report header. */
@@ -77,14 +122,17 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
   // environment.properties
   const env = getEnvConfig();
   const properties: Record<string, string> = {
-    Suite: label,
+    Suite: getSuiteName(label),
     Environment: env.envName,
     BaseURL: env.baseURL,
     // Every location the run covered — a single value when LOCATION was given,
     // "USA, CAN" when it was not and run-locations.ts ran a pass for each.
     Location: getLocationsToRun().join(', '),
     RunType: getRunType(),
-    Browser: label === 'mobile' ? getEnv('MOBILE_BROWSER_NAME', 'Chrome') : getBrowserDisplayName(),
+    // Each stream names the Playwright project that produced it, so an iPhone
+    // run is not labelled with a desktop browser, and the merged report names
+    // both because it covers both.
+    Browser: getBrowserLabel(label),
     AppVersion: getAppVersion(),
     Node: process.version,
     OS: `${process.platform} ${process.arch}`,
@@ -180,20 +228,41 @@ function getRunType(): string {
   return 'Full';
 }
 
-function enrichRunTypeLabels(resultsDir: string, runType: string): void {
+/**
+ * Stamp the labels the report groups by onto every result in a stream.
+ *
+ * The results directory is the authority for the platform: everything in
+ * allure-results/mobile ran on a phone profile whatever a test managed to
+ * report about itself. A test that fails inside `beforeEach` never reaches
+ * `annotate()`, so without this it keeps allure-playwright's project-name
+ * parentSuite and lands outside the Web / Mobile split - which is where the
+ * failures worth reading would end up.
+ *
+ * `epic` is only filled in when a test set none, so the 'ALL' that
+ * location-agnostic specs declare survives.
+ */
+function enrichRunLabels(
+  resultsDir: string,
+  labelsToApply: { runType: string; platform: string; location: string },
+): void {
   for (const resultPath of collectResultFiles(resultsDir)) {
     try {
       const result = JSON.parse(fs.readFileSync(resultPath, 'utf8')) as AllureResultFile;
-      const labels = result.labels ?? [];
+      const labels = (result.labels ?? []).filter(
+        (label) => label.name !== RUN_TYPE_LABEL && label.name !== PARENT_SUITE_LABEL,
+      );
 
-      if (labels.some((label) => label.name === RUN_TYPE_LABEL && label.value === runType)) {
-        continue;
+      labels.push({ name: RUN_TYPE_LABEL, value: labelsToApply.runType });
+      labels.push({ name: PARENT_SUITE_LABEL, value: labelsToApply.platform });
+
+      if (!labels.some((label) => label.name === EPIC_LABEL) && labelsToApply.location) {
+        labels.push({ name: EPIC_LABEL, value: labelsToApply.location });
       }
 
-      result.labels = [...labels, { name: RUN_TYPE_LABEL, value: runType }];
+      result.labels = labels;
       fs.writeFileSync(resultPath, JSON.stringify(result, null, 2));
     } catch (error) {
-      console.warn(`Unable to enrich Allure run type label for ${resultPath}:`, error);
+      console.warn(`Unable to enrich Allure labels for ${resultPath}:`, error);
     }
   }
 }
@@ -286,6 +355,45 @@ function writeReportLandingPage(reportDir: string): void {
   fs.writeFileSync(path.join(reportDir, 'index.html'), html);
 }
 
+/**
+ * Records the location on results whose test never reached `annotate()`.
+ *
+ * A test that fails inside `beforeEach` reports no labels of its own, so it
+ * arrives without the location its pass ran under. Called per pass, where
+ * LOCATION is known, rather than at report time, where a single value would have
+ * to stand for every pass. Leaves an existing label alone so the 'ALL' that
+ * location-agnostic specs declare survives.
+ */
+export function recordPassLocation(resultsDir: string, location: string): void {
+  if (!location) {
+    return;
+  }
+
+  for (const resultPath of collectResultFiles(resultsDir)) {
+    try {
+      const result = JSON.parse(fs.readFileSync(resultPath, 'utf8')) as AllureResultFile;
+      const labels = result.labels ?? [];
+
+      if (labels.some((label) => label.name === EPIC_LABEL)) {
+        continue;
+      }
+
+      // A location-agnostic spec runs once per platform and belongs under ALL
+      // whichever pass happened to execute it, so it must not inherit that
+      // pass's country.
+      const spec = labels.find((label) => label.name === SUITE_LABEL)?.value ?? '';
+      const value = LOCATION_AGNOSTIC_SPEC_GLOBS.some((glob) => glob.endsWith(spec) && spec)
+        ? AGNOSTIC_LOCATION
+        : location;
+
+      result.labels = [...labels, { name: EPIC_LABEL, value }];
+      fs.writeFileSync(resultPath, JSON.stringify(result, null, 2));
+    } catch (error) {
+      console.warn(`Unable to record the location label for ${resultPath}:`, error);
+    }
+  }
+}
+
 function generateReport(resultsDirs: string[], reportDir: string, historyFilePath: string): void {
   const activeResults = resultsDirs.filter((dir) => hasAllureResults(dir));
   const runType = getRunType();
@@ -301,7 +409,11 @@ function generateReport(resultsDirs: string[], reportDir: string, historyFilePat
   // reads/writes the current history.jsonl file through allurerc.mjs.
   for (const dir of activeResults) {
     seedAllureMetadata(dir, path.basename(reportDir));
-    enrichRunTypeLabels(dir, runType);
+    enrichRunLabels(dir, {
+      runType,
+      platform: getPlatformForResultsDir(dir),
+      location: getEnv('LOCATION').trim().toUpperCase(),
+    });
     restoreHistory(dir, reportDir);
   }
 
@@ -322,7 +434,7 @@ function generateReport(resultsDirs: string[], reportDir: string, historyFilePat
         ...process.env,
         ALLURE_OUTPUT_DIR: reportDir,
         ALLURE_HISTORY_PATH: historyFilePath,
-        ALLURE_REPORT_NAME: `Mattamy Homes Automation (${path.basename(reportDir)})`,
+        ALLURE_REPORT_NAME: `Mattamy Homes Automation (${getSuiteName(path.basename(reportDir))})`,
       },
     },
   );

@@ -87,7 +87,7 @@ export class SearchablePage extends BasePage {
   async search(value: string, searchType?: SearchType): Promise<void> {
     await this.step(`Search for "${value}"`, async () => {
       await this.waitForPageReady();
-      await this.settle(1500);
+      await this.settle(800);
 
       for (let attempt = 1; attempt <= this.SEARCH_MAX_ATTEMPTS + 1; attempt++) {
         await this.reportValue(`Searching (attempt ${attempt}): ${value}`);
@@ -117,8 +117,14 @@ export class SearchablePage extends BasePage {
         for (const char of value) {
           typedValue += char;
 
-          await searchBox.type(char, { delay: 300 });
-          await this.settle(500);
+          // Typed one character at a time so the earliest matching suggestion
+          // wins and long values do not have to be entered in full. The cost is
+          // paid per character, so the keystroke delay stays small and the wait
+          // for suggestions to redraw is a settle() that returns as soon as the
+          // DOM goes quiet rather than a fixed sleep - a 24-character QMI
+          // address otherwise spends most of the test in this loop.
+          await searchBox.type(char, { delay: 80 });
+          await this.settle(250);
 
           const matchedResult = await this.getSearchResult(typedValue, searchType);
 
@@ -223,10 +229,7 @@ export class SearchablePage extends BasePage {
 
   // Navigates directly to a search result href (resolved to a full URL) and waits for the page to settle.
   private async gotoSearchResultHref(href: string): Promise<void> {
-    await this.page.goto(this.buildFullUrl(href), {
-      waitUntil: 'domcontentloaded',
-      timeout: 90_000,
-    });
+    await this.gotoAndVerifyResponse(this.buildFullUrl(href));
 
     await this.waitForPageReady();
   }
@@ -326,10 +329,7 @@ export class SearchablePage extends BasePage {
       `No autocomplete market result found - navigating to search results for: ${market}`,
     );
 
-    await this.page.goto(`${baseURL}/search?${searchParams.toString()}`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 90_000,
-    });
+    await this.gotoAndVerifyResponse(`${baseURL}/search?${searchParams.toString()}`);
 
     await this.waitForPageReady();
   }

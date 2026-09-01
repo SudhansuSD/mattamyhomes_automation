@@ -235,8 +235,6 @@ function findSpecFiles(dir: string): string[] {
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      // Skip appium folder (excluded by playwright.config testIgnore).
-      if (entry.name.toLowerCase() === 'appium') continue;
       out.push(...findSpecFiles(full));
     } else if (/\.spec\.ts$/i.test(entry.name)) {
       // Skip non-page specs (evidence exports, redirect/sitemap/404 checks).
@@ -877,7 +875,9 @@ function buildTestPlan(modules: SpecModule[]): string {
   lines.push(`- **Project:** ${PROJECT_NAME}`);
   lines.push('- **Test Framework:** Playwright + TypeScript');
   lines.push('- **Pattern:** Page Object Model (POM)');
-  lines.push('- **Mobile Web:** WebdriverIO + Appium (Android) — separate suite');
+  lines.push(
+    '- **Mobile Web:** Playwright device profiles (iPhone 14 / WebKit, Pixel 7 / Chromium) — same specs',
+  );
   lines.push(`- **Spec Files Discovered:** ${modules.length}`);
   lines.push(`- **Automated Test Cases:** ${addedCount(modules)} ${ADDED_MARK}`);
   if (planned > 0) {
@@ -903,7 +903,9 @@ function buildTestPlan(modules: SpecModule[]): string {
   lines.push('| Language | TypeScript (ts-node) |');
   lines.push('| Design pattern | Page Object Model |');
   lines.push('| Reporters | Playwright `line`, Playwright `html`, `allure-playwright` |');
-  lines.push('| Mobile suite | WebdriverIO + Appium (uiautomator2) |');
+  lines.push(
+    '| Mobile suite | Playwright device profiles — Mobile Safari (iPhone 14), Mobile Chrome (Pixel 7) |',
+  );
   if (allPageObjects.length) {
     lines.push(`| Page objects | ${allPageObjects.map((p) => '`' + p + '`').join(', ')} |`);
   }
@@ -1018,7 +1020,9 @@ function buildTestPlan(modules: SpecModule[]): string {
   // Out of Scope
   lines.push('## Out of Scope');
   lines.push('');
-  lines.push('- Native mobile app testing (only mobile *web* via Appium is covered).');
+  lines.push(
+    '- Native mobile app testing (only mobile *web*, via Playwright device profiles, is covered).',
+  );
   lines.push('- Backend / API contract testing.');
   lines.push('- Performance, load and security testing.');
   lines.push('- Actual lead-form submissions (forms are validated without submitting).');

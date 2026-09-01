@@ -182,10 +182,7 @@ export class CustomerCarePage extends BasePage {
 
       await this.reportValue('Target URL', targetUrl);
 
-      await this.page.goto(targetUrl, {
-        waitUntil: 'domcontentloaded',
-        timeout: 90_000,
-      });
+      await this.gotoAndVerifyResponse(targetUrl);
 
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();

@@ -94,7 +94,7 @@ jobs:
         run: npm ci --no-audit --prefer-offline
 
       # Quality gates run BEFORE tests and fail the job loudly (no continue-on-error).
-      - name: Type-check (desktop + mobile)
+      - name: Type-check
         run: npm run typecheck
 
       - name: Lint
@@ -144,10 +144,20 @@ jobs:
         env:
           ENV: ${{ env.TEST_ENV }}
           REPORT_SITE_DIR: gh-pages-site
+          # Must name the same stream the publish step below publishes, so the
+          # merged report extends the chain rather than starting a new one.
+          REPORT_HISTORY_MODE: merged
 
-      - name: Generate Allure HTML report
+      # Three reports from one run: a per-platform report each, plus the merged
+      # web + mobile report that the email summarises and the site publishes.
+      # allure:merge reads whichever results dirs actually have results, so a
+      # single-platform run still produces a valid merged report.
+      - name: Generate Allure HTML reports
         if: always()
-        run: npm run allure:generate
+        run: |
+          npm run allure:generate
+          npm run allure:generate:mobile
+          npm run allure:merge
         env:
           ENV: ${{ env.TEST_ENV }}
           # Needed so the report's Environment widget names the location(s)
@@ -167,8 +177,14 @@ jobs:
         id: allure-site
         shell: bash
         run: |
-          if [ -f "allure-report/desktop/awesome/index.html" ]; then
+          # The merged report is what gets published; desktop is the fallback for
+          # a run where only one platform produced results.
+          if [ -f "allure-report/merged/awesome/index.html" ]; then
             echo "has_report=true" >> "$GITHUB_OUTPUT"
+            echo "source_dir=allure-report/merged" >> "$GITHUB_OUTPUT"
+          elif [ -f "allure-report/desktop/awesome/index.html" ]; then
+            echo "has_report=true" >> "$GITHUB_OUTPUT"
+            echo "source_dir=allure-report/desktop" >> "$GITHUB_OUTPUT"
           else
             echo "has_report=false" >> "$GITHUB_OUTPUT"
           fi
@@ -185,6 +201,8 @@ jobs:
           ENV: ${{ env.TEST_ENV }}
           LOCATION: ${{ env.TEST_LOCATION }}
           REPORT_SITE_DIR: gh-pages-site
+          REPORT_SOURCE_DIR: ${{ steps.allure-site.outputs.source_dir }}
+          REPORT_HISTORY_MODE: merged
           BUILD_NUMBER: ${{ github.run_number }}
           # Builds retained per run type + environment pair before the oldest are
           # pruned. Kept modest because GitHub Pages hard-fails above a 1 GB site.

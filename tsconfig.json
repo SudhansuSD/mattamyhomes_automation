@@ -1,8 +1,4 @@
 {
-  // NOTE: No project `references` here. The mobile profile (tsconfig.mobile.json)
-  // is type-checked separately via `npm run typecheck:mobile`. Referencing it as a
-  // composite project made `tsc -p tsconfig.json --noEmit` fail with TS6305 from a
-  // plain terminal (it only worked in the editor, which checks per-file).
   "compilerOptions": {
     "target": "ESNext",
     "module": "commonjs",
@@ -26,13 +22,5 @@
     "utils/**/*.ts",
     "playwright.config.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "dist",
-    "pages/mobile",
-    "tests/mobile",
-    "utils/mobilePlatform.ts",
-    "utils/leadform/mobileLeadFormHelper.ts",
-    "wdio.mobile.conf.ts"
-  ]
+  "exclude": ["node_modules", "dist"]
 }

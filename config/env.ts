@@ -9,9 +9,9 @@
  *  - Fail fast with a clear, actionable message ("Missing EMAIL_USER — see
  *    .env.example") instead of blowing up deep inside a test or an SMTP call.
  *
- * Every entry point (playwright.config.ts, wdio.mobile.conf.ts, and the
- * scripts/*.ts) should `import { loadEnv } from '<...>/config/env'` and call
- * `loadEnv()` before reading `process.env`.
+ * Every entry point (playwright.config.ts and the scripts/*.ts) should
+ * `import { loadEnv } from '<...>/config/env'` and call `loadEnv()` before
+ * reading `process.env`.
  */
 import fs from 'node:fs';
 import path from 'node:path';

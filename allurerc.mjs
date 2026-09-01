@@ -99,7 +99,8 @@ export default defineConfig({
     {
       name: 'Network / navigation errors',
       matchedStatuses: ['failed', 'broken'],
-      messageRegex: '.*(net::ERR|ECONNREFUSED|ENOTFOUND|navigation|Response status|net error|ERR_).*',
+      messageRegex:
+        '.*(net::ERR|ECONNREFUSED|ENOTFOUND|navigation|Response status|net error|ERR_).*',
       groupBy: ['status', 'environment'],
       groupByMessage: true,
       groupEnvironments: true,
@@ -123,7 +124,11 @@ export default defineConfig({
         reportName,
         reportLanguage: 'en',
         singleFile: false,
-        groupBy: ['label-name:runType', 'epic', 'feature', 'story', 'suite'],
+        // parentSuite carries the platform (Web / Mobile) and sits directly under
+        // the run type, so the merged web + mobile report splits by platform
+        // before it splits by country. Without it the platform is visible only
+        // on a test's own page, never in the tree.
+        groupBy: ['label-name:runType', 'parentSuite', 'epic', 'feature', 'story', 'suite'],
         charts,
       },
     },

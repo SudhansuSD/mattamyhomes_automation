@@ -1,4 +1,5 @@
 import { Page, Locator, expect } from '@playwright/test';
+import { getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 // Footer Page Object Model
@@ -13,7 +14,7 @@ export class Footer extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    this.footerSection = page.locator("//section[@id='footer']");
+    this.footerSection = getFooter(page);
     this.privacyPolicyLink = page.getByRole('link', {
       name: /Privacy Policy/i,
     });

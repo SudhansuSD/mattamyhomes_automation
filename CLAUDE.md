@@ -1,8 +1,10 @@
 # Mattamy Homes Automation Framework
 
-End-to-end suite for the Mattamy Homes site. Desktop web is Playwright +
-TypeScript; mobile web is WebdriverIO + Appium. Reporting is Allure (desktop /
-mobile / merged) plus an emailed HTML summary.
+End-to-end suite for the Mattamy Homes site. Playwright + TypeScript
+throughout: desktop web runs the browser projects, mobile web runs the same
+specs against phone device profiles (Mobile Safari = iPhone 14 on WebKit,
+Mobile Chrome = Pixel 7). Reporting is Allure (desktop / mobile / merged) plus
+an emailed HTML summary.
 
 See [README.md](README.md) for setup and the full command list. This file covers
 the conventions to follow when changing code here.
@@ -14,9 +16,9 @@ npm test                  # all desktop tests, every configured location
 npm run test:ci           # @ci subset - fastest sanity check
 npm run test:smoke        # @smoke
 npm run test:regression   # @regression
-npm run test:mobile:android
+BROWSER=mobile-safari npm test   # mobile web (iPhone 14 / WebKit)
 
-npm run typecheck         # desktop + mobile; both must pass
+npm run typecheck
 npm run lint
 npm run format
 ```
@@ -30,13 +32,12 @@ browsers are installed. Run both before handing work back.
 | --- | --- |
 | `tests/` | Specs. Thin - orchestration and assertions only |
 | `pages/` | Desktop page objects (`BasePage` -> `SearchablePage` -> page) |
-| `pages/mobile/` | Mobile page objects (`MobileWebBasePage` -> page) |
 | `support/` | Page-object collaborators (overlays, media audit, lead-form flow) |
 | `utils/reporting/` | Allure steps, metadata, timeout diagnostics reporter |
 | `utils/evidence/` | Sharded evidence stores merged into xlsx at teardown |
-| `utils/leadform/` | Lead-form fill/submit helpers (desktop + mobile) |
+| `utils/leadform/` | Lead-form fill/submit helpers |
 | `utils/web/` | Page-object helpers, redirect and accessibility checks |
-| `utils/` | Remaining cross-cutting helpers (Jira client, mobile platform) |
+| `utils/` | Remaining cross-cutting helpers (Jira client) |
 | `config/` | Environment, location, browser, and feature-expectation config |
 | `scripts/` | Runners, Allure/report generation, Jira + generation pipeline |
 
@@ -46,6 +47,14 @@ browsers are installed. Run both before handing work back.
 does, not how. Longer comments are for explaining *why* a non-obvious approach
 was chosen - the existing ones record real debugging outcomes and are worth
 matching in tone.
+
+**No change-log commentary, anywhere.** Comments and docs describe the code as
+it stands, never the edit that produced it. A reader who never saw the previous
+version must not be able to tell one existed - so no "changed from", "previously",
+"was 5s", "removed the old retry", and no references to retired files or
+approaches by name. Keep the reason, drop the history; the diff and the commit
+message already carry it. This applies to `README.md`, this file, and `docs/`
+too: document the current state, not the migration.
 
 **Report through Allure, never `console.log`.** Use `step()` and `reportValue()`
 from `utils/reporting/allureReporter` (exposed as `this.step` / `this.reportValue` on
@@ -59,8 +68,11 @@ area, and put the tags plus the location in the title:
 test(`@smoke @regression | ${location.country} | Home page should load correctly`, ...)
 ```
 
-**Mobile specs mirror the desktop ones.** Same section structure, search flows
-start from the home page, and failures are hard failures.
+**One spec, both platforms.** Mobile web is a device profile, not a second
+suite: the same specs and page objects run at a phone viewport. Where a page
+behaves differently on mobile, branch inside the page object on
+`isMobileHeaderViewport()` - as `Header` does to open the collapsed nav panel -
+and never weaken an assertion to make both layouts pass.
 
 **Never navigate off-site.** For third-party links, assert `href`/`target` and
 dismiss any modal - do not click through.

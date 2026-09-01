@@ -65,10 +65,7 @@ export class PromoPage extends BasePage {
         `ENV=${envName} | COUNTRY=USA | URL=${targetUrl}`,
       );
 
-      await this.page.goto(targetUrl, {
-        waitUntil: 'domcontentloaded',
-        timeout: 90_000,
-      });
+      await this.gotoAndVerifyResponse(targetUrl);
 
       await this.dismissBlockingOverlays();
       await this.waitForPageReady();

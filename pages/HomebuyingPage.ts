@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
-import { escapeRegex } from '../utils/web/pageObjectUtils';
+import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 // Homebuying Pages Object Model Covers the Homebuying section pages, driven by a per-path expectation map (mirrors AboutUsPage): - /homebuying/homebuying    (Journey / What to Expect) - /homebuying/financing     (Financing + MortgageCalculator) - /homebuying/shopping-tools(Shopping Tools + SavingsCalculator + Form)
@@ -57,7 +57,7 @@ export class HomebuyingPage extends BasePage {
 
     this.header = page.locator('header').first();
     this.main = page.locator('main').first();
-    this.footer = page.locator('#footer, section[id="footer"], footer').first();
+    this.footer = getFooter(page);
   }
 
   /** Opens the given Homebuying page for the configured country. */
@@ -75,7 +75,7 @@ export class HomebuyingPage extends BasePage {
         `ENV=${envName} | PAGE=${expectation.name} | URL=${targetUrl}`,
       );
 
-      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+      await this.gotoAndVerifyResponse(targetUrl);
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.ensurePageRendered();

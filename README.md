@@ -3,7 +3,7 @@
 End-to-end test automation for the Mattamy Homes website:
 
 - **Desktop web** — [Playwright](https://playwright.dev/) + TypeScript (Page Object Model)
-- **Mobile web** — [WebdriverIO](https://webdriver.io/) + [Appium](https://appium.io/) (Android/iOS Chrome/Safari)
+- **Mobile web** — Playwright device profiles: Mobile Safari (iPhone 14 / WebKit) and Mobile Chrome (Pixel 7)
 - **Reporting** — [Allure](https://allurereport.org/) (desktop / mobile / merged) + an emailed HTML summary
 - **Generation** — `ts-node` scripts that pull Jira requirements and scaffold specs/docs
 
@@ -19,9 +19,6 @@ terminal, and CI — no hidden IDE setup.
 | Node.js | **20 LTS or newer** (repo is pinned to **24** via `.nvmrc`) | `nvm use` picks it up automatically |
 | npm | 10+ (ships with Node) | |
 | Git | any recent | |
-
-Mobile only (optional): Android SDK + emulator (or a real device) and Appium
-drivers — see [`docs/appium-mobile-browser-testing.md`](docs/appium-mobile-browser-testing.md).
 
 > **Python is not required.** A leftover `.venv/` may exist locally; it is ignored
 > and can be deleted.
@@ -147,18 +144,21 @@ npx playwright test --project=Chrome --grep @smoke -g "hero video"
 
 ## 4. Running mobile tests
 
-Requires a running Appium server + emulator/device. See the mobile doc above.
+Mobile web runs the same specs as desktop against Playwright device profiles —
+no emulator, no Appium server, no extra install. `BROWSER` selects the profile:
 
 ```bash
-npm run test:mobile:android            # full Android suite
-npm run test:mobile:ios                # iOS (uses cross-env, works on Windows)
+BROWSER=mobile-safari npm test          # iPhone 14 on WebKit (the iOS engine)
+BROWSER=mobile-chrome npm test          # Pixel 7 on Chromium
+BROWSER=ios npm run test:smoke          # aliases: ios / iphone, android
 
-# single spec — pass --spec (works for both platforms):
-npm run test:mobile:android -- --spec ./tests/mobile/mobileWeb.home.spec.ts
-npm run test:mobile:ios -- --spec ./tests/mobile/mobileWeb.searchPage.spec.ts
+# a single spec, on a phone profile:
+BROWSER=mobile-safari npx playwright test tests/homePage.spec.ts --project="Mobile Safari"
 ```
 
-All mobile scripts are cross-shell safe (inline env vars go through `cross-env`).
+`npm run test:smoke` runs **both** platforms in one command (`PLATFORMS=web,mobile`),
+writing `allure-results/desktop` and `allure-results/mobile` separately. Every test
+is labelled `Web` or `Mobile` in the report.
 
 ---
 
@@ -245,7 +245,7 @@ GitHub setup this depends on: **Settings → Pages → Source = Deploy from a br
 ## 6. Quality gates
 
 ```bash
-npm run typecheck        # tsc --noEmit for BOTH tsconfig.json and tsconfig.mobile.json
+npm run typecheck        # tsc --noEmit
 npm run lint             # ESLint (typescript-eslint)
 npm run lint:fix         # ESLint autofix
 npm run format           # Prettier write
@@ -318,7 +318,6 @@ is still useful for local or manual runs when you want to override the link.
 | `LEAD_API_CAPTURE_XLSX` | `leadApiCapture.ts` | output path (repo-root anchored) | `results/lead-api-data.xlsx` |
 | `MOBILE_PLATFORM` / `APPIUM_PLATFORM` | mobile | Android/iOS selection | `Android` |
 | `MOBILE_DEVICE_NAME` / `MOBILE_BROWSER_NAME` / `MOBILE_AUTOMATION_NAME` | mobile | capabilities | see `.env.example` |
-| `APPIUM_HOST` / `APPIUM_PORT` | mobile | Appium server | `127.0.0.1` / `4725` |
 | `APPIUM_UDID` / `APPIUM_DEVICE_NAME` / `APPIUM_PLATFORM_VERSION` | mobile | capability overrides | — |
 | `APPIUM_NO_RESET` | mobile | session reset | `true` |
 | `MOBILE_BASE_URL` | mobile | override base URL | envConfig baseURL |
@@ -356,8 +355,8 @@ reporter, enables the firefox/webkit projects, runs 2 workers, and retries once.
 ## 10. Project layout
 
 ```
-pages/            Desktop Page Object Model (pages/mobile/ = mobile POM)
-tests/            Desktop specs (tests/mobile/ = mobile specs)
+pages/            Page Object Model (shared by desktop and mobile projects)
+tests/            Specs (run against both desktop and mobile projects)
 config/           env.ts (env loader/validator), environments/, locations/, allure/categories.json
 scripts/          ts-node tools: allure report, email, Jira fetch/analyze, generators
 utils/            Shared helpers (allureReporter, allureMeta, jiraClient, lead-form, ...)

@@ -22,6 +22,7 @@ import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { BasePage } from '../pages/BasePage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
+import { getFooter } from '../utils/web/pageObjectUtils';
 
 const location = getLocationConfig();
 const { baseURL } = getEnvConfig();
@@ -156,7 +157,7 @@ test.describe(`Visual regression - ${location.country}`, () => {
       // template. Marketing content below it is verified functionally instead.
       const regions = [
         { name: 'header', locator: page.locator('header').first() },
-        { name: 'footer', locator: page.locator('footer, [role="contentinfo"]').first() },
+        { name: 'footer', locator: getFooter(page) },
       ];
 
       for (const region of regions) {

@@ -1,7 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
-import { escapeRegex } from '../utils/web/pageObjectUtils';
+import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 // Favorites ("Homes I Love") Page Object Model Covers the /favorites page (SearchFavorites component) and the cross-page "save a home" workflow driven by the heart/favorite toggle rendered on search / community / plan / QMI cards.
@@ -19,7 +19,7 @@ export class FavoritesPage extends BasePage {
 
     this.header = page.locator('header').first();
     this.main = page.locator('main').first();
-    this.footer = page.locator('#footer, section[id="footer"], footer').first();
+    this.footer = getFooter(page);
   }
 
   /**
@@ -55,7 +55,7 @@ export class FavoritesPage extends BasePage {
 
       await this.reportValue('Navigating to Favorites', `ENV=${envName} | URL=${targetUrl}`);
 
-      await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
+      await this.gotoAndVerifyResponse(targetUrl);
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.ensurePageRendered();

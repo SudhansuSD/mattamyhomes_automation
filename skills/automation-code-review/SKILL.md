@@ -1,6 +1,6 @@
 ---
 name: automation-code-review
-description: Review, create, modify, fix, or refactor QA automation code as a Senior QA Automation Architect and code reviewer. Use for Playwright, WebdriverIO/Appium, page objects, components, fixtures, utilities, test data, automation generation, failing-test fixes, framework refactors, and explicit code reviews. Enforces repository exploration, reuse-first design, stable locators, reliable synchronization, non-flaky tests, correct framework layering, environment independence, and focused changes consistent with the existing automation architecture.
+description: Review, create, modify, fix, or refactor QA automation code as a Senior QA Automation Architect and code reviewer. Use for Playwright, page objects, components, fixtures, utilities, test data, automation generation, failing-test fixes, framework refactors, and explicit code reviews. Enforces repository exploration, reuse-first design, stable locators, reliable synchronization, non-flaky tests, correct framework layering, environment independence, and focused changes consistent with the existing automation architecture.
 ---
 
 # Automation Code Review And Quality Guard
@@ -28,7 +28,6 @@ Prefer the existing repository structure:
 
 - `tests/` for validations and scenario intent.
 - `pages/` for desktop Playwright page objects.
-- `pages/mobile/` for WebdriverIO/Appium mobile page objects.
 - `components/` for reusable UI sections when present or clearly justified.
 - `utils/` for shared helpers.
 - `data/` for test data.
@@ -96,6 +95,35 @@ Retries must not hide weak automation. Before adding retry logic, investigate lo
 
 Do not silently swallow critical failures. Optional UI may be handled intentionally, but broad empty catches around required behavior are not acceptable.
 
+## Comments
+
+Comments describe the code as it stands now. A reader who has never seen the previous version must not be able to tell that a previous version existed.
+
+Never write change-log commentary in code, config, or documentation. Do not narrate edits, migrations, removals, renames, bug fixes, or what a value used to be. The diff, the commit message, and the pull request already carry that history; a comment repeating it goes stale the moment the next change lands and misleads every future reader.
+
+Forbidden — these describe a change, not the code:
+
+```ts
+// Changed from getByText to getByRole because the old locator was flaky.
+// Previously cleared the desktop dir unconditionally, which wiped mobile results.
+// The old default of 'Chrome' predates mobile running on WebKit.
+// Was 5s; increased to 15s.
+// Removed the retry loop that used to live here.
+// NOTE: this replaces the deprecated helper in utils/oldHelper.ts.
+```
+
+Correct — the same knowledge, stated as present-tense rationale:
+
+```ts
+// Cleared per platform: each platform owns its own results dir.
+// WebKit is the engine every iOS browser uses, so iPhone runs need it.
+// 15s: the shell hydrates around 'load', measured at ~5s on STAGE.
+```
+
+Keep the reason, drop the history. If a comment's value depends on knowing what the code looked like before, rewrite it so it stands on its own. Do not reference retired files, deleted classes, removed dependencies, or superseded approaches by name.
+
+The same rule applies to `README.md`, `CLAUDE.md`, and every doc in `docs/`: document the current state, not the migration that produced it. Never add "Changelog", "Recent changes", "Migration notes", or "What's new" sections unless the user explicitly asks for one.
+
 ## Assertions
 
 Prefer retryable Playwright assertions over one-time state checks:
@@ -144,6 +172,7 @@ Before considering a change complete, answer these questions and fix problems fo
 - Can the test run safely in parallel where applicable?
 - Did I hardcode environment-specific values?
 - Did I change unrelated functionality?
+- Did I leave any change-log commentary in a comment or doc?
 - Did I unnecessarily introduce a helper or abstraction?
 - Would another QA engineer easily understand this code?
 - Could this change break existing tests?
@@ -187,7 +216,7 @@ Final assessment must be exactly one of:
 
 ## Restrictions
 
-Never rewrite the whole framework unnecessarily, change working functionality without justification, add hard waits simply to pass a test, hide failing assertions, create duplicate utilities, create unnecessary abstractions, over-engineer simple scenarios, use unstable selectors when stable selectors are available, add retries to mask flaky tests, modify unrelated files, remove validations just to pass, or reduce code solely to minimize line count.
+Never rewrite the whole framework unnecessarily, change working functionality without justification, add hard waits simply to pass a test, hide failing assertions, create duplicate utilities, create unnecessary abstractions, over-engineer simple scenarios, use unstable selectors when stable selectors are available, add retries to mask flaky tests, modify unrelated files, remove validations just to pass, reduce code solely to minimize line count, or leave change-log commentary in comments or documentation.
 
 Prioritize reliability, then readability, reusability, maintainability, and simplicity.
 

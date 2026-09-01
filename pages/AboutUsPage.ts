@@ -1,5 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test';
-import { escapeRegex } from '../utils/web/pageObjectUtils';
+import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 import { HeaderNavigationLink } from './Header';
 
@@ -61,7 +61,7 @@ export class AboutUsPage extends BasePage {
 
     this.header = page.locator('header');
     this.main = page.locator('main').first();
-    this.footer = page.locator('#footer, section[id="footer"]').first();
+    this.footer = getFooter(page);
   }
 
   /** Runs the full About page check: shell, content, link hrefs, then any page-specific extras. */

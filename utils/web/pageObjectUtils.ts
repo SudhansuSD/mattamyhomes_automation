@@ -1,4 +1,4 @@
-import { Locator } from '@playwright/test';
+import { Locator, Page } from '@playwright/test';
 
 export async function getNormalizedText(locator: Locator): Promise<string> {
   const text = await locator.innerText({ timeout: 15000 });
@@ -144,3 +144,51 @@ export function getSlugTextPattern(slug: string): RegExp {
 
   return new RegExp(escapedWords.join('[\\s-]+'), 'i');
 }
+
+// Shared Page Shell Selectors
+
+/**
+ * The global footer, however a page chooses to express it.
+ *
+ * Every branch of the union earns its place: most pages render a single
+ * `<section id="footer" role="contentinfo">` and no `footer` tag at all, while
+ * the market pages carry only the role. A tag-only locator resolves to nothing
+ * on the former and reports a present footer as missing.
+ */
+export const FOOTER_SELECTOR = 'section[id="footer"], #footer, footer, [role="contentinfo"]';
+
+/** The page's global footer element. */
+export function getFooter(page: Page): Locator {
+  // .first() guards a page that renders both the section and a footer tag from
+  // becoming strict-mode ambiguous. Today the union matches exactly one element.
+  return page.locator(FOOTER_SELECTOR).first();
+}
+
+/**
+ * The header's mobile menu button.
+ *
+ * The site serves a mobile-only header shell in its SSR HTML and swaps in the
+ * desktop navigation on hydration, so this button still being visible on a
+ * desktop-width viewport means the shell has not hydrated yet. Measured on
+ * STAGE: the header holds 22 descendants with this toggle visible before
+ * hydration, and 198 with it hidden after.
+ */
+export const MOBILE_NAV_TOGGLE_SELECTOR = '#MobileNavigationMenu';
+
+/**
+ * Close button inside the opened mobile navigation panel.
+ *
+ * Used as the "panel is open" signal rather than asserting on the nav links
+ * themselves, so opening the panel and checking its contents stay separate
+ * concerns.
+ */
+export const MOBILE_NAV_CLOSE_SELECTOR = '#closeNavigationMenu';
+
+/**
+ * Viewport width at and above which the header shows its desktop navigation.
+ *
+ * Measured against STAGE rather than assumed: the toggle is visible at 1023px and
+ * hidden at 1024px. Below this the mobile toggle is the correct header, so there
+ * is no desktop navigation to wait for.
+ */
+export const DESKTOP_HEADER_MIN_WIDTH = 1024;

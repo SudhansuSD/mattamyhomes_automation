@@ -1,11 +1,16 @@
 import {
   defineConfig,
+  devices,
   type PlaywrightTestConfig,
   type ReporterDescription,
 } from '@playwright/test';
 import process from 'node:process';
-import { getBrowserProjectKey, type BrowserProjectKey } from './config/browserSelection';
-import { DESKTOP_ALLURE_RESULTS_DIR } from './scripts/allurePaths';
+import {
+  getBrowserProjectKey,
+  isMobileBrowserProject,
+  type BrowserProjectKey,
+} from './config/browserSelection';
+import { DESKTOP_ALLURE_RESULTS_DIR, MOBILE_ALLURE_RESULTS_DIR } from './scripts/allurePaths';
 import { getBoolEnv, getNumberEnv, isCI, loadEnv } from './config/env';
 import { LOCATION_AGNOSTIC_SPEC_GLOBS } from './config/locations/locationAgnosticSpecs';
 
@@ -24,11 +29,25 @@ if (locationPassTotal > 1 && !location) {
 }
 const locationSuffix = locationPassTotal > 1 && location ? `/${location.toUpperCase()}` : '';
 
+/*
+ * Web and mobile are separate report streams, not one mixed pile.
+ *
+ * Exactly one project runs per Playwright process (see `projects` below), so the
+ * selected BROWSER decides which Allure results dir this run writes to -
+ * allure-results/desktop or allure-results/mobile - and the existing
+ * desktop/mobile/merged report generators pick them up unchanged. Trace and
+ * screenshot output is split the same way so a mobile failure's artifacts cannot
+ * overwrite the desktop run's for the same test name.
+ */
+const isMobileRun = isMobileBrowserProject();
+const allureResultsDir = isMobileRun ? MOBILE_ALLURE_RESULTS_DIR : DESKTOP_ALLURE_RESULTS_DIR;
+const platformSuffix = isMobileRun ? '/mobile' : '/desktop';
+
 // Location-agnostic specs are ignored after pass 0 so later passes do not write
 // duplicate Allure entries for specs that are not location-specific.
 
 const isLaterLocationPass = getNumberEnv('LOCATION_PASS_INDEX', 0) > 0;
-const testIgnore = ['appium/**', 'mobile/**'];
+const testIgnore: string[] = [];
 if (isLaterLocationPass) {
   testIgnore.push(...LOCATION_AGNOSTIC_SPEC_GLOBS);
 }
@@ -48,6 +67,7 @@ const chromiumStabilityArgs = [
 const projectsByBrowser = {
   chromium: {
     name: 'Chrome',
+    metadata: { platform: 'web', browserLabel: 'Chrome' },
     use: {
       browserName: 'chromium',
       launchOptions: {
@@ -57,6 +77,7 @@ const projectsByBrowser = {
   },
   firefox: {
     name: 'firefox',
+    metadata: { platform: 'web', browserLabel: 'Firefox' },
     use: {
       browserName: 'firefox',
       viewport: isHeadless ? undefined : desktopViewport,
@@ -64,9 +85,44 @@ const projectsByBrowser = {
   },
   webkit: {
     name: 'webkit',
+    metadata: { platform: 'web', browserLabel: 'WebKit' },
     use: {
       browserName: 'webkit',
       viewport: isHeadless ? undefined : desktopViewport,
+    },
+  },
+  /*
+   * Mobile web, as a device profile of this framework rather than a separate
+   * stack. The device descriptors carry viewport, device pixel ratio, touch and
+   * user agent, and their `viewport` overrides the desktop default in `use`
+   * below - so these must never be given the desktop viewport or the phone
+   * layout under test disappears.
+   *
+   * `metadata.platform` is what labels a result Web or Mobile in the report, so
+   * it is read from the running project rather than inferred from BROWSER.
+   */
+  mobileChrome: {
+    name: 'Mobile Chrome',
+    metadata: { platform: 'mobile', browserLabel: 'Mobile Chrome (Pixel 7)' },
+    use: {
+      ...devices['Pixel 7'],
+      browserName: 'chromium',
+      // No --start-maximized here: it fights the emulated device viewport.
+      launchOptions: { args: chromiumStabilityArgs },
+    },
+  },
+  mobileSafari: {
+    name: 'Mobile Safari',
+    metadata: { platform: 'mobile', browserLabel: 'Mobile Safari (iPhone 14)' },
+    use: {
+      ...devices['iPhone 14'],
+      // WebKit, not Chromium. WebKit is the engine every iOS browser is
+      // required to use, so an iPhone profile on Chromium would emulate the
+      // screen while rendering with the wrong engine - which is precisely the
+      // iOS-specific breakage these tests exist to catch. `devices['iPhone 14']`
+      // already defaults to webkit; naming it keeps that explicit alongside the
+      // other projects, which all set browserName directly.
+      browserName: 'webkit',
     },
   },
 } satisfies Record<BrowserProjectKey, Project>;
@@ -81,21 +137,24 @@ const reporter: ReporterDescription[] = [
   [
     'allure-playwright',
     {
-      resultsDir: DESKTOP_ALLURE_RESULTS_DIR,
+      resultsDir: allureResultsDir,
       detail: false,
       suiteTitle: true,
     },
   ],
 ];
 if (isCI) {
-  reporter.push(['html', { outputFolder: `playwright-report${locationSuffix}`, open: 'never' }]);
+  reporter.push([
+    'html',
+    { outputFolder: `playwright-report${platformSuffix}${locationSuffix}`, open: 'never' },
+  ]);
 }
 
 export default defineConfig({
   testDir: './tests',
   testMatch: '**/*.spec.ts',
   testIgnore,
-  outputDir: `test-results${locationSuffix}`,
+  outputDir: `test-results${platformSuffix}${locationSuffix}`,
   globalSetup: './scripts/playwrightGlobalSetup.ts',
   // Registered under CI too: teardown is what merges the per-worker lead-API
   // capture shards into the xlsx. It skips the Allure HTML build on CI itself.
@@ -114,9 +173,16 @@ export default defineConfig({
   // Govern web-first assertions centrally instead of scattering magic timeouts.
   expect: { timeout: 15_000 },
   /*
-   * Parallel by default. This was serial because the lead-API evidence workbook
-   * is written in teardown, and parallel writes would corrupt it. That is now
-   * handled by the playwrightGlobalTeardown.ts merge, so parallelism is safe.
+   * Serial by default, and this is a deliberate reliability choice rather than a
+   * leftover - the evidence workbook that once forced it is now merged in
+   * playwrightGlobalTeardown.ts.
+   *
+   * The limit is rendering, not CPU. These pages ship 350-600KB of SSR HTML and
+   * hydrate client side, and concurrency starves that: the four static legal
+   * pages pass 7/7 serially and lose 1-2 to "heading not found" at two or four
+   * workers, on the same machine minutes apart. Parallelism buys about 1.4x wall
+   * clock and pays for it by turning passing tests red, so raise PW_WORKERS only
+   * for a run whose failures you are willing to re-check serially.
    */
   workers: getNumberEnv('PW_WORKERS', 1),
   fullyParallel: true,

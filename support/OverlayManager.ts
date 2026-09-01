@@ -40,18 +40,25 @@ export class OverlayManager {
 
     const privacyDialog = this.page.getByRole('dialog', { name: /privacy/i });
 
+    // Every step here is timeboxed, and the whole handler has to finish in about
+    // a second. A locator handler runs INSIDE the timeout budget of the action
+    // that triggered it, so slow work here does not delay the action - it
+    // consumes it. An untimed click inherits the 30s actionTimeout and can hang
+    // on a consent button while its banner animates away, starving a 15s
+    // assertion until it fails without ever sampling. Escalation is a single
+    // pass for the same reason.
     await this.page.addLocatorHandler(privacyDialog, async (dialog) => {
       const dismissButton = dialog
         .getByRole('button', { name: /close|accept|agree|got it|ok|continue|dismiss/i })
         .first();
 
       const buttonVisible = await dismissButton
-        .waitFor({ state: 'visible', timeout: 1000 })
+        .waitFor({ state: 'visible', timeout: 500 })
         .then(() => true)
         .catch(() => false);
 
       if (buttonVisible) {
-        await dismissButton.click({ force: true }).catch(() => undefined);
+        await dismissButton.click({ force: true, timeout: 1000 }).catch(() => undefined);
       }
 
       await this.page.keyboard.press('Escape').catch(() => undefined);
@@ -61,9 +68,12 @@ export class OverlayManager {
       // Us menu navigation stayed blocked, and the test reported a title
       // mismatch ("Mattamy Homes") because the browser never left the home page.
       // A consent dialog we cannot dismiss is environmental noise, so it is
-      // removed rather than left to swallow every subsequent click.
+      // removed rather than left to swallow every subsequent click. Removal is
+      // immediate rather than another click/Escape/wait loop, which is the one
+      // escalation cheap enough to run inside a caller's budget.
       if (await dialog.isVisible().catch(() => false)) {
-        await this.closeNationalPromotion(dialog);
+        await this.removeOverlayNode(dialog);
+        await this.clearStaleModalAriaHidden();
       }
     });
 
@@ -402,16 +412,26 @@ export class OverlayManager {
     }
 
     if (await dialog.isVisible().catch(() => false)) {
-      await dialog
-        .evaluate((element) => {
-          const overlay = element.closest(
-            '[class*="overlay" i], [class*="ReactModal__Overlay" i], [class*="backdrop" i]',
-          );
-          (overlay ?? element).remove();
-        })
-        .catch(() => undefined);
+      await this.removeOverlayNode(dialog);
     }
 
     await this.clearStaleModalAriaHidden();
+  }
+
+  /**
+   * Removes an overlay we could not dismiss through its own UI.
+   *
+   * Takes the backdrop with it when there is one, so the page is left clickable
+   * rather than covered by an invisible layer.
+   */
+  private async removeOverlayNode(dialog: Locator): Promise<void> {
+    await dialog
+      .evaluate((element) => {
+        const overlay = element.closest(
+          '[class*="overlay" i], [class*="ReactModal__Overlay" i], [class*="backdrop" i]',
+        );
+        (overlay ?? element).remove();
+      })
+      .catch(() => undefined);
   }
 }

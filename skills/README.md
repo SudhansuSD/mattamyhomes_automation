@@ -17,7 +17,6 @@ This repository keeps project-specific Codex skills in `skills/`.
 
 ## Current Mobile Skills
 
-- `desktop-to-appium-mobile`
 
 ## Current Quality Guard Skills
 

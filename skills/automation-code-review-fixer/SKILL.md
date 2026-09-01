@@ -1,6 +1,6 @@
 ---
 name: automation-code-review-fixer
-description: Safely implement fixes for findings produced by the automation-code-review skill. Use after a Code Review Summary identifies CRITICAL, HIGH, MEDIUM, or LOW automation issues in Playwright, WebdriverIO/Appium, page objects, components, fixtures, utilities, config, or test data. Verifies each finding against the actual implementation before applying the smallest safe remediation and validation.
+description: Safely implement fixes for findings produced by the automation-code-review skill. Use after a Code Review Summary identifies CRITICAL, HIGH, MEDIUM, or LOW automation issues in Playwright, page objects, components, fixtures, utilities, config, or test data. Verifies each finding against the actual implementation before applying the smallest safe remediation and validation.
 ---
 
 # Automation Code Review Fixer
@@ -96,13 +96,30 @@ Low issues include naming, formatting, minor simplification, and small readabili
 
 Fix low issues only when the change is safe, useful, and closely related to the verified finding.
 
+## Comments
+
+Fixes describe the code as it stands after the fix. Never annotate a fix with what it replaced.
+
+Do not write change-log commentary in code, config, or documentation: no narration of the bug, the finding, the previous value, or the edit itself. A reader who never saw the broken version must not be able to tell it existed.
+
+```ts
+// WRONG - narrates the fix
+// Fixed: was using getByText, which matched two elements.
+// Bumped from 5s to 15s to stop the flake.
+
+// RIGHT - states why the code is what it is
+// By role: the text appears in both the card and its tooltip.
+// 15s: the shell hydrates around 'load'.
+```
+
+Keep the reason, drop the history. Do not add "Fixes #123", severity labels, or finding ids to comments; that belongs in the commit message.
+
 ## Repository Exploration
 
 Before each fix, inspect the relevant:
 
 - `tests/`
 - `pages/`
-- `pages/mobile/`
 - `components/`
 - `fixtures/`, when present
 - `utils/`

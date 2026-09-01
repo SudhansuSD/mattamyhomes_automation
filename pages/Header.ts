@@ -1,5 +1,9 @@
 import { Page, Locator, expect } from '@playwright/test';
-import { escapeRegex } from '../utils/web/pageObjectUtils';
+import {
+  escapeRegex,
+  MOBILE_NAV_CLOSE_SELECTOR,
+  MOBILE_NAV_TOGGLE_SELECTOR,
+} from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 export type HeaderNavigationLink = {
@@ -9,6 +13,8 @@ export type HeaderNavigationLink = {
 
 export class Header extends BasePage {
   readonly header: Locator;
+  readonly mobileNavToggle: Locator;
+  readonly mobileNavCloseButton: Locator;
   readonly findYourHomeLink: Locator;
   readonly aboutUsLink: Locator;
   readonly contactUsLink: Locator;
@@ -21,10 +27,57 @@ export class Header extends BasePage {
     super(page);
 
     this.header = page.locator('header');
-    this.findYourHomeLink = this.header.locator('[id="Find Your Dream Home"]');
+    this.mobileNavToggle = page.locator(MOBILE_NAV_TOGGLE_SELECTOR);
+    this.mobileNavCloseButton = page.locator(MOBILE_NAV_CLOSE_SELECTOR);
+    // By role, not by id: the desktop header gives this control
+    // `id="Find Your Dream Home"`, while the same control inside the opened
+    // mobile navigation panel carries no id at all. The accessible name is the
+    // one thing both layouts share, so one locator serves both.
+    this.findYourHomeLink = this.header.getByRole('button', {
+      name: /^Find Your Dream Home$/i,
+    });
     this.aboutUsLink = this.header.getByRole('button', { name: /^About$/i });
     this.contactUsLink = this.header.locator('[id="Contact Us"]');
     this.aboutUsMenuLinks = this.header.locator('a[role="button"][href^="/about"]');
+  }
+
+  // Mobile Navigation Panel
+
+  /**
+   * Opens the mobile navigation panel, and does nothing when it is already open.
+   *
+   * The phone header collapses every nav item behind this toggle, so mobile runs
+   * have to open it before any nav item exists to assert on.
+   *
+   * Deliberately narrow: the toggle's own id plus a real click, so a toggle that
+   * has moved or is covered fails here. Matching a set of speculative selectors
+   * instead risks opening some other control and reporting success.
+   */
+  async openMobileNavIfClosed(): Promise<void> {
+    await this.step('Open mobile navigation panel', async () => {
+      if (await this.mobileNavCloseButton.isVisible().catch(() => false)) {
+        return;
+      }
+
+      // The consent dialog and promo overlay both sit on top of the toggle at
+      // phone widths, where there is far less room around it than on desktop.
+      await this.acceptCookiesIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+
+      await this.mobileNavToggle.click();
+
+      await expect(
+        this.mobileNavCloseButton,
+        'Mobile navigation panel should open when the menu button is tapped',
+      ).toBeVisible({ timeout: 15000 });
+    });
+  }
+
+  /** Opens the mobile nav panel first when the run is at a phone width. */
+  private async revealNavigationForViewport(): Promise<void> {
+    if (await this.isMobileHeaderViewport()) {
+      await this.openMobileNavIfClosed();
+    }
   }
 
   // Header Visibility Validation
@@ -32,8 +85,53 @@ export class Header extends BasePage {
   /** Checks that the header links are visible. */
   async verifyHeaderLinksVisible(): Promise<void> {
     await this.step('Verify header links visible', async () => {
-      await this.page.waitForSelector('header', { timeout: 20000 });
+      // Attached here, visible below: the two branches each assert visibility
+      // with a message naming their own layout, which a single visibility gate
+      // at this point cannot do.
+      await this.header.first().waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
+
+      await expect(
+        this.header.first(),
+        'Header should be visible, not rendered with visibility:hidden',
+      ).toBeVisible({ timeout: 20000 });
+
+      // On the mobile-web device profiles every nav item is collapsed behind the
+      // menu button, so the panel is opened and the SAME items are validated
+      // rather than the check being weakened to "a hamburger exists".
+      if (await this.isMobileHeaderViewport()) {
+        await expect(
+          this.mobileNavToggle,
+          'Mobile header should expose its navigation menu button',
+        ).toBeVisible({ timeout: 20000 });
+
+        await this.openMobileNavIfClosed();
+
+        await this.assertVisible(
+          this.findYourHomeLink,
+          'Find Your Dream Home should be visible in the mobile navigation panel',
+        );
+        await this.assertVisible(
+          this.aboutUsLink,
+          'About should be visible in the mobile navigation panel',
+        );
+        await this.assertVisible(
+          this.contactUsLink,
+          'Contact Us should be visible in the mobile navigation panel',
+        );
+
+        return;
+      }
+
+      // The desktop navigation does not exist until the header shell hydrates:
+      // the SSR HTML ships a mobile-only header, and the swap happens client
+      // side. Asserted first so a page that never hydrated says so, instead of
+      // reporting "[id=Find Your Dream Home] not attached" and pointing at a
+      // locator that is perfectly correct.
+      await expect(
+        this.mobileNavToggle,
+        'Header should replace its mobile shell with the desktop navigation',
+      ).toBeHidden({ timeout: 20000 });
 
       await this.findYourHomeLink.waitFor({
         state: 'attached',
@@ -149,6 +247,9 @@ export class Header extends BasePage {
   async verifyFindYourHomeLinks(): Promise<void> {
     await this.step('Verify Find Your Dream Home links', async () => {
       await this.registerNationalPromotionHandler();
+      // On mobile the control lives inside the collapsed panel, so it has to be
+      // opened before the flyout can be triggered at all.
+      await this.revealNavigationForViewport();
       await this.clickFindYourHome();
 
       const fyhLinkButtons = this.header.locator('button[href^="/search"], a[href^="/search"]');

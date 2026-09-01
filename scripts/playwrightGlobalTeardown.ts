@@ -2,8 +2,15 @@ import { execSync } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';
 import type { FullConfig } from '@playwright/test';
-import generateAllureReport from './generate-allure-report';
-import { DESKTOP_ALLURE_REPORT_DIR, REPO_ROOT } from './allurePaths';
+import generateAllureReport, { recordPassLocation } from './generate-allure-report';
+import {
+  DESKTOP_ALLURE_REPORT_DIR,
+  DESKTOP_ALLURE_RESULTS_DIR,
+  MOBILE_ALLURE_REPORT_DIR,
+  MOBILE_ALLURE_RESULTS_DIR,
+  REPO_ROOT,
+} from './allurePaths';
+import { isMobileBrowserProject } from '../config/browserSelection';
 import { getBoolEnv, isCI } from '../config/env';
 import { mergeLeadApiCaptures } from '../utils/evidence/leadApiCapture';
 import { mergeProfanityEvidence } from '../utils/evidence/profanityEvidenceStore';
@@ -59,14 +66,27 @@ export default async function globalTeardown(_config: FullConfig): Promise<void>
     console.error('[profanity] Failed to merge profanity evidence into the workbook:', error);
   }
 
+  // Before the report/CI exits below: this pass is the only place that knows
+  // which location it ran under.
+  recordPassLocation(
+    isMobileBrowserProject() ? MOBILE_ALLURE_RESULTS_DIR : DESKTOP_ALLURE_RESULTS_DIR,
+    (process.env.LOCATION ?? '').trim().toUpperCase(),
+  );
+
   if (isCI || getBoolEnv('ALLURE_SKIP_REPORT')) {
     return;
   }
 
-  await generateAllureReport('desktop');
+  // Follows the platform this run used, so a direct `playwright test` against a
+  // mobile project builds the mobile report from the results it just wrote.
+  const isMobileRun = isMobileBrowserProject();
+  const reportDir = isMobileRun ? MOBILE_ALLURE_REPORT_DIR : DESKTOP_ALLURE_REPORT_DIR;
+  const platformName = isMobileRun ? 'Mobile' : 'Desktop';
 
-  const indexPath = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'index.html');
-  console.log(`\n[allure] Desktop HTML report generated:\n         ${indexPath}`);
+  await generateAllureReport(isMobileRun ? 'mobile' : 'desktop');
+
+  const indexPath = path.join(reportDir, 'awesome', 'index.html');
+  console.log(`\n[allure] ${platformName} HTML report generated:\n         ${indexPath}`);
 
   if (getBoolEnv('ALLURE_OPEN')) {
     console.log('[allure] ALLURE_OPEN=1 -> opening report (Ctrl+C to stop)...\n');
@@ -76,7 +96,7 @@ export default async function globalTeardown(_config: FullConfig): Promise<void>
       '.bin',
       process.platform === 'win32' ? 'allure.cmd' : 'allure',
     );
-    execSync(`"${allureBin}" open "${DESKTOP_ALLURE_REPORT_DIR}"`, {
+    execSync(`"${allureBin}" open "${reportDir}"`, {
       cwd: REPO_ROOT,
       stdio: 'inherit',
     });

@@ -1,6 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { escapeRegex } from '../utils/web/pageObjectUtils';
+import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 export type StaticLegalPageLink = {
@@ -119,7 +119,7 @@ export class StaticLegalPage extends BasePage {
 
     this.header = page.locator('header').first();
     this.contentRoot = page.locator('body');
-    this.footer = page.locator('#footer, section[id="footer"], footer').first();
+    this.footer = getFooter(page);
   }
 
   /** Opens the legal/static page, clearing the cookie banner and promo popup on the way in. */
@@ -137,10 +137,7 @@ export class StaticLegalPage extends BasePage {
         `ENV=${envName} | STATIC_PAGE=${config.name} | URL=${targetUrl}`,
       );
 
-      await this.page.goto(targetUrl, {
-        waitUntil: 'domcontentloaded',
-        timeout: 90_000,
-      });
+      await this.gotoAndVerifyResponse(targetUrl);
 
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();

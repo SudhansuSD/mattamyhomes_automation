@@ -1,5 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test';
-import { escapeRegex } from '../utils/web/pageObjectUtils';
+import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
 // Design Studio Page Object Model Covers the /design-studio marketing page (ContentHero, ProductOverview, Market Selector and TitleCTA components).
@@ -19,7 +19,7 @@ export class DesignStudioPage extends BasePage {
 
     this.header = page.locator('header').first();
     this.main = page.locator('main').first();
-    this.footer = page.locator('#footer, section[id="footer"], footer').first();
+    this.footer = getFooter(page);
     // "Find your Design Studio" is NOT a dropdown - it is a collapsed panel. Until
     // the SEARCH NOW button expands it, the whole market list sits in the DOM as
     // aria-hidden="true" / tabindex="-1", which is why getByRole could not see it

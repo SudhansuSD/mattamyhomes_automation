@@ -4,7 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import nodemailer from 'nodemailer';
-import { DESKTOP_ALLURE_REPORT_DIR, DESKTOP_ALLURE_RESULTS_DIR } from './allurePaths';
+import {
+  DESKTOP_ALLURE_REPORT_DIR,
+  DESKTOP_ALLURE_RESULTS_DIR,
+  MERGED_ALLURE_REPORT_DIR,
+  MOBILE_ALLURE_RESULTS_DIR,
+} from './allurePaths';
 import { loadEnv } from '../config/env';
 import { getBrowserDisplayName } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
@@ -217,13 +222,32 @@ function collectJsonFiles(dir: string): string[] {
   return collected;
 }
 
+/**
+ * The report the email summarises: the merged web + mobile report when one was
+ * built, else the desktop report.
+ *
+ * A run that covers a single platform never builds a merged report, so the
+ * fallback keeps those emails working unchanged.
+ */
+function getSummaryReportDir(): string {
+  const merged = path.join(MERGED_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
+
+  return fs.existsSync(merged) ? MERGED_ALLURE_REPORT_DIR : DESKTOP_ALLURE_REPORT_DIR;
+}
+
 function readAllureResults(): AllureResult[] {
   const results: AllureResult[] = [];
 
-  const resultFiles = collectResultFiles(DESKTOP_ALLURE_RESULTS_DIR);
+  // Both platforms: the email covers the whole run, not one project.
+  const resultFiles = [
+    ...collectResultFiles(DESKTOP_ALLURE_RESULTS_DIR),
+    ...collectResultFiles(MOBILE_ALLURE_RESULTS_DIR),
+  ];
 
   if (resultFiles.length === 0) {
-    console.warn(`Allure results folder not found or empty: ${DESKTOP_ALLURE_RESULTS_DIR}`);
+    console.warn(
+      `Allure results folders not found or empty: ${DESKTOP_ALLURE_RESULTS_DIR}, ${MOBILE_ALLURE_RESULTS_DIR}`,
+    );
     return results;
   }
 
@@ -239,7 +263,7 @@ function readAllureResults(): AllureResult[] {
 }
 
 function readAllureReportSummary(): AllureReportSummary | null {
-  const summaryPath = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
+  const summaryPath = path.join(getSummaryReportDir(), 'awesome', 'widgets', 'statistic.json');
 
   if (!fs.existsSync(summaryPath)) {
     return null;
@@ -254,7 +278,7 @@ function readAllureReportSummary(): AllureReportSummary | null {
 }
 
 function readAllureReportTestCases(): AllureReportTestCase[] {
-  const testCaseDir = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'data', 'test-results');
+  const testCaseDir = path.join(getSummaryReportDir(), 'awesome', 'data', 'test-results');
   const testCases: AllureReportTestCase[] = [];
 
   for (const testCasePath of collectJsonFiles(testCaseDir)) {

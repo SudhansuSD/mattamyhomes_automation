@@ -1,6 +1,6 @@
 # MCP Around The Automation Framework
 
-MCP should sit around this repository as an assistant integration layer. The Playwright, WebdriverIO, and Appium tests still run normally; MCP helps collect context, inspect pages, and feed the existing generator scripts.
+MCP should sit around this repository as an assistant integration layer. The Playwright tests still run normally; MCP helps collect context, inspect pages, and feed the existing generator scripts.
 
 ## Recommended MCP Use
 

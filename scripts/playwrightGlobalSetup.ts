@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import type { FullConfig } from '@playwright/test';
-import { DESKTOP_ALLURE_RESULTS_DIR } from './allurePaths';
+import { DESKTOP_ALLURE_RESULTS_DIR, MOBILE_ALLURE_RESULTS_DIR } from './allurePaths';
+import { isMobileBrowserProject } from '../config/browserSelection';
 import { getBoolEnv } from '../config/env';
 
 /**
@@ -17,12 +18,20 @@ import { getBoolEnv } from '../config/env';
  * ALLURE_KEEP_RESULTS=1 (set by scripts/run-locations.ts for every pass after
  * the first) preserves the results already written for earlier locations, so a
  * multi-location run produces one report covering all of them.
+ *
+ * Only THIS run's platform is cleared. Each platform owns its own results dir,
+ * so a web+mobile run must not let one platform's first pass wipe the other's
+ * results.
  */
 export default async function globalSetup(_config: FullConfig): Promise<void> {
+  const resultsDir = isMobileBrowserProject()
+    ? MOBILE_ALLURE_RESULTS_DIR
+    : DESKTOP_ALLURE_RESULTS_DIR;
+
   if (getBoolEnv('ALLURE_KEEP_RESULTS')) {
     console.log('[allure] ALLURE_KEEP_RESULTS=1 → keeping results from the previous location pass');
     return;
   }
 
-  fs.rmSync(DESKTOP_ALLURE_RESULTS_DIR, { recursive: true, force: true });
+  fs.rmSync(resultsDir, { recursive: true, force: true });
 }
