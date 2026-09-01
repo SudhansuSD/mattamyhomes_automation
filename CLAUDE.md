@@ -114,10 +114,9 @@ USA-only, condo community and condo plan are CAN-only.
 
 **Live lead submissions are currently paused on every environment, STAGE
 included.** STAGE submissions create real CRM records, so the pause lives in
-`config/environments/leadSubmissionPolicy.ts` rather than in a runner flag -
-`npm run test:no-submit` only protected the runs that remembered to use it.
-Guard anything that submits a live form through that module, never by testing
-`envName` directly:
+`config/environments/leadSubmissionPolicy.ts` rather than in a runner flag - it
+has to hold for every run, however that run was started. Guard anything that
+submits a live form through that module, never by testing `envName` directly:
 
 ```ts
 test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');

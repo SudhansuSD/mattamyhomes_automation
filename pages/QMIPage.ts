@@ -726,7 +726,14 @@ export class QMIPage extends SearchablePage {
     }
   }
 
-  /** Dismisses the OneTrust cookie banner when it appears. */
+  /**
+   * Dismisses the OneTrust cookie banner when it appears.
+   *
+   * Timeboxed and non-fatal, because this is environmental noise rather than anything under test.
+   * The banner animates itself away, so it is routinely visible when checked and gone by the time
+   * the click runs - and an untimed click there inherits the 30s action timeout and fails the whole
+   * test on a dismissal that had already succeeded on its own.
+   */
   private async dismissCookieBannerIfPresent(): Promise<void> {
     await this.acceptCookiesIfPresent();
 
@@ -736,7 +743,7 @@ export class QMIPage extends SearchablePage {
       .first();
 
     if (await isLocatorVisible(closeCookieBannerBtn)) {
-      await closeCookieBannerBtn.click();
+      await closeCookieBannerBtn.click({ timeout: 5_000 }).catch(() => undefined);
     }
   }
 

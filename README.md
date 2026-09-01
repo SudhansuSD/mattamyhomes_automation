@@ -316,14 +316,8 @@ is still useful for local or manual runs when you want to override the link.
 | `REQUIRE_LEAD_API_CAPTURE` | `BasePage.ts` | asserting lead API capture | `false` |
 | `LEAD_API_URL_PATTERN` | `BasePage.ts` | identifying lead API call | — |
 | `LEAD_API_CAPTURE_XLSX` | `leadApiCapture.ts` | output path (repo-root anchored) | `results/lead-api-data.xlsx` |
-| `MOBILE_PLATFORM` / `APPIUM_PLATFORM` | mobile | Android/iOS selection | `Android` |
-| `MOBILE_DEVICE_NAME` / `MOBILE_BROWSER_NAME` / `MOBILE_AUTOMATION_NAME` | mobile | capabilities | see `.env.example` |
-| `APPIUM_UDID` / `APPIUM_DEVICE_NAME` / `APPIUM_PLATFORM_VERSION` | mobile | capability overrides | — |
-| `APPIUM_NO_RESET` | mobile | session reset | `true` |
-| `MOBILE_BASE_URL` | mobile | override base URL | envConfig baseURL |
-| `MOBILE_LOG_CONSOLE` / `WDIO_LOG_LEVEL` | mobile | logging | `false` / `error` |
-| `APPIUM_NAVIGATION_SETTLE_MS` / `APPIUM_SEARCH_MAX_ATTEMPTS` / `APPIUM_USE_HOME_AUTOCOMPLETE` | mobile | tuning | — |
-| `ANDROID_HOME` / `ANDROID_SDK_ROOT` | mobile (Android) | SDK location | system |
+| `PLATFORMS` | `run-locations.ts` | platforms a run covers: `web`, `mobile`, `web,mobile` | `web` |
+| `MOBILE_BROWSER` | `run-locations.ts` | device profile for the mobile pass | `mobile-safari` |
 | `CI` | configs | CI-only behaviour | set by GitHub Actions |
 
 ---

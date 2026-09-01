@@ -4,8 +4,8 @@ declare const process: { env: { ALLOW_LEAD_SUBMISSION?: string } };
 
 /**
  * Live lead submissions are paused on every environment, STAGE included, until the client asks
- * for them again. STAGE submissions still create real CRM records, so the pause is a default
- * rather than a runner flag - `npm run test:no-submit` only helped the runs that remembered it.
+ * for them again. STAGE submissions still create real CRM records, so the pause is a default here
+ * rather than something a runner has to opt into - it has to hold for every run, however started.
  *
  * To resume, either set `ALLOW_LEAD_SUBMISSION=true` for a single run or flip
  * `LEAD_SUBMISSIONS_PAUSED` to false. PROD stays blocked regardless.

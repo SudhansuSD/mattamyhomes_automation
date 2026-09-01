@@ -3,7 +3,7 @@
 #
 # Everything the tests, config, and CI actually need is committed:
 #   - source (pages/, tests/, utils/, scripts/, config/, reporters/, types/)
-#   - playwright.config.ts, wdio.mobile.conf.ts
+#   - playwright.config.ts
 #   - tsconfig*.json, package.json, package-lock.json
 #   - data/*.json fixtures the tests import (e.g. data/test_data.json)
 #

@@ -70,19 +70,12 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
       ],
 
-      // Too noisy for a Playwright/WDIO codebase dominated by dynamic DOM work.
+      // Too noisy for a Playwright codebase dominated by dynamic DOM work.
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-require-imports': 'off',
       '@typescript-eslint/no-unused-expressions': 'off',
       '@typescript-eslint/ban-ts-comment': 'off',
       '@typescript-eslint/no-empty-object-type': 'off',
-    },
-  },
-  {
-    // The mobile layer is intentionally looser (see tsconfig.mobile.json).
-    files: ['pages/mobile/**/*.ts', 'tests/mobile/**/*.ts', 'wdio.mobile.conf.ts'],
-    rules: {
-      '@typescript-eslint/no-unused-vars': 'off',
     },
   },
   prettier,

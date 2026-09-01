@@ -303,21 +303,24 @@ export const GET_INFORMATION_CTA_TEXT = /^\s*(?:Get Information|Stay Updated)\s*
  * Matching on visible text and non-navigating controls keeps the real side-modal trigger, the same
  * way {@link SUBMIT_BUTTON_SELECTOR} sidesteps `aria-hidden` for form lookups.
  *
- * The detail pages also render duplicates of the same CTA inside two sticky quick-action containers,
- * `#detailsBlockBar` and `#anchor-cta`. Both sit off-canvas at a negative `top` until you scroll past
- * the hero, yet still report as visible. Clicking such a copy fails with "Element is outside of the
- * viewport", and it is a `role="link"` that can navigate to /contact, so both bars are excluded here.
+ * Container is deliberately not part of the match. The detail pages render the same trigger three
+ * times - in the breadcrumb bar, in the sticky `#detailsBlockBar`, and in the sticky `#anchor-cta` -
+ * and which copy is the real one depends on the viewport. At phone widths the breadcrumb copy is in
+ * a `hidden md:flex` wrapper and boxes at 0x0, so `#anchor-cta` is the ONLY tappable Get Information
+ * on the page; excluding the sticky bars here left mobile runs with no CTA at all. Picking between
+ * the copies is `LeadFormFlow.getVisibleGetInformationCta`'s job, because it needs the live box: the
+ * bars are `position: fixed` and park off-canvas at a negative `top` until the hero is scrolled past,
+ * which no selector can express.
  *
- * The exclusion names those containers rather than `[aria-hidden="true"]`: an open React modal
- * aria-hides the whole app root, so excluding that would leave no CTAs at all on a page whose promo
- * popup has not been dismissed yet.
+ * Matching on the container instead of `[aria-hidden="true"]` is also why an open React modal does
+ * not blank this out - it aria-hides the whole app root, so an aria-based exclusion would leave no
+ * CTAs on any page whose promo popup has not been dismissed yet.
  */
-const NOT_IN_STICKY_BAR = ':not(#detailsBlockBar *):not(#anchor-cta *)';
 export const GET_INFORMATION_CTA_SELECTOR = [
-  `button${NOT_IN_STICKY_BAR}`,
-  `a:not([href])${NOT_IN_STICKY_BAR}`,
-  `a[href=""]${NOT_IN_STICKY_BAR}`,
-  `a[href^="javascript:"]${NOT_IN_STICKY_BAR}`,
+  'button',
+  'a:not([href])',
+  'a[href=""]',
+  'a[href^="javascript:"]',
 ].join(', ');
 
 /** Get the "Get Information" CTAs that open the lead-form modal on the given page. */

@@ -22,6 +22,14 @@ export type LeadFormFlowDeps = {
   ensureInAccessibilityTree: () => Promise<void>;
 };
 
+/**
+ * Scroll offsets cycled through when hunting for the Get Information CTA.
+ *
+ * Zero is in the ladder because the community hero CTA sits at the top of the page, and the sticky
+ * detail-page bars come down off their negative `top` as soon as the page moves at all.
+ */
+const CTA_SCROLL_POSITIONS = [0, 450, 900, 1400];
+
 export class LeadFormFlow {
   private readonly page: Page;
   private readonly deps: LeadFormFlowDeps;
@@ -38,15 +46,41 @@ export class LeadFormFlow {
    * Finds the Get Information / Stay Updated CTA to click.
    *
    * Prefers the breadcrumb CTA the plan detail, QMI and condo plan pages use, then the hero CTA the
-   * community pages use, then a scan of every CTA on the page. In-viewport candidates win: these pages
-   * also render a zero-box duplicate, and the sticky quick-action bar copy reports as visible while
-   * parked off-canvas, which is what made the click fail with "Element is outside of the viewport".
+   * community pages use, then a scan of every CTA on the page.
    */
   async getVisibleGetInformationCta(pageLabel: string): Promise<Locator> {
+    const candidate = await this.findGetInformationCta();
+
+    if (!candidate) {
+      throw new Error(`No visible Get Information CTA found on ${pageLabel}`);
+    }
+
+    return candidate.locator;
+  }
+
+  /**
+   * Picks the best CTA copy and reports whether it already sits inside the viewport.
+   *
+   * The detail pages render the same trigger up to three times, and which copy is real depends on
+   * the viewport: the breadcrumb copy is the desktop one and boxes at 0x0 behind `hidden md:flex` on
+   * a phone, where the sticky `#anchor-cta` copy is the only tappable one. Zero-box copies drop out
+   * on `isVisible`, so the remaining choice is by position.
+   *
+   * `inViewport` is what callers act on rather than plain visibility, and it means "a click would
+   * land here" - see {@link isClickableInViewport}. Both sticky bars are `position: fixed` and park
+   * at a negative `top` until the hero is scrolled past: visible, with a real box, and unreachable,
+   * because Playwright cannot scroll a fixed element into view. Clicking one in that state fails
+   * with "Element is outside of the viewport" and burns the full action timeout, so a caller that
+   * gets `inViewport: false` scrolls the page instead of clicking.
+   */
+  private async findGetInformationCta(): Promise<{
+    locator: Locator;
+    inViewport: boolean;
+  } | null> {
     let firstVisible: Locator | null = null;
 
     // Most specific container first: the plan/QMI breadcrumb CTA, then the community hero CTA, then
-    // a scan of whatever else matches. Each container-scoped lookup rules out the off-canvas copies.
+    // a scan of whatever else matches, which is what reaches the sticky mobile CTA.
     const ctaSets = [
       getBreadcrumbInformationCta(this.page),
       getHeroInformationCta(this.page),
@@ -63,62 +97,82 @@ export class LeadFormFlow {
           continue;
         }
 
-        if (await this.hasBoxInViewport(candidate)) {
-          return candidate;
+        if (await this.isClickableInViewport(candidate)) {
+          return { locator: candidate, inViewport: true };
         }
 
         firstVisible ??= candidate;
       }
     }
 
-    // Nothing is in view yet: hand back a visible candidate so Playwright's own scroll can reach a
-    // below-the-fold CTA, the way this did before the in-viewport preference was added.
-    if (firstVisible) {
-      return firstVisible;
-    }
-
-    throw new Error(`No visible Get Information CTA found on ${pageLabel}`);
+    return firstVisible ? { locator: firstVisible, inViewport: false } : null;
   }
 
-  /** Whether a locator has a real box that overlaps the viewport. */
-  private async hasBoxInViewport(locator: Locator): Promise<boolean> {
+  /**
+   * Whether a locator is where a click would actually land.
+   *
+   * Hit-tests the centre point rather than asking whether the box overlaps the viewport. Overlap
+   * alone is not enough: Playwright scrolls a partly visible element to the viewport edge, which on
+   * these pages parks it under the sticky site header, and the click then fails with
+   * "Header__StyledContainer ... subtree intercepts pointer events" against an element it has just
+   * reported as visible, enabled and stable. Hit-testing catches that, and the promotion banners and
+   * the chat bubble with it, without this having to name any of them.
+   */
+  private async isClickableInViewport(locator: Locator): Promise<boolean> {
     const box = await locator.boundingBox().catch(() => null);
 
     if (!box || box.width <= 0 || box.height <= 0) {
       return false;
     }
 
-    const viewport = await this.page.evaluate(() => ({
-      width: window.innerWidth,
-      height: window.innerHeight,
-    }));
+    return locator
+      .evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
 
-    return (
-      box.x + box.width > 0 &&
-      box.x < viewport.width &&
-      box.y + box.height > 0 &&
-      box.y < viewport.height
-    );
+        if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
+          return false;
+        }
+
+        const topMost = document.elementFromPoint(x, y);
+
+        return (
+          !!topMost &&
+          (topMost === element || element.contains(topMost) || topMost.contains(element))
+        );
+      })
+      .catch(() => false);
   }
 
-  /** Reveals a Get Information CTA by scrolling down until one becomes visible. */
-  async revealGetInformationCta(pageLabel: string): Promise<void> {
-    const initialCta = await this.getVisibleGetInformationCta(pageLabel).catch(() => null);
+  /**
+   * Scrolls until a Get Information CTA sits inside the viewport.
+   *
+   * Polls over the scroll positions instead of walking them once, because on these templates the CTA
+   * is not merely below the fold - it does not exist yet. The detail pages hydrate in two passes: the
+   * SSR shell renders every CTA `visibility: hidden`, React then unmounts and re-renders the page
+   * around nine seconds in, and the real sticky CTA only settles after that. The community hero goes
+   * the other way and keeps its container `visibility: hidden` until the hero image loads, roughly
+   * twelve seconds. A single pass finishes long before either, which is what reported a rendered CTA
+   * as "No visible Get Information CTA found".
+   *
+   * Bounded, and it re-checks between scrolls rather than sleeping on a fixed delay - the exit
+   * condition is a CTA in the viewport, not elapsed time.
+   */
+  async revealGetInformationCta(timeout = 30_000): Promise<void> {
+    const deadline = Date.now() + timeout;
 
-    if (initialCta && (await initialCta.isVisible({ timeout: 1500 }).catch(() => false))) {
-      return;
-    }
-
-    for (const position of [450, 900, 1400]) {
-      await this.page.evaluate((scrollTop) => window.scrollTo(0, scrollTop), position);
-      await this.deps.waitForPageReady();
-      await this.deps.settle(400);
-
-      const cta = await this.getVisibleGetInformationCta(pageLabel).catch(() => null);
-
-      if (cta && (await cta.isVisible({ timeout: 1000 }).catch(() => false))) {
+    for (let attempt = 0; Date.now() < deadline; attempt++) {
+      if ((await this.findGetInformationCta())?.inViewport) {
         return;
       }
+
+      await this.page.evaluate(
+        (scrollTop) => window.scrollTo(0, scrollTop),
+        CTA_SCROLL_POSITIONS[attempt % CTA_SCROLL_POSITIONS.length],
+      );
+      await this.deps.waitForPageReady();
+      await this.deps.settle(400);
     }
   }
 
@@ -134,7 +188,20 @@ export class LeadFormFlow {
     ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
-  /** Clicks the Get Information CTA when the sidebar/modal lead form is not already open. */
+  /**
+   * Clicks the Get Information CTA when the sidebar/modal lead form is not already open.
+   *
+   * One loop that re-reads the DOM, scrolls a step, and clicks the moment a CTA is genuinely
+   * reachable. Interleaved rather than "reveal, then click" because both halves have to keep
+   * retrying: these templates hydrate in two passes and re-render around nine seconds in, so a CTA
+   * resolved before that is detached, and for a stretch there is no CTA in the document at all.
+   *
+   * A candidate is only clicked once its box overlaps the viewport. The mobile CTA lives in a
+   * `position: fixed` bar parked at a negative `top` until the hero is scrolled past: Playwright
+   * cannot scroll a fixed element into view, so clicking it early burns the action timeout on
+   * "Element is outside of the viewport" instead of scrolling the page, which is what actually
+   * brings the bar down.
+   */
   async openLeadFormFromGetInformationCta(options: {
     leadForms: Locator;
     pageLabel: string;
@@ -147,27 +214,117 @@ export class LeadFormFlow {
 
     await options.beforeReveal?.();
 
+    // Once, before the loop: this is what arms the overlay auto-dismiss handlers, and the loop body
+    // deliberately stays too cheap to call it. Without it the promotion portal re-mounts over the
+    // CTA and every click attempt reports "subtree intercepts pointer events".
+    await this.deps.waitForPageReady();
+
     // The National-promotion overlay is a full-screen dialog that covers the CTA
     // and swallows the click. Dismiss it rather than clicking through it, so a
     // genuinely unreachable CTA still fails instead of failing later elsewhere.
     await this.deps.dismissPromoPopup({ appearTimeout: 3000 });
 
-    await this.revealGetInformationCta(options.pageLabel);
-
-    const cta = await this.getVisibleGetInformationCta(options.pageLabel);
-
-    await expect(cta, 'Get Information or Stay Updated CTA should be visible').toBeVisible({
-      timeout: options.ctaTimeout ?? 15_000,
-    });
-
     const previousUrl = this.page.url();
+    const ctaTimeout = options.ctaTimeout ?? 120_000;
+    const deadline = Date.now() + ctaTimeout;
+    const reloadAfter = Date.now() + ctaTimeout * 0.75;
+    let lastClickError: unknown = null;
+    let sawCandidate = false;
+    let reloaded = false;
 
-    // No force: click() runs the actionability checks, so an overlay-covered CTA
-    // reports the blocker instead of registering a click that goes nowhere.
-    await cta.click();
-    await this.deps.waitForPageReady();
-    await this.deps.settle(1000);
-    await this.expectNoContactRedirect(previousUrl, options.pageLabel);
+    for (let attempt = 0; Date.now() < deadline; attempt++) {
+      const candidate = await this.findGetInformationCta();
+
+      if (candidate) {
+        sawCandidate = true;
+        // Centred, not scrollIntoViewIfNeeded: that stops as soon as the element touches the
+        // viewport edge, which is exactly where the sticky site header and the promotion banners
+        // sit, so it converts a below-the-fold CTA into a covered one. Centring clears the header at
+        // the top and the sticky quick-action bar at the bottom in one move. A `position: fixed`
+        // copy ignores this entirely and falls through to the page scroll at the end of the loop.
+        if (!candidate.inViewport) {
+          await candidate.locator
+            .evaluate((element) => element.scrollIntoView({ block: 'center' }))
+            .catch(() => undefined);
+          await this.deps.settle(300);
+        }
+
+        if (await this.isClickableInViewport(candidate.locator)) {
+          // No force: click() runs the actionability checks, so an overlay-covered CTA
+          // reports the blocker instead of registering a click that goes nowhere.
+          const clicked = await candidate.locator
+            .click({ timeout: 10_000 })
+            .then(() => true)
+            .catch((error: unknown) => {
+              lastClickError = error;
+              return false;
+            });
+
+          if (clicked) {
+            await this.deps.waitForPageReady();
+            await this.deps.settle(1000);
+            await this.expectNoContactRedirect(previousUrl, options.pageLabel);
+
+            return;
+          }
+
+          // The promotion portal re-mounts on a timer and can land on top of the CTA between two
+          // attempts. Clearing it here is what makes the next attempt different from this one.
+          await this.deps.dismissPromoPopup({ appearTimeout: 1000 });
+
+          continue;
+        }
+
+        // Found, but a click would land on something else. As well as the promotion overlays, the
+        // detail pages open a full-screen floorplan lightbox that covers everything, and nothing in
+        // the scroll ladder below can move a CTA out from under it.
+        await this.deps.dismissPromoPopup();
+      }
+
+      // Three quarters of the window gone without a single CTA ever rendering: the page is stuck in
+      // its server-rendered shell. These bundles intermittently die mid-hydration on WebKit with
+      // "undefined is not a constructor", which leaves every control present but permanently
+      // zero-box, and no amount of further scrolling or waiting recovers it - one reload does.
+      //
+      // Gated on having seen nothing at all, and left this late, because a page that is merely slow
+      // to hydrate sets sawCandidate long before here, and reloading that one would only restart the
+      // clock this loop is waiting on.
+      if (!sawCandidate && !reloaded && Date.now() > reloadAfter) {
+        reloaded = true;
+
+        await this.deps.report('No Get Information CTA rendered; reloading', this.page.url());
+        await this.page
+          .reload({ waitUntil: 'domcontentloaded', timeout: 90_000 })
+          .catch(() => undefined);
+        await this.deps.waitForPageReady();
+        await this.deps.dismissPromoPopup({ appearTimeout: 3000 });
+
+        continue;
+      }
+
+      await this.page.evaluate(
+        (scrollTop) => window.scrollTo(0, scrollTop),
+        CTA_SCROLL_POSITIONS[attempt % CTA_SCROLL_POSITIONS.length],
+      );
+
+      // A short settle, not waitForPageReady: the loop is waiting on hydration, and
+      // waitForPageReady costs several seconds per call, which spent the whole window on a handful
+      // of samples and missed the CTA in the gap between two of them.
+      await this.deps.settle(500);
+    }
+
+    if (lastClickError) {
+      throw lastClickError;
+    }
+
+    // Two different failures, and they point at different things: nothing ever rendered (the page
+    // did not hydrate) versus something rendered but stayed covered or off-canvas for the whole
+    // window (an overlay this flow does not know how to clear).
+    throw new Error(
+      sawCandidate
+        ? `Get Information CTA on ${options.pageLabel} never became clickable - it stayed covered or outside the viewport`
+        : `No visible Get Information CTA found on ${options.pageLabel}`,
+    );
   }
 
   /** Opens the Get Information side modal form and returns the container at the given index. */

@@ -103,7 +103,7 @@ export class CommunityPage extends SearchablePage {
    * to /contact.
    */
   private get getInformationButtonCta(): Locator {
-    return this.page.locator(`${GET_INFORMATION_CTA_SELECTOR}:visible`).filter({
+    return this.page.locator(GET_INFORMATION_CTA_SELECTOR).filter({
       hasText: GET_INFORMATION_CTA_TEXT,
     });
   }
@@ -116,50 +116,62 @@ export class CommunityPage extends SearchablePage {
   }
 
   /**
-   * Resolves the Get Information CTA to actually click.
+   * Resolves the Get Information CTA to actually click, or null when none is reachable yet.
    *
-   * Prefers the real button CTA and polls for it to render inside the viewport -
-   * the hero CTA can appear a beat after the off-canvas sticky-bar duplicate.
-   * Falls back to the first button CTA (Playwright's own scroll handles a below-
-   * fold box), then to any in-viewport candidate, and only as a last resort to
-   * the first raw candidate.
+   * Every candidate goes through {@link firstInViewportIndex}, so this only ever hands back a CTA a
+   * click would land on. There is deliberately no "first match" fallback: the copies this would fall
+   * back to are the off-canvas sticky-bar duplicate and CTAs sitting under the promotion banners,
+   * and clicking one of those does not open the modal - it spends the action timeout on
+   * "subtree intercepts pointer events" and then fails the test. Returning null instead lets the
+   * caller clear the overlays and ask again, which is what actually resolves it.
    */
-  private async resolveGetInformationCta(): Promise<Locator | null> {
+  private async resolveGetInformationCta(allowCoveredFallback = false): Promise<Locator | null> {
     // The hero CTA is the real trigger: `<button aria-label="Stay updated about this community">`
     // inside #HeaderPlanPage. Matching that container first means the off-canvas sticky-bar copies
-    // cannot win on ordering, which is what the in-viewport fallbacks below exist to work around.
+    // cannot win on ordering.
     const heroCta = getHeroInformationCta(this.page);
-    const heroIndex = await this.firstInViewportIndex(heroCta);
+    const heroIndex = await this.pollForInViewportCtaIndex(heroCta);
     if (heroIndex !== -1) {
       return heroCta.nth(heroIndex);
     }
 
     const buttonCta = this.getInformationButtonCta;
-    const buttonIndex = await this.pollForInViewportCtaIndex(buttonCta);
+    const buttonIndex = await this.firstInViewportIndex(buttonCta);
     if (buttonIndex !== -1) {
       return buttonCta.nth(buttonIndex);
-    }
-    if (await buttonCta.count()) {
-      return buttonCta.first();
     }
 
     const candidates = this.getInformationCtaCandidates;
     const anyIndex = await this.firstInViewportIndex(candidates);
+
     if (anyIndex !== -1) {
       return candidates.nth(anyIndex);
     }
 
-    return (await candidates.count()) ? candidates.first() : null;
+    // Last resort, and only once the caller has run out of window: hand back a CTA that did not
+    // hit-test clean so the flow still attempts the click and fails with Playwright's call log
+    // naming whatever covered it, rather than with a bare "none found".
+    if (allowCoveredFallback && (await candidates.count())) {
+      return candidates.first();
+    }
+
+    return null;
   }
 
-  /** Waits until one of the CTAs scrolls into view and returns its index, or -1 if none does. */
+  /**
+   * Waits until one of the CTAs renders inside the viewport and returns its index, or -1 if none
+   * does.
+   *
+   * The ceiling covers the hero image load that gates the real CTA's visibility, which runs to about
+   * twelve seconds on the phone profiles.
+   */
   private async pollForInViewportCtaIndex(cta: Locator): Promise<number> {
     let index = -1;
 
     await expect
       .poll(async () => (index = await this.firstInViewportIndex(cta)), {
         message: 'A Get Information CTA should render inside the viewport',
-        timeout: 15000,
+        timeout: 30000,
       })
       .toBeGreaterThanOrEqual(0)
       .catch(() => undefined);
@@ -168,32 +180,53 @@ export class CommunityPage extends SearchablePage {
   }
 
   /**
-   * Returns the index of the first CTA in the set whose box has a real size and
-   * sits within the viewport, or -1 when none qualify. This is what screens out
-   * the off-canvas sticky-bar duplicate whose box falls outside the viewport.
+   * Returns the index of the first CTA in the set a click would actually land on, or -1 when none
+   * qualify.
+   *
+   * Hit-tests the centre point rather than asking whether the box overlaps the viewport, because
+   * neither weaker check is enough on its own here. The hero container is `visibility: hidden` until
+   * its background image loads - about twelve seconds on a phone profile - and a
+   * `visibility: hidden` element still reports a full-size box at its final position, so going on
+   * the box alone hands back a CTA that is not there yet. And the promotion banners pinned to the
+   * top of the page cover the hero CTA on a phone viewport, so a CTA that is visible, enabled and
+   * stable still fails the click with "#national-notification-banner subtree intercepts pointer
+   * events". One hit-test rules out both, and the off-canvas sticky-bar duplicate with them.
    */
   private async firstInViewportIndex(cta: Locator): Promise<number> {
     const count = await cta.count();
-    if (count === 0) {
-      return -1;
-    }
-
-    const viewport = await this.page.evaluate(() => ({
-      width: window.innerWidth,
-      height: window.innerHeight,
-    }));
 
     for (let i = 0; i < count; i++) {
-      const box = await cta.nth(i).boundingBox();
+      const candidate = cta.nth(i);
 
-      if (!box || box.width <= 0 || box.height <= 0) {
+      if (!(await candidate.isVisible().catch(() => false))) {
         continue;
       }
 
-      const withinHorizontalBounds = box.x + box.width > 0 && box.x < viewport.width;
-      const withinVerticalBounds = box.y + box.height > 0 && box.y < viewport.height;
+      const clickable = await candidate
+        .evaluate((element) => {
+          const rect = element.getBoundingClientRect();
 
-      if (withinHorizontalBounds && withinVerticalBounds) {
+          if (rect.width <= 0 || rect.height <= 0) {
+            return false;
+          }
+
+          const x = rect.left + rect.width / 2;
+          const y = rect.top + rect.height / 2;
+
+          if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
+            return false;
+          }
+
+          const topMost = document.elementFromPoint(x, y);
+
+          return (
+            !!topMost &&
+            (topMost === element || element.contains(topMost) || topMost.contains(element))
+          );
+        })
+        .catch(() => false);
+
+      if (clickable) {
         return i;
       }
     }
@@ -810,7 +843,8 @@ export class CommunityPage extends SearchablePage {
 
     const previousUrl = this.page.url();
 
-    await cta.scrollIntoViewIfNeeded();
+    // click() auto-scrolls; a separate scroll only adds a step that throws outright when the page
+    // re-renders between resolving the CTA and reaching it.
     await cta.click();
     await this.waitForPageReady();
 
@@ -879,32 +913,87 @@ export class CommunityPage extends SearchablePage {
     // with force, so a genuinely unreachable CTA still fails.
     await this.dismissPromoPopupIfPresent({ appearTimeout: 3000 });
 
-    const cta = await this.resolveGetInformationCta();
+    const previousUrl = this.page.url();
+    const deadline = Date.now() + 45_000;
+    const lastResortAfter = Date.now() + 35_000;
+    const reloadAfter = Date.now() + 25_000;
+    let lastClickError: unknown = null;
+    let sawCandidate = false;
+    let reloaded = false;
 
-    if (!cta) {
-      throw new Error(
-        `No Get Information / Stay Updated CTA found on the community page to open ${formName}`,
-      );
+    // Resolve and click in one loop, re-resolving each attempt: the page re-renders after its second
+    // hydration pass, which detaches a CTA resolved a moment earlier and leaves the click waiting on
+    // a node that is no longer in the document.
+    while (Date.now() < deadline) {
+      const cta = await this.resolveGetInformationCta(Date.now() > lastResortAfter);
+
+      if (!cta) {
+        // Nothing reachable: the promotion banners pinned to the top of the page cover the hero CTA
+        // on a phone viewport, and they re-mount on a timer. Clearing them is what makes the next
+        // attempt differ from this one.
+        await this.dismissPromoPopupIfPresent({ appearTimeout: 1000 });
+
+        // Not one CTA has been visible at all: the page is stuck in its server-rendered shell. These
+        // bundles intermittently die mid-hydration with "undefined is not a constructor", which
+        // leaves every control present but permanently zero-box, and only a reload recovers it.
+        if (!sawCandidate && !reloaded && Date.now() > reloadAfter) {
+          reloaded = true;
+
+          await this.page
+            .reload({ waitUntil: 'domcontentloaded', timeout: 90_000 })
+            .catch(() => undefined);
+          await this.waitForPageReady();
+        }
+
+        continue;
+      }
+
+      sawCandidate = true;
+
+      // Centre it before clicking. The hero CTA renders near the top of the page, right where the
+      // promotion banners sit, and those re-mount on a timer - so a CTA that hit-tests clean can be
+      // covered again a few hundred milliseconds later, when the click lands. Centring moves it
+      // clear of that band entirely rather than racing it.
+      await cta
+        .evaluate((element) => element.scrollIntoView({ block: 'center' }))
+        .catch(() => undefined);
+      await this.settle(300);
+
+      // No force: click() runs the actionability checks, so a CTA covered by an overlay/banner
+      // fails here with a call log instead of silently "clicking" and breaking downstream.
+      const clicked = await cta
+        .click({ timeout: 10_000 })
+        .then(() => true)
+        .catch((error: unknown) => {
+          lastClickError = error;
+          return false;
+        });
+
+      if (!clicked) {
+        // The promotion banners and the promo portal re-mount on a timer and can land on top of the
+        // hero CTA between two attempts. Clearing them is what makes the next attempt differ.
+        await this.dismissPromoPopupIfPresent({ appearTimeout: 1000 });
+        continue;
+      }
+
+      await this.waitForPageReady();
+      await this.settle(1000);
+
+      expect(
+        this.page.url(),
+        `Community lead-form CTA should keep the flow on page, not redirect from ${previousUrl}`,
+      ).not.toMatch(/\/contact\/?($|[?#])/i);
+
+      return;
     }
 
-    await expect(
-      cta,
-      `Get Information CTA should be visible before opening ${formName}`,
-    ).toBeVisible({ timeout: 15000 });
+    if (lastClickError) {
+      throw lastClickError;
+    }
 
-    const previousUrl = this.page.url();
-
-    // No manual scroll and no force: click() auto-scrolls and runs the
-    // actionability checks, so a CTA covered by an overlay/banner fails here
-    // with a call log instead of silently "clicking" and breaking downstream.
-    await cta.click();
-    await this.waitForPageReady();
-    await this.settle(1000);
-
-    expect(
-      this.page.url(),
-      `Community lead-form CTA should keep the flow on page, not redirect from ${previousUrl}`,
-    ).not.toMatch(/\/contact\/?($|[?#])/i);
+    throw new Error(
+      `No Get Information / Stay Updated CTA found on the community page to open ${formName}`,
+    );
   }
 
   /** Returns the Get Information form once its CTA has opened it. */

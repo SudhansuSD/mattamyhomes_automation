@@ -832,8 +832,8 @@ export class BasePage {
   }
 
   /** Scrolls the Get Information CTA into view. */
-  protected async revealGetInformationCta(pageLabel: string): Promise<void> {
-    await this.leadForms.revealGetInformationCta(pageLabel);
+  protected async revealGetInformationCta(): Promise<void> {
+    await this.leadForms.revealGetInformationCta();
   }
 
   /** Fails if the CTA navigated to the contact page instead of opening the form. */

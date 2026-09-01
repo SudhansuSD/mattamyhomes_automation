@@ -617,9 +617,8 @@ export class CondoCommunityPage extends SearchablePage {
     }
 
     // The hero CTA is only rendered once the hero scrolls into view, so counting straight after
-    // navigation finds nothing. The sticky quick-action bar duplicate is excluded by the shared CTA
-    // selector, so it can no longer stand in for the real one here.
-    await this.revealGetInformationCta('condo community page');
+    // navigation finds nothing.
+    await this.revealGetInformationCta();
 
     const getInformationCtas = this.getInformationCta;
     const previousUrl = this.page.url();
@@ -638,7 +637,8 @@ export class CondoCommunityPage extends SearchablePage {
         continue;
       }
 
-      await cta.scrollIntoViewIfNeeded();
+      // click() auto-scrolls; a separate scroll only adds a step that throws outright when the page
+      // re-renders between counting the CTAs and reaching this one.
       let didClick = await cta
         .click()
         .then(() => true)

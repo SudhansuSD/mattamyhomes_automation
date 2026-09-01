@@ -138,6 +138,7 @@ export class OverlayManager {
    */
   async dismissPromoPopup(options: { appearTimeout?: number } = {}): Promise<void> {
     await this.acceptCookies();
+    await this.closeNotificationBanners();
 
     const appearTimeout = options.appearTimeout ?? 0;
     // Case-insensitive / contains match: the aria-label varies across pages
@@ -228,6 +229,43 @@ export class OverlayManager {
     }
 
     await this.clearStaleModalAriaHidden();
+  }
+
+  /**
+   * Closes the promotion / notification banners pinned to the top of the page.
+   *
+   * These are banners, not dialogs, so the modal sweep below never sees them: `<div
+   * id="national-notification-banner">` and `<div id="notification-banner">`, each with its own
+   * `Close ... banner` button. They stack to roughly 236px of absolutely positioned, z-40 content -
+   * more than a third of a phone viewport - and on the community template that lands squarely on the
+   * hero Get Information CTA, so the click reports "#national-notification-banner subtree intercepts
+   * pointer events" against a CTA that is visible, enabled and stable.
+   *
+   * Conditional, and quiet when they are absent: these are environmental noise, not a feature under
+   * test.
+   */
+  private async closeNotificationBanners(): Promise<void> {
+    const closeButtons = this.page.locator(
+      [
+        '#national-notification-banner button[aria-label*="close" i]',
+        '#market-notification-banner button[aria-label*="close" i]',
+        '#notification-banner button[aria-label*="close" i]',
+      ].join(', '),
+    );
+
+    const count = await closeButtons.count();
+
+    for (let index = 0; index < count; index++) {
+      const closeButton = closeButtons.nth(index);
+
+      if (!(await closeButton.isVisible().catch(() => false))) {
+        continue;
+      }
+
+      await closeButton.click({ force: true, timeout: 2000 }).catch(async () => {
+        await closeButton.dispatchEvent('click').catch(() => undefined);
+      });
+    }
   }
 
   /**
