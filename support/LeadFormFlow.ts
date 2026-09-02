@@ -10,8 +10,8 @@ import {
 /**
  * Opening, submitting and capturing the lead forms.
  *
- * Split out of BasePage. BasePage keeps its original protected methods and
- * delegates here, so no page object needed to change.
+ * A collaborator of BasePage: page objects call BasePage's protected lead-form
+ * methods, which delegate here.
  */
 export type LeadFormFlowDeps = {
   neutralizeChatWidget: () => Promise<void>;
@@ -40,7 +40,13 @@ export class LeadFormFlow {
     this.deps = deps;
   }
 
-  // Get Information Side Modal Lead Form The "Get Information / Stay Updated" CTA opens the same sidebar/modal lead form on the condo plan, plan detail and QMI pages. The flow is identical on all three - only the page label, the container locator and the timeouts differ - so it lives here instead of being copied per page object.
+  /*
+   * Get Information side modal lead form.
+   *
+   * The "Get Information / Stay Updated" CTA opens the same sidebar/modal lead form on the condo
+   * plan, plan detail and QMI pages. The flow is identical on all three - only the page label, the
+   * container locator and the timeouts differ - so it lives here rather than once per page object.
+   */
 
   /**
    * Finds the Get Information / Stay Updated CTA to click.
@@ -111,7 +117,7 @@ export class LeadFormFlow {
   /**
    * Whether a locator is where a click would actually land.
    *
-   * Hit-tests the centre point rather than asking whether the box overlaps the viewport. Overlap
+   * Hit-tests the center point rather than asking whether the box overlaps the viewport. Overlap
    * alone is not enough: Playwright scrolls a partly visible element to the viewport edge, which on
    * these pages parks it under the sticky site header, and the click then fails with
    * "Header__StyledContainer ... subtree intercepts pointer events" against an element it has just
@@ -237,7 +243,7 @@ export class LeadFormFlow {
 
       if (candidate) {
         sawCandidate = true;
-        // Centred, not scrollIntoViewIfNeeded: that stops as soon as the element touches the
+        // Centered, not scrollIntoViewIfNeeded: that stops as soon as the element touches the
         // viewport edge, which is exactly where the sticky site header and the promotion banners
         // sit, so it converts a below-the-fold CTA into a covered one. Centring clears the header at
         // the top and the sticky quick-action bar at the bottom in one move. A `position: fixed`
@@ -467,8 +473,8 @@ export class LeadFormFlow {
    * Waits for the lead API response and reads its body straight away.
    *
    * Reading it later, after the success-modal assertions, fails with "No data
-   * found for resource" - which is what every row of the old evidence workbook
-   * recorded instead of a payload.
+   * found for resource" - and that string is what lands in the evidence workbook
+   * instead of a payload.
    */
   private async waitForLeadApiResponse(
     timeout: number,
@@ -482,10 +488,10 @@ export class LeadFormFlow {
   /**
    * Checks whether a response is the actual lead submission.
    *
-   * Matching any POST containing "api" caught /api/jss/fieldtracking/register,
-   * which fires on every field focus and always won the race - 74 of 77 rows in
-   * the last evidence workbook were tracking noise. Noise is excluded first, then
-   * the endpoints that really take a lead. LEAD_API_URL_PATTERN overrides both.
+   * Matching any POST containing "api" catches /api/jss/fieldtracking/register,
+   * which fires on every field focus and wins the race almost every time - 74 of
+   * 77 captured rows were tracking noise. Noise is excluded first, then the
+   * endpoints that really take a lead. LEAD_API_URL_PATTERN overrides both.
    */
   private isLeadApiResponse(response: Response): boolean {
     const request = response.request();
@@ -503,7 +509,7 @@ export class LeadFormFlow {
     }
 
     // Telemetry and consent traffic that is POSTed alongside a form but is not
-    // the submission. fieldtracking/register is the one that used to win.
+    // the submission. fieldtracking/register is the one that usually wins.
     if (
       /fieldtracking|\/track|telemetry|beacon|analytics|google|doubleclick|facebook|bing|hotjar|onetrust|browserstack|clarity|segment/i.test(
         url,

@@ -122,7 +122,7 @@ the report has no duplicate entries. Every other suite carries the country in it
 describe title, keeping USA and CAN results separate in the report.
 
 Pass `LOCATION=CAN` for a single-location run — that behaves exactly as before,
-one Playwright process. An unrecognised value still fails fast.
+one Playwright process. An unrecognized value still fails fast.
 
 Extra arguments are forwarded to Playwright:
 
@@ -158,7 +158,7 @@ BROWSER=mobile-safari npx playwright test tests/homePage.spec.ts --project="Mobi
 
 `npm run test:smoke` runs **both** platforms in one command (`PLATFORMS=web,mobile`),
 writing `allure-results/desktop` and `allure-results/mobile` separately. Every test
-is labelled `Web` or `Mobile` in the report.
+is labeled `Web` or `Mobile` in the report.
 
 ---
 
@@ -318,7 +318,7 @@ is still useful for local or manual runs when you want to override the link.
 | `LEAD_API_CAPTURE_XLSX` | `leadApiCapture.ts` | output path (repo-root anchored) | `results/lead-api-data.xlsx` |
 | `PLATFORMS` | `run-locations.ts` | platforms a run covers: `web`, `mobile`, `web,mobile` | `web` |
 | `MOBILE_BROWSER` | `run-locations.ts` | device profile for the mobile pass | `mobile-safari` |
-| `CI` | configs | CI-only behaviour | set by GitHub Actions |
+| `CI` | configs | CI-only behavior | set by GitHub Actions |
 
 ---
 

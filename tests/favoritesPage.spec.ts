@@ -79,8 +79,8 @@ test.describe(`Favorites Page - ${location.country}`, () => {
     });
 
     // Assert rather than skip: search cards DO expose a "Mark as favorite" control,
-    // so its absence is a real regression. Skipping here turned that into a silent
-    // pass and hid the fact that nothing was ever being saved.
+    // so its absence is a real regression. Skipping here would turn that into a
+    // silent pass and hide the fact that nothing is being saved.
     expect(saved, 'Search result cards should expose a favorite control to save a home').toBe(true);
 
     await test.step('Open the Favorites page', async () => {

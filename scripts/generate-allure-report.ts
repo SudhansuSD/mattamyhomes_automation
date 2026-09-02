@@ -130,7 +130,7 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
     Location: getLocationsToRun().join(', '),
     RunType: getRunType(),
     // Each stream names the Playwright project that produced it, so an iPhone
-    // run is not labelled with a desktop browser, and the merged report names
+    // run is not labeled with a desktop browser, and the merged report names
     // both because it covers both.
     Browser: getBrowserLabel(label),
     AppVersion: getAppVersion(),
@@ -292,7 +292,7 @@ function collectStylesheets(dir: string): string[] {
  * Widen the report's content column.
  *
  * Allure Awesome hard-codes `max-width:920px` on the Report view's container, so
- * on a normal monitor the summary sits in a narrow centred strip with large empty
+ * on a normal monitor the summary sits in a narrow centered strip with large empty
  * margins — while the Graphs view, which is not inside that container, fills the
  * window. The plugin exposes no CSS hook and its `layout: 'split'` option adds a
  * second pane rather than widening the content, so patching the generated

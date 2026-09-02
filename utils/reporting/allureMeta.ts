@@ -52,7 +52,7 @@ export { Severity };
  *
  * Read from the running project's `metadata.platform`, which is the same value
  * the report labels a result with, so a run started with `--project` rather than
- * BROWSER is still labelled correctly. Falls back to the BROWSER selection when
+ * BROWSER is still labeled correctly. Falls back to the BROWSER selection when
  * there is no project metadata to read.
  */
 export function getPlatformLabel(): 'Mobile' | 'Web' {
@@ -76,12 +76,12 @@ export function getPlatformLabel(): 'Mobile' | 'Web' {
  *
  * The Web/Mobile platform is added here rather than in each spec: the same
  * specs run on both, so the platform is a property of the run, not of the test.
- * Every spec already calls this in its `beforeEach`, so labelling it centrally
+ * Every spec already calls this in its `beforeEach`, so labeling it centrally
  * keeps the two platforms distinguishable in one place.
  */
 export async function annotate(meta: AllureMeta): Promise<void> {
   // `location` takes the epic slot so the report groups by country; `epic` is
-  // still honoured for anything that has no location dimension.
+  // still honored for anything that has no location dimension.
   const epic = meta.location ?? meta.epic;
   if (epic) await allureEpic(epic);
   if (meta.feature) await allureFeature(meta.feature);

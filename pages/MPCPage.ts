@@ -39,7 +39,7 @@ export class MPCPage extends BasePage {
   /** The Contact & Hours tab. */
   readonly contactHoursTab: Locator;
 
-  /** The section holding the neighbourhood cards. */
+  /** The section holding the neighborhood cards. */
   readonly neighborhoodSection: Locator;
 
   /** The community updates form heading. */
@@ -426,7 +426,7 @@ export class MPCPage extends BasePage {
       // Poll rather than count once: the gallery is a carousel whose slides load
       // lazily, so an immediate count can read 0 on a gallery that does populate a
       // moment later. A gallery that still has no media after this is a genuine
-      // finding, not a timing artefact.
+      // finding, not a timing artifact.
       const mediaCount = await expect
         .poll(() => this.imageGalleryMedia.count(), {
           message: 'MPC image gallery should include at least one media item',
@@ -569,7 +569,7 @@ export class MPCPage extends BasePage {
 
   // Neighborhood Cards
 
-  /** Checks the neighbourhood cards are shown and link back under this MPC. */
+  /** Checks the neighborhood cards are shown and link back under this MPC. */
   async validateNeighborhoodCards(mpcName: string, _mpcUrl: string): Promise<void> {
     await this.step(`Validate neighborhood cards: ${mpcName}`, async () => {
       await this.scrollTo(this.neighborhoodSection);
@@ -611,7 +611,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Clicks the first neighbourhood card and checks it opens that neighbourhood's page. */
+  /** Clicks the first neighborhood card and checks it opens that neighborhood's page. */
   async validateFirstNeighborhoodNavigation(_mpcUrl: string): Promise<void> {
     await this.step('Validate first neighborhood card navigation', async () => {
       await this.scrollTo(this.neighborhoodSection);
@@ -631,7 +631,7 @@ export class MPCPage extends BasePage {
     });
   }
 
-  /** Returns the visible neighbourhood card links that sit under this MPC. */
+  /** Returns the visible neighborhood card links that sit under this MPC. */
   private getNeighborhoodCardLinks(): Locator {
     return this.neighborhoodSection.locator('a[href]:visible');
   }

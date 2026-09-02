@@ -1,6 +1,19 @@
 import { test } from '@playwright/test';
 
-// Allure Step Reporting Helpers Shared helpers for producing clean, named Allure report steps instead of dumping diagnostics to stdout. - Import directly in spec files: import { reportValue, step } from '../reporting/allureReporter'; await reportValue(`Page URL: ${await page.url()}`); - Or use the thin BasePage wrappers inside page objects: await this.reportValue('Opened QMI detail', address); await this.step('Verify hero section', async () => { ... });
+/*
+ * Allure step reporting helpers.
+ *
+ * Shared helpers for producing clean, named Allure report steps instead of dumping diagnostics to
+ * stdout. Specs import them directly:
+ *
+ *   import { reportValue, step } from '../reporting/allureReporter';
+ *   await reportValue(`Page URL: ${page.url()}`);
+ *
+ * Page objects use the thin BasePage wrappers instead:
+ *
+ *   await this.reportValue('Opened QMI detail', address);
+ *   await this.step('Verify hero section', async () => { ... });
+ */
 
 /**
  * Records an informational message (optionally with a value) as a standalone

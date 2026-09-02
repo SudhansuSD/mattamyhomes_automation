@@ -4,7 +4,15 @@ import { getLocationConfig, LocationKey } from '../config/locations/locationConf
 import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
-// Homebuying Pages Object Model Covers the Homebuying section pages, driven by a per-path expectation map (mirrors AboutUsPage): - /homebuying/homebuying    (Journey / What to Expect) - /homebuying/financing     (Financing + MortgageCalculator) - /homebuying/shopping-tools(Shopping Tools + SavingsCalculator + Form)
+/*
+ * Homebuying pages object.
+ *
+ * Covers the Homebuying section, driven by a per-path expectation map in the same shape as
+ * AboutUsPage:
+ *   - /homebuying/homebuying      Journey / What to Expect
+ *   - /homebuying/financing       Financing + MortgageCalculator
+ *   - /homebuying/shopping-tools  Shopping Tools + SavingsCalculator + Form
+ */
 
 export type HomebuyingPageExpectation = {
   name: string;

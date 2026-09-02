@@ -35,6 +35,15 @@ type SelfHealingLocatorOptions = {
 // Base Page – Shared Navigation & Common Utilities
 
 export class BasePage {
+  /**
+   * How long the app gets to clear its anti-flicker gate and paint.
+   *
+   * Comfortably above the 10-17s measured on STAGE, because the gate is tied to
+   * `window.onload` and so tracks whatever the slowest third-party asset on the
+   * page is doing that day - see {@link waitForAppPainted}.
+   */
+  protected static readonly APP_PAINT_TIMEOUT = 45_000;
+
   protected readonly page: Page;
   private loadStateWaitedForUrl?: string;
   private readonly overlays: OverlayManager;
@@ -181,31 +190,70 @@ export class BasePage {
   }
 
   /**
+   * Waits for the app to paint. Returns whether it did.
+   *
+   * The site ships an anti-flicker guard that sets `body.style.visibility =
+   * "hidden"` in the document head and clears it only from `window.onload`, so
+   * until the last image, iframe and third-party script has settled EVERY
+   * element on the page is correctly reported hidden - the header, the search
+   * box, the lead forms, all of it. Measured on STAGE that gate clears in 10-17s
+   * on a healthy connection, which is why nothing may conclude "blank page"
+   * inside the ordinary assertion window: doing so turns one slow load into a
+   * pile of unrelated-looking "element is not visible" failures.
+   *
+   * Non-throwing, so callers decide what a page that never painted means for
+   * them.
+   */
+  protected async waitForAppPainted(timeout = BasePage.APP_PAINT_TIMEOUT): Promise<boolean> {
+    return this.page
+      .waitForFunction(
+        () => !!document.body && getComputedStyle(document.body).visibility !== 'hidden',
+        null,
+        {
+          timeout,
+          polling: 250,
+        },
+      )
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  /**
    * Reloads the page when the app never painted.
    *
    * The HTML shell can load - so the title is right and the page looks fine -
    * while the SPA renders nothing, leaving every locator to time out. Never
    * throws: if it is still blank after the retries, the normal assertions say so.
+   *
+   * A single reload, because the page stays hidden until `window.onload` fires:
+   * reloading restarts the very load that was still running, so a page that is
+   * merely slow is only made slower by retrying it. The one reload earns its
+   * place on the case waiting cannot recover - a load event that never arrives
+   * at all.
    */
   async ensurePageRendered(): Promise<void> {
-    const maxAttempts = 3;
+    const maxAttempts = 2;
     const header = this.page.locator('header').first();
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const rendered = await header
-        .waitFor({ state: 'visible', timeout: 15000 })
-        .then(() => true)
-        .catch(() => false);
+      const painted = await this.waitForAppPainted();
+      const rendered =
+        painted &&
+        (await header
+          .waitFor({ state: 'visible', timeout: 15000 })
+          .then(() => true)
+          .catch(() => false));
 
       if (rendered) {
         break;
       }
 
+      const cause = painted
+        ? 'Page painted but rendered no header'
+        : "Page never painted - <body> is still hidden behind the site's window.onload flicker guard";
+
       if (attempt < maxAttempts) {
-        await this.reportValue(
-          `Page rendered blank (attempt ${attempt}); reloading`,
-          this.page.url(),
-        );
+        await this.reportValue(`${cause} (attempt ${attempt}); reloading`, this.page.url());
         // The reload can abort when the SPA starts its own navigation mid-reload.
         // Swallow it and let the next attempt re-check rather than failing the test.
         await this.page
@@ -213,7 +261,11 @@ export class BasePage {
           .catch(() => undefined);
         await this.acceptCookiesIfPresent().catch(() => undefined);
         await this.waitForPageReady().catch(() => undefined);
+
+        continue;
       }
+
+      await this.reportValue(cause, this.page.url());
     }
 
     // A visible <header> is not enough on its own: the SSR HTML ships a
@@ -270,6 +322,40 @@ export class BasePage {
       .waitFor({ state: 'hidden', timeout })
       .then(() => true)
       .catch(() => false);
+  }
+
+  /**
+   * Waits for a client-side route change to finish swapping the page in.
+   *
+   * The router updates the URL first and renders the destination afterwards, so
+   * a navigation that has already satisfied `waitForURL` can still be showing
+   * the page it came from - long enough for the next assertion to read the
+   * previous page's title, heading and shell. The document title is what
+   * changes at the end of that swap, so it is the signal used here.
+   *
+   * Non-throwing, like {@link waitForShellHydrated}: callers assert on the page
+   * they expected, and a transition that never completes is recorded in the
+   * report rather than failing here with a message about a title.
+   */
+  protected async waitForRouteContent(previousTitle: string, timeout = 30_000): Promise<void> {
+    if (!previousTitle) {
+      return;
+    }
+
+    const swapped = await this.page
+      .waitForFunction((title) => document.title !== title, previousTitle, {
+        timeout,
+        polling: 250,
+      })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!swapped) {
+      await this.reportValue(
+        'Client-side route transition did not swap the page content',
+        this.page.url(),
+      );
+    }
   }
 
   // Common Load Stabilization
@@ -404,8 +490,8 @@ export class BasePage {
     const { timeout = 5000, state = 'visible' } = options;
 
     // waitFor for both states. isVisible() ignores its timeout and answers straight
-    // away, so a section still rendering read as absent - and absence is now a hard
-    // failure, which turned a slow render into a red test.
+    // away, so a section still rendering reads as absent - and absence is a hard
+    // failure, which turns a slow render into a red test.
     const present = await locator
       .first()
       .waitFor({ state, timeout })
@@ -703,7 +789,7 @@ export class BasePage {
       return;
     }
 
-    // An unlabelled full-screen modal can sit over this control; without this the
+    // An unlabeled full-screen modal can sit over this control; without this the
     // click below just burns its 30s timeout against an intercepted pointer.
     await this.overlays.dismissBlockingModalIfPresent();
 
@@ -724,9 +810,9 @@ export class BasePage {
       .getByRole('button', { name: new RegExp(`^${expectedCountry}$`, 'i') })
       .last();
 
-    // Fail here, naming the real cause. This used to skip quietly when the option
-    // never rendered, so the poll below reported "selector should show USA" - which
-    // reads as the switch not taking, when the dropdown never opened at all.
+    // Fail here, naming the real cause. Letting a missing option fall through to the
+    // poll below reports "selector should show USA" - which reads as the switch not
+    // taking, when the dropdown never opened at all.
     await expect(
       expectedCountryButton,
       `${expectedCountry} option should appear in the country selector after opening it ` +

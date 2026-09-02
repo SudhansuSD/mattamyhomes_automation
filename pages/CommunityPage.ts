@@ -32,6 +32,12 @@ import {
 // Community Page – Page Object Model
 
 export class CommunityPage extends SearchablePage {
+  /** Ceiling on one wait for a Get Information CTA to render where a click would land. */
+  private static readonly CTA_POLL_TIMEOUT = 30_000;
+
+  /** Window held back from the CTA polls so the covered-CTA fallback still gets its attempt. */
+  private static readonly CTA_FALLBACK_RESERVE = 12_000;
+
   // Constructor
 
   /** Sets up the page object with the locators it needs. */
@@ -77,7 +83,7 @@ export class CommunityPage extends SearchablePage {
   private get productOverviewSection(): Locator {
     return this.page.locator('#ProductOverview');
   }
-  /** The sales centre section. */
+  /** The sales center section. */
   private get salesCenterSection(): Locator {
     return this.page
       .locator('section, div')
@@ -125,12 +131,15 @@ export class CommunityPage extends SearchablePage {
    * "subtree intercepts pointer events" and then fails the test. Returning null instead lets the
    * caller clear the overlays and ask again, which is what actually resolves it.
    */
-  private async resolveGetInformationCta(allowCoveredFallback = false): Promise<Locator | null> {
+  private async resolveGetInformationCta(
+    allowCoveredFallback = false,
+    deadline?: number,
+  ): Promise<Locator | null> {
     // The hero CTA is the real trigger: `<button aria-label="Stay updated about this community">`
     // inside #HeaderPlanPage. Matching that container first means the off-canvas sticky-bar copies
     // cannot win on ordering.
     const heroCta = getHeroInformationCta(this.page);
-    const heroIndex = await this.pollForInViewportCtaIndex(heroCta);
+    const heroIndex = await this.pollForInViewportCtaIndex(heroCta, deadline);
     if (heroIndex !== -1) {
       return heroCta.nth(heroIndex);
     }
@@ -151,8 +160,17 @@ export class CommunityPage extends SearchablePage {
     // Last resort, and only once the caller has run out of window: hand back a CTA that did not
     // hit-test clean so the flow still attempts the click and fails with Playwright's call log
     // naming whatever covered it, rather than with a bare "none found".
-    if (allowCoveredFallback && (await candidates.count())) {
-      return candidates.first();
+    //
+    // The unfiltered set stands in when the visible one is empty: during the page's second
+    // hydration pass there is a window - measured at around six seconds in on the phone profiles -
+    // where every copy of the CTA is visibility:hidden at once, and a lookup that lands in it
+    // otherwise ends the flow with "none found" for a CTA the page does have.
+    if (allowCoveredFallback) {
+      const fallback = (await candidates.count()) ? candidates : this.getInformationButtonCta;
+
+      if (await fallback.count()) {
+        return fallback.first();
+      }
     }
 
     return null;
@@ -163,27 +181,66 @@ export class CommunityPage extends SearchablePage {
    * does.
    *
    * The ceiling covers the hero image load that gates the real CTA's visibility, which runs to about
-   * twelve seconds on the phone profiles.
+   * twelve seconds on the phone profiles, and is trimmed to whatever the caller has left. A poll
+   * that outlives its caller's window spends the entire budget on one attempt, so the retry loop
+   * around it never gets to clear an overlay, re-resolve, or fall back to a covered CTA - and the
+   * flow ends on "none found" instead of on the reason the click could not land.
    */
-  private async pollForInViewportCtaIndex(cta: Locator): Promise<number> {
+  private async pollForInViewportCtaIndex(cta: Locator, deadline?: number): Promise<number> {
     let index = -1;
 
     await expect
-      .poll(async () => (index = await this.firstInViewportIndex(cta)), {
-        message: 'A Get Information CTA should render inside the viewport',
-        timeout: 30000,
-      })
+      .poll(
+        async () => {
+          // Re-centered on every pass, because where the CTA sits changes under this poll: the page
+          // re-renders after its second hydration pass and the hero CTA settles at the very bottom
+          // edge of a phone viewport - measured at y 634-694 of a 664px viewport on the Canadian
+          // community page - where its center point falls on the consent bar and the hit-test
+          // rejects it. Centring once up front is scrolled away by that re-render.
+          await this.scrollCtaIntoCenter(cta);
+
+          return (index = await this.firstInViewportIndex(cta));
+        },
+        {
+          message: 'A Get Information CTA should render inside the viewport',
+          timeout: this.getCtaPollTimeout(deadline),
+        },
+      )
       .toBeGreaterThanOrEqual(0)
       .catch(() => undefined);
 
     return index;
   }
 
+  /** How long a CTA poll may run without using up the caller's remaining window. */
+  private getCtaPollTimeout(deadline?: number): number {
+    if (!deadline) {
+      return CommunityPage.CTA_POLL_TIMEOUT;
+    }
+
+    const remaining = deadline - Date.now() - CommunityPage.CTA_FALLBACK_RESERVE;
+
+    return Math.max(2_000, Math.min(CommunityPage.CTA_POLL_TIMEOUT, remaining));
+  }
+
+  /** Scrolls a CTA to the middle of the viewport, clear of the banners pinned to both edges. */
+  private async scrollCtaIntoCenter(cta: Locator): Promise<void> {
+    if (!(await cta.count())) {
+      return;
+    }
+
+    await cta
+      .first()
+      .evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      .catch(() => undefined);
+    await this.settle(300);
+  }
+
   /**
    * Returns the index of the first CTA in the set a click would actually land on, or -1 when none
    * qualify.
    *
-   * Hit-tests the centre point rather than asking whether the box overlaps the viewport, because
+   * Hit-tests the center point rather than asking whether the box overlaps the viewport, because
    * neither weaker check is enough on its own here. The hero container is `visibility: hidden` until
    * its background image loads - about twelve seconds on a phone profile - and a
    * `visibility: hidden` element still reports a full-size box at its final position, so going on
@@ -792,9 +849,9 @@ export class CommunityPage extends SearchablePage {
    * The in-page lead forms, in DOM order.
    *
    * Deliberately excludes anything inside the side modal / dialog: the primary
-   * and footer forms are page content, and letting a dialog into this set is
-   * what used to make "the primary form" mean different elements on different
-   * runs. Prefers real <form> elements and falls back to the Sitecore /
+   * and footer forms are page content, and letting a dialog into this set makes
+   * "the primary form" mean different elements on different runs. Prefers real
+   * <form> elements and falls back to the Sitecore /
    * ScheduleAVisit / #contact wrappers for the pages that render a lead form
    * without a <form> tag.
    */
@@ -881,8 +938,8 @@ export class CommunityPage extends SearchablePage {
       throw new Error(`${formName} not present on the community page`);
     }
 
-    // This scroll has a purpose (unlike the cosmetic ones removed elsewhere): the
-    // footer form sits ~10,000px down and only hydrates once it enters the
+    // This scroll earns its place: the footer form sits ~10,000px down and only
+    // hydrates once it enters the
     // viewport, so submitting without scrolling clicks a button whose React
     // handler is not attached yet and silently does nothing.
     await form.scrollIntoViewIfNeeded({ timeout: 10_000 });
@@ -925,7 +982,7 @@ export class CommunityPage extends SearchablePage {
     // hydration pass, which detaches a CTA resolved a moment earlier and leaves the click waiting on
     // a node that is no longer in the document.
     while (Date.now() < deadline) {
-      const cta = await this.resolveGetInformationCta(Date.now() > lastResortAfter);
+      const cta = await this.resolveGetInformationCta(Date.now() > lastResortAfter, deadline);
 
       if (!cta) {
         // Nothing reachable: the promotion banners pinned to the top of the page cover the hero CTA
@@ -950,7 +1007,7 @@ export class CommunityPage extends SearchablePage {
 
       sawCandidate = true;
 
-      // Centre it before clicking. The hero CTA renders near the top of the page, right where the
+      // Center it before clicking. The hero CTA renders near the top of the page, right where the
       // promotion banners sit, and those re-mount on a timer - so a CTA that hit-tests clean can be
       // covered again a few hundred milliseconds later, when the click lands. Centring moves it
       // clear of that band entirely rather than racing it.

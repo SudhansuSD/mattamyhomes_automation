@@ -7,7 +7,12 @@ import {
   type LeadFormField,
 } from '../../config/features/leadFormSchema';
 
-// Shared Lead-Form Helpers (Web / Playwright) Common, reusable lead-form primitives and the centralized form test data used across the desktop page objects. Keeping these here removes the per-page duplication of fill / select / consent / submit / validation logic.
+/*
+ * Shared lead-form helpers.
+ *
+ * The reusable lead-form primitives and the central form test data the desktop page objects share,
+ * so the fill / select / consent / submit / validation logic is not duplicated per page.
+ */
 
 type Region = {
   country: string;
@@ -40,7 +45,12 @@ export type LeadFieldData = {
   country: string;
 };
 
-// Test data accessors (sourced from data/test_data.json) Each profile references a shared region (country/phone/zip) and only overrides the values unique to it, so no field value is duplicated across profiles.
+/*
+ * Test data accessors, sourced from data/test_data.json.
+ *
+ * Each profile references a shared region (country/phone/zip) and overrides only the values unique
+ * to it, so no field value is duplicated across profiles.
+ */
 
 /** Resolve a profile's effective country (from its region) plus its own phone/zip. */
 function resolveLocation(profile: WebProfile): { country: string; phone: string; zip: string } {
@@ -266,7 +276,7 @@ export async function checkConsentIfPresent(form: Locator): Promise<void> {
  * accessibility tree.
  *
  * The page objects identify a lead form by "the thing containing a Submit
- * button", and that used to be a `getByRole` lookup. The problem: the site's
+ * button", and a `getByRole` lookup cannot do that here: the site's
  * National-promotion popup is a react-modal, and while it's mounted react-modal
  * marks `#root` `aria-hidden="true"`, which takes the whole page out of the
  * accessibility tree. Every role lookup then comes back empty and a form that is
@@ -326,6 +336,18 @@ export const GET_INFORMATION_CTA_SELECTOR = [
 /** Get the "Get Information" CTAs that open the lead-form modal on the given page. */
 export function getInformationCtas(page: Page): Locator {
   return page.locator(GET_INFORMATION_CTA_SELECTOR).filter({ hasText: GET_INFORMATION_CTA_TEXT });
+}
+
+/**
+ * The "Get Information" CTA a visitor can actually see on this page.
+ *
+ * The detail pages ship the same trigger three times and which copy renders depends on the
+ * viewport, so taking the first match in DOM order hands a phone run the breadcrumb copy - which
+ * sits in a `hidden md:flex` wrapper and boxes at 0x0 there, and so can never be visible. Resolving
+ * to the rendered copy is what lets one locator assert the CTA in both layouts.
+ */
+export function getVisibleInformationCta(page: Page): Locator {
+  return getInformationCtas(page).filter({ visible: true }).first();
 }
 
 /**
@@ -600,7 +622,16 @@ export async function fillValidSideModalForm(
   return fillLeadFormByFormId(form, getValidLeadData(profile), options);
 }
 
-// Extra lead fields (Bedroom Count / Desired Move Date / New Budget / First Time Home Buyer) These four dropdowns render on both the US / custom forms (where they are optional) and the Canada (ScheduleAVisit) forms (where they are required). First Time Home Buyer used to be a Yes/No radio group and is now a Yes/No dropdown. The helpers fill whichever of the four are present and return the chosen values so callers can capture them as submission evidence. Bedroom Count / Desired Move Date / New Budget get a random valid value; First Time Home Buyer alternates by iteration (odd attempt -> Yes, even -> No) when an attempt number is supplied, and falls back to a random Yes/No otherwise.
+/*
+ * Extra lead fields: Bedroom Count, Desired Move Date, New Budget and First Time Home Buyer.
+ *
+ * All four render as dropdowns on the US / custom forms (optional there) and on the Canada
+ * (ScheduleAVisit) forms (required there). The helpers fill whichever are present and return the
+ * chosen values so callers can capture them as submission evidence.
+ *
+ * The first three get a random valid value. First Time Home Buyer alternates by iteration (odd
+ * attempt -> Yes, even -> No) when an attempt number is supplied, and is random otherwise.
+ */
 
 /** Selected values for the extra lead fields; '' for any field that is absent from the form. */
 export type ExtraLeadFields = {
@@ -691,8 +722,8 @@ export async function assertLeadFormShape(form: Locator, formName: string): Prom
 
   // Probe the FORM, do not take the caller's word for it. The four dropdowns are
   // the only thing fillExtraLeadFields returns, so a signature that accepted
-  // values would have reported comments and country-of-residence missing on
-  // every USA form. Locators mirror the ones used to fill each field.
+  // values would report comments and country-of-residence missing on every USA
+  // form. Locators mirror the ones used to fill each field.
   const probes: Record<LeadFormField, Locator> = {
     comments: form
       .getByRole('textbox', { name: /additional questions|comment|message|special requirement/i })
@@ -775,11 +806,11 @@ async function selectRandomOptionIfPresent(select: Locator): Promise<string> {
 }
 
 /**
- * Select the Yes/No answer in the "First Time Home Buyer" dropdown (it was previously a Yes/No radio
- * group and is now a <select>). When an attempt number is given, the answer alternates by iteration
- * (odd attempt -> Yes, even -> No) so the value is driven by the iteration rather than the form; it
- * falls back to a random valid option when no attempt is given or the desired Yes/No option is
- * missing. Returns the chosen value normalized to "Yes"/"No", or '' when the field is absent.
+ * Select the Yes/No answer in the "First Time Home Buyer" `<select>`. When an attempt number is
+ * given, the answer alternates by iteration (odd attempt -> Yes, even -> No) so the value is driven
+ * by the iteration rather than the form; it falls back to a random valid option when no attempt is
+ * given or the desired Yes/No option is missing. Returns the chosen value normalized to "Yes"/"No",
+ * or '' when the field is absent.
  */
 async function selectFirstTimeHomeBuyerIfPresent(form: Locator, attempt?: number): Promise<string> {
   const select = findSelectByLabel(form, /first.?time.*home.?buyer|first time homebuyer/i, 'buyer');

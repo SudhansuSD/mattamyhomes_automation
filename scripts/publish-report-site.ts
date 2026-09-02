@@ -1,10 +1,9 @@
 /**
  * Add the Allure report just generated to the published, build-wise report site.
  *
- * The site lives on the `gh-pages` branch and is served by GitHub Pages. Unlike
- * the previous `actions/deploy-pages` setup — which replaced the whole site on
- * every run, so only the latest report ever existed — each build is copied into
- * its own folder keyed by run type, environment and build number:
+ * The site lives on the `gh-pages` branch and is served by GitHub Pages. Each
+ * build is copied into its own folder keyed by run type, environment and build
+ * number, so every retained report stays reachable:
  *
  *   <root>/index.html                     catalog of every retained build
  *   <root>/regression/stage/142/          build #142

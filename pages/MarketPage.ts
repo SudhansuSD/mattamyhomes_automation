@@ -186,13 +186,13 @@ export class MarketPage extends BasePage {
         });
       await this.waitForPageReady();
 
-      // navigate() applies this guard but goto() skipped it, so an unhydrated
-      // render left every section locator resolving to nothing.
+      // navigate() applies this guard but goto() does not, so an unhydrated
+      // render leaves every section locator resolving to nothing.
       await this.ensurePageRendered();
 
-      // A stale URL still "works": /florida/sarasota-bradenton answered 301 and
-      // dropped the query string, so the site fell back to its default country
-      // and failed much later as "header country selector should show USA".
+      // A stale URL still "works": /florida/sarasota-bradenton answers 301 and
+      // drops the query string, so the site falls back to its default country
+      // and fails much later as "header country selector should show USA".
       const landedUrl = this.page.url();
       const expectedCountry = location.queryParam.split('=')[1];
 

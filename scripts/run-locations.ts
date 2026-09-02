@@ -1,7 +1,7 @@
 /**
  * Location-aware Playwright runner.
  *
- * `LOCATION=CAN npm test`  -> one Playwright run for Canada (unchanged behaviour).
+ * `LOCATION=CAN npm test`  -> one Playwright run for Canada.
  * `npm test`               -> one run per location (USA, then CAN), producing a
  *                             SINGLE Allure report that covers both.
  *
@@ -10,7 +10,7 @@
  * both therefore means one child Playwright process per location, with the
  * Allure results accumulated across passes and the HTML report built once at
  * the end:
- *   - pass 0 clears allure-results/desktop (normal globalSetup behaviour)
+ *   - pass 0 clears allure-results/desktop (normal globalSetup behavior)
  *   - later passes set ALLURE_KEEP_RESULTS=1 so they append instead of wiping
  *   - every pass sets ALLURE_SKIP_REPORT=1; this script generates the report
  *

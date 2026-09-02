@@ -227,7 +227,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /** Checks every configured market area is listed and labelled for screen readers. */
+  /** Checks every configured market area is listed and labeled for screen readers. */
   async validateAreaList(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Validate Customer Care area list (${config.locationKey})`, async () => {
       const areaButtons = this.getAreaButtons();

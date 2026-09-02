@@ -466,6 +466,12 @@ export class SearchablePage extends BasePage {
     if (this.isCurrentConfiguredHomePage()) {
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
+      // Already here means navigate() - and with it the wait for the page to
+      // clear its anti-flicker gate - was skipped. Without this the search box
+      // is looked for while the whole document is still visibility:hidden, and
+      // the miss is reported as a missing search input.
+      await this.waitForAppPainted();
+
       return;
     }
 

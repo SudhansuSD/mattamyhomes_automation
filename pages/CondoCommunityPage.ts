@@ -1007,10 +1007,18 @@ export class CondoCommunityPage extends SearchablePage {
       /\/search|find-your-home/i,
     );
 
-    const decodedUrl = decodeURIComponent(this.page.url()).toLowerCase();
+    // Read the query through URLSearchParams rather than decoding the raw URL: the search page
+    // re-writes its query with spaces as "+", which percent-decoding leaves in place, so a URL that
+    // does carry "Martha James Condominiums" reads as though it carries nothing and the check falls
+    // through to the page text - which on a phone lists no cards to read it from.
     const expectedCommunityText = expectedCommunity.toLowerCase();
+    const carriesCommunity = [...new URL(this.page.url()).searchParams.values()].some((value) =>
+      value.toLowerCase().includes(expectedCommunityText),
+    );
 
-    if (decodedUrl.includes(expectedCommunityText)) {
+    if (carriesCommunity) {
+      await this.reportValue('View All search filters by condo community', this.page.url());
+
       return;
     }
 

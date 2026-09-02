@@ -889,7 +889,7 @@ function buildTestPlan(modules: SpecModule[]): string {
   lines.push('## Automation Scope');
   lines.push('');
   lines.push('Automated end-to-end UI validation of the Mattamy Homes public website,');
-  lines.push('covering page load, navigation, content, search and lead-form behaviour');
+  lines.push('covering page load, navigation, content, search and lead-form behavior');
   lines.push('across the modules listed below. Coverage is discovered directly from the');
   lines.push('Playwright spec files, so this document stays in sync with the codebase.');
   lines.push('');

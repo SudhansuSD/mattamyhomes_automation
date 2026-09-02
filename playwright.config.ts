@@ -173,9 +173,7 @@ export default defineConfig({
   // Govern web-first assertions centrally instead of scattering magic timeouts.
   expect: { timeout: 15_000 },
   /*
-   * Serial by default, and this is a deliberate reliability choice rather than a
-   * leftover - the evidence workbook that once forced it is now merged in
-   * playwrightGlobalTeardown.ts.
+   * Serial by default, and a deliberate reliability choice.
    *
    * The limit is rendering, not CPU. These pages ship 350-600KB of SSR HTML and
    * hydrate client side, and concurrency starves that: the four static legal

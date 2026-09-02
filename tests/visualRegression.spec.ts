@@ -62,9 +62,9 @@ const DYNAMIC_SELECTORS = [
   '[class*="availab" i]',
   '[class*="quick-move" i] [class*="count" i]',
   // The market-card rail auto-rotates, so whichever slide is showing at capture
-  // time is luck. Pinning the slick track to slide one was tried first and
-  // blanked the whole rail, so the rail is masked and the rest of the page -
-  // hero, content blocks, footer - is compared for real.
+  // time is luck. Pinning the slick track to slide one blanks the whole rail, so
+  // the rail is masked instead and the rest of the page - hero, content blocks,
+  // footer - is compared for real.
   '#cards',
   // Third-party chat widget: renders on its own schedule with an unread badge.
   '[class*="chat" i]',
@@ -144,13 +144,13 @@ test.describe(`Visual regression - ${location.country}`, () => {
 
       // Header and footer, not the whole page.
       //
-      // Two earlier attempts failed for real reasons, both recorded here so this
-      // is not "simplified" back later:
+      // The two wider capture regions both fail for real reasons, recorded here so
+      // this is not "simplified" later:
       //   - fullPage: the market-card rail renders at a different height each
-      //     run, so everything below it shifts. 7% of the home page differed
+      //     run, so everything below it shifts. 7% of the home page differs
       //     purely from that offset, body text visibly doubled in the diff.
       //   - viewport: the home hero is an auto-rotating carousel, so Playwright
-      //     could not take two consecutive stable screenshots of it at all.
+      //     cannot take two consecutive stable screenshots of it at all.
       //
       // The chrome is what actually regresses in a way a human would call a bug -
       // nav collapsing, footer columns reflowing - and it is stable on every

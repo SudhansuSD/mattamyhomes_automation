@@ -98,7 +98,7 @@ type ExecutionSummary = {
 };
 
 const chartPath = path.resolve(os.tmpdir(), 'test-summary-chart.png');
-/** ANSI colour codes Playwright wraps around error text; built at runtime to keep the escape character out of source. */
+/** ANSI color codes Playwright wraps around error text; built at runtime to keep the escape character out of source. */
 const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 const MAX_ERROR_SUMMARY_LENGTH = 300;
 /** Machine detail Playwright prints beside the message: locator dumps, matcher calls, stack frames, call-log bullets. */
@@ -112,7 +112,7 @@ const CODE_FRAGMENT_PATTERN =
 const chartCid = 'test-summary-chart';
 const RUN_TYPE_LABEL = 'runType';
 /**
- * CI runners are UTC, so an unlabelled timestamp read as an hour - and for the 03:30 UTC nightly,
+ * CI runners are UTC, so an unlabeled timestamp read as an hour - and for the 03:30 UTC nightly,
  * a whole calendar day - off from when the run was actually seen. Stamp the report in Central
  * time and keep the CST/CDT label, which also makes the daylight-saving shift visible rather
  * than looking like the schedule moved on its own.
@@ -223,7 +223,7 @@ function collectJsonFiles(dir: string): string[] {
 }
 
 /**
- * The report the email summarises: the merged web + mobile report when one was
+ * The report the email summarizes: the merged web + mobile report when one was
  * built, else the desktop report.
  *
  * A run that covers a single platform never builds a merged report, so the
@@ -293,7 +293,7 @@ function readAllureReportTestCases(): AllureReportTestCase[] {
 }
 
 /**
- * Playwright failure text arrives with ANSI colour codes, matcher calls, locator dumps,
+ * Playwright failure text arrives with ANSI color codes, matcher calls, locator dumps,
  * a stack trace, and a long "Call log" tail. An email reads as plain prose, so keep only
  * the human sentences and return an empty string when the failure carries none.
  */
@@ -406,7 +406,7 @@ function getRunTypeFromLabels(results: Array<Pick<AllureResult, 'labels'>>): str
 }
 
 /**
- * Run timestamp in Central time, labelled. Falls back to a labelled UTC stamp if the runtime
+ * Run timestamp in Central time, labeled. Falls back to a labeled UTC stamp if the runtime
  * ships without the timezone data - a missing timestamp must never cost us the whole email.
  */
 function getExecutionDateTime(): string {

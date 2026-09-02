@@ -217,7 +217,7 @@ function deriveFunctionalRequirements(
 function deriveDefaultAcceptanceCriteria(scenarios: RedirectScenario[]): string[] {
   if (!scenarios.length) {
     return [
-      'The requirement behaviour described in the ticket is satisfied without client-visible errors.',
+      'The requirement behavior described in the ticket is satisfied without client-visible errors.',
     ];
   }
 
@@ -230,7 +230,7 @@ function deriveDefaultAcceptanceCriteria(scenarios: RedirectScenario[]): string[
 
 function deriveNegativeScenarios(scenarios: RedirectScenario[]): string[] {
   if (!scenarios.length) {
-    return ['The described behaviour must not produce 404, 500, or an unrelated destination.'];
+    return ['The described behavior must not produce 404, 500, or an unrelated destination.'];
   }
 
   return [

@@ -193,7 +193,7 @@ export class ContactPage extends BasePage {
     });
   }
 
-  /** Checks every configured market area is listed and labelled for screen readers. */
+  /** Checks every configured market area is listed and labeled for screen readers. */
   async validateAreaList(config: ContactCountryConfig): Promise<void> {
     await this.step(`Validate Contact area list (${config.locationKey})`, async () => {
       const areaButtons = this.getAreaButtons();

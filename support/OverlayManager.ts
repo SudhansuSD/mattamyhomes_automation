@@ -3,8 +3,8 @@ import { expect, Locator, Page } from '@playwright/test';
 /**
  * Consent banners, promotion overlays, and the DOM they leave behind.
  *
- * Split out of BasePage. Needs only the page plus a way to settle and report,
- * so BasePage keeps its original method signatures and delegates here.
+ * A collaborator of BasePage, which delegates its overlay handling here. Needs
+ * only the page plus a way to settle and report.
  */
 export type OverlayManagerDeps = {
   settle: (ms: number) => Promise<void>;
@@ -374,8 +374,8 @@ export class OverlayManager {
   /**
    * Closes a blocking full-screen modal that is not a lead form.
    *
-   * The auto-dismiss handler only matches dialogs labelled "promotion"; the site
-   * also renders an unlabelled one that sat over the country selector until the
+   * The auto-dismiss handler only matches dialogs labeled "promotion"; the site
+   * also renders an unlabeled one that sat over the country selector until the
    * click timed out. Dialogs containing a submit button are left alone - that is
    * what distinguishes a lead form from an interstitial.
    */
@@ -396,7 +396,7 @@ export class OverlayManager {
       return;
     }
 
-    await this.deps.report('Dismissing unlabelled blocking modal before interacting');
+    await this.deps.report('Dismissing unlabeled blocking modal before interacting');
     await this.closeNationalPromotion(dialog);
   }
 

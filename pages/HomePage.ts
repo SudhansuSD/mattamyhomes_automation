@@ -404,9 +404,9 @@ export class HomePage extends SearchablePage {
           }
 
           // waitFor, not isVisible: isVisible() ignores its timeout option and
-          // answers immediately, so this was sampling the heading mid-render and
-          // failing a different three markets on every run. BasePage documents
-          // the same trap on dismissPromoPopupIfPresent.
+          // answers immediately, which samples the heading mid-render and fails a
+          // different three markets on every run. BasePage documents the same
+          // trap on dismissPromoPopupIfPresent.
           const heading = this.page.getByRole('heading', { level: 1 }).first();
           const headingRendered = await heading
             .waitFor({ state: 'visible', timeout: 15000 })

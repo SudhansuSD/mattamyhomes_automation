@@ -15,6 +15,17 @@ export class Header extends BasePage {
   readonly header: Locator;
   readonly mobileNavToggle: Locator;
   readonly mobileNavCloseButton: Locator;
+  /**
+   * The header together with the mobile navigation panel it opens.
+   *
+   * At phone widths the panel is not part of `<header>` at all: it mounts as a
+   * sibling dialog under `#root`, so a header-scoped locator resolves to none of
+   * the navigation it holds and every mobile nav item reads as absent. Scoping
+   * navigation lookups to the union gives each item one locator that works in
+   * both layouts, and stays exact on desktop because the dialog only exists
+   * while the panel is open.
+   */
+  readonly navigationScope: Locator;
   readonly findYourHomeLink: Locator;
   readonly aboutUsLink: Locator;
   readonly contactUsLink: Locator;
@@ -29,16 +40,37 @@ export class Header extends BasePage {
     this.header = page.locator('header');
     this.mobileNavToggle = page.locator(MOBILE_NAV_TOGGLE_SELECTOR);
     this.mobileNavCloseButton = page.locator(MOBILE_NAV_CLOSE_SELECTOR);
+    this.navigationScope = page.locator(
+      `header, [role="dialog"]:has(${MOBILE_NAV_CLOSE_SELECTOR})`,
+    );
     // By role, not by id: the desktop header gives this control
     // `id="Find Your Dream Home"`, while the same control inside the opened
     // mobile navigation panel carries no id at all. The accessible name is the
     // one thing both layouts share, so one locator serves both.
-    this.findYourHomeLink = this.header.getByRole('button', {
-      name: /^Find Your Dream Home$/i,
-    });
-    this.aboutUsLink = this.header.getByRole('button', { name: /^About$/i });
-    this.contactUsLink = this.header.locator('[id="Contact Us"]');
-    this.aboutUsMenuLinks = this.header.locator('a[role="button"][href^="/about"]');
+    this.findYourHomeLink = this.visibleNavigationItem(
+      this.navigationScope.getByRole('button', { name: /^Find Your Dream Home$/i }),
+    );
+    this.aboutUsLink = this.visibleNavigationItem(
+      this.navigationScope.getByRole('button', { name: /^About$/i }),
+    );
+    // Two spellings for one item: the desktop header labels it `id="Contact Us"`,
+    // the mobile panel renders a plain `/contact` anchor with no id.
+    this.contactUsLink = this.visibleNavigationItem(
+      this.navigationScope.locator('[id="Contact Us"], a[href="/contact"]'),
+    );
+    this.aboutUsMenuLinks = this.navigationScope.locator('a[role="button"][href^="/about"]');
+  }
+
+  /**
+   * Narrows a navigation locator to the copy that is actually on screen.
+   *
+   * Both layouts ship in the DOM at once - the desktop nav stays mounted behind
+   * the phone header, and the panel keeps its items after it closes - so a
+   * navigation item routinely resolves to more than one node and only one of
+   * them belongs to the layout under test.
+   */
+  private visibleNavigationItem(locator: Locator): Locator {
+    return locator.filter({ visible: true }).first();
   }
 
   // Mobile Navigation Panel
@@ -63,6 +95,15 @@ export class Header extends BasePage {
       // phone widths, where there is far less room around it than on desktop.
       await this.acceptCookiesIfPresent();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+
+      // Asserted before the click, so a page still behind its flicker guard says
+      // that instead of reporting a toggle that is "not visible, enabled and
+      // stable" - which reads as a broken menu button rather than as a document
+      // that never finished loading.
+      expect(
+        await this.waitForAppPainted(),
+        'Page has not painted, so the mobile navigation toggle cannot be tapped - the site keeps <body> hidden until window.onload fires',
+      ).toBe(true);
 
       await this.mobileNavToggle.click();
 
@@ -152,6 +193,7 @@ export class Header extends BasePage {
   /** Clicks the Find Your Dream Home link in the header. */
   async clickFindYourHome(): Promise<void> {
     await this.step('Click Find Your Dream Home', async () => {
+      await this.revealNavigationForViewport();
       await this.clickElement(this.findYourHomeLink);
     });
   }
@@ -159,6 +201,7 @@ export class Header extends BasePage {
   /** Clicks the About link in the header. */
   async clickAboutUs(): Promise<void> {
     await this.step('Click About', async () => {
+      await this.revealNavigationForViewport();
       await this.clickElement(this.aboutUsLink);
     });
   }
@@ -166,6 +209,7 @@ export class Header extends BasePage {
   /** Clicks the Contact Us link in the header. */
   async clickContactUs(): Promise<void> {
     await this.step('Click Contact Us', async () => {
+      await this.revealNavigationForViewport();
       await this.clickElement(this.contactUsLink);
     });
   }
@@ -252,7 +296,9 @@ export class Header extends BasePage {
       await this.revealNavigationForViewport();
       await this.clickFindYourHome();
 
-      const fyhLinkButtons = this.header.locator('button[href^="/search"], a[href^="/search"]');
+      const fyhLinkButtons = this.navigationScope.locator(
+        'button[href^="/search"], a[href^="/search"]',
+      );
       await expect
         .poll(() => fyhLinkButtons.count(), {
           message: 'Find Your Dream Home menu should expose search links',
@@ -453,7 +499,7 @@ export class Header extends BasePage {
   private getAboutUsMenuLink(expectedLink: HeaderNavigationLink): Locator {
     return this.aboutUsMenuLinks
       .filter({ hasText: new RegExp(`^\\s*${escapeRegex(expectedLink.name)}\\s*$`, 'i') })
-      .and(this.header.locator(`a[href="${expectedLink.url}"]`))
+      .and(this.navigationScope.locator(`a[href="${expectedLink.url}"]`))
       .first();
   }
 
@@ -464,8 +510,9 @@ export class Header extends BasePage {
     await this.step(`Open '${menuName}' menu`, async () => {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
+      await this.revealNavigationForViewport();
 
-      const menuButton = this.header
+      const menuButton = this.navigationScope
         .getByRole('button', { name: new RegExp(`^${escapeRegex(menuName)}$`, 'i') })
         .first();
 
@@ -485,7 +532,7 @@ export class Header extends BasePage {
       await this.openMenu(menuName);
 
       for (const expected of expectedLinks) {
-        const link = this.header.locator(`a[href="${expected.url}"]`).first();
+        const link = this.navigationScope.locator(`a[href="${expected.url}"]`).first();
 
         await this.assertAttached(
           link,
@@ -500,9 +547,9 @@ export class Header extends BasePage {
     });
   }
 
-  /** Gets the header links pointing at a path that are actually rendered on screen. */
+  /** Gets the navigation links pointing at a path that are actually rendered on screen. */
   private visibleHeaderLinks(url: string): Locator {
-    return this.header.locator(`a[href="${url}"]:visible`);
+    return this.navigationScope.locator(`a[href="${url}"]:visible`);
   }
 
   /** Checks that a link is exposed as a visible top-level header item, with no flyout opened. */
@@ -510,6 +557,7 @@ export class Header extends BasePage {
     await this.step(`Verify top-level nav link: ${link.name}`, async () => {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
+      await this.revealNavigationForViewport();
 
       await expect
         .poll(() => this.visibleHeaderLinks(link.url).count(), {
@@ -527,14 +575,17 @@ export class Header extends BasePage {
 
   /**
    * Checks a link is NOT a top-level header item - it lives inside a flyout for
-   * this country. Asserted on the closed header, where the flyout's copy of the
+   * this country. Asserted with no flyout opened, where the flyout's copy of the
    * link is in the DOM but has no box, so ":visible" is what separates the two
-   * placements.
+   * placements. On a phone the navigation panel itself is what has to be open
+   * for either placement to have a box at all, which is not the same as opening
+   * the flyout inside it.
    */
   async verifyNoTopLevelNavLink(link: HeaderNavigationLink): Promise<void> {
     await this.step(`Verify ${link.name} is not a top-level nav link`, async () => {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
+      await this.revealNavigationForViewport();
 
       await expect
         .poll(() => this.visibleHeaderLinks(link.url).count(), {
@@ -550,15 +601,18 @@ export class Header extends BasePage {
     await this.step(`Click '${menuName}' menu link: ${link.name}`, async () => {
       await this.openMenu(menuName);
 
-      const menuLink = this.header.locator(`a[href="${link.url}"]`).first();
+      const menuLink = this.navigationScope.locator(`a[href="${link.url}"]`).first();
 
       await this.assertVisible(menuLink, `${link.name} should be visible in the ${menuName} menu`);
+
+      const previousTitle = await this.page.title().catch(() => '');
 
       // noWaitAfter: the link navigates and detaches, so Playwright's post-click
       // checks would time out against a gone element; waitForURL is the real
       // assertion that the click worked.
       await menuLink.click({ noWaitAfter: true });
       await this.page.waitForURL((url) => url.pathname === link.url, { timeout: 30000 });
+      await this.waitForRouteContent(previousTitle);
       await this.waitForPageReady();
 
       await this.reportValue(`${menuName} menu navigation: ${link.name}`, this.page.url());
@@ -570,12 +624,19 @@ export class Header extends BasePage {
     await this.step(`Click top-level nav link: ${link.name}`, async () => {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
+      await this.revealNavigationForViewport();
 
-      const navLink = this.header.locator(`a[href="${link.url}"]`).first();
+      const navLink = this.visibleNavigationItem(
+        this.navigationScope.locator(`a[href="${link.url}"]`),
+      );
 
       await navLink.waitFor({ state: 'visible', timeout: 20000 });
+
+      const previousTitle = await this.page.title().catch(() => '');
+
       await navLink.click();
       await this.page.waitForURL((url) => url.pathname === link.url, { timeout: 30000 });
+      await this.waitForRouteContent(previousTitle);
       await this.waitForPageReady();
     });
   }

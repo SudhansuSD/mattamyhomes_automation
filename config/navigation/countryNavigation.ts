@@ -1,6 +1,12 @@
 import { getLocationKey, LocationKey } from '../locations/locationConfig';
 
-// Country Navigation Source of Truth Availability of a page is defined by what a country's site navigation actually DISPLAYS - not by whether the raw URL resolves. Some pages (e.g. /homebuying/shopping-tools) return 200 for both countries but are only linked in one country's menu; for the other country they are treated as unavailable.
+/*
+ * Country navigation source of truth.
+ *
+ * A page counts as available when a country's site navigation actually DISPLAYS it, not when the
+ * raw URL resolves. Some pages (/homebuying/shopping-tools, for one) return 200 for both countries
+ * but are linked in only one country's menu; for the other country they count as unavailable.
+ */
 
 export type NavLink = {
   name: string;

@@ -149,7 +149,7 @@ jobs:
           REPORT_HISTORY_MODE: merged
 
       # Three reports from one run: a per-platform report each, plus the merged
-      # web + mobile report that the email summarises and the site publishes.
+      # web + mobile report that the email summarizes and the site publishes.
       # allure:merge reads whichever results dirs actually have results, so a
       # single-platform run still produces a valid merged report.
       - name: Generate Allure HTML reports

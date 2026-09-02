@@ -2,7 +2,12 @@ import { expect, Locator, Page } from '@playwright/test';
 import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
-// Design Studio Page Object Model Covers the /design-studio marketing page (ContentHero, ProductOverview, Market Selector and TitleCTA components).
+/*
+ * Design Studio page object.
+ *
+ * Covers the /design-studio marketing page: the ContentHero, ProductOverview, Market Selector and
+ * TitleCTA components.
+ */
 
 export class DesignStudioPage extends BasePage {
   static readonly PATH = '/design-studio';
@@ -22,8 +27,8 @@ export class DesignStudioPage extends BasePage {
     this.footer = getFooter(page);
     // "Find your Design Studio" is NOT a dropdown - it is a collapsed panel. Until
     // the SEARCH NOW button expands it, the whole market list sits in the DOM as
-    // aria-hidden="true" / tabindex="-1", which is why getByRole could not see it
-    // and why the old combobox locator matched an unrelated control and reported
+    // aria-hidden="true" / tabindex="-1", which is why getByRole cannot see it and
+    // why a combobox locator matches an unrelated control and reports
     // "0 market options".
     //
     // The expand control announces itself by aria-label; SEARCH NOW text is the

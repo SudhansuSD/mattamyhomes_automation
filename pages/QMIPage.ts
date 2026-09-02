@@ -16,8 +16,7 @@ import {
   expectSideModalFormFields,
   fillInvalidSideModalForm,
   fillValidSideModalForm,
-  GET_INFORMATION_CTA_SELECTOR,
-  GET_INFORMATION_CTA_TEXT,
+  getVisibleInformationCta,
   getSubmitButton,
   SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadform/leadFormHelper';
@@ -73,12 +72,7 @@ export class QMIPage extends SearchablePage {
     this.heading = page.locator('h1');
     this.breadcrumb = page.locator('#breadcrumb');
     this.priceSection = this.heroSection.locator("p:has-text('$')");
-    this.getInformationCta = page
-      .locator(GET_INFORMATION_CTA_SELECTOR)
-      .filter({
-        hasText: GET_INFORMATION_CTA_TEXT,
-      })
-      .first();
+    this.getInformationCta = getVisibleInformationCta(page);
     this.formSection = page
       .locator('#contact, #ScheduleAVisit-FormInstance0, #ScheduleAVisit-FormInstance1')
       .first();
@@ -147,7 +141,7 @@ export class QMIPage extends SearchablePage {
         )
         // A Submit button, not just any input, is what separates a lead form from
         // the page's other dialogs - the National-promotion overlay is a
-        // full-screen role="dialog" with inputs and used to match here. Matched
+        // full-screen role="dialog" with inputs, so it matches everything else here. Matched
         // by CSS rather than by role (see SUBMIT_BUTTON_SELECTOR): the promotion
         // popup aria-hides the whole page while it is up, which left this filter
         // matching nothing and an open side modal reporting as "did not open".

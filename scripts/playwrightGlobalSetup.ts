@@ -8,12 +8,11 @@ import { getBoolEnv } from '../config/env';
  * Playwright global setup — runs exactly ONCE in the main process before any
  * tests, and NEVER in a worker (or on worker restart).
  *
- * This is the correct place to clear stale Allure results. Doing it at the top
- * level of playwright.config.ts was a bug: the config module is re-imported by
- * every worker, so when a failing test caused Playwright to restart its worker,
- * the restart wiped the results already written for earlier tests (including
- * the failures) — leaving only the tests that ran after the last restart in the
- * report.
+ * This is the correct place to clear stale Allure results. The top level of
+ * playwright.config.ts is not: the config module is re-imported by every worker,
+ * so a worker restart after a failing test wipes the results already written for
+ * earlier tests (including the failures), leaving only the tests that ran after
+ * the last restart in the report.
  *
  * ALLURE_KEEP_RESULTS=1 (set by scripts/run-locations.ts for every pass after
  * the first) preserves the results already written for earlier locations, so a

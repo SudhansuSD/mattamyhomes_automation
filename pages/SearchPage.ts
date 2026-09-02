@@ -93,9 +93,24 @@ export class SearchPage extends SearchablePage {
 
   // Common Helpers
 
-  /** Opens the requested results tab. */
+  /**
+   * Opens the requested results tab.
+   *
+   * The phone layout has no tab bar at all: results open as a map with a List
+   * toggle, and the product type is carried by the `productType` query
+   * parameter - which is exactly the state the desktop tab writes when it is
+   * clicked (Plans switches the URL to `productType=plan`). So mobile performs
+   * the same state change through the URL and then opens the list, rather than
+   * hunting for a control the layout does not ship.
+   */
   async openTab(tabName: string): Promise<void> {
     await this.step(`Open '${tabName}' tab`, async () => {
+      if (await this.isMobileHeaderViewport()) {
+        await this.openMobileResultsTab(tabName);
+
+        return;
+      }
+
       let tab;
 
       switch (tabName.toLowerCase()) {
@@ -138,6 +153,65 @@ export class SearchPage extends SearchablePage {
         await expect(tab).toHaveAttribute('aria-pressed', 'true');
       }
     });
+  }
+
+  /** The product type the search URL uses for a results tab. */
+  private static readonly PRODUCT_TYPE_BY_TAB: Record<string, string> = {
+    communities: 'community',
+    plans: 'plan',
+    'quick move-ins': 'qmi',
+  };
+
+  /**
+   * The map / list toggle pinned to the bottom of the phone results layout.
+   *
+   * Matched on the label at the END of the button's text rather than as the
+   * whole of it: in the list state the toggle carries an icon whose alt text is
+   * folded into the match with no separator ("Map Location IconMap"), so
+   * anchoring the start finds nothing. Anchoring only the tail still excludes
+   * the map widget's own "Map Data" control and the "Open this area in Google
+   * Maps" link, which a bare substring match would pick up.
+   */
+  private mobileResultsToggle(label: 'List' | 'Map'): Locator {
+    return this.page
+      .locator('button')
+      .filter({ hasText: new RegExp(String.raw`${label}\s*$`, 'i') })
+      .first();
+  }
+
+  /** Selects a results tab on the phone layout: product type by URL, then the list view. */
+  private async openMobileResultsTab(tabName: string): Promise<void> {
+    const productType = SearchPage.PRODUCT_TYPE_BY_TAB[tabName.toLowerCase()];
+
+    if (!productType) {
+      throw new Error(`No search product type is mapped for the '${tabName}' results tab`);
+    }
+
+    const url = new URL(this.page.url());
+
+    if (url.searchParams.get('productType') !== productType) {
+      url.searchParams.set('productType', productType);
+      await this.gotoAndVerifyResponse(url.toString());
+      await this.waitForPageReady();
+      await this.waitForAppPainted();
+    }
+
+    // The consent banner is pinned to the same bottom strip as the toggle and
+    // covers it outright, so the toggle reports visible and every click times
+    // out against #onetrust-group-container.
+    await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+
+    const listToggle = this.mobileResultsToggle('List');
+
+    if (await listToggle.isVisible().catch(() => false)) {
+      await listToggle.click({ timeout: 20_000 });
+      // The toggle flips to "Map" once the list is showing, which is the signal
+      // that the switch took rather than a fixed wait on the animation.
+      await expect(
+        this.mobileResultsToggle('Map'),
+        `${tabName} results should open in the list view`,
+      ).toBeVisible({ timeout: 20_000 });
+    }
   }
 
   /** Waits until either result cards or the no-results message appear. */
@@ -598,8 +672,8 @@ export class SearchPage extends SearchablePage {
         await this.waitForPageReady();
         await this.openFilter('Select Beds & Baths');
 
-        // Group toggles are buttons; the old `span` filter matched several nodes
-        // (including non-clickable wrappers) and timed out.
+        // Group toggles are buttons; a `span` filter matches several nodes,
+        // non-clickable wrappers included, and times out.
         await this.page
           .getByRole('button', { name: /^Bedrooms$/i })
           .first()
@@ -654,10 +728,10 @@ export class SearchPage extends SearchablePage {
    * Selects the beds/baths option for `count` from the options the site actually
    * offers, and returns the number selected.
    *
-   * Composing the label (`${count} Bedrooms`) broke on every real variant: the
-   * site renders "1 Bedroom" (singular), "4+ Bedrooms" (plus sign), and no longer
-   * offers anything above 4+, so asking for "6 Bedrooms" just waited out the
-   * timeout on a checkbox that does not exist. This reads the rendered options,
+   * Composing the label (`${count} Bedrooms`) breaks on every real variant: the
+   * site renders "1 Bedroom" (singular), "4+ Bedrooms" (plus sign), and nothing
+   * above 4+, so asking for "6 Bedrooms" just waits out the timeout on a
+   * checkbox that does not exist. This reads the rendered options,
    * picks the highest one that does not exceed `count`, and falls back to the
    * highest available when `count` is beyond the range.
    */

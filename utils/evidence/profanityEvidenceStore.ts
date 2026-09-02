@@ -12,8 +12,8 @@ import {
 /**
  * Excel evidence for the profanity lead-form suite.
  *
- * The spec rewrote the whole workbook on every test, which raced across
- * workers. Rows now go to per-worker shards, merged once in globalTeardown.
+ * Rows go to per-worker shards and are merged once in globalTeardown:
+ * rewriting the whole workbook per test races across workers.
  *
  * The row shape lives here, not in the spec, because the merge happens after
  * the spec's workers exit - and because that spec is gitignored, so this keeps

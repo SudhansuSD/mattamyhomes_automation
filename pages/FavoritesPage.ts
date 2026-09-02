@@ -4,7 +4,12 @@ import { getLocationConfig, LocationKey } from '../config/locations/locationConf
 import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
-// Favorites ("Homes I Love") Page Object Model Covers the /favorites page (SearchFavorites component) and the cross-page "save a home" workflow driven by the heart/favorite toggle rendered on search / community / plan / QMI cards.
+/*
+ * Favorites ("Homes I Love") page object.
+ *
+ * Covers the /favorites page (the SearchFavorites component) and the cross-page "save a home"
+ * workflow driven by the heart/favorite toggle on search, community, plan and QMI cards.
+ */
 
 export class FavoritesPage extends BasePage {
   static readonly PATH = '/favorites';
@@ -113,9 +118,9 @@ export class FavoritesPage extends BasePage {
    *
    * Identity is asserted via the document title and the page's own empty-state
    * markers, NOT an <h1>: the Favorites page renders none (its only headings are
-   * the h2/h3s of the header and footer). Asserting an h1 here failed on a page
-   * that was actually working - the missing h1 is an accessibility gap to raise
-   * with the site team, not a reason to fail the empty-state test.
+   * the h2/h3s of the header and footer). Asserting an h1 here fails on a page
+   * that is working - the missing h1 is an accessibility gap to raise with the
+   * site team, not a reason to fail the empty-state test.
    */
   async validateEmptyState(): Promise<void> {
     await this.step('Validate Favorites empty state', async () => {

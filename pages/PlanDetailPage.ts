@@ -8,8 +8,7 @@ import {
   expectSideModalFormFields,
   fillInvalidSideModalForm,
   fillValidSideModalForm,
-  GET_INFORMATION_CTA_SELECTOR,
-  GET_INFORMATION_CTA_TEXT,
+  getVisibleInformationCta,
   getSubmitButton,
   SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadform/leadFormHelper';
@@ -36,6 +35,9 @@ export type PlanDetails = {
 };
 
 export class PlanDetailPage extends SearchablePage {
+  /** How long the expanded breadcrumb trail gets to render client side. */
+  private static readonly BREADCRUMB_HYDRATION_TIMEOUT = 30_000;
+
   /** The plan's main heading. */
   readonly heading: Locator;
 
@@ -125,12 +127,7 @@ export class PlanDetailPage extends SearchablePage {
     this.qmiHomeslist = this.qmiSection.locator(
       'a[aria-label*="Floorplan"], a:has-text("Floorplan")',
     );
-    this.getInformationCta = page
-      .locator(GET_INFORMATION_CTA_SELECTOR)
-      .filter({
-        hasText: GET_INFORMATION_CTA_TEXT,
-      })
-      .first();
+    this.getInformationCta = getVisibleInformationCta(page);
     this.signUpFormSection = page
       .getByText(/Sign Up For Community Updates/i)
       .locator('xpath=ancestor::*[self::section or self::div][1]');
@@ -344,11 +341,42 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /** Checks the breadcrumb names this plan. */
+  /**
+   * Checks the breadcrumb names this plan.
+   *
+   * The server ships the breadcrumb collapsed - one link back to the parent
+   * community and nothing else - and the full `state / market / city / community
+   * / plan` trail is rendered client side, at desktop widths only. So the two
+   * layouts get the assertion each one actually ships: the plan name in the
+   * expanded trail on desktop, and on a phone the collapsed link, checked to
+   * point at this plan's community rather than merely to exist.
+   */
   async verifyBreadcrumbContainsPlan(planName: string): Promise<void> {
     await this.step(`Verify breadcrumb contains '${planName}'`, async () => {
       await expect(this.breadcrumb).toBeVisible();
-      await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(planName), 'i'));
+
+      if (await this.isMobileHeaderViewport()) {
+        const communityLink = this.breadcrumb
+          .locator(`a[href="${this.location.communityPath}"]`)
+          .first();
+
+        await expect(
+          communityLink,
+          `Collapsed breadcrumb should link back to ${this.location.community}`,
+        ).toBeVisible();
+        await expect(communityLink).toContainText(
+          new RegExp(escapeRegex(this.location.community), 'i'),
+        );
+
+        return;
+      }
+
+      // Longer than the shared expect timeout on purpose: this text arrives with
+      // the breadcrumb's client-side render, not with the document, so the wait
+      // is for hydration rather than for a value the page already holds.
+      await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(planName), 'i'), {
+        timeout: PlanDetailPage.BREADCRUMB_HYDRATION_TIMEOUT,
+      });
     });
   }
 
