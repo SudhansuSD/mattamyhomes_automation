@@ -47,7 +47,7 @@
     "report:history:restore": "ts-node scripts/publish-report-site.ts restore",
     "test:allure:email": "ts-node scripts/run-allure-email-workflow.ts",
     "test:ci": "npm run clean:allure && ts-node scripts/run-locations.ts --grep @ci --grep-invert \"@visual|@a11y\"",
-    "test:smoke": "npm run clean:allure && cross-env PLATFORMS=web,mobile ts-node scripts/run-locations.ts --grep @smoke --grep-invert \"@visual|@a11y\"",
+    "test:smoke": "npm run clean:allure && ts-node scripts/run-locations.ts --grep @smoke --grep-invert \"@visual|@a11y\"",
     "test:regression": "npm run clean:allure && ts-node scripts/run-locations.ts --grep @regression --grep-invert \"@visual|@a11y\"",
     "test:a11y": "ts-node scripts/run-locations.ts --grep @a11y",
     "test:visual": "ts-node scripts/run-locations.ts --grep @visual",

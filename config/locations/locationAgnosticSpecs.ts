@@ -21,6 +21,9 @@ export const LOCATION_AGNOSTIC_SPECS = [
   'contactPage.spec.ts',
   // Iterates CUSTOMER_CARE_COUNTRIES (USA + CAN) internally.
   'customerCarePage.spec.ts',
+  // Iterates COUNTRIES (USA + CAN) internally — Design Studio is surfaced in
+  // both countries, from a different header placement in each.
+  'designStudioPage.spec.ts',
   // Legal/policy pages are identical for every country.
   'staticLegalPages.spec.ts',
   // Footer assertions are structural (footer visible, Privacy Policy link,

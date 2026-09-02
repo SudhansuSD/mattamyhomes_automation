@@ -56,3 +56,27 @@ export function getBrowserProjectKey(
 export function getBrowserDisplayName(rawBrowser = getEnv('BROWSER', 'chromium')): string {
   return BROWSER_DISPLAY_NAMES[getBrowserProjectKey(rawBrowser)];
 }
+
+/** Display name of the device profile the mobile pass runs under. */
+export function getMobileBrowserDisplayName(): string {
+  return getBrowserDisplayName(getEnv('MOBILE_BROWSER', 'mobile-safari'));
+}
+
+/**
+ * Names the browser(s) a run covers, in web-then-mobile order.
+ *
+ * Callers pass the coverage they can actually prove - which results directories
+ * received results, or which stream a report is being built for - because a
+ * two-platform run named after BROWSER alone reads as web-only, and the email
+ * header is the one summary most recipients ever see. Falls back to the web
+ * browser when a caller can prove neither, so a run that produced no results at
+ * all still names something.
+ */
+export function getBrowserCoverageLabel(coversWeb: boolean, coversMobile: boolean): string {
+  const labels = [
+    ...(coversWeb ? [getBrowserDisplayName()] : []),
+    ...(coversMobile ? [getMobileBrowserDisplayName()] : []),
+  ];
+
+  return labels.join(' + ') || getBrowserDisplayName();
+}

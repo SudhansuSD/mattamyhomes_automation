@@ -9,9 +9,10 @@ import {
   DESKTOP_ALLURE_RESULTS_DIR,
   MERGED_ALLURE_REPORT_DIR,
   MOBILE_ALLURE_RESULTS_DIR,
+  getPlatformCoverage,
 } from './allurePaths';
 import { loadEnv } from '../config/env';
-import { getBrowserDisplayName } from '../config/browserSelection';
+import { getBrowserCoverageLabel } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
 
 loadEnv();
@@ -233,6 +234,16 @@ function getSummaryReportDir(): string {
   const merged = path.join(MERGED_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
 
   return fs.existsSync(merged) ? MERGED_ALLURE_REPORT_DIR : DESKTOP_ALLURE_REPORT_DIR;
+}
+
+/**
+ * The browser(s) the email header names, read from the platforms that actually
+ * produced results rather than from BROWSER alone - the email summarizes the
+ * whole run, so a web + mobile run named after the web engine understates it.
+ */
+function getCoveredBrowserLabel(): string {
+  const { web, mobile } = getPlatformCoverage();
+  return getBrowserCoverageLabel(web, mobile);
 }
 
 function readAllureResults(): AllureResult[] {
@@ -481,7 +492,7 @@ function buildSummaryFromCounts(
     flaky: counts.flaky,
     passPercentage,
     environment: getEnvConfig().envName,
-    browser: getBrowserDisplayName(),
+    browser: getCoveredBrowserLabel(),
     executionDateTime: getExecutionDateTime(),
     reportUrl: getEnv('ALLURE_REPORT_URL', ''),
     reportSiteUrl: getEnv('ALLURE_REPORT_SITE_URL', ''),

@@ -49,8 +49,9 @@ pre-commit hook that runs lint + type-check on staged files.
 ## 3. Running desktop tests
 
 Tests are tagged in their titles (`@ci`, `@smoke`, `@regression`) and filtered with
-`--grep`. The `Chrome` project (chromium) is the only project locally; `firefox`
-and `webkit` are added automatically under CI.
+`--grep`. Exactly one Playwright project runs per process, resolved from `BROWSER`
+(`chrome` | `firefox` | `webkit`), so a desktop run is Chrome unless you say
+otherwise. CI pins Chrome for its web pass; `firefox` and `webkit` are local-only.
 
 ```bash
 npm test                 # run everything (Chrome)
@@ -145,20 +146,34 @@ npx playwright test --project=Chrome --grep @smoke -g "hero video"
 ## 4. Running mobile tests
 
 Mobile web runs the same specs as desktop against Playwright device profiles —
-no emulator, no Appium server, no extra install. `BROWSER` selects the profile:
+no emulator, no Appium server, no extra install.
+
+**`PLATFORMS` chooses which platforms run; `MOBILE_BROWSER` chooses the phone
+profile.** No npm script pins either, so the same variables govern a local run
+and CI:
 
 ```bash
-BROWSER=mobile-safari npm test          # iPhone 14 on WebKit (the iOS engine)
-BROWSER=mobile-chrome npm test          # Pixel 7 on Chromium
-BROWSER=ios npm run test:smoke          # aliases: ios / iphone, android
+PLATFORMS=web,mobile npm run test:smoke   # both platforms, one command
+PLATFORMS=mobile npm run test:smoke       # phone only
+PLATFORMS=web npm run test:regression     # web only, roughly half the wall clock
 
-# a single spec, on a phone profile:
-BROWSER=mobile-safari npx playwright test tests/homePage.spec.ts --project="Mobile Safari"
+MOBILE_BROWSER=mobile-chrome PLATFORMS=mobile npm test   # Pixel 7 instead of iPhone 14
 ```
 
-`npm run test:smoke` runs **both** platforms in one command (`PLATFORMS=web,mobile`),
-writing `allure-results/desktop` and `allure-results/mobile` separately. Every test
+`.env` supplies the defaults — `PLATFORMS=web,mobile` and
+`MOBILE_BROWSER=mobile-safari`, matching what CI pins — and a value passed on the
+command line wins over it. Each platform runs in its own Playwright process and
+writes `allure-results/desktop` or `allure-results/mobile` separately; every test
 is labeled `Web` or `Mobile` in the report.
+
+`BROWSER` is the **desktop** engine (`chrome` | `firefox` | `webkit`) and does not
+select a platform. Its mobile aliases (`mobile-safari` / `ios` / `iphone`,
+`mobile-chrome` / `android`) exist for driving Playwright directly, where you name
+the project yourself and `run-locations.ts` is not involved:
+
+```bash
+BROWSER=mobile-safari npx playwright test tests/homePage.spec.ts --project="Mobile Safari"
+```
 
 ---
 
@@ -298,7 +313,7 @@ come from GitHub **secrets**, not a file.
 | --- | --- | --- | --- |
 | `ENV` | `envConfig.ts`, reports | selecting STAGE/PROD base URL and report label | `STAGE` |
 | `LOCATION` | `locationConfig.ts` | selecting USA/CAN data (`ALL`/unset = one pass per location) | all locations |
-| `BROWSER` | email report | report label | `Chrome` |
+| `BROWSER` | `playwright.config.ts`, reports | desktop engine, and the web half of the report label | `Chrome` |
 | `ALLURE_REPORT_URL` | email report | report link | — |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_SECURE` | email report | sending email | `587` / `false` |
 | `EMAIL_USER` / `EMAIL_PASSWORD` | email report | SMTP auth | — |
@@ -316,7 +331,7 @@ is still useful for local or manual runs when you want to override the link.
 | `REQUIRE_LEAD_API_CAPTURE` | `BasePage.ts` | asserting lead API capture | `false` |
 | `LEAD_API_URL_PATTERN` | `BasePage.ts` | identifying lead API call | — |
 | `LEAD_API_CAPTURE_XLSX` | `leadApiCapture.ts` | output path (repo-root anchored) | `results/lead-api-data.xlsx` |
-| `PLATFORMS` | `run-locations.ts` | platforms a run covers: `web`, `mobile`, `web,mobile` | `web` |
+| `PLATFORMS` | `run-locations.ts` | platforms a run covers: `web`, `mobile`, `web,mobile` | `web` in code, `web,mobile` in `.env.example` and CI |
 | `MOBILE_BROWSER` | `run-locations.ts` | device profile for the mobile pass | `mobile-safari` |
 | `CI` | configs | CI-only behavior | set by GitHub Actions |
 
@@ -324,20 +339,24 @@ is still useful for local or manual runs when you want to override the link.
 
 ## 9. CI
 
-Two GitHub Actions workflows in `.github/workflows/`:
+One GitHub Actions workflow, `.github/workflows/playwright.yml`: scheduled daily
+smoke run + on push to `main` + manual dispatch. It runs in the official
+Playwright container and takes three dispatch inputs — **suite / env /
+location**.
 
-- **`playwright.yml`** — scheduled daily smoke run + on push to `main` + manual
-  dispatch (suite / env / location). Runs in the official Playwright container.
-- **`playwright-manual.yml`** — fully manual, on-demand run with browser + suite
-  matrix selection from the Actions UI.
+Platform coverage is not an input. Every run covers both, pinned in the job
+environment as `PLATFORMS=web,mobile` with `BROWSER=chromium` and
+`MOBILE_BROWSER=mobile-safari`, so a dispatched `ci` or `regression` run reports
+on desktop Chrome and the iPhone 14 / WebKit profile exactly as the daily smoke
+run does. Pick a different engine locally instead (§4).
 
-Both: pin Node via `.nvmrc`, `npm ci`, **type-check → lint → tests → Allure report**
-(quality gates fail the job loudly, no `continue-on-error`), and upload
+The job pins Node via `.nvmrc`, `npm ci`, **type-check → lint → tests → Allure
+report** (quality gates fail the job loudly, no `continue-on-error`), and uploads
 `playwright-report/`, `allure-report/`, `allure-results/`, and `test-results/` as
 artifacts. Email secrets (`EMAIL_*`) are read from GitHub secrets; the report URL
 is computed per build by the publish step (see §5) and needs no secret.
 
-`playwright.yml` additionally publishes each build's Allure report to the
+It additionally publishes each build's Allure report to the
 `gh-pages` branch, keeping trend history there per suite + environment so charts
 compare like with like instead of interleaving smoke and regression runs (§5).
 

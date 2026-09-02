@@ -33,9 +33,10 @@ import {
   MERGED_ALLURE_HISTORY_FILE,
   MOBILE_ALLURE_HISTORY_FILE,
   REPO_ROOT,
+  getPlatformCoverage,
 } from './allurePaths';
 import { loadEnv, getEnv, getNumberEnv } from '../config/env';
-import { getBrowserDisplayName } from '../config/browserSelection';
+import { getBrowserCoverageLabel } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
 
 loadEnv();
@@ -585,6 +586,10 @@ export function publishReportSite(): void {
 
   saveReportHistory(siteDir, runType, environment);
 
+  // Named from the platforms that produced results, so a build's row on the
+  // report site names both engines when the build covered both.
+  const coverage = getPlatformCoverage();
+
   const serverUrl = getEnv('GITHUB_SERVER_URL', 'https://github.com');
   const repository = getEnv('GITHUB_REPOSITORY');
   const runId = getEnv('GITHUB_RUN_ID');
@@ -595,7 +600,7 @@ export function publishReportSite(): void {
     runType,
     environment,
     location: getEnv('LOCATION', getEnv('TEST_LOCATION', 'ALL')),
-    browser: getBrowserDisplayName(),
+    browser: getBrowserCoverageLabel(coverage.web, coverage.mobile),
     branch: getEnv('GITHUB_REF_NAME', 'local'),
     commit: getEnv('GITHUB_SHA').slice(0, 7),
     workflowRunUrl: repository && runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : '',

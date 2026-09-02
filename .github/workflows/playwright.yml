@@ -34,15 +34,6 @@ on:
           - ALL
           - CAN
           - USA
-      browser:
-        description: Browser to run
-        required: true
-        default: chromium
-        type: choice
-        options:
-          - chromium
-          - firefox
-          - webkit
 
 # A full run is hours of browser time whose only deliverables are the published
 # report and the email, so an in-flight run is never cancelled for a newer one -
@@ -81,9 +72,16 @@ jobs:
       # run one pass per location and report on both.
       TEST_LOCATION: ${{ github.event.inputs.location || 'ALL' }}
       TEST_SUITE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[single-test]') && 'ci' || github.event.inputs.suite || 'smoke' }}
-      # Scheduled and push runs have no inputs, so they fall back to chromium.
-      # A firefox/webkit run deselects @chrome-only tests (see run-locations.ts).
-      BROWSER: ${{ github.event.inputs.browser || 'chromium' }}
+      # Every run covers both platforms in one report: desktop Chrome plus the
+      # iPhone 14 profile on WebKit, which is the engine every iOS browser uses.
+      # Fixed rather than a dispatch input because the published report and the
+      # email are meant to speak for web and mobile together - a run that quietly
+      # covered only one would still look complete. run-locations.ts gives each
+      # platform its own Playwright process and Allure results dir, and deselects
+      # @chrome-only tests on the mobile pass.
+      PLATFORMS: web,mobile
+      BROWSER: chromium
+      MOBILE_BROWSER: mobile-safari
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       # One retry on CI only. A test that fails then passes is reported by Allure
       # as FLAKY rather than green, so instability stays visible in the trend -

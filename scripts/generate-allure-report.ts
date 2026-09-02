@@ -12,9 +12,10 @@ import {
   MERGED_ALLURE_REPORT_DIR,
   MERGED_ALLURE_HISTORY_FILE,
   REPO_ROOT,
+  hasAllureResults,
 } from './allurePaths';
 import { loadEnv, getEnv, getBoolEnv, isCI } from '../config/env';
-import { getBrowserDisplayName } from '../config/browserSelection';
+import { getBrowserCoverageLabel } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationsToRun } from '../config/locations/locationConfig';
 import { LOCATION_AGNOSTIC_SPEC_GLOBS } from '../config/locations/locationAgnosticSpecs';
@@ -60,14 +61,6 @@ type AllureResultFile = {
   }>;
 };
 
-function hasAllureResults(resultsDir: string): boolean {
-  if (!fs.existsSync(resultsDir)) {
-    return false;
-  }
-
-  return fs.readdirSync(resultsDir).some((fileName) => fileName.endsWith('-result.json'));
-}
-
 /** How each report stream names itself in its title and Suite row. */
 const SUITE_NAME_BY_MODE: Record<ReportMode, string> = {
   desktop: 'desktop',
@@ -75,19 +68,22 @@ const SUITE_NAME_BY_MODE: Record<ReportMode, string> = {
   merged: 'web + mobile',
 };
 
-/** The browser(s) a report covers, named per its platform. */
+/**
+ * The browser(s) a report covers, named per its platform.
+ *
+ * The merged stream is named from the results that actually landed: it is built
+ * from whichever results dirs have content, so a single-platform run produces a
+ * valid merged report that must not claim coverage it does not hold.
+ */
 function getBrowserLabel(label: string): string {
-  const mobileBrowser = () => getBrowserDisplayName(getEnv('MOBILE_BROWSER', 'mobile-safari'));
-
-  if (label === 'mobile') {
-    return mobileBrowser();
-  }
-
   if (label === 'merged') {
-    return `${getBrowserDisplayName()} + ${mobileBrowser()}`;
+    return getBrowserCoverageLabel(
+      hasAllureResults(DESKTOP_ALLURE_RESULTS_DIR),
+      hasAllureResults(MOBILE_ALLURE_RESULTS_DIR),
+    );
   }
 
-  return getBrowserDisplayName();
+  return getBrowserCoverageLabel(label !== 'mobile', label === 'mobile');
 }
 
 /** Human-readable name of the report stream a report dir holds. */

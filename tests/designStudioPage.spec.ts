@@ -38,6 +38,17 @@ for (const locationKey of COUNTRIES) {
     let designStudioPage: DesignStudioPage;
 
     test.beforeEach(async ({ page }, testInfo) => {
+      // Labeled before the skips run: `test.skip()` ends the hook, and a test
+      // that never reaches `annotate()` carries no feature label, so it lands
+      // in the report under its spec file name instead of Design Studio.
+      await annotate({
+        location: location.country,
+        feature: 'Design Studio',
+        owner: 'QA Automation',
+        severity: Severity.NORMAL,
+        tags: ['regression'],
+      });
+
       // Only validate when Design Studio is surfaced in this country's navigation.
       test.skip(
         !isPathExposedForCountry(DesignStudioPage.PATH, locationKey),
@@ -53,14 +64,6 @@ for (const locationKey of COUNTRIES) {
       const homePage = new HomePage(page);
       const header = new Header(page);
       designStudioPage = new DesignStudioPage(page);
-
-      await annotate({
-        location: location.country,
-        feature: 'Design Studio',
-        owner: 'QA Automation',
-        severity: Severity.NORMAL,
-        tags: ['regression'],
-      });
 
       await test.step(`Navigate to ${location.country} home page`, async () => {
         await homePage.navigate(locationKey);
