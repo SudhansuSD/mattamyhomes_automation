@@ -13,7 +13,7 @@ import {
   MERGED_ALLURE_HISTORY_FILE,
   REPO_ROOT,
 } from './allurePaths';
-import { loadEnv, getEnv } from '../config/env';
+import { loadEnv, getEnv, getBoolEnv, isCI } from '../config/env';
 import { getBrowserDisplayName } from '../config/browserSelection';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationsToRun } from '../config/locations/locationConfig';
@@ -136,6 +136,10 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
     AppVersion: getAppVersion(),
     Node: process.version,
     OS: `${process.platform} ${process.arch}`,
+    // Stated in the report because "was that run headed?" is otherwise
+    // unanswerable after the fact: CI forces headless, a local run is headed
+    // unless HEADLESS is set.
+    Display: isCI || getBoolEnv('HEADLESS') ? 'headless' : 'headed',
   };
   const propertiesText = Object.entries(properties)
     .map(([key, value]) => `${key}=${value}`)

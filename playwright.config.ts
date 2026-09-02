@@ -143,6 +143,9 @@ const reporter: ReporterDescription[] = [
     },
   ],
 ];
+// Registered last so its onExit runs after allure-playwright and the HTML
+// reporter have copied their attachments out of test-results.
+reporter.push(['./utils/reporting/flakyTracePruner.ts']);
 if (isCI) {
   reporter.push([
     'html',
@@ -159,6 +162,10 @@ export default defineConfig({
   // Registered under CI too: teardown is what merges the per-worker lead-API
   // capture shards into the xlsx. It skips the Allure HTML build on CI itself.
   globalTeardown: './scripts/playwrightGlobalTeardown.ts',
+  // A committed `test.only` narrows a run to that one test, which on CI reads as
+  // a green pipeline over almost no coverage. Locally it stays allowed, because
+  // focusing one test is how you debug it.
+  forbidOnly: isCI,
   use: {
     headless: isHeadless,
     viewport: isHeadless ? desktopViewport : null,
@@ -185,7 +192,9 @@ export default defineConfig({
   workers: getNumberEnv('PW_WORKERS', 1),
   fullyParallel: true,
   /*
-   * Per-test budget. Kept at two minutes so a wedged page fails fast and does not consume the full CI job budget.
+   * Per-test budget: five minutes, so a wedged page fails on its own rather than
+   * consuming the CI job budget. Tests that legitimately walk many pages raise
+   * it themselves with test.setTimeout.
    */
   timeout: 5 * 60 * 1000,
   // Keep retries opt-in so staging instability remains visible in Allure trends.

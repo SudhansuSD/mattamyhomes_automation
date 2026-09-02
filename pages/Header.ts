@@ -58,7 +58,18 @@ export class Header extends BasePage {
     this.contactUsLink = this.visibleNavigationItem(
       this.navigationScope.locator('[id="Contact Us"], a[href="/contact"]'),
     );
-    this.aboutUsMenuLinks = this.navigationScope.locator('a[role="button"][href^="/about"]');
+    // Two layouts, one locator. The desktop flyout marks each entry as
+    // `a[role="button"]`; the phone panel renders plain anchors inside the
+    // collapsible section that follows the About trigger. The mobile half is
+    // scoped through that trigger rather than to the panel as a whole, because
+    // the panel also carries About pages the country promotes to top-level nav
+    // items - Sustainability on CAN - which do not belong to the flyout.
+    this.aboutUsMenuLinks = this.navigationScope.locator(
+      [
+        'a[role="button"][href^="/about"]',
+        'button[aria-expanded="true"]:has(:text-is("About")) + div a[href^="/about"]',
+      ].join(', '),
+    );
   }
 
   /**
@@ -104,6 +115,27 @@ export class Header extends BasePage {
         await this.waitForAppPainted(),
         'Page has not painted, so the mobile navigation toggle cannot be tapped - the site keeps <body> hidden until window.onload fires',
       ).toBe(true);
+
+      // The phone header slides out of view as the page scrolls, which leaves the
+      // toggle visible, enabled and stable while sitting outside the viewport -
+      // Playwright then retries the click for its full timeout and reports a
+      // broken menu button. Scrolling back to the top brings the header in, and
+      // the poll waits for its slide-in to actually land.
+      await this.page.evaluate(() => window.scrollTo(0, 0));
+      await expect
+        .poll(
+          async () => {
+            const box = await this.mobileNavToggle.boundingBox();
+            const viewport = this.page.viewportSize();
+
+            return !!box && !!viewport && box.y >= 0 && box.y + box.height <= viewport.height;
+          },
+          {
+            message: 'Mobile navigation toggle should be inside the viewport before it is tapped',
+            timeout: 10000,
+          },
+        )
+        .toBe(true);
 
       await this.mobileNavToggle.click();
 
@@ -227,9 +259,18 @@ export class Header extends BasePage {
 
       await this.aboutUsLink.waitFor({ state: 'visible', timeout: 20000 });
       await this.aboutUsLink.hover();
-      await this.aboutUsLink.click();
+
+      // The phone panel's trigger is a toggle, so clicking one that is already
+      // expanded collapses the very section the caller is about to read. The
+      // desktop trigger carries no aria-expanded and still gets its click.
+      if ((await this.aboutUsLink.getAttribute('aria-expanded')) !== 'true') {
+        await this.aboutUsLink.click();
+      }
+      // navigationScope, not the header: at phone widths the panel that holds
+      // these links mounts as a sibling dialog, so a header-scoped locator finds
+      // none of them.
       await this.assertAttached(
-        this.header.locator('a[href="/about/about-mattamy"]'),
+        this.navigationScope.locator('a[href="/about/about-mattamy"]'),
         'About Us menu should open',
       );
 

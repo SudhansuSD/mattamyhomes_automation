@@ -205,6 +205,21 @@ export class BasePage {
    * them.
    */
   protected async waitForAppPainted(timeout = BasePage.APP_PAINT_TIMEOUT): Promise<boolean> {
+    if (await this.pollBodyVisible(timeout)) {
+      return true;
+    }
+
+    // The guard is the site's own inline style, so a body still hidden after the
+    // full window is recoverable without touching anything else on the page.
+    if (!(await this.clearAppPaintGuardIfStuck())) {
+      return false;
+    }
+
+    return this.pollBodyVisible(5_000);
+  }
+
+  /** Waits for the site to stop rendering <body> with visibility:hidden. */
+  private async pollBodyVisible(timeout: number): Promise<boolean> {
     return this.page
       .waitForFunction(
         () => !!document.body && getComputedStyle(document.body).visibility !== 'hidden',
@@ -216,6 +231,46 @@ export class BasePage {
       )
       .then(() => true)
       .catch(() => false);
+  }
+
+  /**
+   * Drops the site's anti-flicker guard when the load event never arrives.
+   *
+   * `<body style="visibility: hidden">` ships in the HTML and the site clears it
+   * from its own `window.onload` handler. WebKit can leave that load event
+   * pending for good - `document.readyState` sits at "interactive" with no
+   * requests outstanding - so a fully rendered DOM stays invisible and every
+   * visibility assertion fails for a reason that has nothing to do with the page
+   * under test.
+   *
+   * Deliberately narrow: it clears the inline attribute only, and only while
+   * that attribute is what hides the body. A body hidden by a stylesheet, by a
+   * parent, or one that rendered nothing at all is left exactly as it is, so a
+   * genuinely blank page still fails.
+   */
+  protected async clearAppPaintGuardIfStuck(): Promise<boolean> {
+    const cleared = await this.page
+      .evaluate(() => {
+        const body = document.body;
+
+        if (!body || body.style.visibility !== 'hidden' || body.childElementCount === 0) {
+          return false;
+        }
+
+        body.style.removeProperty('visibility');
+
+        return getComputedStyle(body).visibility !== 'hidden';
+      })
+      .catch(() => false);
+
+    if (cleared) {
+      await this.reportValue(
+        "Cleared the site's window.onload flicker guard - the load event never fired, so <body> stayed hidden over a rendered DOM",
+        this.page.url(),
+      );
+    }
+
+    return cleared;
   }
 
   /**
