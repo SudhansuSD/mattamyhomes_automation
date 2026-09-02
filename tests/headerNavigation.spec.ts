@@ -61,14 +61,9 @@ test.describe(`Header Navigation - ${location.country}`, () => {
     });
   });
 
-  test(`@chrome-only @smoke @regression | ${location.country} | ${menuConfig.menuName} mega-menu should expose expected links`, async ({
+  test(`@smoke @regression | ${location.country} | ${menuConfig.menuName} mega-menu should expose expected links`, async ({
     page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name !== 'Chrome',
-      'Header flyout navigation is validated on desktop Chrome.',
-    );
-
+  }) => {
     // Opens the flyout and navigates every link in it (30s ceiling per link).
     test.setTimeout(8 * 60 * 1000);
 

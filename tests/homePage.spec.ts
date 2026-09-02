@@ -46,7 +46,7 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
     test(`@chrome-only @smoke @regression | ${location.country} | Validate hero video autoplay on Home Page`, async ({}, testInfo) => {
       test.skip(
         testInfo.project.name !== 'Chrome',
-        'Hero autoplay video is validated on the desktop home page.',
+        'The phone home page has no autoplaying hero video, so this is a desktop check.',
       );
 
       await test.step('Verify hero video autoplays', async () => {

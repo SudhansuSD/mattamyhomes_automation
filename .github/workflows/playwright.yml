@@ -44,9 +44,14 @@ on:
           - firefox
           - webkit
 
+# A full run is hours of browser time whose only deliverables are the published
+# report and the email, so an in-flight run is never cancelled for a newer one -
+# cancelling mid-suite loses both. The group is keyed by suite and environment as
+# well as ref so a manual Regression/PROD run and the scheduled Smoke/STAGE run
+# do not queue behind each other.
 concurrency:
-  group: playwright-${{ github.ref }}
-  cancel-in-progress: true
+  group: playwright-${{ github.ref }}-${{ github.event.inputs.suite || 'smoke' }}-${{ github.event.inputs.env || 'STAGE' }}
+  cancel-in-progress: false
 
 # contents: write is what lets the built-in GITHUB_TOKEN push each build's report
 # to the gh-pages branch. Pages is served from that branch, not from an artifact.
@@ -55,7 +60,12 @@ permissions:
 
 jobs:
   playwright:
-    timeout-minutes: 90
+    # The job budget has to cover the longest suite plus the reporting tail.
+    # Regression across both locations and both platforms runs over three hours,
+    # and the test steps below are capped at 240 minutes - the 90 minutes left
+    # over is what guarantees report generation, publish, the email and the
+    # bounded uploads still get to run.
+    timeout-minutes: 330
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
@@ -100,8 +110,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Each suite step carries its own cap so an overrunning run fails the step
+      # and leaves the job alive for reporting. A job-level kill skips every
+      # remaining step, always() included, which is how a long run used to end
+      # with no report and no email.
       - name: Run single CI test
         if: env.TEST_SUITE == 'ci'
+        timeout-minutes: 240
         run: npm run test:ci
         env:
           ENV: ${{ env.TEST_ENV }}
@@ -109,6 +124,7 @@ jobs:
 
       - name: Run smoke tests
         if: env.TEST_SUITE == 'smoke'
+        timeout-minutes: 240
         run: npm run test:smoke
         env:
           ENV: ${{ env.TEST_ENV }}
@@ -116,6 +132,7 @@ jobs:
 
       - name: Run regression tests
         if: env.TEST_SUITE == 'regression'
+        timeout-minutes: 240
         run: npm run test:regression
         env:
           ENV: ${{ env.TEST_ENV }}
@@ -163,14 +180,6 @@ jobs:
           # Needed so the report's Environment widget names the location(s)
           # actually covered instead of assuming every location ran.
           LOCATION: ${{ env.TEST_LOCATION }}
-
-      - name: Upload Allure Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-html-report
-          path: allure-report
-          retention-days: 30
 
       - name: Detect generated Allure site
         if: always()
@@ -253,33 +262,10 @@ jobs:
           echo "::error::Could not publish the report after ${MAX_ATTEMPTS} attempts."
           exit 1
 
-      - name: Upload Allure results (raw)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results
-          path: allure-results/
-          retention-days: 30
-          if-no-files-found: ignore
-
-      - name: Upload Playwright HTML report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-html-report
-          path: playwright-report/
-          retention-days: 30
-          if-no-files-found: ignore
-
-      - name: Upload Playwright test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.TEST_SUITE }}-playwright-test-results
-          path: test-results/
-          retention-days: 30
-          if-no-files-found: ignore
-
+      # The notification runs before the artifact uploads on purpose: it is the
+      # only output of a run that reaches people who never open Actions, and the
+      # uploads are hundreds of megabytes of traces that can outlive the job
+      # budget. Sending first means a killed upload costs artifacts, not the report.
       - name: Validate email configuration
         if: always()
         run: |
@@ -296,6 +282,7 @@ jobs:
 
       - name: Send email report
         if: always()
+        timeout-minutes: 10
         run: npm run report:email
         env:
           EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
@@ -312,3 +299,46 @@ jobs:
           # Permanent, per-build URL — it keeps working after later runs publish.
           ALLURE_REPORT_URL: ${{ steps.report-site.outputs.build_url }}
           ALLURE_REPORT_SITE_URL: ${{ steps.report-site.outputs.site_url }}
+
+      # Every upload below is bounded. A failure run carries a trace per failed
+      # attempt, which has reached hundreds of megabytes across these four paths,
+      # and an upload that stalls against blob storage otherwise runs until the
+      # job itself is killed.
+      - name: Upload Allure Report
+        if: always()
+        timeout-minutes: 10
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-html-report
+          path: allure-report
+          retention-days: 30
+
+      - name: Upload Allure results (raw)
+        if: always()
+        timeout-minutes: 10
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Playwright HTML report
+        if: always()
+        timeout-minutes: 10
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-html-report
+          path: playwright-report/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload Playwright test results
+        if: always()
+        timeout-minutes: 10
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TEST_SUITE }}-playwright-test-results
+          path: test-results/
+          retention-days: 30
+          if-no-files-found: ignore

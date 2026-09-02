@@ -27,14 +27,9 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
   });
 
   test.describe('Header Menu Validation', () => {
-    test(`@chrome-only @smoke @regression | ${location.country} | About Us header menu links should be visible`, async ({
+    test(`@smoke @regression | ${location.country} | About Us header menu links should be visible`, async ({
       page,
-    }, testInfo) => {
-      test.skip(
-        testInfo.project.name !== 'Chrome',
-        'Header flyout navigation is validated on desktop Chrome.',
-      );
-
+    }) => {
       const homePage = new HomePage(page);
       const header = new Header(page);
 

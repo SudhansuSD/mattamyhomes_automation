@@ -394,6 +394,33 @@ export function getLocationKey(overrideLocation?: LocationKey): LocationKey {
   return key;
 }
 
+/** The region a market page sits under - the state or province in its URL. */
+function getMarketRegion(market: { url: string }): string {
+  return market.url.split('/').filter(Boolean)[0] ?? market.url;
+}
+
+/**
+ * One market per region, keeping config order.
+ *
+ * Smoke coverage only has to prove that a market page renders in each state and
+ * province, and walking all 16 USA markets in a single test costs over half of a
+ * smoke pass. Regression covers every market individually.
+ */
+export function getMarketsPerRegion<T extends { url: string }>(markets: readonly T[]): T[] {
+  const seenRegions = new Set<string>();
+
+  return markets.filter((market) => {
+    const region = getMarketRegion(market);
+
+    if (seenRegions.has(region)) {
+      return false;
+    }
+
+    seenRegions.add(region);
+    return true;
+  });
+}
+
 export function getLocationConfig(overrideLocation?: LocationKey): LocationConfig {
   const envName = getEnvConfig().envName as EnvName;
   const key = getLocationKey(overrideLocation);

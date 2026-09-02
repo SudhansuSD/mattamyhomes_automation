@@ -3,7 +3,7 @@ import {
   getLeadSubmissionSkipReason,
   isLeadSubmissionBlocked,
 } from '../config/environments/leadSubmissionPolicy';
-import { getLocationConfig } from '../config/locations/locationConfig';
+import { getLocationConfig, getMarketsPerRegion } from '../config/locations/locationConfig';
 import { MarketPage } from '../pages/MarketPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
@@ -15,8 +15,9 @@ const configuredMarket =
       .map((name) => name.trim())
       .includes(location.market),
   ) ?? location.markets[0];
+const sampledMarkets = getMarketsPerRegion(location.markets);
 
-test.describe(`@regression Market page tests - ${location.country}`, () => {
+test.describe(`Market page tests - ${location.country}`, () => {
   let marketPage: MarketPage;
 
   test.beforeEach(async ({ page }) => {
@@ -30,21 +31,42 @@ test.describe(`@regression Market page tests - ${location.country}`, () => {
     });
   });
 
-  // BASIC MARKET VALIDATION (ALL MARKETS)
+  // BASIC MARKET VALIDATION
 
   test.describe('Basic Market Validation', () => {
-    test(`@smoke @regression | ${location.country} | Validate all markets navigation and heading`, async () => {
-      // Navigates every configured market in one test (~19 for USA), so it needs
-      // far more than the 5 min per-test default: budget ~30s per market plus
-      // headroom. A ceiling to catch hangs, not a target.
-      test.setTimeout(15 * 60 * 1000);
+    test(`@smoke | ${location.country} | Validate one market per region navigation and heading`, async () => {
+      // One market per state or province rather than the full list: the smoke
+      // question is whether market pages render per region, and the sample
+      // answers it in a fraction of the time. Budget ~30s per market plus
+      // headroom - a ceiling to catch hangs, not a target.
+      test.setTimeout(8 * 60 * 1000);
 
-      for (const market of location.markets) {
+      for (const market of sampledMarkets) {
         await test.step(`Verify market: ${market.name}`, async () => {
           await marketPage.navigateToMarket(market.url);
           await marketPage.verifyMarketPage(market);
         });
       }
+    });
+
+    // Retries are off for this one: it walks every market in a single test, so a
+    // failure here is either a wedged market page or a genuinely broken one, and
+    // a second 15-minute attempt buys diagnosis nothing it did not already have.
+    test.describe('All markets', () => {
+      test.describe.configure({ retries: 0 });
+
+      test(`@regression | ${location.country} | Validate all markets navigation and heading`, async () => {
+        // Navigates every configured market in one test (16 for USA), so it
+        // needs far more than the 5 min per-test default.
+        test.setTimeout(15 * 60 * 1000);
+
+        for (const market of location.markets) {
+          await test.step(`Verify market: ${market.name}`, async () => {
+            await marketPage.navigateToMarket(market.url);
+            await marketPage.verifyMarketPage(market);
+          });
+        }
+      });
     });
   });
 

@@ -220,6 +220,11 @@ export class Header extends BasePage {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
 
+      // The phone header carries the same links as the web header, but behind
+      // the hamburger: without opening it first the About Us trigger is not in
+      // the layout at all.
+      await this.revealNavigationForViewport();
+
       await this.aboutUsLink.waitFor({ state: 'visible', timeout: 20000 });
       await this.aboutUsLink.hover();
       await this.aboutUsLink.click();
