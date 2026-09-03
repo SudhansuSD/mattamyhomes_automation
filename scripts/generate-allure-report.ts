@@ -281,26 +281,22 @@ function enrichRunLabels(
 }
 
 /**
- * Reports a test that failed an attempt as failed, however the retry ended.
+ * Marks a test that failed an attempt and then passed on retry as flaky.
  *
- * Allure counts only the surviving attempt, so a test that failed and then
- * passed on retry arrives as an ordinary pass: green in the tree, green in the
- * totals, with the failure reachable only from that test's own page. A retry
- * does not make the first failure untrue, and a genuine defect that happens to
- * clear on a second run is exactly the one that must not disappear - so the
- * surviving attempt inherits the failed attempt's status and error, and the
- * report counts it under Failed.
- *
- * `statusDetails.flaky` is set alongside, which is the Allure result format's
- * own field for "this recovered on retry": it keeps the flaky count, the badge
- * in the tree, and the flaky category grouping, so a recovered failure is still
- * distinguishable from one that stayed red every attempt.
+ * The surviving attempt keeps its passed status, so a recovered test counts
+ * towards the passed total and only a test that failed every attempt is reported
+ * as failed. What a retry must not do is erase the failure: `statusDetails.flaky`
+ * is the Allure result format's own field for "this recovered on retry", and it
+ * drives the flaky count, the badge in the tree and the flaky category grouping.
+ * The failed attempt's message and trace are copied onto the surviving result
+ * alongside it, so the failure that happened stays readable from the report
+ * without digging into the superseded attempt.
  *
  * The surviving attempt is the one with the latest `start`, which is how Allure
  * itself picks the attempt to display; its error is taken from the most recent
  * failed attempt, the one the retry immediately followed.
  */
-function reportRetriedTestsAsFailed(resultsDir: string): void {
+function markRecoveredTestsAsFlaky(resultsDir: string): void {
   const attemptsByTest = new Map<string, Array<{ path: string; result: AllureResultFile }>>();
 
   for (const resultPath of collectResultFiles(resultsDir)) {
@@ -324,7 +320,7 @@ function reportRetriedTestsAsFailed(resultsDir: string): void {
     attemptsByTest.set(key, [...(attemptsByTest.get(key) ?? []), { path: resultPath, result }]);
   }
 
-  let reopened = 0;
+  let flagged = 0;
 
   for (const attempts of attemptsByTest.values()) {
     if (attempts.length < 2) {
@@ -343,7 +339,6 @@ function reportRetriedTestsAsFailed(resultsDir: string): void {
       continue;
     }
 
-    surviving.result.status = failedAttempt.result.status;
     surviving.result.statusDetails = {
       ...surviving.result.statusDetails,
       message: failedAttempt.result.statusDetails?.message,
@@ -352,12 +347,12 @@ function reportRetriedTestsAsFailed(resultsDir: string): void {
     };
 
     fs.writeFileSync(surviving.path, JSON.stringify(surviving.result, null, 2));
-    reopened += 1;
+    flagged += 1;
   }
 
-  if (reopened > 0) {
+  if (flagged > 0) {
     console.log(
-      `[allure] Reported ${reopened} test(s) as failed — they failed an attempt before passing on retry.`,
+      `[allure] Marked ${flagged} test(s) as flaky — they failed an attempt before passing on retry.`,
     );
   }
 }
@@ -504,7 +499,7 @@ function generateReport(resultsDirs: string[], reportDir: string, historyFilePat
   // reads/writes the current history.jsonl file through allurerc.mjs.
   for (const dir of activeResults) {
     seedAllureMetadata(dir, path.basename(reportDir));
-    reportRetriedTestsAsFailed(dir);
+    markRecoveredTestsAsFlaky(dir);
     enrichRunLabels(dir, {
       runType,
       platform: getPlatformForResultsDir(dir),
