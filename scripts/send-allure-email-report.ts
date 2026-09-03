@@ -63,6 +63,8 @@ type AllureReportTestCase = {
   isRetry?: boolean;
   /** How many superseded attempts this final result has; above zero means the test only settled on a retry. */
   retriesCount?: number;
+  /** The superseded attempts themselves, newest first - where a flaky test's failure text lives. */
+  retries?: AllureReportTestCase[];
   error?: AllureReportError;
   steps?: AllureReportStep[];
   setup?: AllureReportStep[];
@@ -78,7 +80,7 @@ type ExecutionSummary = {
   passed: number;
   failed: number;
   skipped: number;
-  /** Tests that failed an attempt but settled green - counted as passed, so they need their own line. */
+  /** Failed tests a retry then turned green - reported under Failed, so this says how many. */
   flaky: number;
   passPercentage: number;
   environment: string;
@@ -90,12 +92,19 @@ type ExecutionSummary = {
   /** CI build number this report belongs to; empty for local runs. */
   buildNumber: string;
   runType: string;
-  failedTests: Array<{
-    name: string;
-    /** Spec file and line, shown under the scenario name; empty when it is the only label available. */
-    location: string;
-    message: string;
-  }>;
+  /** Every scenario that failed an attempt, whether or not a retry then passed. */
+  failedTests: ReportedTest[];
+  /** Every scenario that did not run, with the reason it was skipped. Never folded into passed. */
+  skippedTests: ReportedTest[];
+};
+
+type ReportedTest = {
+  name: string;
+  /** Spec file and line, shown under the scenario name; empty when it is the only label available. */
+  location: string;
+  message: string;
+  /** True when a retry of this scenario went on to pass - reported, not excused. */
+  recoveredOnRetry: boolean;
 };
 
 const chartPath = path.resolve(os.tmpdir(), 'test-summary-chart.png');
@@ -379,14 +388,77 @@ function getVisibleTestCases(testCases: AllureReportTestCase[]): AllureReportTes
   return testCases.filter((testCase) => !testCase.isRetry);
 }
 
-function getReportFailedTests(testCases: AllureReportTestCase[]): ExecutionSummary['failedTests'] {
+/** True for an attempt that ended red, whichever way Allure classified it. */
+function isFailedStatus(status: TestStatus | undefined): boolean {
+  return status === 'failed' || status === 'broken';
+}
+
+function describeReportTest(
+  testCase: AllureReportTestCase,
+  message: string,
+  recoveredOnRetry: boolean,
+): ReportedTest {
+  return {
+    name: testCase.name || testCase.fullName || 'Unnamed test',
+    location: testCase.name && testCase.fullName ? testCase.fullName : '',
+    message,
+    recoveredOnRetry,
+  };
+}
+
+/**
+ * Every scenario that failed, including the ones a retry later turned green.
+ *
+ * `reportRetriedTestsAsFailed()` has already given a recovered test its failed
+ * attempt's status and error, so it arrives here as an ordinary failure; the
+ * retry count is what still distinguishes it, and is carried through so the
+ * table can say so.
+ */
+function getReportFailedTests(testCases: AllureReportTestCase[]): ReportedTest[] {
   return testCases
-    .filter((testCase) => testCase.status === 'failed' || testCase.status === 'broken')
-    .map((testCase) => ({
-      name: testCase.name || testCase.fullName || 'Unnamed test',
-      location: testCase.name && testCase.fullName ? testCase.fullName : '',
-      message: getReportFailureMessage(testCase),
-    }));
+    .filter((testCase) => isFailedStatus(testCase.status))
+    .map((testCase) =>
+      describeReportTest(
+        testCase,
+        // A superseded attempt is the fallback source of the error text, for a
+        // report built from results this pipeline did not rewrite.
+        getReportFailureMessage(testCase) ||
+          getReportFailureMessage(
+            (testCase.retries ?? []).find((retry) => isFailedStatus(retry.status)) ?? {},
+          ),
+        (testCase.retriesCount ?? 0) > 0,
+      ),
+    );
+}
+
+/**
+ * The reason a scenario did not run, as prose.
+ *
+ * A skip reason is already a written sentence, so it is trimmed rather than put
+ * through the failure summarizer, which exists to strip locator dumps and stack
+ * frames out of Playwright error text and would only chip away at this.
+ */
+function summarizeSkipReason(reason: string): string {
+  const text = reason.replace(ANSI_ESCAPE_PATTERN, '').replace(/\s+/g, ' ').trim();
+
+  return text.length > MAX_ERROR_SUMMARY_LENGTH
+    ? `${text.slice(0, MAX_ERROR_SUMMARY_LENGTH).trimEnd()}…`
+    : text;
+}
+
+/**
+ * The scenarios that did not run, named with the reason each was skipped.
+ *
+ * Listed separately and never folded into passed: a skip is a scenario nobody
+ * verified, and a country that does not surface a page reads very differently
+ * from a check that was switched off and forgotten.
+ */
+function getReportSkippedTests(testCases: AllureReportTestCase[]): ReportedTest[] {
+  return testCases
+    .filter((testCase) => testCase.status === 'skipped')
+    .map((testCase) =>
+      describeReportTest(testCase, summarizeSkipReason(testCase.error?.message ?? ''), false),
+    );
 }
 
 function getRunTypeFromEnv(): string {
@@ -475,10 +547,9 @@ function buildSummaryFromCounts(
     failed: number;
     broken: number;
     skipped: number;
-    flaky: number;
     total: number;
   },
-  failedTests: ExecutionSummary['failedTests'],
+  tests: { failed: ReportedTest[]; skipped: ReportedTest[] },
   runType: string,
 ): ExecutionSummary {
   const failed = counts.failed + counts.broken;
@@ -489,7 +560,7 @@ function buildSummaryFromCounts(
     passed: counts.passed,
     failed,
     skipped: counts.skipped,
-    flaky: counts.flaky,
+    flaky: tests.failed.filter((test) => test.recoveredOnRetry).length,
     passPercentage,
     environment: getEnvConfig().envName,
     browser: getCoveredBrowserLabel(),
@@ -498,7 +569,8 @@ function buildSummaryFromCounts(
     reportSiteUrl: getEnv('ALLURE_REPORT_SITE_URL', ''),
     buildNumber: getEnv('BUILD_NUMBER', getEnv('GITHUB_RUN_NUMBER', '')),
     runType,
-    failedTests,
+    failedTests: tests.failed,
+    skippedTests: tests.skipped,
   };
 }
 
@@ -518,60 +590,93 @@ function buildSummaryFromReport(): ExecutionSummary | null {
       failed: statistic.failed ?? 0,
       broken: statistic.broken ?? 0,
       skipped: statistic.skipped ?? 0,
-      flaky: testCases.filter(
-        (testCase) => (testCase.retriesCount ?? 0) > 0 && testCase.status === 'passed',
-      ).length,
       total: statistic.total,
     },
-    getReportFailedTests(testCases),
+    { failed: getReportFailedTests(testCases), skipped: getReportSkippedTests(testCases) },
     getRunTypeFromLabels(testCases),
   );
 }
 
-/** Attempts recorded per test, so a retried-then-green test can be reported as flaky rather than silently passed. */
-function countAttemptsByTest(results: AllureResult[]): Map<string, number> {
-  const attempts = new Map<string, number>();
+/** Every attempt recorded per test, so a retry cannot hide the attempt that failed. */
+function groupAttemptsByTest(results: AllureResult[]): Map<string, AllureResult[]> {
+  const attempts = new Map<string, AllureResult[]>();
 
   for (const result of results) {
     const key = getResultKey(result);
-    attempts.set(key, (attempts.get(key) ?? 0) + 1);
+    attempts.set(key, [...(attempts.get(key) ?? []), result]);
   }
 
   return attempts;
 }
 
+function describeResult(
+  result: AllureResult,
+  failedAttempt: AllureResult,
+  recoveredOnRetry: boolean,
+): ReportedTest {
+  return {
+    name: result.name || result.fullName || 'Unnamed test',
+    location: result.name && result.fullName ? result.fullName : '',
+    message: summarizeErrorText(
+      failedAttempt.statusDetails?.message ?? '',
+      failedAttempt.statusDetails?.trace ?? '',
+    ),
+    recoveredOnRetry,
+  };
+}
+
+/**
+ * Summary straight from the raw results, for a run whose report was not built.
+ *
+ * It applies the rule `reportRetriedTestsAsFailed()` writes into the results the
+ * report is generated from - a test that failed any attempt is a failed test -
+ * so the two paths cannot disagree about whether a run was clean.
+ */
 function buildSummaryFromResults(results: AllureResult[]): ExecutionSummary {
   const finalResults = dedupeRetries(results);
-  const attemptsByTest = countAttemptsByTest(results);
-  const passed = finalResults.filter((result) => result.status === 'passed').length;
-  const failedCount = finalResults.filter((result) => result.status === 'failed').length;
-  const broken = finalResults.filter((result) => result.status === 'broken').length;
-  const skipped = finalResults.filter((result) => result.status === 'skipped').length;
-  const total = finalResults.length;
-  const failedTests = finalResults
-    .filter((result) => result.status === 'failed' || result.status === 'broken')
-    .map((result) => ({
-      name: result.name || result.fullName || 'Unnamed test',
-      location: result.name && result.fullName ? result.fullName : '',
-      message: summarizeErrorText(
-        result.statusDetails?.message ?? '',
-        result.statusDetails?.trace ?? '',
+  const attemptsByTest = groupAttemptsByTest(results);
+
+  const outcomes = finalResults.map((result) => {
+    const failedAttempt = (attemptsByTest.get(getResultKey(result)) ?? []).find((attempt) =>
+      isFailedStatus(attempt.status),
+    );
+
+    return {
+      result,
+      failedAttempt,
+      // The error is read off the attempt that raised it: on a recovered test
+      // the surviving attempt passed and carries no failure text of its own.
+      status: failedAttempt ? (failedAttempt.status ?? 'failed') : result.status,
+      recoveredOnRetry: Boolean(failedAttempt) && result.status === 'passed',
+    };
+  });
+
+  const failedTests = outcomes
+    .filter((outcome) => outcome.failedAttempt !== undefined)
+    .map((outcome) =>
+      describeResult(
+        outcome.result,
+        outcome.failedAttempt as AllureResult,
+        outcome.recoveredOnRetry,
       ),
+    );
+
+  const skippedTests = outcomes
+    .filter((outcome) => outcome.status === 'skipped')
+    .map((outcome) => ({
+      ...describeResult(outcome.result, outcome.result, false),
+      message: summarizeSkipReason(outcome.result.statusDetails?.message ?? ''),
     }));
 
   return buildSummaryFromCounts(
     {
-      passed,
-      failed: failedCount,
-      broken,
-      skipped,
-      flaky: finalResults.filter(
-        (result) =>
-          result.status === 'passed' && (attemptsByTest.get(getResultKey(result)) ?? 1) > 1,
-      ).length,
-      total,
+      passed: outcomes.filter((outcome) => outcome.status === 'passed').length,
+      failed: outcomes.filter((outcome) => outcome.status === 'failed').length,
+      broken: outcomes.filter((outcome) => outcome.status === 'broken').length,
+      skipped: outcomes.filter((outcome) => outcome.status === 'skipped').length,
+      total: finalResults.length,
     },
-    failedTests,
+    { failed: failedTests, skipped: skippedTests },
     getRunTypeFromLabels(finalResults),
   );
 }
@@ -642,10 +747,10 @@ function renderSummaryRows(summary: ExecutionSummary): string {
     ['Passed Tests', summary.passed],
     ['Failed Tests', summary.failed],
     ['Skipped Tests', summary.skipped],
-    // Only worth a row when it happened - a permanent "Flaky Tests: 0" reads as noise.
-    ...(summary.flaky
-      ? [['Flaky Tests (passed on retry)', summary.flaky] as [string, number]]
-      : []),
+    // Only worth a row when it happened - a permanent "0" reads as noise. These
+    // are counted in Failed above; the row says how many of those a retry
+    // rescued, which is the difference between a broken build and an unstable one.
+    ...(summary.flaky ? [['Of which passed on retry', summary.flaky] as [string, number]] : []),
     ['Pass Percentage', `${summary.passPercentage}%`],
     ['Environment', summary.environment],
     ['Browser', summary.browser],
@@ -665,6 +770,14 @@ function renderSummaryRows(summary: ExecutionSummary): string {
     .join('');
 }
 
+/**
+ * The failed scenarios, with the ones a retry rescued called out in place.
+ *
+ * They are one table rather than two because they are one thing: a scenario
+ * that failed. The retry note says which of them went on to pass, so the reader
+ * can tell a standing failure from a recovered one without the recovered ones
+ * being filed somewhere easier to skip.
+ */
 function renderFailedTests(summary: ExecutionSummary): string {
   if (summary.failedTests.length === 0) {
     return '<p class="empty-state">No failed scenarios were found.</p>';
@@ -691,6 +804,7 @@ function renderFailedTests(summary: ExecutionSummary): string {
                 <td>
                   ${escapeHtml(test.name)}
                   ${test.location ? `<div class="scenario-location">${escapeHtml(test.location)}</div>` : ''}
+                  ${test.recoveredOnRetry ? '<div class="retry-note">Passed on retry</div>' : ''}
                 </td>
                 ${hasErrorSummary ? `<td class="error-cell">${escapeHtml(test.message.trim()) || '&mdash;'}</td>` : ''}
               </tr>
@@ -699,6 +813,50 @@ function renderFailedTests(summary: ExecutionSummary): string {
           .join('')}
       </tbody>
     </table>
+  `;
+}
+
+/**
+ * The scenarios nobody verified, with the reason each one was stood down.
+ *
+ * A section of its own rather than a line in the totals: the count says how many
+ * went unchecked, and only the reasons say whether that was the intended
+ * coverage. Present only when a test was skipped.
+ */
+function renderSkippedTests(summary: ExecutionSummary): string {
+  if (summary.skippedTests.length === 0) {
+    return '';
+  }
+
+  const hasReason = summary.skippedTests.some((test) => test.message.trim().length > 0);
+
+  return `
+            <h2>Skipped Scenarios</h2>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Skipped Scenario</th>
+                  ${hasReason ? '<th>Reason</th>' : ''}
+                </tr>
+              </thead>
+              <tbody>
+                ${summary.skippedTests
+                  .map(
+                    (test, index) => `
+                      <tr>
+                        <td>${index + 1}</td>
+                        <td>
+                          ${escapeHtml(test.name)}
+                          ${test.location ? `<div class="scenario-location">${escapeHtml(test.location)}</div>` : ''}
+                        </td>
+                        ${hasReason ? `<td class="reason-cell">${escapeHtml(test.message.trim()) || '&mdash;'}</td>` : ''}
+                      </tr>
+                    `,
+                  )
+                  .join('')}
+              </tbody>
+            </table>
   `;
 }
 
@@ -773,8 +931,8 @@ function buildEmailHtml(summary: ExecutionSummary): string {
           }
           .metric {
             display: inline-block;
-            width: 23%;
-            min-width: 130px;
+            width: 18.4%;
+            min-width: 118px;
             margin: 0 1% 12px 0;
             padding: 16px;
             background: #f8fafc;
@@ -826,6 +984,21 @@ function buildEmailHtml(summary: ExecutionSummary): string {
             color: #64748b;
             font-size: 12px;
           }
+          .retry-note {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 2px 8px;
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-radius: 10px;
+            color: #92400e;
+            font-size: 11px;
+          }
+          .reason-cell {
+            color: #92400e;
+            font-size: 13px;
+            word-break: break-word;
+          }
           .error-cell {
             color: #b91c1c;
             font-size: 13px;
@@ -852,6 +1025,7 @@ function buildEmailHtml(summary: ExecutionSummary): string {
               <div class="metric">Total<strong>${summary.total}</strong></div>
               <div class="metric">Passed<strong>${summary.passed}</strong></div>
               <div class="metric">Failed<strong>${summary.failed}</strong></div>
+              <div class="metric">Skipped<strong>${summary.skipped}</strong></div>
               <div class="metric">Pass %<strong>${summary.passPercentage}%</strong></div>
             </div>
 
@@ -865,6 +1039,7 @@ function buildEmailHtml(summary: ExecutionSummary): string {
 
             <h2>Failed Scenarios</h2>
             ${renderFailedTests(summary)}
+            ${renderSkippedTests(summary)}
 
             <h2>Allure HTML Report</h2>
             ${reportLink}

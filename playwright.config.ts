@@ -133,6 +133,9 @@ const reporter: ReporterDescription[] = [
   // Ahead of allure-playwright on purpose: it appends the hung-action detail to
   // the test error, and reporters share the TestResult in registration order.
   ['./utils/reporting/timeoutDiagnosticsReporter.ts'],
+  // Ahead of it for the same reason: it moves a runtime skip reason onto the
+  // test case, which is where Allure reads one from.
+  ['./utils/reporting/skipReasonReporter.ts'],
   ['list'],
   [
     'allure-playwright',

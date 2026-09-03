@@ -55,11 +55,24 @@ const RUN_TYPE_BY_KEY: Record<string, string> = {
 type AllureResultFile = {
   name?: string;
   fullName?: string;
+  historyId?: string;
+  testCaseId?: string;
+  status?: string;
+  start?: number;
+  statusDetails?: {
+    flaky?: boolean;
+    message?: string;
+    trace?: string;
+    [key: string]: unknown;
+  };
   labels?: Array<{
     name?: string;
     value?: string;
   }>;
 };
+
+/** The outcomes that count as a failed attempt, whichever way Allure classified it. */
+const FAILURE_STATUSES = new Set(['failed', 'broken']);
 
 /** How each report stream names itself in its title and Suite row. */
 const SUITE_NAME_BY_MODE: Record<ReportMode, string> = {
@@ -267,6 +280,88 @@ function enrichRunLabels(
   }
 }
 
+/**
+ * Reports a test that failed an attempt as failed, however the retry ended.
+ *
+ * Allure counts only the surviving attempt, so a test that failed and then
+ * passed on retry arrives as an ordinary pass: green in the tree, green in the
+ * totals, with the failure reachable only from that test's own page. A retry
+ * does not make the first failure untrue, and a genuine defect that happens to
+ * clear on a second run is exactly the one that must not disappear - so the
+ * surviving attempt inherits the failed attempt's status and error, and the
+ * report counts it under Failed.
+ *
+ * `statusDetails.flaky` is set alongside, which is the Allure result format's
+ * own field for "this recovered on retry": it keeps the flaky count, the badge
+ * in the tree, and the flaky category grouping, so a recovered failure is still
+ * distinguishable from one that stayed red every attempt.
+ *
+ * The surviving attempt is the one with the latest `start`, which is how Allure
+ * itself picks the attempt to display; its error is taken from the most recent
+ * failed attempt, the one the retry immediately followed.
+ */
+function reportRetriedTestsAsFailed(resultsDir: string): void {
+  const attemptsByTest = new Map<string, Array<{ path: string; result: AllureResultFile }>>();
+
+  for (const resultPath of collectResultFiles(resultsDir)) {
+    let result: AllureResultFile;
+
+    try {
+      result = JSON.parse(fs.readFileSync(resultPath, 'utf8')) as AllureResultFile;
+    } catch (error) {
+      console.warn(`Unable to read the Allure result ${resultPath}:`, error);
+      continue;
+    }
+
+    // Allure groups attempts by test case, so a result carrying neither key
+    // cannot be one attempt of several.
+    const key = result.historyId ?? result.testCaseId;
+
+    if (!key) {
+      continue;
+    }
+
+    attemptsByTest.set(key, [...(attemptsByTest.get(key) ?? []), { path: resultPath, result }]);
+  }
+
+  let reopened = 0;
+
+  for (const attempts of attemptsByTest.values()) {
+    if (attempts.length < 2) {
+      continue;
+    }
+
+    const newestFirst = [...attempts].sort(
+      (first, second) => (second.result.start ?? 0) - (first.result.start ?? 0),
+    );
+    const surviving = newestFirst[0];
+    const failedAttempt = newestFirst.find(({ result }) =>
+      FAILURE_STATUSES.has(result.status ?? ''),
+    );
+
+    if (!failedAttempt || surviving.result.status !== 'passed') {
+      continue;
+    }
+
+    surviving.result.status = failedAttempt.result.status;
+    surviving.result.statusDetails = {
+      ...surviving.result.statusDetails,
+      message: failedAttempt.result.statusDetails?.message,
+      trace: failedAttempt.result.statusDetails?.trace,
+      flaky: true,
+    };
+
+    fs.writeFileSync(surviving.path, JSON.stringify(surviving.result, null, 2));
+    reopened += 1;
+  }
+
+  if (reopened > 0) {
+    console.log(
+      `[allure] Reported ${reopened} test(s) as failed — they failed an attempt before passing on retry.`,
+    );
+  }
+}
+
 /** Collect every stylesheet the generated report ships. */
 function collectStylesheets(dir: string): string[] {
   if (!fs.existsSync(dir)) {
@@ -409,6 +504,7 @@ function generateReport(resultsDirs: string[], reportDir: string, historyFilePat
   // reads/writes the current history.jsonl file through allurerc.mjs.
   for (const dir of activeResults) {
     seedAllureMetadata(dir, path.basename(reportDir));
+    reportRetriedTestsAsFailed(dir);
     enrichRunLabels(dir, {
       runType,
       platform: getPlatformForResultsDir(dir),
