@@ -13,6 +13,9 @@ type SortValidationConfig = {
 };
 
 export class SearchPage extends SearchablePage {
+  // The result card itself. Shared by the card locator and its own drift fallback.
+  private static readonly RESULT_CARD_SELECTOR = '#ProductInfo:visible';
+
   // Shared by card-detail and sort-title extraction so both read the same node.
   private static readonly CARD_TITLE_SELECTOR =
     'h1, h2, h3, h4, [data-testid*="title"], [class*="title"]';
@@ -34,12 +37,39 @@ export class SearchPage extends SearchablePage {
 
   private filterButton = (label: string) => this.page.locator(`button[aria-label*="${label}"]`);
 
-  /** Keep assertions scoped to cards visible in the active tab, with approved fallback selectors. */
+  /**
+   * Keep assertions scoped to cards visible in the active tab, with approved fallback selectors.
+   *
+   * Every card read in this page object comes through here, which is why the
+   * phone layout's list view is ensured here rather than at each caller: on a
+   * phone the results open as a map, and a map pin is not a card, so a read
+   * taken in the map state reports zero cards for a search that has results.
+   *
+   * The fallback chain is skipped while the site is showing its own no-results
+   * status, because there zero is the right answer and healing can only get it
+   * wrong: with no card to match, the loosest selector picks up the empty
+   * `MetroSearch__SearchCardsContainer` - which holds an `a[href]` because the
+   * footer sits inside it - and reports one card for a search that found none.
+   * Callers then read a results count out of a status line that has no number in
+   * it. Drift protection is kept for every state where cards are expected.
+   */
   private async resultCards(): Promise<Locator> {
+    await this.ensureMobileResultsVisible();
+
+    const primaryCards = this.page.locator(SearchPage.RESULT_CARD_SELECTOR);
+
+    if (
+      await this.noResultsMessage()
+        .isVisible()
+        .catch(() => false)
+    ) {
+      return primaryCards;
+    }
+
     return this.healLocator('search result cards', [
       {
-        locator: this.page.locator('#ProductInfo:visible'),
-        selector: '#ProductInfo:visible',
+        locator: primaryCards,
+        selector: SearchPage.RESULT_CARD_SELECTOR,
       },
       {
         locator: this.page.locator('[data-testid*="product" i]:visible'),
@@ -76,14 +106,33 @@ export class SearchPage extends SearchablePage {
 
   private dropdownOption = (text: string) => this.page.getByText(text);
 
-  /** Opens a filter dropdown by its button label. */
+  /**
+   * Opens a filter dropdown by its button label.
+   *
+   * On a phone the price, beds & baths and type dropdowns are folded into the
+   * filter menu rather than shown inline, so the menu is opened first - the
+   * dropdown buttons themselves keep the same `aria-label`s in both layouts,
+   * which is why only the menu step differs.
+   */
   private async openFilter(label: string): Promise<void> {
     const button = this.filterButton(label);
 
     await this.waitForPageReady();
 
+    if (await this.isMobileHeaderViewport()) {
+      await this.openMobileFilterMenu();
+    }
+
     await expect(button).toBeVisible({ timeout: 20000 });
     await expect(button).toBeEnabled({ timeout: 20000 });
+
+    // The trigger toggles, so a dropdown that is already expanded must be left
+    // alone: every filter applies the moment it is picked, and on a phone the
+    // list stays open afterwards, so a second openFilter() for the same control
+    // would close it and detach the options the caller is about to click.
+    if ((await button.getAttribute('aria-expanded')) === 'true') {
+      return;
+    }
 
     await button.scrollIntoViewIfNeeded();
     await this.settle(500);
@@ -96,12 +145,13 @@ export class SearchPage extends SearchablePage {
   /**
    * Opens the requested results tab.
    *
-   * The phone layout has no tab bar at all: results open as a map with a List
-   * toggle, and the product type is carried by the `productType` query
-   * parameter - which is exactly the state the desktop tab writes when it is
-   * clicked (Plans switches the URL to `productType=plan`). So mobile performs
-   * the same state change through the URL and then opens the list, rather than
-   * hunting for a control the layout does not ship.
+   * The phone layout has no tab bar: results open as a map, the Communities /
+   * Plans / Quick Move-Ins controls are folded into the filter menu, and the
+   * cards themselves only exist in the list view. The product type is carried by
+   * the `productType` query parameter - exactly the state that control writes
+   * when it is picked (Plans switches the URL to `productType=plan`) - so mobile
+   * makes the same state change through the URL and then opens the list, which
+   * reaches the results in one navigation instead of walking the menu.
    */
   async openTab(tabName: string): Promise<void> {
     await this.step(`Open '${tabName}' tab`, async () => {
@@ -179,7 +229,109 @@ export class SearchPage extends SearchablePage {
       .first();
   }
 
-  /** Selects a results tab on the phone layout: product type by URL, then the list view. */
+  /**
+   * The phone filter menu, and the product-type buttons the menu holds.
+   *
+   * Matched on the styled-components display name rather than the whole class:
+   * the emitted class is `MobileFilters__StyledButton-sc-<hash>-0 <generated>`,
+   * and only the display-name prefix survives a rebuild. The trigger is a `div`
+   * with no button role, so a role-based lookup finds nothing - hence the text
+   * fallback on the "Filters" label it wraps.
+   */
+  private mobileFilterMenuTrigger(): Promise<Locator> {
+    return this.healLocator('mobile filter menu', [
+      {
+        locator: this.page.locator('[class*="MobileFilters__StyledButton"]').first(),
+        selector: '[class*="MobileFilters__StyledButton"]',
+      },
+      {
+        locator: this.page
+          .locator('div')
+          .filter({ has: this.page.getByText(/^Filters$/) })
+          .last(),
+        selector: 'div:has(:text-is("Filters"))',
+      },
+    ]);
+  }
+
+  /** The Plans / Quick Move-Ins toggle inside the phone filter menu. */
+  private mobilePrimaryFilter(tabName: string): Locator {
+    const label = tabName.toLowerCase() === 'plans' ? /^Plans\b/i : /^Quick Move-?Ins\b/i;
+
+    return this.page.locator('[class*="PrimaryFilter__Button"]').filter({ hasText: label }).first();
+  }
+
+  /**
+   * Opens the phone filter menu, which holds every control the desktop toolbar
+   * shows inline - the product-type toggles and the price, beds & baths and type
+   * dropdowns alike. Idempotent: a menu already open is left alone.
+   */
+  private async openMobileFilterMenu(): Promise<void> {
+    const primaryFilter = this.page.locator('[class*="PrimaryFilter__Button"]').first();
+
+    if (await primaryFilter.isVisible().catch(() => false)) {
+      return;
+    }
+
+    await this.dismissPromoPopupIfPresent();
+    await this.neutralizeChatWidget();
+
+    const trigger = await this.mobileFilterMenuTrigger();
+
+    await expect(trigger, 'The phone layout should offer a Filters menu').toBeVisible({
+      timeout: 20_000,
+    });
+    await trigger.click({ timeout: 20_000 });
+    await expect(primaryFilter, 'The phone filter menu should open').toBeVisible({
+      timeout: 20_000,
+    });
+  }
+
+  /**
+   * Closes the phone filter menu.
+   *
+   * Every filter applies the moment it is picked - the URL gains `bedrooms=3`
+   * while the menu is still open - so closing it is only about getting the panel
+   * off the results, never about committing anything.
+   *
+   * The X in the panel header is what does it. The footer's "Show N results"
+   * button closes the panel too, but it sits underneath any dropdown the caller
+   * left expanded, so a click there reports `BedsBathDropdown__DropDownListContainer
+   * ... intercepts pointer events` against a button that is visible and enabled.
+   * The X stays clear at the top in every state.
+   *
+   * That X is an `svg` with no button role and no aria-label, so it is matched on
+   * the "Close Icon" title it carries; it exists only while the panel is open.
+   */
+  private async closeMobileFilterMenu(): Promise<void> {
+    const primaryFilter = this.page.locator('[class*="PrimaryFilter__Button"]').first();
+
+    if (!(await primaryFilter.isVisible().catch(() => false))) {
+      return;
+    }
+
+    const closeIcon = this.page.locator('svg:has(title:text-is("Close Icon"))').first();
+
+    await expect(closeIcon, 'The phone filter menu should offer its close icon').toBeVisible({
+      timeout: 20_000,
+    });
+    await closeIcon.click({ timeout: 20_000 });
+    await expect(primaryFilter, 'The phone filter menu should close').toBeHidden({
+      timeout: 20_000,
+    });
+  }
+
+  /**
+   * Selects a results tab on the phone layout, then opens the list.
+   *
+   * Plans and Quick Move-Ins are `aria-pressed` toggles in the filter menu, the
+   * same contract the desktop tabs use, so they are driven the way a visitor
+   * drives them. Communities has no button of its own - it is the state with
+   * neither toggle pressed - and the menu's only route back to it is "Clear all",
+   * which also drops the price and beds & baths filters a caller may have just
+   * applied. So Communities flips `productType` in the URL instead, which every
+   * filter also writes itself and which therefore keeps them.
+   */
   private async openMobileResultsTab(tabName: string): Promise<void> {
     const productType = SearchPage.PRODUCT_TYPE_BY_TAB[tabName.toLowerCase()];
 
@@ -187,13 +339,29 @@ export class SearchPage extends SearchablePage {
       throw new Error(`No search product type is mapped for the '${tabName}' results tab`);
     }
 
-    const url = new URL(this.page.url());
+    if (productType === 'community') {
+      const url = new URL(this.page.url());
 
-    if (url.searchParams.get('productType') !== productType) {
-      url.searchParams.set('productType', productType);
-      await this.gotoAndVerifyResponse(url.toString());
-      await this.waitForPageReady();
-      await this.waitForAppPainted();
+      if (url.searchParams.get('productType') !== productType) {
+        url.searchParams.set('productType', productType);
+        await this.gotoAndVerifyResponse(url.toString());
+        await this.waitForPageReady();
+        await this.waitForAppPainted();
+      }
+    } else {
+      await this.openMobileFilterMenu();
+
+      const primaryFilter = this.mobilePrimaryFilter(tabName);
+
+      if ((await primaryFilter.getAttribute('aria-pressed')) !== 'true') {
+        await primaryFilter.click({ timeout: 20_000 });
+        await expect(
+          primaryFilter,
+          `The ${tabName} filter should be selected in the phone filter menu`,
+        ).toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
+      }
+
+      await this.closeMobileFilterMenu();
     }
 
     // The consent banner is pinned to the same bottom strip as the toggle and
@@ -201,17 +369,58 @@ export class SearchPage extends SearchablePage {
     // out against #onetrust-group-container.
     await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
 
+    await this.ensureMobileResultsVisible();
+  }
+
+  /**
+   * Puts the phone results where the cards can be read: filter menu closed, list
+   * view open.
+   *
+   * The results open as a map and the filter menu covers them, so either state
+   * hides every card while the page itself looks perfectly healthy. The toggle
+   * flips its own label to "Map" once the list is showing, which is both how an
+   * already-open list is recognised and the signal that a switch took - the
+   * animation is never waited on directly.
+   *
+   * Two things sit over the toggle and have to move first. The consent banner
+   * covers it outright. The AtlasRTX chat widget is worse: its floating iframe
+   * spans the whole phone viewport and reports nothing about itself, so the click
+   * retries against `#iAtlasChat` for its full 20s and fails on a toggle that is
+   * visible, enabled and stable. Pointer events are disabled on the widget rather
+   * than the click being forced, so an overlay of our own that genuinely blocks
+   * the toggle still surfaces.
+   *
+   * The toggle is required, not optional: without the list there are no cards to
+   * read, and a silent skip here reports an empty results set as a clean pass.
+   */
+  private async ensureMobileResultsVisible(): Promise<void> {
+    if (!(await this.isMobileHeaderViewport())) {
+      return;
+    }
+
+    await this.closeMobileFilterMenu();
+
+    const mapToggle = this.mobileResultsToggle('Map');
+
+    if (await mapToggle.isVisible().catch(() => false)) {
+      return;
+    }
+
+    await this.dismissPromoPopupIfPresent();
+    await this.neutralizeChatWidget();
+
     const listToggle = this.mobileResultsToggle('List');
 
-    if (await listToggle.isVisible().catch(() => false)) {
-      await listToggle.click({ timeout: 20_000 });
-      // The toggle flips to "Map" once the list is showing, which is the signal
-      // that the switch took rather than a fixed wait on the animation.
-      await expect(
-        this.mobileResultsToggle('Map'),
-        `${tabName} results should open in the list view`,
-      ).toBeVisible({ timeout: 20_000 });
-    }
+    await expect(
+      listToggle,
+      'The phone results layout should offer a List toggle to reach the result cards',
+    ).toBeVisible({ timeout: 20_000 });
+
+    await listToggle.click({ timeout: 20_000 });
+
+    await expect(mapToggle, 'The phone results should switch to the list view').toBeVisible({
+      timeout: 20_000,
+    });
   }
 
   /** Waits until either result cards or the no-results message appear. */
