@@ -2,8 +2,8 @@ name: Playwright Tests
 
 on:
   schedule:
-    # Daily smoke run at 03:30 UTC.
-    - cron: '30 3 * * *'
+    # Daily smoke run at 11:00 AM IST (05:30 UTC).
+    - cron: '30 5 * * *'
   push:
     branches: [main, master]
   workflow_dispatch:
@@ -304,7 +304,7 @@ jobs:
       # job itself is killed.
       - name: Upload Allure Report
         if: always()
-        timeout-minutes: 10
+        timeout-minutes: 15
         uses: actions/upload-artifact@v4
         with:
           name: allure-html-report

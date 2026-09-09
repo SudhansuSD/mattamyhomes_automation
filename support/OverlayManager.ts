@@ -1,4 +1,5 @@
 import { expect, Locator, Page } from '@playwright/test';
+import { closeAtlasChatIframeIfOpen } from '../utils/leadform/leadFormHelper';
 
 /**
  * Consent banners, promotion overlays, and the DOM they leave behind.
@@ -403,30 +404,14 @@ export class OverlayManager {
   /**
    * Stops the AtlasRTX chat widget intercepting clicks.
    *
-   * Its floating iframe sits over the Submit button, which cost four submission
-   * tests a "locator.click: Timeout" with no clue why. Pointer events are
-   * disabled rather than forcing the click, because a forced click would also
-   * hide the case where one of our own overlays genuinely blocks the form.
+   * Its floating iframe sits over the Submit button. The frame is cross-origin,
+   * so close it by hiding the host container before the form click rather than
+   * forcing the click through whatever is on top.
    */
   async neutralizeChatWidget(): Promise<void> {
-    await this.page
-      .evaluate(() => {
-        const widget = document.querySelector<HTMLElement>('#iAtlasChatDiv, #iAtlasChat');
-        const host = widget?.closest<HTMLElement>('div') ?? widget;
-
-        if (host && host.style.pointerEvents !== 'none') {
-          host.style.pointerEvents = 'none';
-          return true;
-        }
-
-        return false;
-      })
-      .then(async (neutralized) => {
-        if (neutralized) {
-          await this.deps.report('Disabled pointer events on the AtlasRTX chat widget');
-        }
-      })
-      .catch(() => undefined);
+    if (await closeAtlasChatIframeIfOpen(this.page)) {
+      await this.deps.report('Closed the AtlasRTX chat iframe before interacting with a form');
+    }
   }
 
   private async closeNationalPromotion(dialog: Locator): Promise<void> {

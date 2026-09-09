@@ -1,4 +1,4 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
@@ -177,6 +177,9 @@ export class StaticLegalPage extends BasePage {
   /** Checks the page renders real text, its expected headings and its expected wording. */
   async validateStaticContent(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Validate static content: ${config.name}`, async () => {
+      const initialErrorCount = test.info().errors.length;
+      const softExpect = expect.configure({ soft: true });
+
       await expect
         .poll(async () => this.getVisibleContentLength(), {
           message: `${config.name} should render meaningful visible content`,
@@ -185,28 +188,37 @@ export class StaticLegalPage extends BasePage {
         .toBeGreaterThan(200);
 
       for (const heading of config.headings) {
-        await this.assertVisible(
+        await softExpect(
           this.contentRoot.getByRole('heading', { name: heading }).first(),
           `${config.name} should show heading ${heading}`,
-          15_000,
-        );
+        ).toBeVisible({ timeout: 15_000 });
       }
 
       const pageText = await this.getVisiblePageText();
 
       for (const expectedText of config.contentChecks) {
-        expect(pageText, `${config.name} should include "${expectedText}"`).toContain(expectedText);
+        softExpect(pageText, `${config.name} should include "${expectedText}"`).toContain(
+          expectedText,
+        );
       }
+
+      expect(
+        test.info().errors.slice(initialErrorCount),
+        `${config.name} static content audit should have no assertion failures`,
+      ).toHaveLength(0);
     });
   }
 
   /** Checks every visible link has an href and the required destinations are present. */
   async validateRequiredLinks(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Validate required links: ${config.name}`, async () => {
+      const initialErrorCount = test.info().errors.length;
+      const softExpect = expect.configure({ soft: true });
+
       await this.validateVisibleLinksHaveDestinations();
 
       for (const requiredLink of config.requiredLinks) {
-        await expect
+        await softExpect
           .poll(async () => this.hasVisibleLinkMatching(requiredLink.href), {
             message: `${config.name} should include ${requiredLink.label}`,
             timeout: 15000,
@@ -215,6 +227,11 @@ export class StaticLegalPage extends BasePage {
 
         await this.reportValue(`Required link: ${requiredLink.label}`, requiredLink.href.source);
       }
+
+      expect(
+        test.info().errors.slice(initialErrorCount),
+        `${config.name} required-link audit should have no assertion failures`,
+      ).toHaveLength(0);
     });
   }
 
@@ -277,9 +294,9 @@ export class StaticLegalPage extends BasePage {
           .map((link) => link.textContent?.trim() || link.outerHTML),
       );
 
-    expect(linksWithoutHref, 'Visible static page links should include href destinations').toEqual(
-      [],
-    );
+    expect
+      .soft(linksWithoutHref, 'Visible static page links should include href destinations')
+      .toEqual([]);
   }
 
   /** Returns true when a visible link's href matches the pattern. */

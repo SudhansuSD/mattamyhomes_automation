@@ -1,4 +1,4 @@
-import { expect, Locator, Page } from '@playwright/test';
+import { expect, Locator, Page, test } from '@playwright/test';
 import testData from '../../data/test_data.json';
 import { getLocationConfig, type LocationKey } from '../../config/locations/locationConfig';
 import {
@@ -384,14 +384,77 @@ export function getSubmitButton(form: Locator): Locator {
   return form.locator(SUBMIT_BUTTON_SELECTOR).first();
 }
 
-/** Assert a field is visible only when present in the form. */
+/**
+ * Closes the AtlasRTX chat iframe when it is visible over a form.
+ *
+ * The widget is third-party and cross-origin, so the test cannot safely click a
+ * close control inside the iframe. Hiding its host container keeps Submit clicks
+ * honest for the form itself while removing only the external chat chrome that
+ * floats over desktop and mobile viewports.
+ */
+export async function closeAtlasChatIframeIfOpen(page: Page): Promise<boolean> {
+  return page
+    .evaluate(() => {
+      const host =
+        document.querySelector<HTMLElement>('#iAtlasChatDiv') ??
+        document.querySelector<HTMLElement>('#iAtlasChat');
+      const widgets = Array.from(
+        document.querySelectorAll<HTMLElement>('#iAtlasChatDiv, #iAtlasChat'),
+      );
+
+      if (!host) {
+        return false;
+      }
+
+      const isVisible = widgets.some((widget) => {
+        const rect = widget.getBoundingClientRect();
+        const style = window.getComputedStyle(widget);
+
+        return (
+          rect.width > 0 &&
+          rect.height > 0 &&
+          style.display !== 'none' &&
+          style.visibility !== 'hidden' &&
+          style.pointerEvents !== 'none'
+        );
+      });
+
+      if (!isVisible) {
+        return false;
+      }
+
+      host.dataset.automationAtlasChatClosed = 'true';
+      host.style.display = 'none';
+      host.style.pointerEvents = 'none';
+
+      return true;
+    })
+    .catch(() => false);
+}
+
+/** Assert that a required form field is visible. */
+export async function expectFieldVisible(
+  field: Locator,
+  label: string,
+  timeout = 10000,
+  options: { soft?: boolean } = {},
+): Promise<void> {
+  const assertion = options.soft
+    ? expect.soft(field, `${label} field should be visible`)
+    : expect(field, `${label} field should be visible`);
+
+  await assertion.toBeVisible({ timeout });
+}
+
+/** Assert a genuinely optional field is visible when the form renders it. */
 export async function expectFieldVisibleIfPresent(
   field: Locator,
   label: string,
   timeout = 10000,
+  options: { soft?: boolean } = {},
 ): Promise<void> {
   if (await field.count()) {
-    await expect(field.first(), `${label} field should be visible`).toBeVisible({ timeout });
+    await expectFieldVisible(field.first(), label, timeout, options);
   }
 }
 
@@ -416,6 +479,8 @@ export async function clickSubmit(
 ): Promise<void> {
   const submitButton = options.submitButton ?? getSubmitButton(form);
 
+  await closeAtlasChatIframeIfOpen(page);
+
   await expect(submitButton, 'Submit button should be visible before clicking').toBeVisible({
     timeout,
   });
@@ -437,27 +502,46 @@ export async function clickSubmit(
 
 /** Assert expected required-field messages within a lead form. */
 export async function expectRequiredErrorsInForm(form: Locator, timeout = 10000): Promise<void> {
-  await expect(
-    form.locator('text=/Error:\\s*First name is Required|First name.*Required/i').first(),
-  ).toBeVisible({ timeout });
-  await expect(
-    form.locator('text=/Error:\\s*Last name is Required|Last name.*Required/i').first(),
-  ).toBeVisible({ timeout });
-  await expect(
-    form.locator('text=/Error:\\s*Email is Required|Email.*Required/i').first(),
-  ).toBeVisible({ timeout });
-  await expect(
-    form
-      .locator('text=/Error:\\s*Country of Residence is Required|Country of Residence.*Required/i')
-      .first(),
-  ).toBeVisible({ timeout });
-  await expect(
-    form
-      .locator(
-        'text=/Error:\\s*Zip\\/Postal Code is Required|Zip\\/Postal Code.*Required|Postal.*Required/i',
-      )
-      .first(),
-  ).toBeVisible({ timeout });
+  const initialErrorCount = test.info().errors.length;
+  const requiredErrors: Array<[Locator, string]> = [
+    [
+      form.locator('text=/Error:\\s*First name is Required|First name.*Required/i').first(),
+      'First name required-field error should be visible',
+    ],
+    [
+      form.locator('text=/Error:\\s*Last name is Required|Last name.*Required/i').first(),
+      'Last name required-field error should be visible',
+    ],
+    [
+      form.locator('text=/Error:\\s*Email is Required|Email.*Required/i').first(),
+      'Email required-field error should be visible',
+    ],
+    [
+      form
+        .locator(
+          'text=/Error:\\s*Country of Residence is Required|Country of Residence.*Required/i',
+        )
+        .first(),
+      'Country of Residence required-field error should be visible',
+    ],
+    [
+      form
+        .locator(
+          'text=/Error:\\s*Zip\\/Postal Code is Required|Zip\\/Postal Code.*Required|Postal.*Required/i',
+        )
+        .first(),
+      'Zip/Postal Code required-field error should be visible',
+    ],
+  ];
+
+  await Promise.all(
+    requiredErrors.map(([error, message]) => expect.soft(error, message).toBeVisible({ timeout })),
+  );
+
+  expect(
+    test.info().errors.slice(initialErrorCount),
+    'Required-field error audit should have no assertion failures',
+  ).toHaveLength(0);
 }
 
 /** Assert invalid-email validation within a lead form. */
@@ -531,6 +615,7 @@ export async function expectSideModalFormFields(
   form: Locator,
   options: SideModalFormOptions = {},
 ): Promise<void> {
+  const initialErrorCount = test.info().errors.length;
   const timeout = options.timeout ?? 10000;
 
   // Asserted unconditionally: every Mattamy lead form collects these, so an
@@ -546,62 +631,50 @@ export async function expectSideModalFormFields(
     [form.getByRole('textbox', { name: /phone/i }).first(), 'Phone number'],
   ];
 
-  for (const [field, label] of requiredFields) {
-    await expect(field, `${label} field should be visible`).toBeVisible({ timeout });
-  }
-
-  // Country of Residence is not rendered on every form variant.
-  await expectFieldVisibleIfPresent(
-    form.getByRole('combobox', { name: /country of residence/i }).first(),
-    'Country of Residence',
-    timeout,
-  );
-
   if (options.expectCommunity) {
-    await expectFieldVisibleIfPresent(
-      form.getByRole('combobox', { name: /community/i }).first(),
-      'Community',
-      timeout,
-    );
+    requiredFields.push([form.getByRole('combobox', { name: /community/i }).first(), 'Community']);
   }
 
   if (options.expectPlan) {
-    await expectFieldVisibleIfPresent(
+    requiredFields.push([
       form.getByRole('combobox', { name: /suite|floorplan|plan/i }).first(),
       'Suite/Floorplan/Plan',
-      timeout,
-    );
+    ]);
   }
 
   // These four dropdowns are optional on the US / custom forms but required on the Canada
   // (ScheduleAVisit) forms, so their visibility is only asserted for Canada forms.
   if (await isCanadaForm(form)) {
-    await expectFieldVisibleIfPresent(
-      findSelectByLabel(form, /bedroom/i, 'bedroom'),
-      'Bedroom Count',
-      timeout,
-    );
-    await expectFieldVisibleIfPresent(
-      findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move'),
-      'Desired Move Date',
-      timeout,
-    );
-    await expectFieldVisibleIfPresent(
-      findSelectByLabel(form, /budget/i, 'budget'),
-      'Budget',
-      timeout,
-    );
-    await expectFieldVisibleIfPresent(
-      findSelectByLabel(form, /first.?time.*home.?buyer|first time homebuyer/i, 'buyer'),
-      'First Time Home Buyer',
-      timeout,
+    requiredFields.push(
+      [findSelectByLabel(form, /bedroom/i, 'bedroom'), 'Bedroom Count'],
+      [findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move'), 'Desired Move Date'],
+      [findSelectByLabel(form, /budget/i, 'budget'), 'Budget'],
+      [
+        findSelectByLabel(form, /first.?time.*home.?buyer|first time homebuyer/i, 'buyer'),
+        'First Time Home Buyer',
+      ],
     );
   }
 
-  await expect(
-    getSubmitButton(form),
-    'Submit button should be visible inside side modal form',
-  ).toBeVisible({ timeout });
+  requiredFields.push([getSubmitButton(form), 'Submit button']);
+
+  await Promise.all([
+    ...requiredFields.map(([field, label]) =>
+      expectFieldVisible(field, label, timeout, { soft: true }),
+    ),
+    // Country of Residence is not rendered on every form variant.
+    expectFieldVisibleIfPresent(
+      form.getByRole('combobox', { name: /country of residence/i }).first(),
+      'Country of Residence',
+      timeout,
+      { soft: true },
+    ),
+  ]);
+
+  expect(
+    test.info().errors.slice(initialErrorCount),
+    'Side modal form field audit should have no assertion failures',
+  ).toHaveLength(0);
 }
 
 /** Fill a side modal form with invalid-email data using the shared profile and form-id branching. */

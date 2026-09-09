@@ -95,7 +95,7 @@ export class PlanDetailPage extends SearchablePage {
   /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
-    this.heading = page.locator('h1');
+    this.heading = page.getByRole('heading', { level: 1 });
     this.breadcrumb = page.locator('#breadcrumb');
     this.priceSection = page.getByText('Starting from', { exact: true });
     this.galleryImages = page.locator('.slick-slide img, .swiper-slide img, img');

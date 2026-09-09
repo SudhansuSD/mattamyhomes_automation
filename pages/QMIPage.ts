@@ -66,10 +66,8 @@ export class QMIPage extends SearchablePage {
     });
 
     this.heroSection = page.locator("//div[@id='detailsBlockBar']/following-sibling::div[1]");
-    this.heroDetails = page
-      .locator('h1')
-      .locator('xpath=ancestor::div[contains(@class,"container")][1]');
-    this.heading = page.locator('h1');
+    this.heading = this.heroSection.getByRole('heading', { level: 1 });
+    this.heroDetails = this.heading.locator('xpath=ancestor::div[contains(@class,"container")][1]');
     this.breadcrumb = page.locator('#breadcrumb');
     this.priceSection = this.heroSection.locator("p:has-text('$')");
     this.getInformationCta = getVisibleInformationCta(page);
