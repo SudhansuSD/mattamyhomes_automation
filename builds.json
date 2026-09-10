@@ -1,5 +1,27 @@
 [
   {
+    "buildNumber": 216,
+    "buildId": "34463299890",
+    "runType": "Smoke",
+    "environment": "STAGE",
+    "location": "ALL",
+    "browser": "Chrome + Mobile Safari (iPhone 14)",
+    "branch": "main",
+    "commit": "845c90f",
+    "workflowRunUrl": "https://github.com/SudhansuSD/mattamyhomes_automation/actions/runs/34463299890",
+    "buildPath": "smoke/stage/216",
+    "timestamp": "2026-09-10T11:06:07.165Z",
+    "stats": {
+      "total": 142,
+      "passed": 133,
+      "failed": 4,
+      "broken": 0,
+      "skipped": 5,
+      "passPercentage": 97
+    },
+    "status": "failed"
+  },
+  {
     "buildNumber": 215,
     "buildId": "34335426071",
     "runType": "Smoke",
@@ -187,28 +209,6 @@
     "workflowRunUrl": "https://github.com/SudhansuSD/mattamyhomes_automation/actions/runs/33732260489",
     "buildPath": "smoke/stage/207",
     "timestamp": "2026-09-03T09:13:29.010Z",
-    "stats": {
-      "total": 142,
-      "passed": 136,
-      "failed": 1,
-      "broken": 0,
-      "skipped": 5,
-      "passPercentage": 99
-    },
-    "status": "failed"
-  },
-  {
-    "buildNumber": 206,
-    "buildId": "33723852268",
-    "runType": "Smoke",
-    "environment": "STAGE",
-    "location": "ALL",
-    "browser": "Chrome + Mobile Safari (iPhone 14)",
-    "branch": "main",
-    "commit": "48a2bdf",
-    "workflowRunUrl": "https://github.com/SudhansuSD/mattamyhomes_automation/actions/runs/33723852268",
-    "buildPath": "smoke/stage/206",
-    "timestamp": "2026-09-03T07:33:18.753Z",
     "stats": {
       "total": 142,
       "passed": 136,
