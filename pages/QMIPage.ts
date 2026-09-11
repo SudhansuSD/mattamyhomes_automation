@@ -406,6 +406,7 @@ export class QMIPage extends SearchablePage {
 
       await expectSideModalFormFields(form, {
         timeout: QMIPage.PAGE_LOAD_TIMEOUT,
+        formName: 'QMI Get Information side modal form',
       });
     });
   }

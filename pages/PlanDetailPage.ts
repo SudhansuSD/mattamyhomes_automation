@@ -746,7 +746,7 @@ export class PlanDetailPage extends SearchablePage {
       return;
     }
 
-    await expectSideModalFormFields(form, { timeout: 10000 });
+    await expectSideModalFormFields(form, { timeout: 10000, formName });
   }
 
   /** Submits the form empty and checks the required-field errors appear. */

@@ -382,6 +382,7 @@ export class CondoPlanPage extends SearchablePage {
       const form = await this.getAvailableSideModalForm();
       await expectSideModalFormFields(form, {
         timeout: TIMEOUT.short,
+        formName: 'Get Information condo plan side modal form',
         expectCommunity: true,
         expectPlan: true,
       });

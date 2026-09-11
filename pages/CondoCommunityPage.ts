@@ -443,6 +443,7 @@ export class CondoCommunityPage extends SearchablePage {
       const form = await this.getAvailableGetInformationForm();
       await expectSideModalFormFields(form, {
         timeout: TIMEOUT.short,
+        formName: 'Get Information condo sideModalForm',
         expectCommunity: true,
         expectPlan: true,
       });

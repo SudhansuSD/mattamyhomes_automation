@@ -10,6 +10,7 @@ import {
   isMobileBrowserProject,
   type BrowserProjectKey,
 } from './config/browserSelection';
+import { getEnvConfig } from './config/environments/envConfig';
 import { DESKTOP_ALLURE_RESULTS_DIR, MOBILE_ALLURE_RESULTS_DIR } from './scripts/allurePaths';
 import { getBoolEnv, getNumberEnv, isCI, loadEnv } from './config/env';
 import { LOCATION_AGNOSTIC_SPEC_GLOBS } from './config/locations/locationAgnosticSpecs';
@@ -20,6 +21,7 @@ loadEnv();
 // isHeadless, not isCI: headless ignores --start-maximized and otherwise falls
 // back to a small window that renders mobile navigation.
 const isHeadless = isCI || getBoolEnv('HEADLESS');
+const allowNonProdHttpsErrors = getEnvConfig().envName !== 'PROD';
 
 // Multi-location runs keep each pass in its own report/results folder.
 const locationPassTotal = getNumberEnv('LOCATION_PASS_TOTAL', 1);
@@ -123,6 +125,7 @@ const projectsByBrowser = {
       // already defaults to webkit; naming it keeps that explicit alongside the
       // other projects, which all set browserName directly.
       browserName: 'webkit',
+      ignoreHTTPSErrors: allowNonProdHttpsErrors,
     },
   },
 } satisfies Record<BrowserProjectKey, Project>;

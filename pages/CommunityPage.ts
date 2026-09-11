@@ -1315,7 +1315,9 @@ export class CommunityPage extends SearchablePage {
         return;
       }
 
-      await expectSideModalFormFields(form);
+      await expectSideModalFormFields(form, {
+        formName: 'Get Information community sideModalForm',
+      });
     });
   }
 

@@ -662,7 +662,11 @@ export class MPCPage extends BasePage {
   async verifySideModalFormFields(): Promise<void> {
     await this.step('Validate Get Information sideModalForm fields', async () => {
       const form = await this.getAvailableGetInformationForm();
-      await expectSideModalFormFields(form, { timeout: 10000, expectCommunity: true });
+      await expectSideModalFormFields(form, {
+        timeout: 10000,
+        formName: 'Get Information MPC sideModalForm',
+        expectCommunity: true,
+      });
     });
   }
 

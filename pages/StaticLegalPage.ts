@@ -141,6 +141,7 @@ export class StaticLegalPage extends BasePage {
 
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
+      await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
@@ -187,12 +188,14 @@ export class StaticLegalPage extends BasePage {
         })
         .toBeGreaterThan(200);
 
-      for (const heading of config.headings) {
-        await softExpect(
-          this.contentRoot.getByRole('heading', { name: heading }).first(),
-          `${config.name} should show heading ${heading}`,
-        ).toBeVisible({ timeout: 15_000 });
-      }
+      await Promise.all(
+        config.headings.map((heading) =>
+          softExpect(
+            this.contentRoot.getByRole('heading', { name: heading }).first(),
+            `${config.name} should show heading ${heading}`,
+          ).toBeVisible({ timeout: 15_000 }),
+        ),
+      );
 
       const pageText = await this.getVisiblePageText();
 
@@ -217,14 +220,18 @@ export class StaticLegalPage extends BasePage {
 
       await this.validateVisibleLinksHaveDestinations();
 
-      for (const requiredLink of config.requiredLinks) {
-        await softExpect
-          .poll(async () => this.hasVisibleLinkMatching(requiredLink.href), {
-            message: `${config.name} should include ${requiredLink.label}`,
-            timeout: 15000,
-          })
-          .toBeTruthy();
+      await Promise.all(
+        config.requiredLinks.map((requiredLink) =>
+          softExpect
+            .poll(async () => this.hasVisibleLinkMatching(requiredLink.href), {
+              message: `${config.name} should include ${requiredLink.label}`,
+              timeout: 15000,
+            })
+            .toBeTruthy(),
+        ),
+      );
 
+      for (const requiredLink of config.requiredLinks) {
         await this.reportValue(`Required link: ${requiredLink.label}`, requiredLink.href.source);
       }
 

@@ -565,6 +565,8 @@ export type FillLeadOptions = {
 
 export type SideModalFormOptions = FillLeadOptions & {
   timeout?: number;
+  formName?: string;
+  location?: LocationKey;
   expectCommunity?: boolean;
   expectPlan?: boolean;
 };
@@ -608,8 +610,9 @@ export async function fillLeadFormFields(
 
 /**
  * Assert the expected side-modal form fields for a standard Mattamy lead form.
- * The common fields are always checked, optional community/plan fields are controlled
- * by options, and Canada ScheduleAVisit form-specific fields are validated by form id.
+ * The common fields are always checked, schema-required fields come from the
+ * central form declaration, and community/plan dropdowns stay explicit because
+ * they depend on the page context that opened the modal.
  */
 export async function expectSideModalFormFields(
   form: Locator,
@@ -617,18 +620,15 @@ export async function expectSideModalFormFields(
 ): Promise<void> {
   const initialErrorCount = test.info().errors.length;
   const timeout = options.timeout ?? 10000;
+  const location = options.location ?? (getLocationConfig().country as LocationKey);
+  const formName = options.formName ?? 'side modal form';
 
-  // Asserted unconditionally: every Mattamy lead form collects these, so an
-  // "…IfPresent" check here would let a form that rendered no fields at all pass
-  // a field-validation test. Only genuinely optional fields stay conditional,
-  // and they branch on a known condition (country / form id) rather than on
-  // "did the locator happen to match".
   const requiredFields: Array<[Locator, string]> = [
-    [form.getByRole('textbox', { name: /first name/i }).first(), 'First name'],
-    [form.getByRole('textbox', { name: /last name/i }).first(), 'Last name'],
-    [form.getByRole('textbox', { name: /^email/i }).first(), 'Email'],
-    [form.getByRole('textbox', { name: /zip|postal/i }).first(), 'Zip/Postal Code'],
-    [form.getByRole('textbox', { name: /phone/i }).first(), 'Phone number'],
+    ...getBaseSideModalFieldExpectations(form),
+    ...getExpectedLeadFormFields(location, formName).map((field): [Locator, string] => [
+      getLeadFormFieldLocator(form, field).first(),
+      getLeadFormFieldLabel(field),
+    ]),
   ];
 
   if (options.expectCommunity) {
@@ -642,39 +642,73 @@ export async function expectSideModalFormFields(
     ]);
   }
 
-  // These four dropdowns are optional on the US / custom forms but required on the Canada
-  // (ScheduleAVisit) forms, so their visibility is only asserted for Canada forms.
-  if (await isCanadaForm(form)) {
-    requiredFields.push(
-      [findSelectByLabel(form, /bedroom/i, 'bedroom'), 'Bedroom Count'],
-      [findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move'), 'Desired Move Date'],
-      [findSelectByLabel(form, /budget/i, 'budget'), 'Budget'],
-      [
-        findSelectByLabel(form, /first.?time.*home.?buyer|first time homebuyer/i, 'buyer'),
-        'First Time Home Buyer',
-      ],
-    );
-  }
-
   requiredFields.push([getSubmitButton(form), 'Submit button']);
 
-  await Promise.all([
-    ...requiredFields.map(([field, label]) =>
+  await Promise.all(
+    dedupeFieldExpectations(requiredFields).map(([field, label]) =>
       expectFieldVisible(field, label, timeout, { soft: true }),
     ),
-    // Country of Residence is not rendered on every form variant.
-    expectFieldVisibleIfPresent(
-      form.getByRole('combobox', { name: /country of residence/i }).first(),
-      'Country of Residence',
-      timeout,
-      { soft: true },
-    ),
-  ]);
+  );
 
   expect(
     test.info().errors.slice(initialErrorCount),
     'Side modal form field audit should have no assertion failures',
   ).toHaveLength(0);
+}
+
+function getBaseSideModalFieldExpectations(form: Locator): Array<[Locator, string]> {
+  return [
+    [form.getByRole('textbox', { name: /first name/i }).first(), 'First name'],
+    [form.getByRole('textbox', { name: /last name/i }).first(), 'Last name'],
+    [form.getByRole('textbox', { name: /^email/i }).first(), 'Email'],
+    [form.getByRole('textbox', { name: /zip|postal/i }).first(), 'Zip/Postal Code'],
+    [form.getByRole('textbox', { name: /phone/i }).first(), 'Phone number'],
+  ];
+}
+
+function getLeadFormFieldLocator(form: Locator, field: LeadFormField): Locator {
+  const locators: Record<LeadFormField, Locator> = {
+    comments: form
+      .getByRole('textbox', { name: /additional questions|comment|message|special requirement/i })
+      .or(form.locator('textarea')),
+    bedroomCount: findSelectByLabel(form, /bedroom/i, 'bedroom'),
+    desiredMoveDate: findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move'),
+    newBudget: findSelectByLabel(form, /budget/i, 'budget'),
+    firstTimeHomeBuyer: findSelectByLabel(
+      form,
+      /first.?time.*home.?buyer|first time homebuyer/i,
+      'buyer',
+    ),
+    countryOfResidence: findSelectByLabel(form, /country of residence/i, 'country'),
+  };
+
+  return locators[field];
+}
+
+function getLeadFormFieldLabel(field: LeadFormField): string {
+  const labels: Record<LeadFormField, string> = {
+    comments: 'Comments',
+    bedroomCount: 'Bedroom Count',
+    desiredMoveDate: 'Desired Move Date',
+    newBudget: 'Budget',
+    firstTimeHomeBuyer: 'First Time Home Buyer',
+    countryOfResidence: 'Country of Residence',
+  };
+
+  return labels[field];
+}
+
+function dedupeFieldExpectations(fields: Array<[Locator, string]>): Array<[Locator, string]> {
+  const seenLabels = new Set<string>();
+
+  return fields.filter(([, label]) => {
+    if (seenLabels.has(label)) {
+      return false;
+    }
+
+    seenLabels.add(label);
+    return true;
+  });
 }
 
 /** Fill a side modal form with invalid-email data using the shared profile and form-id branching. */
