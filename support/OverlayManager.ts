@@ -49,8 +49,10 @@ export class OverlayManager {
     // assertion until it fails without ever sampling. Escalation is a single
     // pass for the same reason.
     await this.page.addLocatorHandler(privacyDialog, async (dialog) => {
-      const dismissButton = dialog
-        .getByRole('button', { name: /close|accept|agree|got it|ok|continue|dismiss/i })
+      const dismissButton = this.page
+        .locator('#onetrust-accept-btn-handler')
+        .or(dialog.getByRole('button', { name: /accept|agree|got it|ok|continue|dismiss/i }))
+        .or(dialog.getByRole('button', { name: /close/i }))
         .first();
 
       const buttonVisible = await dismissButton

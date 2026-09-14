@@ -5,8 +5,6 @@
 
 import { test } from '@playwright/test';
 import { CONTACT_COUNTRIES, ContactPage } from '../pages/ContactPage';
-import { Header } from '../pages/Header';
-import { HomePage } from '../pages/HomePage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 // Location-agnostic: covers both countries itself, so a multi-location run
@@ -32,17 +30,8 @@ test.describe('Mattamy Homes - Contact Page', () => {
 
         contactPage = new ContactPage(page);
 
-        await test.step(`Navigate to ${countryConfig.locationKey} Home Page`, async () => {
-          const homePage = new HomePage(page);
-
-          await homePage.navigate(countryConfig.locationKey);
-          await homePage.verifyPageLoaded();
-        });
-
-        await test.step('Open Contact Us from the header', async () => {
-          const header = new Header(page);
-
-          await header.clickContactUs();
+        await test.step(`Open ${countryConfig.locationKey} Contact page`, async () => {
+          await contactPage.navigateToContact(countryConfig.locationKey);
         });
       });
 
