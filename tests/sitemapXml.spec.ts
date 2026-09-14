@@ -722,7 +722,7 @@ async function writeSitemapReport(
 }
 
 test.describe('Sitemap XML validation', () => {
-    test('@regression Validate all sitemap URLs are healthy', async ({ page, request }, testInfo: TestInfo) => {
+    test('Validate all sitemap URLs are healthy', async ({ page, request }, testInfo: TestInfo) => {
         test.setTimeout(100 * 60 * 1000);
 
         const sitemapUrl = getSitemapUrl();

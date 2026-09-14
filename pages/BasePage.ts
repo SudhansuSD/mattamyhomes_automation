@@ -86,6 +86,11 @@ export class BasePage {
     return getLocationConfig(this.locationOverride);
   }
 
+  /** Country key this page object should use for country-specific expectations. */
+  protected get locationKey(): LocationKey {
+    return this.locationOverride ?? (this.location.country as LocationKey);
+  }
+
   // Navigation
 
   /** Opens this page object's URL and clears the usual overlays on arrival. */
@@ -565,12 +570,11 @@ export class BasePage {
     feature: FeatureKey,
     description: string,
   ): Promise<T | null> {
-    const location = this.locationOverride ?? (this.location.country as LocationKey);
     const { value: resolved, skipMessage } = resolveFeature(
       value,
       feature,
       description,
-      location,
+      this.locationKey,
       this.page.url(),
     );
 

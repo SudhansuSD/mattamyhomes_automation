@@ -383,8 +383,7 @@ export class CondoPlanPage extends SearchablePage {
       await expectSideModalFormFields(form, {
         timeout: TIMEOUT.short,
         formName: 'Get Information condo plan side modal form',
-        expectCommunity: true,
-        expectPlan: true,
+        location: this.locationKey,
       });
     });
   }

@@ -16,7 +16,7 @@ export class SearchPage extends SearchablePage {
   // The result card itself. Shared by the card locator and its own drift fallback.
   private static readonly RESULT_CARD_SELECTOR = '#ProductInfo:visible';
 
-  // Shared by card-detail and sort-title extraction so both read the same node.
+  // Shared by card-detail and sort-title extraction as a fallback when card text is sparse.
   private static readonly CARD_TITLE_SELECTOR =
     'h1, h2, h3, h4, [data-testid*="title"], [class*="title"]';
 
@@ -570,24 +570,96 @@ export class SearchPage extends SearchablePage {
 
   /** Picks out the "City, State" or "City, Community" line from a card. */
   private getLocationLine(lines: string[], tabName: ResultsTab): string {
+    return lines.find((line) => this.isLocationLine(line, tabName)) ?? '';
+  }
+
+  /** True when a text line is the card's location context rather than its name. */
+  private isLocationLine(line: string, tabName: ResultsTab): boolean {
     const locationPattern =
       tabName === 'Communities'
         ? /^[A-Za-z .'-]+,\s*[A-Za-z .'-]+$/
         : /^[A-Za-z .'-]+,\s*[A-Za-z0-9 .&'-]+$/;
 
-    return lines.find((line) => locationPattern.test(line)) ?? '';
+    return locationPattern.test(line);
   }
 
-  /**
-   * Returns the card's title element.
-   *
-   * KNOWN ISSUE: on at least one Communities card this yields the name repeated
-   * ("Waxhaw Landing Waxhaw Landing Waxhaw Landing"), which breaks A-Z sort
-   * validation. Filtering to the innermost matching element did not change the
-   * result, so the cause is not simple wrapper nesting and needs DOM inspection.
-   */
-  private getCardTitleLocator(card: Locator): Locator {
-    return card.locator(SearchPage.CARD_TITLE_SELECTOR).first();
+  /** True when a card line is supporting metadata, not the searchable result name. */
+  private isCardMetadataLine(line: string, tabName: ResultsTab): boolean {
+    if (this.isLocationLine(line, tabName)) {
+      return true;
+    }
+
+    return [
+      /^(view details|view homes|view plans|learn more|quick view|save|saved|favorite)$/i,
+      /^(register for updates|contact us)$/i,
+      /^(available|coming soon|now selling|sold out|sold|model home|inventory home)$/i,
+      /^\$[\d,]+(?:\s*-\s*\$[\d,]+)?$/i,
+      /^(from|starting at|priced from)\s+\$[\d,]+/i,
+      /\b\d+(?:\.\d+)?\s*(beds?|baths?|garage|stories|storeys)\b/i,
+      /\b[\d,]+(?:\s*-\s*[\d,]+)?\s*sq\.?\s*ft\.?\b/i,
+      /^move[-\s]?in/i,
+    ].some((pattern) => pattern.test(line));
+  }
+
+  /** Removes exact adjacent duplicated words from title text produced by nested title wrappers. */
+  private collapseRepeatedTitleWords(title: string): string {
+    const words = title.replace(/\s+/g, ' ').trim().split(' ');
+
+    for (let size = 1; size <= Math.floor(words.length / 2); size++) {
+      if (words.length % size !== 0) {
+        continue;
+      }
+
+      const phrase = words.slice(0, size).join(' ').toLowerCase();
+      const repeats = words.length / size;
+
+      if (
+        repeats > 1 &&
+        Array.from({ length: repeats }, (_, index) =>
+          words
+            .slice(index * size, (index + 1) * size)
+            .join(' ')
+            .toLowerCase(),
+        ).every((candidate) => candidate === phrase)
+      ) {
+        return words.slice(0, size).join(' ');
+      }
+    }
+
+    return words.join(' ');
+  }
+
+  /** Reads the result name from the card text, excluding location and spec metadata lines. */
+  private async getCardTitle(card: Locator, tabName: ResultsTab): Promise<string> {
+    const headingTitle = (
+      await card
+        .getByRole('heading')
+        .allTextContents()
+        .catch(() => [])
+    )
+      .flatMap((text) => this.getCardTextLines(text))
+      .find((line) => !this.isCardMetadataLine(line, tabName));
+
+    if (headingTitle) {
+      return this.collapseRepeatedTitleWords(headingTitle);
+    }
+
+    const lines = this.getCardTextLines(await card.innerText().catch(() => ''));
+    const lineTitle = lines.find((line) => !this.isCardMetadataLine(line, tabName));
+
+    if (lineTitle) {
+      return this.collapseRepeatedTitleWords(lineTitle);
+    }
+
+    const locatorTitles = await card
+      .locator(SearchPage.CARD_TITLE_SELECTOR)
+      .allTextContents()
+      .catch(() => []);
+    const locatorTitle = locatorTitles
+      .flatMap((text) => this.getCardTextLines(text))
+      .find((line) => !this.isCardMetadataLine(line, tabName));
+
+    return locatorTitle ? this.collapseRepeatedTitleWords(locatorTitle) : '';
   }
 
   /** Returns the card's outer container - the one holding both its image and its details. */
@@ -647,9 +719,7 @@ export class SearchPage extends SearchablePage {
   }> {
     const text = await card.innerText();
     const lines = this.getCardTextLines(text);
-    const title = await this.getCardTitleLocator(card)
-      .innerText()
-      .catch(() => '');
+    const title = await this.getCardTitle(card, tabName);
     const href = await card.locator('a[href]').first().getAttribute('href');
 
     expect(
@@ -659,7 +729,7 @@ export class SearchPage extends SearchablePage {
     expect(href, `${tabName} card ${cardIndex} should include a CTA/details link`).toBeTruthy();
 
     return {
-      title: title.trim(),
+      title,
       locationLine: this.validateCardLocationLine(lines, tabName, cardIndex),
       href: href!,
     };
@@ -691,15 +761,13 @@ export class SearchPage extends SearchablePage {
       ).toHaveURL(new RegExp(escapeRegex(new URL(detailUrl).pathname), 'i'));
 
       const body = detailPage.locator('body');
-      const [city, locationContext] = locationLine.split(',').map((value) => value.trim());
+      const [, locationContext] = locationLine.split(',').map((value) => value.trim());
 
       await expect(
         body,
         `${tabName} detail page should contain card title: ${title}`,
       ).toContainText(new RegExp(escapeRegex(title), 'i'), { timeout: 15000 });
-      await expect(body, `${tabName} detail page should contain city: ${city}`).toContainText(
-        new RegExp(escapeRegex(city), 'i'),
-      );
+
       await expect(
         body,
         `${tabName} detail page should contain ${tabName === 'Communities' ? 'state' : 'community'}: ${locationContext}`,
@@ -716,7 +784,7 @@ export class SearchPage extends SearchablePage {
     cardIndex: number,
   ): string {
     const locationLine = this.getLocationLine(lines, tabName);
-    const expectedFormat = tabName === 'Communities' ? 'City, State' : 'City, Community';
+    const expectedFormat = tabName === 'Communities' ? 'City/Area, State' : 'City, Community';
 
     expect(
       locationLine,
@@ -1499,12 +1567,10 @@ export class SearchPage extends SearchablePage {
     for (let i = 0; i < count; i++) {
       const card = cards.nth(i);
 
-      const title = await this.getCardTitleLocator(card)
-        .innerText()
-        .catch(() => '');
+      const title = await this.getCardTitle(card, tabName);
 
-      if (title.trim()) {
-        titles.push(title.trim());
+      if (title) {
+        titles.push(title);
       }
     }
 

@@ -4,8 +4,9 @@ import type { LocationKey } from '../locations/locationConfig';
  * Which fields a lead form should expose, per country.
  *
  * Taken from the recorded submissions in
- * reports/form-submissions/Mattamy_Form_Submission_Evidence_STAGE_*.xlsx: every
- * USA form has Comments, every Canada form has First Time Home Buyer instead.
+ * reports/form-submissions/Mattamy_Form_Submission_Evidence_STAGE_*.xlsx and
+ * the current STAGE forms. USA side-modal forms no longer render a Comments
+ * field, while Canada forms still require First Time Home Buyer.
  *
  * Without this a form that lost its budget dropdown still submitted, still
  * passed, and just sent the CRM a thinner lead.
@@ -21,7 +22,7 @@ export type LeadFormField =
 
 /** Fields every lead form in a country must expose. */
 const REQUIRED_BY_LOCATION: Record<LocationKey, readonly LeadFormField[]> = {
-  USA: ['comments', 'bedroomCount', 'desiredMoveDate', 'newBudget', 'countryOfResidence'],
+  USA: ['bedroomCount', 'desiredMoveDate', 'newBudget', 'countryOfResidence'],
   CAN: ['bedroomCount', 'desiredMoveDate', 'newBudget', 'firstTimeHomeBuyer', 'countryOfResidence'],
 };
 

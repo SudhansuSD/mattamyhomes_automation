@@ -156,6 +156,39 @@ export class OverlayManager {
         .catch(() => undefined);
     }
 
+    await this.withPromoDismissalDeadline(
+      () => this.dismissVisiblePromoPopup(nationalPromotionDialog),
+      Math.max(5000, appearTimeout + 5000),
+    );
+  }
+
+  private async withPromoDismissalDeadline(
+    work: () => Promise<void>,
+    timeout: number,
+  ): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    try {
+      await Promise.race([
+        work(),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            reject(
+              new Error(
+                `Timed out after ${timeout}ms while dismissing optional promotion overlays; the page may be unresponsive.`,
+              ),
+            );
+          }, timeout);
+        }),
+      ]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
+  private async dismissVisiblePromoPopup(nationalPromotionDialog: Locator): Promise<void> {
     if (await nationalPromotionDialog.isVisible().catch(() => false)) {
       await this.closeNationalPromotion(nationalPromotionDialog);
       await this.deps.settle(500);

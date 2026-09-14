@@ -665,6 +665,7 @@ export class MPCPage extends BasePage {
       await expectSideModalFormFields(form, {
         timeout: 10000,
         formName: 'Get Information MPC sideModalForm',
+        location: this.locationKey,
         expectCommunity: true,
       });
     });

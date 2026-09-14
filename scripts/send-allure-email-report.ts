@@ -8,6 +8,7 @@ import {
   DESKTOP_ALLURE_REPORT_DIR,
   DESKTOP_ALLURE_RESULTS_DIR,
   MERGED_ALLURE_REPORT_DIR,
+  MOBILE_ALLURE_REPORT_DIR,
   MOBILE_ALLURE_RESULTS_DIR,
   getPlatformCoverage,
 } from './allurePaths';
@@ -18,6 +19,12 @@ import { getEnvConfig } from '../config/environments/envConfig';
 loadEnv();
 
 type TestStatus = 'passed' | 'failed' | 'broken' | 'skipped' | 'unknown';
+type ReportPlatform = 'Web' | 'Mobile' | 'All';
+
+type AllureLabel = {
+  name?: string;
+  value?: string;
+};
 
 type AllureResult = {
   uuid?: string;
@@ -32,10 +39,9 @@ type AllureResult = {
   };
   start?: number;
   stop?: number;
-  labels?: Array<{
-    name?: string;
-    value?: string;
-  }>;
+  labels?: AllureLabel[];
+  /** Internal source marker added while reading result files. */
+  platform?: ReportPlatform;
 };
 
 type AllureReportSummary = {
@@ -69,10 +75,7 @@ type AllureReportTestCase = {
   steps?: AllureReportStep[];
   setup?: AllureReportStep[];
   teardown?: AllureReportStep[];
-  labels?: Array<{
-    name?: string;
-    value?: string;
-  }>;
+  labels?: AllureLabel[];
 };
 
 type ExecutionSummary = {
@@ -104,6 +107,8 @@ type ReportedTest = {
   name: string;
   /** Spec file and line, shown under the scenario name; empty when it is the only label available. */
   location: string;
+  /** Whether this result came from the desktop web pass or the mobile-web pass. */
+  platform: ReportPlatform;
   message: string;
   /** True when a retry of this scenario went on to pass - counted as passed, reported, not excused. */
   recoveredOnRetry: boolean;
@@ -123,6 +128,7 @@ const CODE_FRAGMENT_PATTERN =
   /expect\(|locator\(|page\.[a-z]+\(|=>|\$\{|<\/?[a-z][^>]*>|\)\.(?:first|last|nth)\(/i;
 const chartCid = 'test-summary-chart';
 const RUN_TYPE_LABEL = 'runType';
+const PARENT_SUITE_LABEL = 'parentSuite';
 /**
  * CI runners are UTC, so an unlabeled timestamp read as an hour - and for the 03:30 UTC nightly,
  * a whole calendar day - off from when the run was actually seen. Stamp the report in Central
@@ -234,6 +240,35 @@ function collectJsonFiles(dir: string): string[] {
   return collected;
 }
 
+function normalizePlatform(value: string | undefined): ReportPlatform {
+  if (/^mobile$/i.test(value ?? '')) {
+    return 'Mobile';
+  }
+
+  if (/^(?:web|desktop)$/i.test(value ?? '')) {
+    return 'Web';
+  }
+
+  return 'All';
+}
+
+function getPlatformFromLabels(labels: AllureLabel[] | undefined): ReportPlatform {
+  const parentSuite = normalizePlatform(
+    labels?.find((label) => label.name === PARENT_SUITE_LABEL)?.value,
+  );
+
+  if (parentSuite !== 'All') {
+    return parentSuite;
+  }
+
+  const platformTag = labels
+    ?.filter((label) => label.name === 'tag')
+    .map((label) => normalizePlatform(label.value))
+    .find((platform) => platform !== 'All');
+
+  return platformTag ?? 'All';
+}
+
 /**
  * The report the email summarizes: the merged web + mobile report when one was
  * built, else the desktop report.
@@ -243,8 +278,37 @@ function collectJsonFiles(dir: string): string[] {
  */
 function getSummaryReportDir(): string {
   const merged = path.join(MERGED_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
+  const desktop = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
+  const mobile = path.join(MOBILE_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
+  const { web, mobile: hasMobileResults } = getPlatformCoverage();
 
-  return fs.existsSync(merged) ? MERGED_ALLURE_REPORT_DIR : DESKTOP_ALLURE_REPORT_DIR;
+  if (fs.existsSync(merged)) {
+    return MERGED_ALLURE_REPORT_DIR;
+  }
+
+  if (hasMobileResults && !web && fs.existsSync(mobile)) {
+    return MOBILE_ALLURE_REPORT_DIR;
+  }
+
+  if (web && fs.existsSync(desktop)) {
+    return DESKTOP_ALLURE_REPORT_DIR;
+  }
+
+  return fs.existsSync(mobile) ? MOBILE_ALLURE_REPORT_DIR : DESKTOP_ALLURE_REPORT_DIR;
+}
+
+function getSummaryReportPlatformFallback(): ReportPlatform {
+  const reportDir = path.resolve(getSummaryReportDir());
+
+  if (reportDir === path.resolve(DESKTOP_ALLURE_REPORT_DIR)) {
+    return 'Web';
+  }
+
+  if (reportDir === path.resolve(MOBILE_ALLURE_REPORT_DIR)) {
+    return 'Mobile';
+  }
+
+  return 'All';
 }
 
 /**
@@ -262,8 +326,14 @@ function readAllureResults(): AllureResult[] {
 
   // Both platforms: the email covers the whole run, not one project.
   const resultFiles = [
-    ...collectResultFiles(DESKTOP_ALLURE_RESULTS_DIR),
-    ...collectResultFiles(MOBILE_ALLURE_RESULTS_DIR),
+    ...collectResultFiles(DESKTOP_ALLURE_RESULTS_DIR).map((resultPath) => ({
+      resultPath,
+      platform: 'Web' as const,
+    })),
+    ...collectResultFiles(MOBILE_ALLURE_RESULTS_DIR).map((resultPath) => ({
+      resultPath,
+      platform: 'Mobile' as const,
+    })),
   ];
 
   if (resultFiles.length === 0) {
@@ -273,9 +343,12 @@ function readAllureResults(): AllureResult[] {
     return results;
   }
 
-  for (const resultPath of resultFiles) {
+  for (const { resultPath, platform } of resultFiles) {
     try {
-      results.push(JSON.parse(fs.readFileSync(resultPath, 'utf8')) as AllureResult);
+      results.push({
+        ...(JSON.parse(fs.readFileSync(resultPath, 'utf8')) as AllureResult),
+        platform,
+      });
     } catch (error) {
       console.warn(`Unable to read Allure result file ${resultPath}:`, error);
     }
@@ -395,14 +468,23 @@ function isFailedStatus(status: TestStatus | undefined): boolean {
   return status === 'failed' || status === 'broken';
 }
 
+function getPlatformFromResult(result: AllureResult): ReportPlatform {
+  const platform = getPlatformFromLabels(result.labels);
+
+  return platform === 'All' ? (result.platform ?? 'All') : platform;
+}
+
 function describeReportTest(
   testCase: AllureReportTestCase,
   message: string,
   recoveredOnRetry: boolean,
 ): ReportedTest {
+  const platform = getPlatformFromLabels(testCase.labels);
+
   return {
     name: testCase.name || testCase.fullName || 'Unnamed test',
     location: testCase.name && testCase.fullName ? testCase.fullName : '',
+    platform: platform === 'All' ? getSummaryReportPlatformFallback() : platform,
     message,
     recoveredOnRetry,
   };
@@ -529,14 +611,15 @@ function getPassPercentage(passed: number, failed: number, broken: number): numb
 }
 
 function getResultKey(result: AllureResult): string {
-  return (
+  const baseKey =
     result.historyId ||
     result.testCaseId ||
     result.fullName ||
     result.name ||
     result.uuid ||
-    'unknown'
-  );
+    'unknown';
+
+  return `${getPlatformFromResult(result)}:${baseKey}`;
 }
 
 function getResultTimestamp(result: AllureResult): number {
@@ -593,6 +676,16 @@ function buildSummaryFromCounts(
 }
 
 function buildSummaryFromReport(): ExecutionSummary | null {
+  const { web, mobile } = getPlatformCoverage();
+  const summaryReportDir = getSummaryReportDir();
+
+  // A web + mobile email needs a report generated from both result streams. If
+  // the merged report is absent, fall back to raw results so mobile rows do not
+  // disappear behind the desktop report.
+  if (web && mobile && path.resolve(summaryReportDir) !== path.resolve(MERGED_ALLURE_REPORT_DIR)) {
+    return null;
+  }
+
   const reportSummary = readAllureReportSummary();
   const statistic = reportSummary?.statistic ?? reportSummary;
 
@@ -639,6 +732,7 @@ function describeResult(
   return {
     name: result.name || result.fullName || 'Unnamed test',
     location: result.name && result.fullName ? result.fullName : '',
+    platform: getPlatformFromResult(result),
     message: summarizeErrorText(
       failedAttempt.statusDetails?.message ?? '',
       failedAttempt.statusDetails?.trace ?? '',
@@ -816,6 +910,7 @@ function renderScenarioTable(tests: ReportedTest[], heading: string): string {
       <thead>
         <tr>
           <th>#</th>
+          <th>Platform</th>
           <th>${escapeHtml(heading)}</th>
           ${hasErrorSummary ? '<th>Error Summary</th>' : ''}
         </tr>
@@ -826,6 +921,7 @@ function renderScenarioTable(tests: ReportedTest[], heading: string): string {
             (test, index) => `
               <tr>
                 <td>${index + 1}</td>
+                <td class="platform-cell">${escapeHtml(test.platform)}</td>
                 <td>
                   ${escapeHtml(test.name)}
                   ${test.location ? `<div class="scenario-location">${escapeHtml(test.location)}</div>` : ''}
@@ -891,6 +987,7 @@ function renderSkippedTests(summary: ExecutionSummary): string {
               <thead>
                 <tr>
                   <th>#</th>
+                  <th>Platform</th>
                   <th>Skipped Scenario</th>
                   ${hasReason ? '<th>Reason</th>' : ''}
                 </tr>
@@ -901,6 +998,7 @@ function renderSkippedTests(summary: ExecutionSummary): string {
                     (test, index) => `
                       <tr>
                         <td>${index + 1}</td>
+                        <td class="platform-cell">${escapeHtml(test.platform)}</td>
                         <td>
                           ${escapeHtml(test.name)}
                           ${test.location ? `<div class="scenario-location">${escapeHtml(test.location)}</div>` : ''}
@@ -1038,6 +1136,11 @@ function buildEmailHtml(summary: ExecutionSummary): string {
             margin-top: 4px;
             color: #64748b;
             font-size: 12px;
+          }
+          .platform-cell {
+            color: #0f2747;
+            font-weight: bold;
+            white-space: nowrap;
           }
           .retry-note {
             display: inline-block;

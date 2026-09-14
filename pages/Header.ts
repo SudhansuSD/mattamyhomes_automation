@@ -242,7 +242,42 @@ export class Header extends BasePage {
   async clickContactUs(): Promise<void> {
     await this.step('Click Contact Us', async () => {
       await this.revealNavigationForViewport();
-      await this.clickElement(this.contactUsLink);
+
+      await this.acceptCookiesIfPresent();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+      await this.page.evaluate(() => window.scrollTo(0, 0));
+      await this.assertVisible(
+        this.contactUsLink,
+        'Contact Us header link should be visible',
+        20000,
+      );
+
+      const previousTitle = await this.page.title().catch(() => '');
+      let lastClickError: unknown;
+
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        const clicked = await this.contactUsLink
+          .click({ timeout: 10000, noWaitAfter: true })
+          .then(() => true)
+          .catch(async (error: unknown) => {
+            lastClickError = error;
+            await this.dismissPromoPopupIfPresent({ appearTimeout: 1000 });
+            return false;
+          });
+
+        if (!clicked) {
+          continue;
+        }
+
+        await this.page.waitForURL((url) => url.pathname.replace(/\/$/, '') === '/contact', {
+          timeout: 30000,
+        });
+        await this.waitForRouteContent(previousTitle);
+        await this.waitForPageReady();
+        return;
+      }
+
+      throw lastClickError ?? new Error('Unable to click Contact Us header link');
     });
   }
 

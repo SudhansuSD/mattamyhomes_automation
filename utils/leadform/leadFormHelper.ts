@@ -668,9 +668,7 @@ function getBaseSideModalFieldExpectations(form: Locator): Array<[Locator, strin
 
 function getLeadFormFieldLocator(form: Locator, field: LeadFormField): Locator {
   const locators: Record<LeadFormField, Locator> = {
-    comments: form
-      .getByRole('textbox', { name: /additional questions|comment|message|special requirement/i })
-      .or(form.locator('textarea')),
+    comments: findCommentsField(form),
     bedroomCount: findSelectByLabel(form, /bedroom/i, 'bedroom'),
     desiredMoveDate: findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move'),
     newBudget: findSelectByLabel(form, /budget/i, 'budget'),
@@ -683,6 +681,23 @@ function getLeadFormFieldLocator(form: Locator, field: LeadFormField): Locator {
   };
 
   return locators[field];
+}
+
+function findCommentsField(form: Locator): Locator {
+  return form
+    .getByRole('textbox', { name: /additional questions|comment|message|special requirement/i })
+    .or(
+      form.locator(
+        [
+          'textarea[aria-label*="additional" i]:not([disabled]):not([aria-disabled="true"]):visible',
+          'textarea[aria-label*="comment" i]:not([disabled]):not([aria-disabled="true"]):visible',
+          'textarea[aria-label*="message" i]:not([disabled]):not([aria-disabled="true"]):visible',
+          'textarea[aria-label*="special requirement" i]:not([disabled]):not([aria-disabled="true"]):visible',
+          'textarea[name*="comment" i]:not([disabled]):not([aria-disabled="true"]):visible',
+          'textarea[name*="requirement" i]:not([disabled]):not([aria-disabled="true"]):visible',
+        ].join(', '),
+      ),
+    );
 }
 
 function getLeadFormFieldLabel(field: LeadFormField): string {
@@ -832,9 +847,7 @@ export async function assertLeadFormShape(form: Locator, formName: string): Prom
   // values would report comments and country-of-residence missing on every USA
   // form. Locators mirror the ones used to fill each field.
   const probes: Record<LeadFormField, Locator> = {
-    comments: form
-      .getByRole('textbox', { name: /additional questions|comment|message|special requirement/i })
-      .or(form.locator('textarea')),
+    comments: findCommentsField(form),
     bedroomCount: findSelectByLabel(form, /bedroom/i, 'bedroom'),
     desiredMoveDate: findSelectByLabel(form, /move.?date|desired move|move.?in/i, 'move'),
     newBudget: findSelectByLabel(form, /budget/i, 'budget'),
