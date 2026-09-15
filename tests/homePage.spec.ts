@@ -43,14 +43,9 @@ test.describe(`Mattamy Homes - ${location.country}`, () => {
       });
     });
 
-    test(`@chrome-only @smoke @regression | ${location.country} | Validate hero video autoplay on Home Page`, async ({}, testInfo) => {
-      test.skip(
-        testInfo.project.name !== 'Chrome',
-        'The phone home page has no autoplaying hero video, so this is a desktop check.',
-      );
-
-      await test.step('Verify hero video autoplays', async () => {
-        await homePage.validateHeroVideoAutoplay();
+    test(`@smoke @regression | ${location.country} | Validate hero media on Home Page`, async () => {
+      await test.step('Verify the hero shows the media this viewport expects', async () => {
+        await homePage.validateHeroMedia();
       });
     });
   });

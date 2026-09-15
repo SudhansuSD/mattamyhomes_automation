@@ -2,6 +2,17 @@ import { Locator, Page, expect } from '@playwright/test';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { SearchablePage } from './SearchablePage';
 
+/**
+ * Viewport width at and above which the masthead swaps its hero image for the
+ * hero video.
+ *
+ * This is the masthead's own breakpoint, not the header's: measured against
+ * STAGE, the video is display:none at 767px and shown at 768px. Phone profiles
+ * sit well under it, so each platform lands on the branch matching what the site
+ * actually exposes for that viewport.
+ */
+const HERO_VIDEO_MIN_WIDTH = 768;
+
 type HeroVideoState = {
   autoplayAttribute: boolean;
   autoplayProperty: boolean;
@@ -10,6 +21,13 @@ type HeroVideoState = {
   playsInlineAttribute: boolean;
   sourceCount: number;
   src: string;
+};
+
+type HeroImageState = {
+  configuredImageUrl: string;
+  posterImageUrl: string;
+  preloadedImageUrl: string;
+  videoDisplayed: boolean;
 };
 
 type MarketSlide = {
@@ -50,7 +68,7 @@ export class HomePage extends SearchablePage {
   constructor(page: Page) {
     super(page);
 
-    this.heroSection = page.locator('section').first();
+    this.heroSection = page.locator('#masthead');
     this.heroVideo = this.heroSection.locator('video').first();
     this.header = page.locator('header');
 
@@ -67,13 +85,122 @@ export class HomePage extends SearchablePage {
     });
   }
 
-  // Checks that the hero video is configured for muted inline autoplay and actually plays.
-  async validateHeroVideoAutoplay(): Promise<void> {
-    await this.step('Validate hero video autoplay', async () => {
+  // Checks the masthead shows the hero media this viewport is meant to get - the video on desktop, the image on phones.
+  async validateHeroMedia(): Promise<void> {
+    await this.step('Validate hero media', async () => {
       await this.waitForPageReady();
       await this.heroSection.waitFor({ state: 'visible', timeout: 30000 });
+      await this.assertVisible(this.heroSection, 'Hero section should be visible');
       await this.heroVideo.waitFor({ state: 'attached', timeout: 15000 });
 
+      if (await this.isHeroImageViewport()) {
+        await this.validateHeroImage();
+        return;
+      }
+
+      await this.validateHeroVideoAutoplay();
+    });
+  }
+
+  // Tells whether the viewport is narrow enough that the masthead uses the hero image instead of the video.
+  private async isHeroImageViewport(): Promise<boolean> {
+    // Falls back to the breakpoint itself, not 0, for the reason BasePage falls
+    // back to the desktop width: a viewport that cannot be read runs the stricter
+    // video checks rather than quietly settling for the image ones.
+    const viewportWidth = await this.page
+      .evaluate(() => window.innerWidth)
+      .catch(() => HERO_VIDEO_MIN_WIDTH);
+
+    return viewportWidth < HERO_VIDEO_MIN_WIDTH;
+  }
+
+  // Checks the phone masthead exposes its configured hero image in place of the video.
+  private async validateHeroImage(): Promise<void> {
+    await this.step('Validate hero image', async () => {
+      const imageState = await this.getHeroImageState();
+
+      await this.reportValue('Hero image URL', imageState.configuredImageUrl);
+
+      this.expectHeroImageSource(imageState);
+      await this.expectHeroImageRendered(imageState.configuredImageUrl);
+    });
+  }
+
+  // Reads the masthead's configured phone image source and whether the desktop video is on screen.
+  private async getHeroImageState(): Promise<HeroImageState> {
+    return this.heroSection.evaluate((section: HTMLElement) => {
+      const toAbsoluteUrl = (url: string) => {
+        try {
+          return new URL(url, window.location.href).href;
+        } catch {
+          return '';
+        }
+      };
+
+      const configuredImageUrl = toAbsoluteUrl(section.getAttribute('background') ?? '');
+      const video = section.querySelector('video');
+      const preloadedImage = Array.from(
+        document.querySelectorAll<HTMLLinkElement>('link[rel="preload"][as="image"]'),
+      ).find((link) => toAbsoluteUrl(link.href) === configuredImageUrl);
+
+      return {
+        configuredImageUrl,
+        posterImageUrl: toAbsoluteUrl(video?.getAttribute('poster') ?? ''),
+        preloadedImageUrl: toAbsoluteUrl(preloadedImage?.href ?? ''),
+        videoDisplayed: video ? window.getComputedStyle(video).display !== 'none' : false,
+      };
+    });
+  }
+
+  // Asserts the phone masthead uses the CMS image fallback, and that the video it replaces stays hidden.
+  private expectHeroImageSource(imageState: HeroImageState): void {
+    expect(
+      imageState.configuredImageUrl,
+      'Masthead should declare a hero image source for phone viewports',
+    ).toBeTruthy();
+
+    expect(
+      imageState.posterImageUrl,
+      'Hidden hero video should carry the same poster image used for phone viewports',
+    ).toBe(imageState.configuredImageUrl);
+
+    expect(
+      imageState.preloadedImageUrl,
+      'Phone hero image should be preloaded before the hidden video fallback is needed',
+    ).toBe(imageState.configuredImageUrl);
+
+    expect(
+      imageState.videoDisplayed,
+      'Hero video should stay hidden on phone viewports, where the hero image replaces it',
+    ).toBeFalsy();
+  }
+
+  // Confirms the browser decoded the hero image, rather than the URL merely being declared.
+  private async expectHeroImageRendered(imageUrl: string): Promise<void> {
+    const decodedWidth = await this.page.evaluate(async (url) => {
+      const image = new Image();
+      image.src = url;
+
+      // Raced rather than awaited outright: a CDN that never answers would
+      // otherwise hang here until the whole test times out, naming nothing.
+      return Promise.race([
+        image
+          .decode()
+          .then(() => image.naturalWidth)
+          .catch(() => 0),
+        new Promise<number>((resolve) => window.setTimeout(() => resolve(0), 15000)),
+      ]);
+    }, imageUrl);
+
+    expect(
+      decodedWidth,
+      'Hero image should load from the CDN with real pixel dimensions',
+    ).toBeGreaterThan(0);
+  }
+
+  // Checks that the hero video is configured for muted inline autoplay and actually plays.
+  private async validateHeroVideoAutoplay(): Promise<void> {
+    await this.step('Validate hero video autoplay', async () => {
       await this.assertVisible(this.heroVideo, 'Hero section video should be visible');
 
       const videoState = await this.getHeroVideoState();

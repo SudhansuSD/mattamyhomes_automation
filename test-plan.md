@@ -230,7 +230,7 @@ Playwright spec files, so this document stays in sync with the codebase.
 | ID | Test Case | Tags | Code |
 |---|---|---|:---:|
 | HOME-001 | {country} Home page should load correctly | @smoke @regression @ci | ✅ |
-| HOME-002 | {country} Validate hero video autoplay on Home Page | @smoke @regression @chrome-only | ✅ |
+| HOME-002 | {country} Validate hero media on Home Page | @smoke @regression | ✅ |
 | HOME-003 | {country} Search market functionality should work | @smoke @regression | ✅ |
 | HOME-004 | {country} Search by community functionality should work | @regression | ✅ |
 | HOME-005 | {country} Search by condo community functionality should work | @regression | ✅ |

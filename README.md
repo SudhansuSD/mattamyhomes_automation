@@ -138,7 +138,7 @@ Run a single spec / test:
 
 ```bash
 npx playwright test tests/homePage.spec.ts --project=Chrome
-npx playwright test --project=Chrome --grep @smoke -g "hero video"
+npx playwright test --project=Chrome --grep @smoke -g "hero media"
 ```
 
 ---
