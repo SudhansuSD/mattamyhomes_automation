@@ -1,10 +1,21 @@
 import { getEnvConfig } from '../environments/envConfig';
 
+/*
+ * `homeURL` is the path the country's home page lives at, and it differs by
+ * environment. STAGE gives each country its own home page - /us and /ca - and
+ * that path is what selects the country there: /ca serves Canadian content even
+ * when the query string says USA. PROD serves one home page for both countries
+ * at /, and picks the country from `queryParam` alone.
+ *
+ * `queryParam` is kept on both: every page other than the home page still takes
+ * the country from the query string, on both environments.
+ */
 const ENVIRONMENT_LOCATION_OVERRIDES = {
   STAGE: {
     USA: {
       country: 'USA',
       queryParam: 'country=USA',
+      homeURL: '/us',
       market: 'Charlotte',
       mpc: [
         {
@@ -111,6 +122,7 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
     CAN: {
       country: 'CAN',
       queryParam: 'country=CAN',
+      homeURL: '/ca',
       market: 'Calgary',
       community: 'Yorkville',
       communityPath: '/alberta/calgary/calgary/yorkville',
@@ -175,6 +187,7 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
     USA: {
       country: 'USA',
       queryParam: 'country=USA',
+      homeURL: '/',
       market: 'Phoenix',
       mpc: [
         {
@@ -277,6 +290,7 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
     CAN: {
       country: 'CAN',
       queryParam: 'country=CAN',
+      homeURL: '/',
       market: 'Greater Toronto Area',
       community: 'Yorkville',
       communityPath: '/alberta/calgary/calgary/yorkville',

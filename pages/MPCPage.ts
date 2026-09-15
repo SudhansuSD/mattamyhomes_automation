@@ -159,7 +159,7 @@ export class MPCPage extends BasePage {
     await this.step(`Navigate to MPC page: ${relativeUrl}`, async () => {
       const { baseURL, envName } = getEnvConfig();
       const location = this.location;
-      const homeUrl = `${baseURL}/?${location.queryParam}`;
+      const homeUrl = `${baseURL}${location.homeURL}?${location.queryParam}`;
       const mpcUrl = `${baseURL}${relativeUrl}`;
 
       await this.reportValue(

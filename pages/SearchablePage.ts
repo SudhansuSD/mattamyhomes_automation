@@ -489,7 +489,7 @@ export class SearchablePage extends BasePage {
     }
 
     const current = new URL(currentUrl);
-    const target = new URL(`/?${location.queryParam}`, baseURL);
+    const target = new URL(`${location.homeURL}?${location.queryParam}`, baseURL);
 
     if (current.origin !== target.origin || current.pathname !== target.pathname) {
       return false;

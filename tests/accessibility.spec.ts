@@ -34,7 +34,7 @@ type Template = {
 };
 
 const TEMPLATES: Template[] = [
-  { name: 'Home page', path: '/' },
+  { name: 'Home page', path: location.homeURL },
   { name: 'Market page', path: configuredMarket.url },
   { name: 'Community page', path: location.communityPath },
   { name: 'Plan detail page', path: location.expectedPlanPath },

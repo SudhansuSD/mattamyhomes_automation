@@ -98,7 +98,7 @@ export class BasePage {
     const { baseURL, envName } = getEnvConfig();
     const location = getLocationConfig(overrideLocation ?? this.locationOverride);
 
-    const targetUrl = `${baseURL}/?${location.queryParam}`;
+    const targetUrl = `${baseURL}${location.homeURL}?${location.queryParam}`;
 
     await test.step(`Open Mattamy Homes home page for ${location.country} in ${envName}`, async () => {
       await this.registerConsentDialogHandlers();

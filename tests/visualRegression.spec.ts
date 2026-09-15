@@ -40,7 +40,7 @@ const mpc = 'mpc' in location ? location.mpc?.[0] : undefined;
 type Template = { name: string; slug: string; path: string };
 
 const TEMPLATES: Template[] = [
-  { name: 'Home page', slug: 'home', path: '/' },
+  { name: 'Home page', slug: 'home', path: location.homeURL },
   { name: 'Market page', slug: 'market', path: configuredMarket.url },
   { name: 'Community page', slug: 'community', path: location.communityPath },
   { name: 'Plan detail page', slug: 'plan', path: location.expectedPlanPath },
@@ -66,11 +66,19 @@ const DYNAMIC_SELECTORS = [
   // the rail is masked instead and the rest of the page - hero, content blocks,
   // footer - is compared for real.
   '#cards',
-  // Third-party chat widget: renders on its own schedule with an unread badge.
-  '[class*="chat" i]',
-  '[id*="chat" i]',
-  '[class*="drift" i]',
 ];
+
+/**
+ * Third-party overlays, hidden for the capture rather than masked.
+ *
+ * The chat widget renders on its own schedule and at its own size - launcher
+ * alone, or launcher plus greeting bubble - and a mask is drawn to whatever the
+ * element currently measures, so masking it made the footer baseline differ from
+ * itself by six percent. Hiding excludes exactly the same elements and leaves
+ * nothing size-dependent behind. Safe for layout: these are fixed-position
+ * overlays, so the footer does not reflow without them.
+ */
+const THIRD_PARTY_OVERLAY_SELECTORS = ['[class*="chat" i]', '[id*="chat" i]', '[class*="drift" i]'];
 
 test.describe(`Visual regression - ${location.country}`, () => {
   for (const template of TEMPLATES) {
@@ -140,6 +148,27 @@ test.describe(`Visual regression - ${location.country}`, () => {
           textLength,
           `${template.name} rendered only ${textLength} characters - refusing to capture a blank baseline`,
         ).toBeGreaterThan(500);
+      });
+
+      // The home masthead plays a looping video behind a transparent header, so
+      // the header region captures a different frame on every run - six to
+      // twenty-nine percent of it, which no sane diff threshold absorbs.
+      // `animations: 'disabled'` covers CSS animation, not media playback, so
+      // every video is pinned to its first frame here. Masking the hero instead
+      // would paint over the header region itself and leave nothing to compare.
+      await test.step('Pin media to a fixed frame', async () => {
+        await page.evaluate(() => {
+          document.querySelectorAll('video').forEach((video) => {
+            video.pause();
+            video.currentTime = 0;
+          });
+        });
+
+        await page.addStyleTag({
+          content: `${THIRD_PARTY_OVERLAY_SELECTORS.join(', ')} { display: none !important; }`,
+        });
+
+        await basePage.waitForPageReady();
       });
 
       // Header and footer, not the whole page.
