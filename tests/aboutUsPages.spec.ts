@@ -1,6 +1,11 @@
 /**
  * ENV=STAGE LOCATION=USA npx playwright test tests/aboutUsPages.spec.ts --project=Chrome
  * Header About Us navigation validation for the configured country experience.
+ *
+ * Both platforms enter the same way. At phone widths the header collapses every
+ * nav item behind the menu button, so `Header` opens that panel first and the
+ * About flyout is asserted inside it - the entry point is a property of the
+ * viewport, never of the browser under test.
  */
 
 import { test } from '@playwright/test';
@@ -46,14 +51,9 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
 
   test.describe('About Us Page Validation', () => {
     for (const aboutLink of location.aboutUsLinks) {
-      test(`@chrome-only @regression | ${location.country} | ${aboutLink.name} page should load with valid UI and functionality`, async ({
+      test(`@regression | ${location.country} | ${aboutLink.name} page should load with valid UI and functionality`, async ({
         page,
-      }, testInfo) => {
-        test.skip(
-          testInfo.project.name !== 'Chrome',
-          'Header flyout navigation is validated on desktop Chrome.',
-        );
-
+      }) => {
         const homePage = new HomePage(page);
         const aboutUsPage = new AboutUsPage(page);
         const header = new Header(page);
@@ -77,14 +77,9 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
   // those via their top-level link so coverage matches what the country displays.
   test.describe('Top-Level Static Page Validation', () => {
     for (const topLink of topLevelStaticLinks) {
-      test(`@chrome-only @regression | ${location.country} | ${topLink.name} top-level page should load with valid UI`, async ({
+      test(`@regression | ${location.country} | ${topLink.name} top-level page should load with valid UI`, async ({
         page,
-      }, testInfo) => {
-        test.skip(
-          testInfo.project.name !== 'Chrome',
-          'Header top-level navigation is validated on desktop Chrome.',
-        );
-
+      }) => {
         const homePage = new HomePage(page);
         const aboutUsPage = new AboutUsPage(page);
         const header = new Header(page);

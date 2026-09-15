@@ -11,6 +11,11 @@
  * of hitting /design-studio directly. That keeps the placement itself covered -
  * a Design Studio link that disappears from the USA header, or drops out of the
  * CAN Resources menu, fails here even though the URL still resolves.
+ *
+ * Both platforms enter the same way. At phone widths the header collapses every
+ * nav item behind the menu button, so `Header` opens that panel first and the
+ * same top-level / nested placement is asserted inside it - the entry point is a
+ * property of the country and the viewport, never of the browser under test.
  */
 
 import { test } from '@playwright/test';
@@ -37,8 +42,8 @@ for (const locationKey of COUNTRIES) {
   test.describe(`Design Studio Page - ${location.country}`, () => {
     let designStudioPage: DesignStudioPage;
 
-    test.beforeEach(async ({ page }, testInfo) => {
-      // Labeled before the skips run: `test.skip()` ends the hook, and a test
+    test.beforeEach(async ({ page }) => {
+      // Labeled before the skip runs: `test.skip()` ends the hook, and a test
       // that never reaches `annotate()` carries no feature label, so it lands
       // in the report under its spec file name instead of Design Studio.
       await annotate({
@@ -53,12 +58,6 @@ for (const locationKey of COUNTRIES) {
       test.skip(
         !isPathExposedForCountry(DesignStudioPage.PATH, locationKey),
         `Design Studio is not surfaced in ${location.country} navigation.`,
-      );
-      // Reaching the page through a mega-menu flyout is validated on desktop
-      // Chrome only, matching the other header-driven suites.
-      test.skip(
-        designStudioNav.placement === 'menu' && testInfo.project.name !== 'Chrome',
-        'Header flyout navigation is validated on desktop Chrome.',
       );
 
       const homePage = new HomePage(page);

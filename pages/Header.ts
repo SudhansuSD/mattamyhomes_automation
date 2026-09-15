@@ -564,6 +564,8 @@ export class Header extends BasePage {
 
       await this.assertAttached(menuLink, `${expectedLink.name} should be visible before clicking`);
 
+      const previousTitle = await this.page.title().catch(() => '');
+
       // noWaitAfter: this link navigates, so the element detaches mid-click. Without
       // it, Playwright keeps running its post-click checks against the gone element
       // and times out even though the navigation succeeded (seen on the heavier
@@ -571,6 +573,12 @@ export class Header extends BasePage {
       // assertion that the click worked.
       await menuLink.click({ timeout: 10000, noWaitAfter: true });
       await this.page.waitForURL((url) => url.pathname === expectedLink.url, { timeout: 30000 });
+
+      // The router swaps the URL in before it renders the destination, so a
+      // caller that starts asserting here can read the home page's title - or the
+      // empty one the swap passes through - and report an About page that never
+      // loaded. Every other navigating header click waits for this.
+      await this.waitForRouteContent(previousTitle);
 
       await this.waitForPageReady();
     });
@@ -586,16 +594,24 @@ export class Header extends BasePage {
 
   // Generic Mega-Menu Flyout Validation
 
-  /** Opens a top-level header menu (flyout) by its button label. */
+  /**
+   * Opens a top-level header menu by its button label.
+   *
+   * The same trigger serves both layouts: a hover flyout on desktop, a
+   * collapsible section of the navigation panel at phone widths, which is why
+   * the panel is opened first there.
+   */
   async openMenu(menuName: string): Promise<void> {
     await this.step(`Open '${menuName}' menu`, async () => {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
       await this.revealNavigationForViewport();
 
-      const menuButton = this.navigationScope
-        .getByRole('button', { name: new RegExp(`^${escapeRegex(menuName)}$`, 'i') })
-        .first();
+      const menuButton = this.visibleNavigationItem(
+        this.navigationScope.getByRole('button', {
+          name: new RegExp(`^${escapeRegex(menuName)}$`, 'i'),
+        }),
+      );
 
       await menuButton.waitFor({ state: 'visible', timeout: 20000 });
       await menuButton.hover();
@@ -682,7 +698,9 @@ export class Header extends BasePage {
     await this.step(`Click '${menuName}' menu link: ${link.name}`, async () => {
       await this.openMenu(menuName);
 
-      const menuLink = this.navigationScope.locator(`a[href="${link.url}"]`).first();
+      const menuLink = this.visibleNavigationItem(
+        this.navigationScope.locator(`a[href="${link.url}"]`),
+      );
 
       await this.assertVisible(menuLink, `${link.name} should be visible in the ${menuName} menu`);
 

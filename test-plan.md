@@ -49,9 +49,9 @@ Playwright spec files, so this document stays in sync with the codebase.
 
 | ID | Test Case | Tags | Code |
 |---|---|---|:---:|
-| ABOUTUS-001 | {country} About Us header menu links should be visible | @smoke @regression @chrome-only | ✅ |
-| ABOUTUS-002 | {country} {name} page should load with valid UI and functionality | @regression @chrome-only | ✅ |
-| ABOUTUS-003 | {country} {name} top-level page should load with valid UI | @regression @chrome-only | ✅ |
+| ABOUTUS-001 | {country} About Us header menu links should be visible | @smoke @regression | ✅ |
+| ABOUTUS-002 | {country} {name} page should load with valid UI and functionality | @regression | ✅ |
+| ABOUTUS-003 | {country} {name} top-level page should load with valid UI | @regression | ✅ |
 
 ### Accessibility
 
@@ -219,7 +219,7 @@ Playwright spec files, so this document stays in sync with the codebase.
 |---|---|---|:---:|
 | HEADERNAVIGATION-001 | {country} Header navigation should be visible | @smoke @regression | ✅ |
 | HEADERNAVIGATION-002 | {country} Chatbot widget should load | @regression | ✅ |
-| HEADERNAVIGATION-003 | {country} {menuName} mega-menu should expose expected links | @smoke @regression @chrome-only | ✅ |
+| HEADERNAVIGATION-003 | {country} {menuName} mega-menu should expose expected links | @smoke @regression | ✅ |
 
 ### Home Page
 

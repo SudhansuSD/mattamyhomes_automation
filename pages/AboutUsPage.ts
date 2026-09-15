@@ -320,19 +320,32 @@ export class AboutUsPage extends BasePage {
     await expect(form.getByRole('button', { name: /^SUBMIT$/i })).toBeVisible();
   }
 
-  /** Fails if any visible link on the page is missing its href. */
+  /**
+   * Fails if any visible link on the page is missing its href.
+   *
+   * Polled rather than sampled once: the video transcript links render with an
+   * empty href and are handed a `blob:` URL only once the transcript has been
+   * fetched and wrapped in a Blob, so a single read can catch them mid-flight.
+   * The assertion itself is unchanged - a link that never gets a destination
+   * still fails, and the report still names it.
+   */
   private async validateVisibleLinksHaveDestinations(): Promise<void> {
-    const linksWithoutHref = await this.main
-      .locator('a:visible')
-      .evaluateAll((links) =>
-        links
-          .filter((link) => !link.getAttribute('href'))
-          .map((link) => link.textContent?.trim() || link.outerHTML),
-      );
-
-    expect(linksWithoutHref, 'Visible About page links should include href destinations').toEqual(
-      [],
-    );
+    await expect
+      .poll(
+        async () =>
+          this.main
+            .locator('a:visible')
+            .evaluateAll((links) =>
+              links
+                .filter((link) => !link.getAttribute('href'))
+                .map((link) => link.textContent?.trim() || link.outerHTML),
+            ),
+        {
+          message: 'Visible About page links should include href destinations',
+          timeout: 20000,
+        },
+      )
+      .toEqual([]);
   }
 
   /** Checks an outbound link's href, but only when the page renders one. */
