@@ -2,8 +2,9 @@ name: Playwright Tests
 
 on:
   schedule:
-    # Daily smoke run at 11:00 AM IST (05:30 UTC).
-    - cron: '30 5 * * *'
+    # Daily smoke run at 04:35 AM IST (23:05 UTC, previous day).
+    # The separate noon notification sends the latest completed smoke report.
+    - cron: '5 23 * * *'
   push:
     branches: [main, master]
   workflow_dispatch:
@@ -265,7 +266,7 @@ jobs:
       # uploads are hundreds of megabytes of traces that can outlive the job
       # budget. Sending first means a killed upload costs artifacts, not the report.
       - name: Validate email configuration
-        if: always()
+        if: always() && github.event_name != 'schedule'
         run: |
           echo "EMAIL_HOST configured: ${{ secrets.EMAIL_HOST != '' }}"
           echo "EMAIL_PORT configured: ${{ secrets.EMAIL_PORT != '' }}"
@@ -279,7 +280,7 @@ jobs:
           echo "Build report URL: ${{ steps.report-site.outputs.build_url || 'not published' }}"
 
       - name: Send email report
-        if: always()
+        if: always() && github.event_name != 'schedule'
         timeout-minutes: 10
         run: npm run report:email
         env:

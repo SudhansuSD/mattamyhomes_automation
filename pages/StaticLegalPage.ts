@@ -39,15 +39,12 @@ export const STATIC_LEGAL_PAGES: readonly StaticLegalPageConfig[] = [
     name: 'Terms and Conditions',
     path: '/terms-and-conditions',
     expectedTitle: /Terms & Conditions \| Mattamy Homes/i,
-    headings: [
-      /Mattamy Homes Terms of Use/i,
-      /EQUAL HOUSING OPPORTUNITY/i,
-      /OWNERSHIP \/ RESTRICTIONS ON USE/i,
-      /DISCLAIMER \/ LIMITATION OF LIABILITY/i,
-    ],
+    headings: [/Mattamy Homes Terms of Use/i],
     contentChecks: [
       'Mattamy Homes Terms of Use',
       'EQUAL HOUSING OPPORTUNITY',
+      'USER RESTRICTIONS',
+      'DISCLAIMER / LIMITATION OF LIABILITY',
       'DISPUTE RESOLUTION TERMS FOR U.S. VISITORS',
     ],
     requiredLinks: [

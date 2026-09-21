@@ -339,8 +339,14 @@ is still useful for local or manual runs when you want to override the link.
 
 ## 9. CI
 
-One GitHub Actions workflow, `.github/workflows/playwright.yml`: scheduled daily
-smoke run + on push to `main` + manual dispatch. It runs in the official
+The daily smoke run starts at 04:35 IST in `.github/workflows/playwright.yml`.
+`.github/workflows/daily-report-email.yml` sends the latest completed Smoke/STAGE
+report at 12:00 IST. If the current run is still active, it uses the previous
+completed build; reports older than 36 hours cause the email job to fail instead
+of sending stale results. Push and manual test runs still email when they finish.
+GitHub Actions schedules can start late, so delivery may be a little after noon.
+
+The test workflow also runs on push to `main` and manual dispatch. It runs in the official
 Playwright container and takes three dispatch inputs — **suite / env /
 location**.
 
