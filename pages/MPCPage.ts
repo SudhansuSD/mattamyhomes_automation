@@ -183,8 +183,12 @@ export class MPCPage extends BasePage {
 
       await this.acceptCookiesIfPresent();
       await this.dismissBlockingOverlays();
+      await this.waitForPageReady();
+      await this.ensurePageRendered();
+      await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
       await this.ensureConfiguredCountrySelected();
       await this.waitForPageReady();
+      await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
@@ -195,10 +199,14 @@ export class MPCPage extends BasePage {
   async verifyMPCPage(mpc: MPCConfig): Promise<void> {
     await this.step(`Verify MPC page: ${mpc.name}`, async () => {
       await this.waitForPageReady();
+      await this.ensurePageRendered();
+      await this.ensurePageInAccessibilityTree();
 
       await expect
         .poll(
           async () => {
+            await this.ensurePageInAccessibilityTree();
+
             if (
               await this.heading
                 .first()
@@ -209,6 +217,7 @@ export class MPCPage extends BasePage {
             }
 
             await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+            await this.ensurePageInAccessibilityTree();
             return this.heading
               .first()
               .isVisible({ timeout: 1000 })
