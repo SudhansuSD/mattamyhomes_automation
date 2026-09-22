@@ -1,225 +1,108 @@
 ---
 name: automation-code-review
-description: Review, create, modify, fix, or refactor QA automation code as a Senior QA Automation Architect and code reviewer. Use for Playwright, page objects, components, fixtures, utilities, test data, automation generation, failing-test fixes, framework refactors, and explicit code reviews. Enforces repository exploration, reuse-first design, stable locators, reliable synchronization, non-flaky tests, correct framework layering, environment independence, and focused changes consistent with the existing automation architecture.
+description: Senior QA Automation Architect guard for creating, modifying, fixing, refactoring, or reviewing automation code in this repo. Grades convention breaches by severity and defines the review output.
 ---
 
 # Automation Code Review And Quality Guard
 
-Act as a Senior QA Automation Architect and code reviewer whenever automation code is created, modified, fixed, generated, refactored, or reviewed.
+Act as a Senior QA Automation Architect whenever automation code is created, modified, fixed, generated, refactored, or reviewed.
 
-## Mandatory Workflow
+`CLAUDE.md` is already in context and states the repo conventions. This skill does not restate them - it grades a breach and defines the review output.
 
-Follow this workflow before and during implementation:
+## Workflow
 
-1. Explore relevant repository structure.
-2. Understand existing tests, page objects, components, fixtures, utilities, helpers, config, test data, CI, and applicable skills.
-3. Search for reusable methods, locators, data, setup, and similar implementations.
-4. Design a focused change that fits the existing framework layers.
-5. Implement only the necessary change.
-6. Review the diff for architecture, maintainability, duplication, and TypeScript quality.
-7. Check for flaky patterns, unstable locators, unnecessary waits, hidden failures, and parallel risks.
-8. Verify existing functionality with the most relevant typecheck, lint, or test command available.
+1. Explore the affected area first: specs, page objects, `support/` collaborators, `utils/`, `config/`, test data.
+2. Search for a reusable method, locator, or similar implementation. Reuse or extend before creating.
+3. Make one focused change that fits the existing layer.
+4. Review the diff against the table below.
+5. Verify with `npm run typecheck` and `npm run lint` - both CI gates - plus `npm run test:ci` when behavior changed.
 
-Do not create duplicate functionality when a reusable implementation already exists.
+## Severity Of A Breach
 
-## Repository Conventions To Preserve
+| Breach | Severity |
+| --- | --- |
+| `if (!visible) return;` in a validation - a missing element passes silently | CRITICAL |
+| Assertion weakened, removed, or rewritten to make a test pass | CRITICAL |
+| Error swallowed around required behavior | CRITICAL |
+| Live form submitted outside `leadSubmissionPolicy` | CRITICAL |
+| Test read-modify-writes an evidence `.xlsx` | CRITICAL |
+| Real person's details, or a non-unique email, in `data/test_data.json` | CRITICAL |
+| Blind `page.waitForTimeout` before an assertion | HIGH |
+| Unstable locator, or blind `.first()` / `nth()` to clear strict mode | HIGH |
+| Retry or raised timeout masking a root cause | HIGH |
+| Mobile handled by weakening an assertion instead of branching on `isMobileHeaderViewport()` | HIGH |
+| Off-site navigation instead of asserting `href` and `target` | HIGH |
+| `console.log` instead of `step()` / `reportValue()` | HIGH |
+| Env or location value hardcoded instead of read from `getLocationConfig()` | HIGH |
+| Order-dependent or parallel-unsafe test | HIGH |
+| Duplicate method, locator, or helper; logic in the wrong layer; oversized page object | MEDIUM |
+| Page-object method missing its one-line comment | MEDIUM |
+| Spec not section-wise, or title missing its tags and location | MEDIUM |
+| Change-log commentary in a comment or a doc | MEDIUM |
+| Unnecessary `any` or weak typing | MEDIUM |
+| Naming, formatting, readability | LOW |
 
-Prefer the existing repository structure:
+## Layering
 
-- `tests/` for validations and scenario intent.
-- `pages/` for desktop Playwright page objects.
-- `components/` for reusable UI sections when present or clearly justified.
-- `utils/` for shared helpers.
-- `data/` for test data.
-- `config/` for environment, location, navigation, and runner configuration.
-- `skills/` for repo-local Codex skills.
+Specs orchestrate and assert. Page objects own locators and interaction. A shared UI section such as the header or footer is a page object in `pages/` extending `BasePage`, never a component class - `components/` is unused. Behavior several page objects need belongs in `support/` as a collaborator the page object owns.
 
-Keep tests focused on what is validated. Keep page objects and components focused on how the application is interacted with. Avoid large implementation flows inside spec files.
+## Out Of Review Scope
 
-## Reuse-First Rules
+The four gitignored evidence specs - `formSubmissionEvidence`, `formProfaneSubmissionEvidence`, `scheduleAVisitCanadaFormEvidence`, `sideModalFormEvidence` - keep their own patterns, including `console.log` and explicit sleeps. Raise no convention findings against them; flag only a change to what they submit. `utils/scenarioMapper.ts` is retained deliberately and is never a dead-code finding.
 
-Before creating a new method, locator, utility, page object, fixture, test-data shape, or config:
+## Repo-Specific Craft Notes
 
-1. Search for similar functionality.
-2. Reuse an existing implementation when possible.
-3. Extend existing functionality when safe and compatible.
-4. Create a new reusable method only when it has a clear responsibility and avoids meaningful duplication.
+Only the points where this repo departs from, or sharpens, standard Playwright practice:
 
-Parameterize behavior that changes by data. Prefer `searchLocation(location: string)` over separate hardcoded methods such as `searchFlorida()`, `searchTexas()`, and `searchArizona()`.
+- Locator order: `getByRole` > `getByLabel` > `getByPlaceholder` > `getByText` > `getByTestId` > stable CSS > XPath last.
+- Structural audit selectors such as `a[href]` or `img, video, iframe, picture` are legitimate stable CSS when the check is about page structure rather than a named control.
+- `BasePage.waitForPageReady()` waits for the DOM to go quiet; `expect.poll` covers the rest. A bounded poll inside a loop is fine.
+- Absence is a declared decision: `isFeaturePresent` / `requireFeature` plus `config/features/featureExpectations.ts`. Environmental noise keeps its conditional `IfPresent` helper.
+- Country pinning uses `locationOverride` - MPC is USA-only, condo community and condo plan are CAN-only.
 
-Avoid abstractions that only reduce line count without improving reliability, readability, or reuse.
+Read `skills/shared/references/playwright-craft.md` only when a finding needs the full argument spelled out - locator choice, synchronization, assertion style, reuse, or typing.
 
-## Page Object And Component Quality
+## Review Output
 
-Page objects should contain stable locators, reusable interactions, and page behavior. They should not contain unrelated business logic, full test scenarios, hardcoded environment values, arbitrary waits, or duplicate locators.
-
-When a reusable UI section appears across pages, prefer a component object such as `HeaderComponent`, `FooterComponent`, `SearchComponent`, `CookieBannerComponent`, or `MediaGalleryComponent`, if that fits the repository's current architecture.
-
-Before modifying shared page-object or utility behavior:
-
-1. Find every known usage.
-2. Understand the existing public behavior.
-3. Preserve compatible behavior where possible.
-4. Keep the change focused to the user request.
-
-## Stable Locator Strategy
-
-For Playwright, prefer locators in this general order:
-
-1. `getByRole()`
-2. `getByLabel()`
-3. `getByPlaceholder()`
-4. `getByText()`
-5. `getByTestId()`
-6. Stable CSS selector
-7. XPath only when unavoidable
-
-Avoid dynamic IDs, generated CSS classes, deep CSS chains, DOM-position-dependent selectors, unnecessary `nth()`, and unnecessary `.first()`.
-
-Do not fix strict locator errors by blindly adding `.first()` or `nth(0)`. Determine why multiple elements match and make the locator more precise.
-
-## Flakiness And Synchronization
-
-Do not add arbitrary sleeps such as `await page.waitForTimeout(3000)` to make a test pass. Prefer application conditions, Playwright auto-waiting, and web-first assertions:
-
-```ts
-await expect(locator).toBeVisible();
-await expect(locator).toHaveText(expectedText);
-await expect(page).toHaveURL(expectedUrl);
-await expect(loader).toBeHidden();
-```
-
-Avoid stacking waits for the same action, such as combining timeout sleeps, load-state waits, selector waits, and visibility assertions unless each wait has a specific reason.
-
-Retries must not hide weak automation. Before adding retry logic, investigate locator quality, race conditions, loading behavior, animations, test data, network dependencies, and environment instability.
-
-Do not silently swallow critical failures. Optional UI may be handled intentionally, but broad empty catches around required behavior are not acceptable.
-
-## Comments
-
-Comments describe the code as it stands now. A reader who has never seen the previous version must not be able to tell that a previous version existed.
-
-Never write change-log commentary in code, config, or documentation. Do not narrate edits, migrations, removals, renames, bug fixes, or what a value used to be. The diff, the commit message, and the pull request already carry that history; a comment repeating it goes stale the moment the next change lands and misleads every future reader.
-
-Forbidden — these describe a change, not the code:
-
-```ts
-// Changed from getByText to getByRole because the old locator was flaky.
-// Previously cleared the desktop dir unconditionally, which wiped mobile results.
-// The old default of 'Chrome' predates mobile running on WebKit.
-// Was 5s; increased to 15s.
-// Removed the retry loop that used to live here.
-// NOTE: this replaces the deprecated helper in utils/oldHelper.ts.
-```
-
-Correct — the same knowledge, stated as present-tense rationale:
-
-```ts
-// Cleared per platform: each platform owns its own results dir.
-// WebKit is the engine every iOS browser uses, so iPhone runs need it.
-// 15s: the shell hydrates around 'load', measured at ~5s on STAGE.
-```
-
-Keep the reason, drop the history. If a comment's value depends on knowing what the code looked like before, rewrite it so it stands on its own. Do not reference retired files, deleted classes, removed dependencies, or superseded approaches by name.
-
-The same rule applies to `README.md`, `CLAUDE.md`, and every doc in `docs/`: document the current state, not the migration that produced it. Never add "Changelog", "Recent changes", "Migration notes", or "What's new" sections unless the user explicitly asks for one.
-
-## Assertions
-
-Prefer retryable Playwright assertions over one-time state checks:
-
-```ts
-await expect(locator).toBeVisible();
-```
-
-instead of:
-
-```ts
-const visible = await locator.isVisible();
-expect(visible).toBeTruthy();
-```
-
-Assertions should validate meaningful application behavior, not only implementation details.
-
-## Independence, Parallel Safety, And Environments
-
-Every automated test should run independently. Do not depend on a prior test's side effects or execution order. Establish required state through fixtures, setup, APIs, configuration, navigation helpers, or test data.
-
-Check for parallel execution risks: shared mutable data, global state, reused accounts, shared filenames, shared temporary files, order-dependent tests, or shared external resources.
-
-Avoid hardcoding environment-specific URLs and values. Use the existing environment and location configuration so tests can run across DEV, UAT, STAGE, PROD, USA, CAN, or other configured targets without changing source code.
-
-## TypeScript Quality
-
-Use typed parameters, return values, interfaces, and config/test-data types where they improve clarity. Avoid unnecessary `any`. If the mobile layer intentionally uses permissive types in a narrow place, keep that choice local and compatible with the existing mobile architecture.
-
-Methods should have one clear responsibility, meaningful names, parameters for data-driven behavior, useful return values when needed, small bodies, and minimal nesting.
-
-## Mandatory Self-Review
-
-Before considering a change complete, answer these questions and fix problems found:
-
-- Did I inspect the existing implementation first?
-- Can existing functionality be reused?
-- Did I introduce duplicate code?
-- Is this logic in the correct framework layer?
-- Could this implementation become flaky?
-- Did I introduce arbitrary waits?
-- Are the locators stable and precise?
-- Did I unnecessarily use `.first()` or `nth()`?
-- Could repeated logic be parameterized?
-- Can the test run independently?
-- Can the test run safely in parallel where applicable?
-- Did I hardcode environment-specific values?
-- Did I change unrelated functionality?
-- Did I leave any change-log commentary in a comment or doc?
-- Did I unnecessarily introduce a helper or abstraction?
-- Would another QA engineer easily understand this code?
-- Could this change break existing tests?
-
-## Explicit Code Review Output
-
-When the user explicitly asks for a code review, lead with findings and use this structure:
+When the user explicitly asks for a review, lead with findings:
 
 ```text
 ## Code Review Summary
 
 ## Issues Found
 
-Severity:
-File:
-Problem:
-Why it matters:
-Recommended fix:
+Severity / File / Problem / Why it matters / Recommended fix
 
 ## Reusability Opportunities
 
 ## Flakiness Risks
 
-## Suggested Refactoring
-
 ## Final Assessment
 ```
 
-Classify findings as:
+`CRITICAL` breaks functionality, produces incorrect results, or hides a genuine failure. `HIGH` causes flakiness or unstable automation. `MEDIUM` affects duplication, architecture, or maintainability. `LOW` is cosmetic.
 
-- `CRITICAL`: may break functionality, produce incorrect test results, or hide genuine failures.
-- `HIGH`: likely to cause flakiness, unstable automation, or serious maintenance issues.
-- `MEDIUM`: affects duplication, reusability, architecture, or maintainability.
-- `LOW`: minor naming, readability, simplification, or formatting issue.
+Final assessment is exactly one of `PASS`, `PASS WITH RECOMMENDATIONS`, `CHANGES REQUIRED`.
 
-Final assessment must be exactly one of:
+## Self-Review Before Reporting
 
-- `PASS`
-- `PASS WITH RECOMMENDATIONS`
-- `CHANGES REQUIRED`
+- Did I inspect the existing implementation, and can something be reused instead?
+- Is each piece of logic in the right layer, and did I introduce duplication or an abstraction that only cuts line count?
+- Could this go flaky - blind wait, unstable locator, unnecessary `.first()` / `nth()`, stacked waits?
+- Does any validation return early on a missing element instead of using `isFeaturePresent` / `requireFeature`?
+- Is every diagnostic an Allure `step()` / `reportValue()` rather than a `console.log`?
+- Does every new page-object method carry its one-line comment, and does every spec title carry tags and location?
+- Does mobile branch in the page object rather than weakening an assertion?
+- Is anything submitting a live form unguarded, or touching an evidence workbook mid-test?
+- Are values read from `getLocationConfig()`, and can the test run independently and in parallel?
+- Did I leave change-log commentary anywhere, or change a file the request did not cover?
 
 ## Restrictions
 
-Never rewrite the whole framework unnecessarily, change working functionality without justification, add hard waits simply to pass a test, hide failing assertions, create duplicate utilities, create unnecessary abstractions, over-engineer simple scenarios, use unstable selectors when stable selectors are available, add retries to mask flaky tests, modify unrelated files, remove validations just to pass, reduce code solely to minimize line count, or leave change-log commentary in comments or documentation.
+Never rewrite the framework unnecessarily, change working functionality without justification, add a hard wait or a retry to pass a test, hide or weaken an assertion, return early from a validation on a missing element, create a duplicate utility or an unnecessary abstraction, use an unstable selector where a stable one exists, navigate to a third-party site, modify unrelated files, or leave change-log commentary in code or docs.
 
 Prioritize reliability, then readability, reusability, maintainability, and simplicity.
 
 ## Definition Of Done
 
-Automation work is complete only when reasonably verified as functionally correct, structured, readable, reusable where appropriate, maintainable, stable, independent, parallel-safe where applicable, free from obvious flaky patterns, using stable locators, using proper synchronization, free from unnecessary duplication, and consistent with the existing framework architecture.
+The change is correct, in the right layer, reusable where it should be, free of flaky patterns, independent, parallel-safe, and consistent with the existing architecture. `npm run typecheck` and `npm run lint` both pass.

@@ -10,6 +10,15 @@ This repository keeps project-specific Codex skills in `skills/`.
   - `scripts/`
   - `references/`
   - `assets/`
+- `shared/references/` holds material more than one skill points at
+
+## Writing A SKILL.md
+
+`SKILL.md` loads in full every time the skill runs, so its size is a per-invocation cost. Keep in it only what every invocation needs: the workflow, the decisions the model cannot infer, and the output format. Push the reasoning behind a rule into `references/` and link it with a line saying when to read it.
+
+Do not restate `CLAUDE.md`. It is already in context for every session, so a skill that repeats it pays for the same text twice. State only what the skill adds - how a convention breach is graded, which remedy is the valid one, which command is safe to run.
+
+A slash command in `.claude/commands/` dispatches to a skill. It should name the skill and pass the scope, nothing more; workflow text duplicated there is a third copy.
 
 ## Current URL Automation Skills
 
@@ -22,6 +31,7 @@ This repository keeps project-specific Codex skills in `skills/`.
 
 - `automation-code-review`
 - `automation-code-review-fixer`
+- `shared/references/playwright-craft.md` - locator, synchronization, assertion, reuse, and typing rationale for both guards
 
 ## Add Future Skills
 
