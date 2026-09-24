@@ -864,8 +864,10 @@ export class BasePage {
     await countrySelector.click();
     await this.settle(500);
 
+    // Each option's aria-label ("Country selector. USA") is its accessible name, so
+    // matching on the visible country text alone never finds it.
     const expectedCountryButton = this.page
-      .getByRole('button', { name: new RegExp(`^${expectedCountry}$`, 'i') })
+      .getByRole('button', { name: new RegExp(`^Country selector\\.\\s*${expectedCountry}$`, 'i') })
       .last();
 
     // Fail here, naming the real cause. Letting a missing option fall through to the

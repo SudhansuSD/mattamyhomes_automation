@@ -1,7 +1,9 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
+import { FOOTER_LEGAL_LINKS } from '../config/navigation/countryNavigation';
 import { BasePage } from './BasePage';
+import { Footer } from './Footer';
 
 export type StaticLegalPageLink = {
   label: string;
@@ -119,25 +121,33 @@ export class StaticLegalPage extends BasePage {
     this.footer = getFooter(page);
   }
 
-  /** Opens the legal/static page, clearing the cookie banner and promo popup on the way in. */
+  /** Opens the legal/static page through its footer link on the home page. */
   async navigateToStaticPage(config: StaticLegalPageConfig): Promise<void> {
     await this.step(`Navigate to ${config.name}`, async () => {
-      const { baseURL, envName } = getEnvConfig();
-      const targetUrl = `${baseURL}${config.path}`;
+      const { envName } = getEnvConfig();
+      const footerLink = FOOTER_LEGAL_LINKS.find((link) => link.url === config.path);
 
+      expect(
+        footerLink,
+        `${config.path} should be configured as a footer legal link`,
+      ).toBeDefined();
+
+      const footer = new Footer(this.page);
+
+      // An init script, so it has to be registered before the first document loads.
       if (envName === 'PROD') {
         await this.preventProdFormSubmission();
       }
 
       await this.reportValue(
         'Navigating to static page',
-        `ENV=${envName} | STATIC_PAGE=${config.name} | URL=${targetUrl}`,
+        `ENV=${envName} | STATIC_PAGE=${config.name} | ENTRY=footer ${footerLink!.name} link`,
       );
 
-      await this.gotoAndVerifyResponse(targetUrl);
+      await this.navigate();
+      await footer.verifyFooterLinkVisible(footerLink!);
+      await footer.clickFooterLink(footerLink!);
 
-      await this.acceptCookiesIfPresent();
-      await this.waitForPageReady();
       await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });

@@ -29,6 +29,7 @@ export class Header extends BasePage {
   readonly findYourHomeLink: Locator;
   readonly aboutUsLink: Locator;
   readonly contactUsLink: Locator;
+  readonly favoritesLink: Locator;
   readonly aboutUsMenuLinks: Locator;
   private promoPopupHandlerRegistered = false;
   private nationalPromotionDismissed = false;
@@ -57,6 +58,11 @@ export class Header extends BasePage {
     // the mobile panel renders a plain `/contact` anchor with no id.
     this.contactUsLink = this.visibleNavigationItem(
       this.navigationScope.locator('[id="Contact Us"], a[href="/contact"]'),
+    );
+    // Two shapes for one item: the desktop heart icon is a button that routes from
+    // script with no href, while the phone panel renders a plain /favorites anchor.
+    this.favoritesLink = this.visibleNavigationItem(
+      this.navigationScope.locator('#goToFavoritesButton, a[href="/favorites"]'),
     );
     // Two layouts, one locator. The desktop flyout marks each entry as
     // `a[role="button"]`; the phone panel renders plain anchors inside the
@@ -735,6 +741,51 @@ export class Header extends BasePage {
 
       await navLink.click();
       await this.page.waitForURL((url) => url.pathname === link.url, { timeout: 30000 });
+      await this.waitForRouteContent(previousTitle);
+      await this.waitForPageReady();
+    });
+  }
+
+  /** Checks the header exposes the Go to Favorites link. */
+  async verifyFavoritesLinkVisible(): Promise<void> {
+    await this.step('Verify header Go to Favorites link', async () => {
+      await this.header.waitFor({ state: 'attached', timeout: 20000 });
+      await this.page.evaluate(() => window.scrollTo(0, 0));
+      await this.revealNavigationForViewport();
+      await this.assertVisible(
+        this.favoritesLink,
+        'Header should expose the Go to Favorites link',
+        20000,
+      );
+    });
+  }
+
+  /** Clicks the header Go to Favorites link and waits for the Favorites route. */
+  async clickFavorites(): Promise<void> {
+    await this.step('Click header Go to Favorites link', async () => {
+      await this.page.evaluate(() => window.scrollTo(0, 0));
+      await this.revealNavigationForViewport();
+
+      const previousTitle = await this.page.title().catch(() => '');
+
+      // Hovering the desktop heart swaps its icon for the filled one. A bare click
+      // triggers that swap mid-press, the icon under the pointer is replaced, and
+      // the button's click handler never fires - so hover and let the swap land.
+      if (!(await this.isMobileHeaderViewport())) {
+        await this.favoritesLink.hover();
+        await expect(
+          this.favoritesLink.locator('svg[class*="HeartFilled"]'),
+          'Hovering the Go to Favorites button should show the filled heart icon',
+        ).toBeVisible({ timeout: 5000 });
+      }
+
+      await this.favoritesLink.click({ noWaitAfter: true });
+      await expect
+        .poll(() => new URL(this.page.url()).pathname.replace(/\/$/, ''), {
+          message: 'Header Go to Favorites link should navigate to /favorites when clicked',
+          timeout: 30000,
+        })
+        .toBe('/favorites');
       await this.waitForRouteContent(previousTitle);
       await this.waitForPageReady();
     });

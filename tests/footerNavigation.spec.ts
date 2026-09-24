@@ -6,6 +6,7 @@
 
 import { test } from '@playwright/test';
 import { getLocationConfig, getLocationKey } from '../config/locations/locationConfig';
+import { FOOTER_LEGAL_LINKS, FOOTER_PAGE_LINKS } from '../config/navigation/countryNavigation';
 import { Footer } from '../pages/Footer';
 import { HomePage } from '../pages/HomePage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
@@ -45,6 +46,20 @@ test.describe('Footer Navigation - ALL', () => {
 
     await test.step('Verify footer is loaded correctly', async () => {
       await footer.verifyFooterLoaded();
+    });
+  });
+
+  test(`@smoke @regression | ALL | Footer should expose the site page and legal links`, async ({
+    page,
+  }) => {
+    const footer = new Footer(page);
+
+    await test.step('Verify footer site page links', async () => {
+      await footer.verifyFooterLinks(FOOTER_PAGE_LINKS);
+    });
+
+    await test.step('Verify footer legal links', async () => {
+      await footer.verifyFooterLinks(FOOTER_LEGAL_LINKS);
     });
   });
 

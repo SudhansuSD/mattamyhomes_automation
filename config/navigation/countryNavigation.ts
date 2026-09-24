@@ -100,3 +100,38 @@ export const TOP_LEVEL_STATIC_LINKS_BY_COUNTRY: Record<LocationKey, readonly Nav
   USA: [],
   CAN: [{ name: 'Sustainability', url: '/about/sustainability' }],
 };
+
+/** Pages both countries surface as standalone top-level header items. */
+export const HEADER_TOP_LEVEL_LINKS = {
+  customerCare: { name: 'Customer Care', url: '/customer-care' },
+  contact: { name: 'Contact Us', url: '/contact' },
+} as const satisfies Record<string, NavLink>;
+
+/** Finds the Homebuying/Resources menu entry that links to a path in this country's header. */
+export function getResourceMenuLink(
+  path: string,
+  country: LocationKey,
+): { menuName: string; link: NavLink } | undefined {
+  const menu = RESOURCE_MENU_BY_COUNTRY[country];
+  const link = menu.links.find((entry) => entry.url === path);
+
+  return link ? { menuName: menu.menuName, link } : undefined;
+}
+
+/** Site-page links in the global footer, identical for both countries. */
+export const FOOTER_PAGE_LINKS: readonly NavLink[] = [
+  { name: 'Design Studio', url: '/design-studio' },
+  { name: 'Customer Care', url: '/customer-care' },
+  { name: 'About Us', url: '/about/about-mattamy' },
+  { name: 'Contact Us', url: '/contact' },
+  { name: 'Careers', url: '/about/careers' },
+  { name: 'Media and Investor Relations', url: '/about/media-and-investor-relations' },
+];
+
+/** Legal and policy links in the footer copyright row, identical for both countries. */
+export const FOOTER_LEGAL_LINKS: readonly NavLink[] = [
+  { name: 'Accessibility', url: '/accessibility' },
+  { name: 'Legal Disclaimers', url: '/legal-disclaimers' },
+  { name: 'Privacy Policy', url: '/privacy-policies' },
+  { name: 'Terms and Conditions', url: '/terms-and-conditions' },
+];

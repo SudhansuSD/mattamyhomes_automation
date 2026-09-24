@@ -1,8 +1,9 @@
 import { Locator, Page } from '@playwright/test';
-import { getEnvConfig } from '../config/environments/envConfig';
 import { LocationKey } from '../config/locations/locationConfig';
+import { HEADER_TOP_LEVEL_LINKS } from '../config/navigation/countryNavigation';
 import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
+import { Header } from './Header';
 
 export type ContactOfficeEmail = {
   label: string;
@@ -144,18 +145,15 @@ export class ContactPage extends BasePage {
     this.footer = page.locator('body');
   }
 
-  /** Opens the Contact page. */
+  /** Opens the Contact page through the header link on the country home page. */
   async navigateToContact(locationKey: LocationKey): Promise<void> {
     await this.step(`Navigate to Contact page (${locationKey})`, async () => {
-      const { baseURL } = getEnvConfig();
-      const targetUrl = `${baseURL}/contact`;
+      const header = new Header(this.page);
 
-      await this.reportValue('Target URL', targetUrl);
+      await this.navigate(locationKey);
+      await header.verifyTopLevelNavLinkVisible(HEADER_TOP_LEVEL_LINKS.contact);
+      await header.clickTopLevelNavLink(HEADER_TOP_LEVEL_LINKS.contact);
 
-      await this.gotoAndVerifyResponse(targetUrl);
-
-      await this.acceptCookiesIfPresent();
-      await this.waitForPageReady();
       await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
       await this.ensureConfiguredCountrySelected(locationKey);

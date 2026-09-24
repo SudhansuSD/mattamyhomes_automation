@@ -3,6 +3,7 @@ import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
+import { Header } from './Header';
 
 /*
  * Favorites ("Homes I Love") page object.
@@ -51,21 +52,22 @@ export class FavoritesPage extends BasePage {
     return this.page.locator('[aria-label*="Mark as favorite" i]:visible');
   }
 
-  /** Opens the Favorites page for the configured country. */
+  /** Opens the Favorites page through the header link on the country home page. */
   async navigateToFavorites(overrideLocation?: LocationKey): Promise<void> {
     await this.step('Navigate to Favorites', async () => {
-      const { baseURL, envName } = getEnvConfig();
+      const { envName } = getEnvConfig();
       const location = getLocationConfig(overrideLocation);
-      const targetUrl = `${baseURL}${FavoritesPage.PATH}`;
+      const header = new Header(this.page);
 
       await this.reportValue(
         'Navigating to Favorites',
-        `ENV=${envName} | COUNTRY=${location.country} | URL=${targetUrl}`,
+        `ENV=${envName} | COUNTRY=${location.country} | ENTRY=header Go to Favorites link`,
       );
 
-      await this.gotoAndVerifyResponse(targetUrl);
-      await this.acceptCookiesIfPresent();
-      await this.waitForPageReady();
+      await this.navigate(overrideLocation);
+      await header.verifyFavoritesLinkVisible();
+      await header.clickFavorites();
+
       await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
       await this.ensureConfiguredCountrySelected(overrideLocation);
@@ -97,24 +99,10 @@ export class FavoritesPage extends BasePage {
     });
   }
 
-  /** Checks the header "Go to Favorites" affordance points at /favorites. */
+  /** Checks the header exposes the "Go to Favorites" link. */
   async validateHeaderFavoritesLink(): Promise<void> {
     await this.step('Validate header Go to Favorites link', async () => {
-      const favoritesLink = this.header
-        .locator('a[href="/favorites"], a[href*="/favorites"]')
-        .first();
-
-      const hasFavoritesLink = await favoritesLink
-        .waitFor({ state: 'attached', timeout: 15_000 })
-        .then(() => true)
-        .catch(() => false);
-
-      if (!hasFavoritesLink) {
-        await this.reportValue('Header Favorites link is not exposed on this page variant');
-        return;
-      }
-
-      await this.assertAttached(favoritesLink, 'Header should expose a link to /favorites', 15_000);
+      await new Header(this.page).verifyFavoritesLinkVisible();
     });
   }
 

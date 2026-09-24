@@ -1,8 +1,10 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
+import { getLocationConfig, getLocationKey, LocationKey } from '../config/locations/locationConfig';
+import { getResourceMenuLink } from '../config/navigation/countryNavigation';
 import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
+import { Header } from './Header';
 
 /*
  * Homebuying pages object.
@@ -68,24 +70,34 @@ export class HomebuyingPage extends BasePage {
     this.footer = getFooter(page);
   }
 
-  /** Opens the given Homebuying page for the configured country. */
+  /** Opens the given Homebuying page through the country's header menu on the home page. */
   async navigateToHomebuyingPage(
     expectation: HomebuyingPageExpectation,
     overrideLocation?: LocationKey,
   ): Promise<void> {
     await this.step(`Navigate to ${expectation.name}`, async () => {
-      const { baseURL, envName } = getEnvConfig();
-      const location = getLocationConfig(overrideLocation);
-      const targetUrl = `${baseURL}${expectation.path}`;
+      const { envName } = getEnvConfig();
+      const locationKey = getLocationKey(overrideLocation);
+      const location = getLocationConfig(locationKey);
+      const menuEntry = getResourceMenuLink(expectation.path, locationKey);
+
+      expect(
+        menuEntry,
+        `${expectation.path} should be configured in the ${location.country} header menu`,
+      ).toBeDefined();
+
+      const { menuName, link } = menuEntry!;
+      const header = new Header(this.page);
 
       await this.reportValue(
         'Navigating to Homebuying page',
-        `ENV=${envName} | COUNTRY=${location.country} | PAGE=${expectation.name} | URL=${targetUrl}`,
+        `ENV=${envName} | COUNTRY=${location.country} | PAGE=${expectation.name} | ENTRY=${menuName} > ${link.name}`,
       );
 
-      await this.gotoAndVerifyResponse(targetUrl);
-      await this.acceptCookiesIfPresent();
-      await this.waitForPageReady();
+      // clickMenuLink asserts the link is visible in the opened menu before it clicks.
+      await this.navigate(locationKey);
+      await header.clickMenuLink(menuName, link);
+
       await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
       await this.ensureConfiguredCountrySelected(overrideLocation);

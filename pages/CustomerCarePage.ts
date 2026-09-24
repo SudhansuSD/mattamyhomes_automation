@@ -1,8 +1,10 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { LocationKey } from '../config/locations/locationConfig';
+import { HEADER_TOP_LEVEL_LINKS } from '../config/navigation/countryNavigation';
 import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
+import { Header } from './Header';
 
 export type CustomerCareArea = {
   name: string;
@@ -169,22 +171,22 @@ export class CustomerCarePage extends BasePage {
     this.submitButton = this.main.getByRole('button', { name: /^SUBMIT$/i });
   }
 
-  /** Opens the Customer Care page. */
+  /** Opens the Customer Care page through the header link on the country home page. */
   async navigateToCustomerCare(locationKey: LocationKey): Promise<void> {
     await this.step(`Navigate to Customer Care page (${locationKey})`, async () => {
-      const { baseURL, envName } = getEnvConfig();
-      const targetUrl = `${baseURL}/customer-care`;
+      const { envName } = getEnvConfig();
+      const header = new Header(this.page);
 
+      // An init script, so it has to be registered before the first document loads.
       if (envName === 'PROD') {
         await this.preventProdFormSubmission();
       }
 
-      await this.reportValue('Target URL', targetUrl);
-
-      await this.gotoAndVerifyResponse(targetUrl);
+      await this.navigate(locationKey);
+      await header.verifyTopLevelNavLinkVisible(HEADER_TOP_LEVEL_LINKS.customerCare);
+      await header.clickTopLevelNavLink(HEADER_TOP_LEVEL_LINKS.customerCare);
 
       await this.acceptCookiesIfPresent();
-      await this.waitForPageReady();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
       await this.ensureConfiguredCountrySelected(locationKey);
       await this.waitForPageReady();

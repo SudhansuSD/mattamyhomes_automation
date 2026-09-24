@@ -2,6 +2,11 @@ import { Page, Locator, expect } from '@playwright/test';
 import { getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
+export type FooterNavigationLink = {
+  name: string;
+  url: string;
+};
+
 // Footer Page Object Model
 
 export class Footer extends BasePage {
@@ -39,6 +44,51 @@ export class Footer extends BasePage {
 
       // Hover for stability check
       await this.privacyPolicyLink.hover();
+    });
+  }
+
+  /** Returns the on-screen footer link pointing at this path. */
+  private footerLink(link: FooterNavigationLink): Locator {
+    return this.footerSection.locator(`a[href="${link.url}"]`).filter({ visible: true }).first();
+  }
+
+  /** Checks the footer exposes a visible link to this path. */
+  async verifyFooterLinkVisible(link: FooterNavigationLink): Promise<void> {
+    await this.step(`Verify footer link: ${link.name}`, async () => {
+      await this.footerSection.scrollIntoViewIfNeeded();
+      await this.assertVisible(
+        this.footerLink(link),
+        `Footer should expose ${link.name} (${link.url})`,
+        15000,
+      );
+      await this.reportValue(`Footer link: ${link.name}`, this.buildFullUrl(link.url));
+    });
+  }
+
+  /** Checks the footer exposes every one of these links. */
+  async verifyFooterLinks(links: readonly FooterNavigationLink[]): Promise<void> {
+    await this.step('Verify footer navigation links', async () => {
+      for (const link of links) {
+        await this.verifyFooterLinkVisible(link);
+      }
+    });
+  }
+
+  /** Clicks a footer link and waits for its route to load. */
+  async clickFooterLink(link: FooterNavigationLink): Promise<void> {
+    await this.step(`Click footer link: ${link.name}`, async () => {
+      const footerLink = this.footerLink(link);
+
+      await footerLink.scrollIntoViewIfNeeded();
+
+      const previousTitle = await this.page.title().catch(() => '');
+
+      await footerLink.click({ noWaitAfter: true });
+      await this.page.waitForURL((url) => url.pathname.replace(/\/$/, '') === link.url, {
+        timeout: 30000,
+      });
+      await this.waitForRouteContent(previousTitle);
+      await this.waitForPageReady();
     });
   }
 
