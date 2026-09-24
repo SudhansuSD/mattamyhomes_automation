@@ -1,6 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
+import { LocationKey } from '../config/locations/locationConfig';
 import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
@@ -173,8 +173,7 @@ export class CustomerCarePage extends BasePage {
   async navigateToCustomerCare(locationKey: LocationKey): Promise<void> {
     await this.step(`Navigate to Customer Care page (${locationKey})`, async () => {
       const { baseURL, envName } = getEnvConfig();
-      const location = getLocationConfig(locationKey);
-      const targetUrl = `${baseURL}/customer-care?${location.queryParam}`;
+      const targetUrl = `${baseURL}/customer-care`;
 
       if (envName === 'PROD') {
         await this.preventProdFormSubmission();
@@ -187,6 +186,8 @@ export class CustomerCarePage extends BasePage {
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+      await this.ensureConfiguredCountrySelected(locationKey);
+      await this.waitForPageReady();
     });
   }
 

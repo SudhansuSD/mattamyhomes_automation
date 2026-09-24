@@ -22,7 +22,6 @@ const TIMEOUT = {
 };
 
 const TEXT = {
-  pageTitle: /The M2ad plan.*Martha James Condominiums.*Mattamy Homes/i,
   condoPlanDetails: /Condo Plan Details/i,
   mortgageCalculator: /Mortgage Calculator/i,
   supportHeadline: /We're with you all the way to the front door/i,
@@ -41,27 +40,22 @@ export type CondoPlanDetails = {
   url: string;
   community: string;
   market: string;
+  expected?: CondoPlanExpected;
 };
 
-const EXPECTED_CONDO_PLAN = {
-  city: 'Burlington',
-  title: /The M2ad plan.*Martha James Condominiums.*Mattamy Homes/i,
-  specs: ['2 Beds', '2 Baths', '946 Sq. Ft.', 'Floor 5', '2 Bedroom + Den'],
-  planType: 'Condo',
-  descriptionKeywords: [
-    /2-bedroom \+ den/i,
-    /open-concept kitchen/i,
-    /primary bedroom/i,
-    /terrace|balcony/i,
-    /stacked washer\/dryer/i,
-  ],
-  relatedPlanNames: ['M1bd', 'Mj1b', 'Mj1f'],
-  salesOffice: {
-    address: '1388 Dundas Street West',
-    cityProvincePostal: 'Oakville, ON L6M 4L8',
-    phone: '416-630-8282',
-  },
-} as const;
+type CondoPlanExpected = {
+  city?: string;
+  titleParts?: string[];
+  specs?: string[];
+  planType?: string;
+  descriptionKeywords?: Array<string | RegExp>;
+  relatedPlanNames?: string[];
+  salesOffice?: {
+    address: string;
+    cityProvincePostal: string;
+    phone: string;
+  };
+};
 
 export class CondoPlanPage extends SearchablePage {
   readonly heading: Locator;
@@ -86,7 +80,11 @@ export class CondoPlanPage extends SearchablePage {
     this.heading = page.getByRole('heading', { level: 1 });
     this.breadcrumb = page.locator('#breadcrumb, nav[aria-label*="breadcrumb" i]').first();
     this.body = page.locator('body');
-    this.floorplanImage = page.locator('img[alt*="Floorplan" i], img[alt*="M2AD" i]').first();
+    this.floorplanImage = page
+      .locator(
+        'img[alt*="Floorplan" i], img[alt*="floor plan" i], img[src*="floorplan" i], img[src*="floor-plan" i]',
+      )
+      .first();
     this.getInformationCta = getVisibleInformationCta(page);
     this.mortgageCalculatorSection = page
       .locator('section, div')
@@ -160,21 +158,44 @@ export class CondoPlanPage extends SearchablePage {
     return this.page.getByText(TEXT.successMessage).last();
   }
 
+  /** Returns the configured condo plan for this environment. */
+  private get configuredCondoPlan(): CondoPlanDetails {
+    const location = this.location as ReturnType<typeof getLocationConfig> & {
+      condoPlan?: CondoPlanDetails;
+    };
+
+    if (!location.condoPlan) {
+      throw new Error('Condo plan is not configured in location config');
+    }
+
+    return location.condoPlan;
+  }
+
+  /** Builds a title matcher from configured plan title parts. */
+  private getTitleMatcher(plan: CondoPlanDetails): RegExp {
+    const titleParts = plan.expected?.titleParts ?? [
+      `The ${plan.name} plan`,
+      plan.community,
+      'Mattamy Homes',
+    ];
+
+    return new RegExp(titleParts.map((part) => escapeRegex(part)).join('.*'), 'i');
+  }
+
+  /** Returns the condo community path that owns the plan URL. */
+  private getCommunityPath(plan: CondoPlanDetails): string {
+    return plan.url.split('/').slice(0, -1).join('/');
+  }
+
   /** Checks a condo plan search lands on the right plan page. */
   async verifySearchByCondoPlan(): Promise<void> {
     await this.step('Verify search lands on condo plan URL', async () => {
-      const location = this.location as ReturnType<typeof getLocationConfig> & {
-        condoPlan?: { url?: string };
-      };
-
-      if (!location.condoPlan?.url) {
-        throw new Error('Condo plan URL is not configured in location config');
-      }
+      const plan = this.configuredCondoPlan;
 
       await this.waitForPageReady();
       await this.assertPageUrlContains(
-        location.condoPlan.url,
-        `Condo plan URL should contain configured path: ${location.condoPlan.url}`,
+        plan.url,
+        `Condo plan URL should contain configured path: ${plan.url}`,
       );
       await this.assertHeadingVisible(
         undefined,
@@ -195,7 +216,7 @@ export class CondoPlanPage extends SearchablePage {
   async verifyUrlAndTitle(plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify URL and title', async () => {
       await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(plan.url)}\\/?$`, 'i'));
-      await expect(this.page).toHaveTitle(EXPECTED_CONDO_PLAN.title);
+      await expect(this.page).toHaveTitle(this.getTitleMatcher(plan));
     });
   }
 
@@ -204,17 +225,22 @@ export class CondoPlanPage extends SearchablePage {
     await this.step('Verify breadcrumb context', async () => {
       if (await this.breadcrumb.count()) {
         await expect(this.breadcrumb).toBeVisible({ timeout: TIMEOUT.short });
-        await expect(
-          this.breadcrumb.getByRole('link', { name: /Greater To|Greater Toronto Area/i }).first(),
-        ).toHaveAttribute('href', /\/ontario\/gta$/i);
-        await expect(this.breadcrumb).toContainText(
-          new RegExp(escapeRegex(EXPECTED_CONDO_PLAN.city), 'i'),
-        );
+        await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(plan.market), 'i'));
+
+        if (plan.expected?.city) {
+          await expect(this.breadcrumb).toContainText(
+            new RegExp(escapeRegex(plan.expected.city), 'i'),
+          );
+        }
+
         await expect(
           this.breadcrumb
-            .getByRole('link', { name: /Martha Jam|Martha James Condominiums/i })
+            .getByRole('link', { name: new RegExp(escapeRegex(plan.community), 'i') })
             .first(),
-        ).toHaveAttribute('href', /\/ontario\/gta\/burlington\/martha-james-condominiums$/i);
+        ).toHaveAttribute(
+          'href',
+          new RegExp(`${escapeRegex(this.getCommunityPath(plan))}/?$`, 'i'),
+        );
         await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
         return;
       }
@@ -228,13 +254,14 @@ export class CondoPlanPage extends SearchablePage {
   async verifyHeroSummary(plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify hero summary', async () => {
       await expect(this.heading).toContainText(new RegExp(escapeRegex(plan.name), 'i'));
+      await expect(this.body).toContainText(new RegExp(escapeRegex(plan.community), 'i'));
 
-      for (const spec of EXPECTED_CONDO_PLAN.specs) {
+      for (const spec of plan.expected?.specs ?? []) {
         await expect(this.body).toContainText(new RegExp(escapeRegex(spec), 'i'));
       }
 
       await expect(this.body).toContainText(
-        new RegExp(escapeRegex(EXPECTED_CONDO_PLAN.planType), 'i'),
+        new RegExp(escapeRegex(plan.expected?.planType ?? 'Condo'), 'i'),
       );
     });
   }
@@ -246,9 +273,20 @@ export class CondoPlanPage extends SearchablePage {
         timeout: TIMEOUT.short,
       });
 
-      for (const keyword of EXPECTED_CONDO_PLAN.descriptionKeywords) {
-        await expect(this.body).toContainText(keyword);
+      const plan = this.configuredCondoPlan;
+      const descriptionKeywords = plan.expected?.descriptionKeywords ?? [];
+
+      if (descriptionKeywords.length) {
+        for (const keyword of descriptionKeywords) {
+          const matcher =
+            typeof keyword === 'string' ? new RegExp(escapeRegex(keyword), 'i') : keyword;
+          await expect(this.body).toContainText(matcher);
+        }
+
+        return;
       }
+
+      await expect(this.body).toContainText(/bed|bath|sq\.?\s*ft|floor/i);
     });
   }
 
@@ -276,26 +314,49 @@ export class CondoPlanPage extends SearchablePage {
   }
 
   /** Checks the related floorplans and their View All link. */
-  async verifyAvailableFloorplans(_plan: CondoPlanDetails): Promise<void> {
+  async verifyAvailableFloorplans(plan: CondoPlanDetails): Promise<void> {
     await this.step('Verify available floorplans', async () => {
       await expect(this.availableFloorplansSection).toBeVisible({ timeout: TIMEOUT.medium });
       await expect(this.availableFloorplansSection).toContainText(TEXT.availableFloorplans);
 
+      const communityPattern = escapeRegex(plan.community).replace(/\s+/g, '(\\+|%20| )');
       const viewAllLink = this.page
         .locator(
-          'a[href*="productType=plan"][href*="Martha%20James%20Condominiums"], a[href*="productType=plan"][href*="Martha James Condominiums"]',
+          `a[href*="productType=plan"][href*="${plan.community.replace(/\s+/g, '%20')}"], ` +
+            `a[href*="productType=plan"][href*="${plan.community}"]`,
         )
         .first();
 
       await expect(viewAllLink).toBeVisible({ timeout: TIMEOUT.short });
       await expect(viewAllLink).toHaveAttribute(
         'href',
-        /\/search\?productType=plan.*community=Martha(\+|%20| )James(\+|%20| )Condominiums/i,
+        new RegExp(`/search\\?productType=plan.*community=${communityPattern}`, 'i'),
       );
 
-      for (const planName of EXPECTED_CONDO_PLAN.relatedPlanNames) {
+      const relatedPlanNames = plan.expected?.relatedPlanNames ?? [];
+      const communityPath = this.getCommunityPath(plan);
+
+      if (!relatedPlanNames.length) {
+        const relatedPlanLinks = this.availableFloorplansSection
+          .locator(`a[href*="${communityPath}/"]`)
+          .filter({ hasNotText: new RegExp(`^\\s*${escapeRegex(plan.name)}\\s*$`, 'i') });
+
+        expect(
+          await relatedPlanLinks.count(),
+          'Available floorplans should include at least one related plan link',
+        ).toBeGreaterThan(0);
+        await expect(relatedPlanLinks.first()).toBeVisible({ timeout: TIMEOUT.short });
+        await this.reportValue(
+          'Related condo floorplan',
+          this.buildFullUrl(await relatedPlanLinks.first().getAttribute('href')),
+        );
+
+        return;
+      }
+
+      for (const planName of relatedPlanNames) {
         const relatedPlanLink = this.page
-          .locator(`a[href$="/martha-james-condominiums/${planName.toLowerCase()}"]`)
+          .locator(`a[href$="${communityPath}/${planName.toLowerCase()}"]`)
           .first();
 
         await expect(
@@ -341,15 +402,26 @@ export class CondoPlanPage extends SearchablePage {
   async verifyContactUsSection(): Promise<void> {
     await this.step('Verify Contact Us section', async () => {
       await expect(this.contactSection).toBeVisible({ timeout: TIMEOUT.short });
-      await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.address);
-      await expect(this.contactSection).toContainText(
-        EXPECTED_CONDO_PLAN.salesOffice.cityProvincePostal,
-      );
-      await expect(this.contactSection).toContainText(EXPECTED_CONDO_PLAN.salesOffice.phone);
+      const salesOffice = this.configuredCondoPlan.expected?.salesOffice;
+
+      if (!salesOffice) {
+        await expect(this.contactSection.locator('a[href^="tel:"]').first()).toBeVisible({
+          timeout: TIMEOUT.short,
+        });
+        await expect(
+          this.contactSection.locator('a[href*="maps.google.com"]').first(),
+        ).toHaveAttribute('href', /maps\.google\.com\/maps\?q=/i);
+
+        return;
+      }
+
+      await expect(this.contactSection).toContainText(salesOffice.address);
+      await expect(this.contactSection).toContainText(salesOffice.cityProvincePostal);
+      await expect(this.contactSection).toContainText(salesOffice.phone);
 
       await expect(this.contactSection.locator('a[href^="tel:"]').first()).toHaveAttribute(
         'href',
-        new RegExp(EXPECTED_CONDO_PLAN.salesOffice.phone.replace(/-/g, '\\-')),
+        new RegExp(salesOffice.phone.replace(/-/g, '\\-')),
       );
       await expect(
         this.contactSection.locator('a[href*="maps.google.com"]').first(),

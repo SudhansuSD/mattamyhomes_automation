@@ -117,7 +117,7 @@ Note: a test that is skipped never runs its `beforeEach`, so it carries no Allur
 labels and is not grouped under a location — its title still names one.
 
 Suites that don't vary with the selected location — the pinned ones above plus
-`contactPage`, `customerCarePage`, `staticLegalPages` and `promoPage`, all listed
+`contactPage`, `customerCarePage` and `staticLegalPages`, all listed
 in `config/locations/locationAgnosticSpecs.ts` — run in the first pass only, so
 the report has no duplicate entries. Every other suite carries the country in its
 describe title, keeping USA and CAN results separate in the report.

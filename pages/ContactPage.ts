@@ -1,6 +1,6 @@
 import { Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
+import { LocationKey } from '../config/locations/locationConfig';
 import { escapeRegex } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
@@ -17,7 +17,6 @@ export type ContactArea = {
 export type ContactCountryConfig = {
   locationKey: LocationKey;
   countryLabel: string;
-  urlCountryParam: string;
   expectedTitle: RegExp;
   areas: ContactArea[];
 };
@@ -26,7 +25,6 @@ export const CONTACT_COUNTRIES: readonly ContactCountryConfig[] = [
   {
     locationKey: 'USA',
     countryLabel: 'USA',
-    urlCountryParam: 'USA',
     expectedTitle: /Contact \| Mattamy Homes/i,
     areas: [
       {
@@ -89,7 +87,6 @@ export const CONTACT_COUNTRIES: readonly ContactCountryConfig[] = [
   {
     locationKey: 'CAN',
     countryLabel: 'Canada',
-    urlCountryParam: 'CAN',
     expectedTitle: /Contact( Us)? \| Mattamy Homes/i,
     areas: [
       { name: 'CALGARY, AB', detailActions: ['CUSTOMER CARE', 'SALES OFFICE', 'DESIGN STUDIO'] },
@@ -151,8 +148,7 @@ export class ContactPage extends BasePage {
   async navigateToContact(locationKey: LocationKey): Promise<void> {
     await this.step(`Navigate to Contact page (${locationKey})`, async () => {
       const { baseURL } = getEnvConfig();
-      const location = getLocationConfig(locationKey);
-      const targetUrl = `${baseURL}/contact?${location.queryParam}`;
+      const targetUrl = `${baseURL}/contact`;
 
       await this.reportValue('Target URL', targetUrl);
 
@@ -162,6 +158,7 @@ export class ContactPage extends BasePage {
       await this.waitForPageReady();
       await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+      await this.ensureConfiguredCountrySelected(locationKey);
       await this.ensurePageRendered();
     });
   }

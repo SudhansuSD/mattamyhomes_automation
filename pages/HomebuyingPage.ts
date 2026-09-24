@@ -76,11 +76,11 @@ export class HomebuyingPage extends BasePage {
     await this.step(`Navigate to ${expectation.name}`, async () => {
       const { baseURL, envName } = getEnvConfig();
       const location = getLocationConfig(overrideLocation);
-      const targetUrl = `${baseURL}${expectation.path}?${location.queryParam}`;
+      const targetUrl = `${baseURL}${expectation.path}`;
 
       await this.reportValue(
         'Navigating to Homebuying page',
-        `ENV=${envName} | PAGE=${expectation.name} | URL=${targetUrl}`,
+        `ENV=${envName} | COUNTRY=${location.country} | PAGE=${expectation.name} | URL=${targetUrl}`,
       );
 
       await this.gotoAndVerifyResponse(targetUrl);
@@ -88,6 +88,8 @@ export class HomebuyingPage extends BasePage {
       await this.waitForPageReady();
       await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+      await this.ensureConfiguredCountrySelected(overrideLocation);
+      await this.waitForPageReady();
     });
   }
 

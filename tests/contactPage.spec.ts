@@ -36,7 +36,7 @@ test.describe('Mattamy Homes - Contact Page', () => {
       });
 
       test(`@smoke @regression | ${countryConfig.locationKey} | contact page should load with country-specific content`, async () => {
-        await test.step('Verify hero, title, URL country parameter, and country selector', async () => {
+        await test.step('Verify hero, title, URL, and country selector', async () => {
           await contactPage.verifyPageLoaded(countryConfig);
         });
       });

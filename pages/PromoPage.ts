@@ -21,7 +21,6 @@ type PromoLeadData = {
 
 export class PromoPage extends BasePage {
   private static readonly PAGE_LOAD_TIMEOUT = 30000;
-  private static readonly PROMO_PATH = '/florida/orlando/promos/hometown-heroes';
 
   readonly heroImage: Locator;
   readonly promoHeading: Locator;
@@ -54,15 +53,17 @@ export class PromoPage extends BasePage {
     this.successDialogModal = page.locator('.ReactModal__Content').last();
   }
 
-  /** Opens the USA Hometown Heroes promo page and clears anything covering it. */
-  async navigateToHometownHeroesPromo(): Promise<void> {
-    await this.step('Navigate to Hometown Heroes promo', async () => {
+  /** Opens the country home page, then the country's configured promo page. */
+  async navigateToPromo(): Promise<void> {
+    await this.step(`Navigate to ${this.location.country} promo page`, async () => {
+      await this.navigate();
+
       const { baseURL, envName } = getEnvConfig();
-      const targetUrl = `${baseURL}${PromoPage.PROMO_PATH}?country=USA`;
+      const targetUrl = `${baseURL}${this.promoPath}`;
 
       await this.reportValue(
         'Navigating to promo',
-        `ENV=${envName} | COUNTRY=USA | URL=${targetUrl}`,
+        `ENV=${envName} | COUNTRY=${this.location.country} | URL=${targetUrl}`,
       );
 
       await this.gotoAndVerifyResponse(targetUrl);
@@ -76,8 +77,8 @@ export class PromoPage extends BasePage {
   async verifyPageLoaded(): Promise<void> {
     await this.step('Verify Hometown Heroes promo page loaded', async () => {
       await this.assertPageUrl(
-        /\/florida\/orlando\/promos\/hometown-heroes/i,
-        'Hometown Heroes promo URL should match expected route',
+        new RegExp(this.promoPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
+        'Promo URL should match the configured route',
         PromoPage.PAGE_LOAD_TIMEOUT,
       );
       await this.assertPageTitle(
@@ -205,6 +206,17 @@ export class PromoPage extends BasePage {
     });
   }
 
+  /** Gets the promo path configured for this location. */
+  private get promoPath(): string {
+    const { promoURL } = this.location;
+
+    if (!promoURL) {
+      throw new Error(`No promoURL configured for ${this.location.country} in locationConfig`);
+    }
+
+    return promoURL;
+  }
+
   /** Gets the community field locator. */
   private get communityField(): Locator {
     return this.promoForm.getByRole('combobox', { name: /Community of Interest/i }).first();
@@ -327,10 +339,11 @@ export class PromoPage extends BasePage {
   private async dismissBlockingOverlays(): Promise<void> {
     await this.acceptCookiesIfPresent();
 
-    const usaCountryButton = this.page.getByRole('button', { name: /^USA$/i }).last();
+    const countryName = this.locationKey === 'CAN' ? /^(Canada|CAN)$/i : /^USA$/i;
+    const countryButton = this.page.getByRole('button', { name: countryName }).last();
 
-    if (await usaCountryButton.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await usaCountryButton.click();
+    if (await countryButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+      await countryButton.click();
       await this.settle(1000);
     }
 

@@ -489,16 +489,10 @@ export class SearchablePage extends BasePage {
     }
 
     const current = new URL(currentUrl);
-    const target = new URL(`${location.homeURL}?${location.queryParam}`, baseURL);
+    const target = new URL(location.homeURL, baseURL);
 
     if (current.origin !== target.origin || current.pathname !== target.pathname) {
       return false;
-    }
-
-    for (const [key, value] of target.searchParams) {
-      if (current.searchParams.get(key) !== value) {
-        return false;
-      }
     }
 
     return true;

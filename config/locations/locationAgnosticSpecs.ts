@@ -30,8 +30,6 @@ export const LOCATION_AGNOSTIC_SPECS = [
   // social hrefs absolute, newsletter rejects a bad email) — no per-country
   // data, so running it in both passes would just repeat the same checks.
   'footerNavigation.spec.ts',
-  // USA-only promotion.
-  'promoPage.spec.ts',
   // USA-only feature — pinned to USA data and the USA site.
   'mpc.spec.ts',
   // Canada-only features — pinned to CAN data and the Canadian site.

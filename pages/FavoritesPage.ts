@@ -56,15 +56,20 @@ export class FavoritesPage extends BasePage {
     await this.step('Navigate to Favorites', async () => {
       const { baseURL, envName } = getEnvConfig();
       const location = getLocationConfig(overrideLocation);
-      const targetUrl = `${baseURL}${FavoritesPage.PATH}?${location.queryParam}`;
+      const targetUrl = `${baseURL}${FavoritesPage.PATH}`;
 
-      await this.reportValue('Navigating to Favorites', `ENV=${envName} | URL=${targetUrl}`);
+      await this.reportValue(
+        'Navigating to Favorites',
+        `ENV=${envName} | COUNTRY=${location.country} | URL=${targetUrl}`,
+      );
 
       await this.gotoAndVerifyResponse(targetUrl);
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
       await this.ensurePageRendered();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
+      await this.ensureConfiguredCountrySelected(overrideLocation);
+      await this.waitForPageReady();
     });
   }
 

@@ -58,7 +58,7 @@ test.describe(`Accessibility - ${location.country}`, () => {
       });
 
       const basePage = new BasePage(page);
-      const targetUrl = `${baseURL}${template.path.startsWith('/') ? '' : '/'}${template.path}?${location.queryParam}`;
+      const targetUrl = `${baseURL}${template.path.startsWith('/') ? '' : '/'}${template.path}`;
 
       await test.step(`Open ${template.name}`, async () => {
         await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90_000 });

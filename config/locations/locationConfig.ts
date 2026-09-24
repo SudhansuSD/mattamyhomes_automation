@@ -2,13 +2,14 @@ import { getEnvConfig } from '../environments/envConfig';
 
 /*
  * `homeURL` is the path the country's home page lives at, and it differs by
- * environment. STAGE gives each country its own home page - /us and /ca - and
- * that path is what selects the country there: /ca serves Canadian content even
- * when the query string says USA. PROD serves one home page for both countries
- * at /, and picks the country from `queryParam` alone.
+ * environment. Each configured environment routes USA through /us and Canada
+ * through /ca, and that path is what selects the country there: /ca serves
+ * Canadian content even when the query string says USA.
  *
- * `queryParam` is kept on both: every page other than the home page still takes
- * the country from the query string, on both environments.
+ * `queryParam` is the country filter the search page still uses in its URL.
+ *
+ * `promoURL` is the promotion page the promo suite validates for that country,
+ * or null when the country runs no promotion - the suite skips on null.
  */
 const ENVIRONMENT_LOCATION_OVERRIDES = {
   STAGE: {
@@ -16,6 +17,7 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       country: 'USA',
       queryParam: 'country=USA',
       homeURL: '/us',
+      promoURL: '/florida/orlando/promos/hometown-heroes',
       market: 'Charlotte',
       mpc: [
         {
@@ -123,6 +125,7 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       country: 'CAN',
       queryParam: 'country=CAN',
       homeURL: '/ca',
+      promoURL: null,
       market: 'Calgary',
       community: 'Yorkville',
       communityPath: '/alberta/calgary/calgary/yorkville',
@@ -132,6 +135,25 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
         url: '/ontario/gta/burlington/martha-james-condominiums/m2ad',
         community: 'Martha James Condominiums',
         market: 'Greater Toronto Area',
+        expected: {
+          city: 'Burlington',
+          titleParts: ['The M2ad plan', 'Martha James Condominiums', 'Mattamy Homes'],
+          specs: ['2 Beds', '2 Baths', '946 Sq. Ft.', 'Floor 5', '2 Bedroom + Den'],
+          planType: 'Condo',
+          descriptionKeywords: [
+            '2-bedroom + den',
+            'open-concept kitchen',
+            'primary bedroom',
+            /terrace|balcony/i,
+            'stacked washer/dryer',
+          ],
+          relatedPlanNames: ['M1bd', 'Mj1b', 'Mj1f'],
+          salesOffice: {
+            address: '1388 Dundas Street West',
+            cityProvincePostal: 'Oakville, ON L6M 4L8',
+            phone: '416-630-8282',
+          },
+        },
       },
       qmiAddress: '48 YORKSTONE CRESCENT SW',
       qmiPath: '/alberta/calgary/calgary/yorkville/fullerton/48-yorkstone-crescent-sw',
@@ -187,7 +209,8 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
     USA: {
       country: 'USA',
       queryParam: 'country=USA',
-      homeURL: '/',
+      homeURL: '/us',
+      promoURL: '/florida/orlando/promos/hometown-heroes',
       market: 'Phoenix',
       mpc: [
         {
@@ -290,7 +313,8 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
     CAN: {
       country: 'CAN',
       queryParam: 'country=CAN',
-      homeURL: '/',
+      homeURL: '/ca',
+      promoURL: null,
       market: 'Greater Toronto Area',
       community: 'Yorkville',
       communityPath: '/alberta/calgary/calgary/yorkville',
@@ -300,6 +324,11 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
         url: '/ontario/gta/burlington/martha-james-condominiums/mj1a',
         community: 'Martha James Condominiums',
         market: 'Greater Toronto Area',
+        expected: {
+          city: 'Burlington',
+          titleParts: ['The MJ1A plan', 'Martha James Condominiums', 'Mattamy Homes'],
+          planType: 'Condo',
+        },
       },
       qmiAddress: '55 Yorkstone Terrace SW',
       qmiPath: '/alberta/calgary/calgary/yorkville/maclaren/55-yorkstone-terrace-sw',
@@ -397,7 +426,7 @@ export function getLocationsToRun(): LocationKey[] {
 }
 
 export function getLocationKey(overrideLocation?: LocationKey): LocationKey {
-  const rawKey = overrideLocation ?? (process?.env?.LOCATION as string | undefined) ?? 'CAN'; // Default location if not specified
+  const rawKey = overrideLocation ?? (process?.env?.LOCATION as string | undefined) ?? 'USA'; // Default location if not specified
   const key = rawKey.toUpperCase() as LocationKey;
   const envName = getEnvConfig().envName as EnvName;
 

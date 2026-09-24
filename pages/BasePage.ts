@@ -98,7 +98,7 @@ export class BasePage {
     const { baseURL, envName } = getEnvConfig();
     const location = getLocationConfig(overrideLocation ?? this.locationOverride);
 
-    const targetUrl = `${baseURL}${location.homeURL}?${location.queryParam}`;
+    const targetUrl = `${baseURL}${location.homeURL}`;
 
     await test.step(`Open Mattamy Homes home page for ${location.country} in ${envName}`, async () => {
       await this.registerConsentDialogHandlers();
@@ -115,9 +115,7 @@ export class BasePage {
         const sameHost =
           current.hostname.replace(/^www\./i, '') === target.hostname.replace(/^www\./i, '');
         const reachedTarget =
-          sameHost &&
-          current.pathname === target.pathname &&
-          current.searchParams.get('country') === target.searchParams.get('country');
+          sameHost && current.pathname.replace(/\/$/, '') === target.pathname.replace(/\/$/, '');
         const domIsUsable = await this.page
           .evaluate(() => document.readyState !== 'loading')
           .catch(() => false);
@@ -840,8 +838,9 @@ export class BasePage {
   }
 
   /** Ensures the configured header country is selected when the selector is visible. */
-  protected async ensureConfiguredCountrySelected(): Promise<void> {
-    const expectedCountry = this.location.country === 'USA' ? 'USA' : 'CANADA';
+  protected async ensureConfiguredCountrySelected(overrideLocation?: LocationKey): Promise<void> {
+    const location = getLocationConfig(overrideLocation ?? this.locationOverride);
+    const expectedCountry = location.country === 'USA' ? 'USA' : 'CANADA';
     const countrySelector = this.page.locator('button[aria-label^="Select your country."]').first();
 
     if (!(await countrySelector.isVisible({ timeout: 5000 }).catch(() => false))) {

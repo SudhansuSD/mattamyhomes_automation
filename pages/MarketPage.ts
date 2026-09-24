@@ -1,6 +1,5 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
-import { getLocationConfig } from '../config/locations/locationConfig';
 import { escapeRegex, getNormalizedText } from '../utils/web/pageObjectUtils';
 import {
   clickSubmit,
@@ -170,8 +169,7 @@ export class MarketPage extends BasePage {
   async navigateToMarket(relativeUrl: string): Promise<void> {
     await this.step(`Navigate to market page: ${relativeUrl}`, async () => {
       const { baseURL } = getEnvConfig();
-      const location = getLocationConfig();
-      const targetUrl = `${baseURL}${relativeUrl}?${location.queryParam}`;
+      const targetUrl = `${baseURL}${relativeUrl}`;
 
       await this.page
         .goto(targetUrl, {
@@ -190,15 +188,11 @@ export class MarketPage extends BasePage {
       // render leaves every section locator resolving to nothing.
       await this.ensurePageRendered();
 
-      // A stale URL still "works": /florida/sarasota-bradenton answers 301 and
-      // drops the query string, so the site falls back to its default country
-      // and fails much later as "header country selector should show USA".
       const landedUrl = this.page.url();
-      const expectedCountry = location.queryParam.split('=')[1];
 
       // "Did not load" is not "loaded somewhere else". A failed navigation
-      // leaves chrome-error://chromewebdata/, which has no country parameter
-      // either - reporting that as a stale URL points at the wrong file.
+      // leaves chrome-error://chromewebdata/, which points at the wrong file if
+      // it is allowed to fall through to route assertions.
       if (/^(chrome-error|about:blank)/i.test(landedUrl)) {
         throw new Error(
           [
@@ -209,20 +203,6 @@ export class MarketPage extends BasePage {
             'The browser reported a navigation error rather than serving the page.',
             'This is a load failure - network, server, or a crashed renderer - not a',
             'configuration problem. Re-run the single test to see whether it persists.',
-          ].join('\n'),
-        );
-      }
-
-      if (!new RegExp(`country=${expectedCountry}`, 'i').test(landedUrl)) {
-        throw new Error(
-          [
-            `Navigating to ${relativeUrl} lost the country parameter.`,
-            `  requested: ${targetUrl}`,
-            `  landed on: ${landedUrl}`,
-            '',
-            'A redirect discarded the query string, so the site is using its default',
-            'country rather than the one under test. Point the market url in',
-            'config/locations/locationConfig.ts at the destination this redirects to.',
           ].join('\n'),
         );
       }

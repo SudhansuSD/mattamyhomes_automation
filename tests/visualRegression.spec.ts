@@ -97,7 +97,7 @@ test.describe(`Visual regression - ${location.country}`, () => {
 
       const basePage = new BasePage(page);
       const separator = template.path.startsWith('/') ? '' : '/';
-      const targetUrl = `${baseURL}${separator}${template.path}?${location.queryParam}`;
+      const targetUrl = `${baseURL}${separator}${template.path}`;
 
       await test.step(`Open ${template.name}`, async () => {
         await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90_000 });
