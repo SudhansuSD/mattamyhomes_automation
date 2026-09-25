@@ -105,9 +105,12 @@ export class OverlayManager {
     // hide and then lose the click to the grown iframe - it covers links in the
     // mobile navigation panel. The handler hides it whenever it is on screen
     // during an action. It is only hidden, never detached, so the chatbot
-    // presence check still finds it.
+    // presence check still finds it. The site can mount the widget twice, and a
+    // handler locator is resolved strictly on every action and assertion, so it
+    // targets the first visible instance - a bare `#iAtlasChat` matching both
+    // throws a strict-mode violation from whatever assertion happens to be running.
     await this.page.addLocatorHandler(
-      this.page.locator('#iAtlasChat'),
+      this.page.locator('#iAtlasChat:visible').first(),
       async () => {
         await this.neutralizeChatWidget();
       },

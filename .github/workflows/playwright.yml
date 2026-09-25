@@ -2,9 +2,9 @@ name: Playwright Tests
 
 on:
   schedule:
-    # Daily smoke run at 04:35 AM IST (23:05 UTC, previous day).
-    # The separate noon notification sends the latest completed smoke report.
-    - cron: '5 23 * * *'
+    # Daily smoke run at 04:30 UTC (10:00 AM IST). The email goes out when the
+    # run's report is published.
+    - cron: '30 4 * * *'
   push:
     branches: [main, master]
   workflow_dispatch:
@@ -266,7 +266,7 @@ jobs:
       # uploads are hundreds of megabytes of traces that can outlive the job
       # budget. Sending first means a killed upload costs artifacts, not the report.
       - name: Validate email configuration
-        if: always() && github.event_name != 'schedule'
+        if: always()
         run: |
           echo "EMAIL_HOST configured: ${{ secrets.EMAIL_HOST != '' }}"
           echo "EMAIL_PORT configured: ${{ secrets.EMAIL_PORT != '' }}"
@@ -280,7 +280,7 @@ jobs:
           echo "Build report URL: ${{ steps.report-site.outputs.build_url || 'not published' }}"
 
       - name: Send email report
-        if: always() && github.event_name != 'schedule'
+        if: always()
         timeout-minutes: 10
         run: npm run report:email
         env:
@@ -298,6 +298,9 @@ jobs:
           # Permanent, per-build URL — it keeps working after later runs publish.
           ALLURE_REPORT_URL: ${{ steps.report-site.outputs.build_url }}
           ALLURE_REPORT_SITE_URL: ${{ steps.report-site.outputs.site_url }}
+          # The scheduled run's recipients read the time in IST; other runs use
+          # the script's default zone.
+          REPORT_TIME_ZONE: ${{ github.event_name == 'schedule' && 'Asia/Kolkata' || '' }}
 
       # Every upload below is bounded. A failure run carries a trace per failed
       # attempt, which has reached hundreds of megabytes across these four paths,

@@ -390,23 +390,15 @@ export function getSubmitButton(form: Locator): Locator {
  * The widget is third-party and cross-origin, so the test cannot safely click a
  * close control inside the iframe. Hiding its host container keeps Submit clicks
  * honest for the form itself while removing only the external chat chrome that
- * floats over desktop and mobile viewports.
+ * floats over desktop and mobile viewports. The site can mount the widget more
+ * than once, so every visible instance is hidden, not just the first.
  */
 export async function closeAtlasChatIframeIfOpen(page: Page): Promise<boolean> {
   return page
     .evaluate(() => {
-      const host =
-        document.querySelector<HTMLElement>('#iAtlasChatDiv') ??
-        document.querySelector<HTMLElement>('#iAtlasChat');
-      const widgets = Array.from(
+      const visibleWidgets = Array.from(
         document.querySelectorAll<HTMLElement>('#iAtlasChatDiv, #iAtlasChat'),
-      );
-
-      if (!host) {
-        return false;
-      }
-
-      const isVisible = widgets.some((widget) => {
+      ).filter((widget) => {
         const rect = widget.getBoundingClientRect();
         const style = window.getComputedStyle(widget);
 
@@ -419,15 +411,15 @@ export async function closeAtlasChatIframeIfOpen(page: Page): Promise<boolean> {
         );
       });
 
-      if (!isVisible) {
-        return false;
-      }
+      visibleWidgets.forEach((widget) => {
+        const host = widget.closest<HTMLElement>('#iAtlasChatDiv') ?? widget;
 
-      host.dataset.automationAtlasChatClosed = 'true';
-      host.style.display = 'none';
-      host.style.pointerEvents = 'none';
+        host.dataset.automationAtlasChatClosed = 'true';
+        host.style.display = 'none';
+        host.style.pointerEvents = 'none';
+      });
 
-      return true;
+      return visibleWidgets.length > 0;
     })
     .catch(() => false);
 }

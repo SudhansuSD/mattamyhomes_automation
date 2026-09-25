@@ -277,11 +277,6 @@ function getPlatformFromLabels(labels: AllureLabel[] | undefined): ReportPlatfor
  * fallback keeps those emails working unchanged.
  */
 function getSummaryReportDir(): string {
-  const publishedReportDir = getEnv('ALLURE_REPORT_SOURCE_DIR');
-  if (publishedReportDir) {
-    return path.resolve(publishedReportDir);
-  }
-
   const merged = path.join(MERGED_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
   const desktop = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
   const mobile = path.join(MOBILE_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
@@ -322,11 +317,6 @@ function getSummaryReportPlatformFallback(): ReportPlatform {
  * whole run, so a web + mobile run named after the web engine understates it.
  */
 function getCoveredBrowserLabel(): string {
-  const publishedBrowser = getEnv('REPORT_BROWSER');
-  if (publishedBrowser) {
-    return publishedBrowser;
-  }
-
   const { web, mobile } = getPlatformCoverage();
   return getBrowserCoverageLabel(web, mobile);
 }
@@ -597,14 +587,10 @@ function getRunTypeFromLabels(results: Array<Pick<AllureResult, 'labels'>>): str
   return getRunTypeFromEnv();
 }
 
-/** Format this run's time, or the selected published build's time for the noon email. */
+/** Format this run's time in the report time zone. */
 function getExecutionDateTime(): string {
-  const reportTime = getEnv('REPORT_PUBLISHED_AT');
   const timeZone = getEnv('REPORT_TIME_ZONE', REPORT_TIME_ZONE);
-  const now = reportTime ? new Date(reportTime) : new Date();
-  if (Number.isNaN(now.getTime())) {
-    throw new Error(`Invalid REPORT_PUBLISHED_AT: ${reportTime}`);
-  }
+  const now = new Date();
 
   try {
     return now.toLocaleString(timeZone === 'Asia/Kolkata' ? 'en-IN' : 'en-US', {
@@ -821,10 +807,6 @@ function buildSummary(results: AllureResult[]): ExecutionSummary {
     return reportSummary;
   }
 
-  if (getEnv('ALLURE_REPORT_SOURCE_DIR')) {
-    throw new Error('Published Allure report summary is missing or invalid. Email not sent.');
-  }
-
   return buildSummaryFromResults(results);
 }
 
@@ -895,10 +877,7 @@ function renderSummaryRows(summary: ExecutionSummary): string {
     ['Environment', summary.environment],
     ['Browser', summary.browser],
     ['Run Type', summary.runType],
-    [
-      getEnv('REPORT_PUBLISHED_AT') ? 'Report Published' : 'Execution Date/Time',
-      summary.executionDateTime,
-    ],
+    ['Execution Date/Time', summary.executionDateTime],
   ];
 
   return rows
@@ -1307,7 +1286,7 @@ async function sendEmail(summary: ExecutionSummary, chartFilePath: string): Prom
 }
 
 export async function sendAllureEmailReport(): Promise<void> {
-  const results = getEnv('ALLURE_REPORT_SOURCE_DIR') ? [] : readAllureResults();
+  const results = readAllureResults();
   const summary = buildSummary(results);
   const generatedChartPath = await generateChart(summary);
 
