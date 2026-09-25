@@ -83,6 +83,7 @@ export class Footer extends BasePage {
 
       const previousTitle = await this.page.title().catch(() => '');
 
+      await this.neutralizeChatWidget();
       await footerLink.click({ noWaitAfter: true });
       await this.page.waitForURL((url) => url.pathname.replace(/\/$/, '') === link.url, {
         timeout: 30000,

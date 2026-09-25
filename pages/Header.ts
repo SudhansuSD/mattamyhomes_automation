@@ -712,6 +712,8 @@ export class Header extends BasePage {
 
       const previousTitle = await this.page.title().catch(() => '');
 
+      await this.neutralizeChatWidget();
+
       // noWaitAfter: the link navigates and detaches, so Playwright's post-click
       // checks would time out against a gone element; waitForURL is the real
       // assertion that the click worked.
@@ -739,6 +741,7 @@ export class Header extends BasePage {
 
       const previousTitle = await this.page.title().catch(() => '');
 
+      await this.neutralizeChatWidget();
       await navLink.click();
       await this.page.waitForURL((url) => url.pathname === link.url, { timeout: 30000 });
       await this.waitForRouteContent(previousTitle);
@@ -779,6 +782,7 @@ export class Header extends BasePage {
         ).toBeVisible({ timeout: 5000 });
       }
 
+      await this.neutralizeChatWidget();
       await this.favoritesLink.click({ noWaitAfter: true });
       await expect
         .poll(() => new URL(this.page.url()).pathname.replace(/\/$/, ''), {

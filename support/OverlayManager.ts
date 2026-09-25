@@ -99,6 +99,20 @@ export class OverlayManager {
       // rather than firing once.
       { noWaitAfter: true },
     );
+
+    // The AtlasRTX chat widget mounts at 0x0 and only grows to its launcher size
+    // a few seconds later, so a one-off check before a click can see nothing to
+    // hide and then lose the click to the grown iframe - it covers links in the
+    // mobile navigation panel. The handler hides it whenever it is on screen
+    // during an action. It is only hidden, never detached, so the chatbot
+    // presence check still finds it.
+    await this.page.addLocatorHandler(
+      this.page.locator('#iAtlasChat'),
+      async () => {
+        await this.neutralizeChatWidget();
+      },
+      { noWaitAfter: true },
+    );
   }
 
   /** Accepts the cookie banner when it is visible. */
@@ -439,13 +453,15 @@ export class OverlayManager {
   /**
    * Stops the AtlasRTX chat widget intercepting clicks.
    *
-   * Its floating iframe sits over the Submit button. The frame is cross-origin,
-   * so close it by hiding the host container before the form click rather than
-   * forcing the click through whatever is on top.
+   * Its floating iframe sits over form Submit buttons and, at phone widths, over
+   * links in the mobile navigation panel. The frame is cross-origin, so close it
+   * by hiding the host container before the click rather than forcing the click
+   * through whatever is on top. It loads asynchronously, so call this right
+   * before each click it could cover, not once on arrival.
    */
   async neutralizeChatWidget(): Promise<void> {
     if (await closeAtlasChatIframeIfOpen(this.page)) {
-      await this.deps.report('Closed the AtlasRTX chat iframe before interacting with a form');
+      await this.deps.report('Closed the AtlasRTX chat iframe before clicking');
     }
   }
 
