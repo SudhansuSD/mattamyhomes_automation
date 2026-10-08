@@ -21,7 +21,7 @@ on:
       env:
         description: Test environment
         required: true
-        default: STAGE
+        default: PROD
         type: choice
         options:
           - STAGE
@@ -42,7 +42,7 @@ on:
 # well as ref so a manual Regression/PROD run and the scheduled Smoke/STAGE run
 # do not queue behind each other.
 concurrency:
-  group: playwright-${{ github.ref }}-${{ github.event.inputs.suite || 'smoke' }}-${{ github.event.inputs.env || 'STAGE' }}
+  group: playwright-${{ github.ref }}-${{ github.event.inputs.suite || 'smoke' }}-${{ github.event.inputs.env || 'PROD' }}
   cancel-in-progress: false
 
 # contents: write is what lets the built-in GITHUB_TOKEN push each build's report
@@ -68,7 +68,7 @@ jobs:
       # --ipc=host is Playwright's documented fix for exactly this.
       options: --ipc=host
     env:
-      TEST_ENV: ${{ github.event.inputs.env || 'STAGE' }}
+      TEST_ENV: ${{ github.event.inputs.env || 'PROD' }}
       # ALL (the default, and what scheduled/push runs use) makes the framework
       # run one pass per location and report on both.
       TEST_LOCATION: ${{ github.event.inputs.location || 'ALL' }}
