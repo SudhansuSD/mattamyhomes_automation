@@ -439,7 +439,7 @@ export class MarketPage extends BasePage {
 
       await fillLeadFormFields(form, invalid, { selectCommunity: true });
 
-      await getSubmitButton(form).click();
+      await clickSubmit(this.page, form);
 
       await expectInvalidEmailErrorInForm(form);
     });

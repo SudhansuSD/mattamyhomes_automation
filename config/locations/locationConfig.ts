@@ -221,8 +221,8 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
       ],
       community: 'Landmarke',
       communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
-      qmiAddress: '356 W FLOYD DR',
-      qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/garnet/356-w-floyd-dr',
+      qmiAddress: '337 W FLOYD DR',
+      qmiPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/garnet/337-w-floyd-dr',
       planName: 'Aqua',
       expectedPlanPath: '/arizona/phoenix/san-tan-valley/landmarke-50s/aqua',
       aboutUsLinks: [
@@ -330,8 +330,8 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
           planType: 'Condo',
         },
       },
-      qmiAddress: '55 Yorkstone Terrace SW',
-      qmiPath: '/alberta/calgary/calgary/yorkville/maclaren/55-yorkstone-terrace-sw',
+      qmiAddress: '33 Yorkstone Gardens SW',
+      qmiPath: '/alberta/calgary/calgary/yorkville/finch/33-yorkstone-gardens-sw',
       planName: 'Maclaren',
       expectedPlanPath: '/alberta/calgary/calgary/yorkville/maclaren',
       aboutUsLinks: [

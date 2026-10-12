@@ -140,9 +140,15 @@ export class MediaAuditor {
 
         const trimmed = rawUrl.trim();
 
+        // Third-party trackers and Google Maps tiles are not site media. Map tiles
+        // are fetched under the embedded map's own session and return 404 when
+        // re-requested on their own, even though they rendered on the page.
         if (
           !trimmed ||
           /^(data|blob|javascript|about):/i.test(trimmed) ||
+          /\/\/(?:mapsresources-pa\.googleapis\.com|maps\.googleapis\.com|maps\.gstatic\.com)\//i.test(
+            trimmed,
+          ) ||
           /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(
             trimmed,
           )

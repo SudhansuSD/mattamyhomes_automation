@@ -2,6 +2,7 @@ import { expect, Locator, Page } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import { getLocationConfig, getLocationKey, LocationKey } from '../config/locations/locationConfig';
 import { getResourceMenuLink } from '../config/navigation/countryNavigation';
+import { clickSubmit } from '../utils/leadform/leadFormHelper';
 import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 import { Header } from './Header';
@@ -287,8 +288,10 @@ export class HomebuyingPage extends BasePage {
         return;
       }
 
-      await submit.click();
-      await this.settle(1000);
+      await clickSubmit(this.page, form, 5000, {
+        submitButton: submit,
+        settle: () => this.settle(1000),
+      });
 
       const invalidCount = await form.locator(':invalid, [aria-invalid="true"]').count();
       expect(

@@ -755,7 +755,7 @@ export class MPCPage extends BasePage {
       const form = await this.getCommunityUpdateForm();
       const fields = this.getCommunityUpdateFormFields(form);
 
-      await fields.submit.click();
+      await clickSubmit(this.page, form, 10000, { submitButton: fields.submit });
 
       await expect(form.locator('text=/Required|Please complete/i').first()).toBeVisible({
         timeout: 10000,
@@ -773,7 +773,7 @@ export class MPCPage extends BasePage {
 
       await this.fillCommunityUpdateFormFields(fields, invalid);
 
-      await fields.submit.click();
+      await clickSubmit(this.page, form, 10000, { submitButton: fields.submit });
 
       await expect(form.getByText(/Email addresses must contain.*valid domain name/i)).toBeVisible({
         timeout: 10000,

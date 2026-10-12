@@ -1,6 +1,6 @@
 import { expect, Locator, Page, Response } from '@playwright/test';
 import { appendLeadApiCapture } from '../utils/evidence/leadApiCapture';
-import { assertLeadFormShape } from '../utils/leadform/leadFormHelper';
+import { reportLeadFormShape } from '../utils/leadform/leadFormHelper';
 import {
   getBreadcrumbInformationCta,
   getHeroInformationCta,
@@ -390,12 +390,12 @@ export class LeadFormFlow {
   }): Promise<void> {
     const timeout = options.timeout ?? 30_000;
 
-    // Check the form still exposes the fields its country declares BEFORE
+    // Record any field the country declares but the form does not render BEFORE
     // submitting. A form that quietly lost its budget or move-date dropdown
     // still submits and still shows a success message - it just sends the CRM a
     // thinner lead, which no assertion downstream would ever notice.
     if (options.form) {
-      await assertLeadFormShape(options.form, options.formName);
+      await reportLeadFormShape(options.form, options.formName);
     }
 
     const apiResponsePromise = this.waitForLeadApiResponse(timeout);

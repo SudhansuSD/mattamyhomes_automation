@@ -5,6 +5,7 @@ import { resolveFeature, type FeatureKey } from '../config/features/featureExpec
 import { OverlayManager } from '../support/OverlayManager';
 import { MediaAuditor } from '../support/MediaAuditor';
 import { LeadFormFlow } from '../support/LeadFormFlow';
+import { installProdSubmissionGuard } from '../utils/leadform/prodSubmissionGuard';
 import {
   reportSelectorDrift,
   reportValue,
@@ -49,6 +50,7 @@ export class BasePage {
   private readonly overlays: OverlayManager;
   private readonly media: MediaAuditor;
   private readonly leadForms: LeadFormFlow;
+  private readonly prodSubmissionGuard: Promise<void>;
 
   /**
    * Country this page object is pinned to, if any.
@@ -62,6 +64,8 @@ export class BasePage {
   constructor(page: Page, locationOverride?: LocationKey) {
     this.page = page;
     this.locationOverride = locationOverride;
+    // Started here so it covers every page object; awaited before each navigation.
+    this.prodSubmissionGuard = installProdSubmissionGuard(page);
     this.overlays = new OverlayManager(page, {
       settle: (ms) => this.settle(ms),
       report: (message, value) => this.reportValue(message, value),
@@ -101,6 +105,7 @@ export class BasePage {
     const targetUrl = `${baseURL}${location.homeURL}`;
 
     await test.step(`Open Mattamy Homes home page for ${location.country} in ${envName}`, async () => {
+      await this.prodSubmissionGuard;
       await this.registerConsentDialogHandlers();
       let response: PlaywrightResponse | null = null;
       try {
@@ -182,6 +187,8 @@ export class BasePage {
     url: string,
     options: { waitUntil?: 'domcontentloaded' | 'load' | 'commit'; timeout?: number } = {},
   ): Promise<PlaywrightResponse | null> {
+    await this.prodSubmissionGuard;
+
     const response = await this.page.goto(url, {
       waitUntil: options.waitUntil ?? 'domcontentloaded',
       timeout: options.timeout ?? 90_000,
@@ -899,19 +906,30 @@ export class BasePage {
 
   // Scroll Handler
 
-  /** Scrolls an element to the middle of the screen and lets the page settle. */
+  /**
+   * Scrolls an element to the middle of the screen and lets the page settle.
+   *
+   * Centres twice because the first scroll can move the layout under the target. On a phone
+   * viewport the national notification banner reserves ~176px at the top of the page, collapses
+   * that space as soon as the page scrolls, and stays pinned over the top of the viewport. The
+   * content jumps up by the collapsed height after the first scroll, which leaves the target under
+   * the pinned banner ("#national-notification-banner subtree intercepts pointer events"). The
+   * second scroll measures the settled layout and puts the target clear of it.
+   */
   protected async scrollTo(locator: Locator): Promise<void> {
     await locator.waitFor({ state: 'attached', timeout: 10000 });
 
-    await locator.evaluate((el) => {
-      el.scrollIntoView({
-        behavior: 'auto',
-        block: 'center',
-        inline: 'nearest',
+    for (let pass = 0; pass < 2; pass++) {
+      await locator.evaluate((el) => {
+        el.scrollIntoView({
+          behavior: 'auto',
+          block: 'center',
+          inline: 'nearest',
+        });
       });
-    });
 
-    await this.settle(800);
+      await this.settle(pass === 0 ? 400 : 800);
+    }
   }
   // Helper
 

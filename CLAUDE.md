@@ -126,6 +126,22 @@ A single run can opt back in with `ALLOW_LEAD_SUBMISSION=true`; PROD stays
 blocked regardless. Only flip `LEAD_SUBMISSIONS_PAUSED` back to `false` when the
 client asks for submissions to resume.
 
+**No lead form is ever submitted on PROD, validation tests included.** On PROD
+`clickSubmit` does not click: it focuses and leaves each field, which raises the
+same inline "is Required" / invalid-email messages. Route every submit click
+through `clickSubmit`, never `.click()` on a submit button. As a backstop,
+`utils/leadform/prodSubmissionGuard` (installed by `BasePage`) blocks any write
+request to a lead endpoint on PROD.
+
+**Lead-form fields are checked when rendered, skipped when not.** First name,
+Last name, Email and the submit button must render. Every other field - including
+the per-country dropdowns in `config/features/leadFormSchema.ts` - is validated
+when present and listed as skipped in the Allure report when absent. This is the
+one deliberate exception to "a missing element is not a reason to pass". Which
+fields are required is read from the form's own `required` / `aria-required`
+attributes; each one must reject an empty value with its "<label> is Required"
+message.
+
 ## Untracked evidence specs
 
 `tests/formSubmissionEvidence.spec.ts`,

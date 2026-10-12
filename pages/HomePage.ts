@@ -129,7 +129,13 @@ export class HomePage extends SearchablePage {
   // Reads the masthead's configured phone image source and whether the desktop video is on screen.
   private async getHeroImageState(): Promise<HeroImageState> {
     return this.heroSection.evaluate((section: HTMLElement) => {
+      // An empty source stays empty: resolved against the page it would become the page's own URL,
+      // and a masthead with no image would then pass every source check below.
       const toAbsoluteUrl = (url: string) => {
+        if (!url.trim()) {
+          return '';
+        }
+
         try {
           return new URL(url, window.location.href).href;
         } catch {

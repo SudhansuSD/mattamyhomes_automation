@@ -1,6 +1,7 @@
 import { Locator, Page, expect } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
 import {
+  clickSubmit,
   fillIfPresent,
   getConsentCheckbox,
   getLeadProfile,
@@ -21,6 +22,8 @@ type PromoLeadData = {
 
 export class PromoPage extends BasePage {
   private static readonly PAGE_LOAD_TIMEOUT = 30000;
+
+  private offerDisclaimerHandlerRegistered = false;
 
   readonly heroImage: Locator;
   readonly promoHeading: Locator;
@@ -143,7 +146,9 @@ export class PromoPage extends BasePage {
   async validateRequiredFieldErrors(): Promise<void> {
     await this.step('Validate required field errors', async () => {
       await this.scrollToForm();
-      await this.submitButton.click();
+      await clickSubmit(this.page, this.promoForm, PromoPage.PAGE_LOAD_TIMEOUT, {
+        submitButton: this.submitButton,
+      });
 
       await expect(this.requiredError(/Community of Interest/i)).toBeVisible({
         timeout: PromoPage.PAGE_LOAD_TIMEOUT,
@@ -165,7 +170,9 @@ export class PromoPage extends BasePage {
         email: 'not-an-email',
       });
 
-      await this.submitButton.click();
+      await clickSubmit(this.page, this.promoForm, PromoPage.PAGE_LOAD_TIMEOUT, {
+        submitButton: this.submitButton,
+      });
 
       const emailError = this.promoForm
         .locator('div:visible, span:visible, p:visible, label:visible')
@@ -335,8 +342,35 @@ export class PromoPage extends BasePage {
     }
   }
 
-  /** Clears the cookie banner, country picker and privacy panel that can sit over the form. */
+  /**
+   * Arms a handler that closes the offer disclaimer modal whenever it covers the page.
+   *
+   * The Hometown Heroes page opens its "*Offer available on select homes..." disclaimer as a
+   * react-modal on its own after hydration, not only from the asterisk link. While it is open
+   * react-modal marks `#root` `aria-hidden`, so every role-based lookup on the page - the promo
+   * heading, the country button - reports "element(s) not found" even though the content is
+   * rendered behind it. It opens anywhere from a few seconds to well after `domcontentloaded`, so
+   * a one-off check right after navigation misses it; a locator handler closes it whenever it is
+   * on screen during an action or assertion.
+   */
+  private async registerOfferDisclaimerHandler(): Promise<void> {
+    if (this.offerDisclaimerHandlerRegistered) {
+      return;
+    }
+
+    const closeButton = this.page.getByRole('button', { name: /close disclaimer/i }).first();
+
+    await this.page.addLocatorHandler(closeButton, async (button) => {
+      await this.reportValue('Offer disclaimer modal covered the page', 'closed');
+      await button.click();
+      await this.clearStaleModalAriaHidden();
+    });
+    this.offerDisclaimerHandlerRegistered = true;
+  }
+
+  /** Clears the disclaimer, cookie banner, country picker and privacy panel over the form. */
   private async dismissBlockingOverlays(): Promise<void> {
+    await this.registerOfferDisclaimerHandler();
     await this.acceptCookiesIfPresent();
 
     const countryName = this.locationKey === 'CAN' ? /^(Canada|CAN)$/i : /^USA$/i;

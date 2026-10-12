@@ -176,30 +176,47 @@ export class OverlayManager {
     }
 
     await this.withPromoDismissalDeadline(
-      () => this.dismissVisiblePromoPopup(nationalPromotionDialog),
+      (isExpired) => this.dismissVisiblePromoPopup(nationalPromotionDialog, isExpired),
       Math.max(5000, appearTimeout + 5000),
     );
   }
 
+  /**
+   * Caps how long the optional overlay sweep may run, then moves on.
+   *
+   * Running out of time is reported, never thrown: the sweep is environmental
+   * noise handling, and the usual cause is the page's main thread being busy
+   * mid-hydration (a bare `isVisible` on the community page measured 4.7s), not
+   * an overlay. Throwing there failed the whole test in `beforeEach`, before it
+   * reached anything it was meant to check. A promo that really does cover an
+   * action is still dismissed by the locator handlers from registerHandlers().
+   * `isExpired` lets the sweep stop at its next step instead of pressing Escape
+   * or clicking in the background while the test carries on.
+   */
   private async withPromoDismissalDeadline(
-    work: () => Promise<void>,
+    work: (isExpired: () => boolean) => Promise<void>,
     timeout: number,
   ): Promise<void> {
+    let expired = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     try {
-      await Promise.race([
-        work(),
-        new Promise<never>((_resolve, reject) => {
+      const finished = await Promise.race([
+        work(() => expired).then(() => true),
+        new Promise<boolean>((resolve) => {
           timer = setTimeout(() => {
-            reject(
-              new Error(
-                `Timed out after ${timeout}ms while dismissing optional promotion overlays; the page may be unresponsive.`,
-              ),
-            );
+            expired = true;
+            resolve(false);
           }, timeout);
         }),
       ]);
+
+      if (!finished) {
+        await this.deps.report(
+          `Promotion overlay sweep exceeded ${timeout}ms; continuing (page was slow to respond)`,
+          this.page.url(),
+        );
+      }
     } finally {
       if (timer) {
         clearTimeout(timer);
@@ -207,7 +224,10 @@ export class OverlayManager {
     }
   }
 
-  private async dismissVisiblePromoPopup(nationalPromotionDialog: Locator): Promise<void> {
+  private async dismissVisiblePromoPopup(
+    nationalPromotionDialog: Locator,
+    isExpired: () => boolean,
+  ): Promise<void> {
     if (await nationalPromotionDialog.isVisible().catch(() => false)) {
       await this.closeNationalPromotion(nationalPromotionDialog);
       await this.deps.settle(500);
@@ -231,7 +251,7 @@ export class OverlayManager {
       });
     const dialogCount = await dialogs.count();
 
-    for (let index = 0; index < dialogCount; index++) {
+    for (let index = 0; index < dialogCount && !isExpired(); index++) {
       const dialog = dialogs.nth(index);
 
       if (!(await dialog.isVisible({ timeout: 500 }).catch(() => false))) {
@@ -271,7 +291,7 @@ export class OverlayManager {
         .first();
 
       if (await closeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await closeButton.click({ force: true }).catch(async () => {
+        await closeButton.click({ force: true, timeout: 2000 }).catch(async () => {
           await closeButton.dispatchEvent('click').catch(() => undefined);
         });
       } else {

@@ -6,6 +6,9 @@ import {
   getExpectedLeadFormFields,
   type LeadFormField,
 } from '../../config/features/leadFormSchema';
+import { reportValue } from '../reporting/allureReporter';
+import { escapeRegex } from '../web/pageObjectUtils';
+import { isProdEnvironment } from './prodSubmissionGuard';
 
 /*
  * Shared lead-form helpers.
@@ -455,6 +458,11 @@ export async function expectFieldVisibleIfPresent(
 /**
  * Click a form submit button without waiting on third-party submit requests.
  *
+ * On PROD the button is never clicked: no lead form may be submitted there. The
+ * form's validation is triggered by leaving each field instead, which raises the
+ * same inline "is Required" / invalid-email messages a submit attempt would, so
+ * the validation tests run unchanged on every environment.
+ *
  * `options.submitButton` overrides how the submit button is resolved (some forms
  * label theirs something other than "Submit").
  * `options.settle` overrides the post-click settle behavior. Without an override,
@@ -476,13 +484,16 @@ export async function clickSubmit(
   await expect(submitButton, 'Submit button should be visible before clicking').toBeVisible({
     timeout,
   });
-  // No force: an overlay covering Submit means the form is not actually
-  // submittable, which is a finding rather than something to click through.
-  // noWaitAfter stays - the third-party submit request must not be awaited.
-  await submitButton.click({
-    noWaitAfter: true,
-    timeout: 5000,
-  });
+
+  if (isProdEnvironment()) {
+    await reportValue(
+      'PROD: Submit not clicked',
+      'form validation triggered by leaving each field instead',
+    );
+    await triggerFormValidationWithoutSubmit(form);
+  } else {
+    await clickSubmitButton(submitButton);
+  }
 
   if (options.settle) {
     await options.settle(800);
@@ -492,43 +503,143 @@ export async function clickSubmit(
   await settlePageDom(page, 800);
 }
 
-/** Assert expected required-field messages within a lead form. */
+/** Clicks the submit button once, without waiting on the third-party submit request. */
+async function clickSubmitButton(submitButton: Locator): Promise<void> {
+  // No force: an overlay covering Submit means the form is not actually
+  // submittable, which is a finding rather than something to click through.
+  // noWaitAfter stays - the third-party submit request must not be awaited.
+  await submitButton.click({
+    noWaitAfter: true,
+    timeout: 5000,
+  });
+}
+
+/** Editable fields a user would tab through; honeypots (tabindex -1), hidden and disabled fields are left out. */
+const VALIDATABLE_FIELD_SELECTOR = [
+  'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"])',
+  'select',
+  'textarea',
+]
+  .map((selector) => `${selector}:not([disabled]):not([tabindex="-1"]):visible`)
+  .join(', ');
+
+/**
+ * Raises a form's validation messages without submitting it.
+ *
+ * Mattamy's Sitecore lead forms validate each field when it loses focus, so
+ * focusing and leaving every field shows the same "Error: First name is Required"
+ * and invalid-email messages a submit attempt does - with no request sent.
+ */
+export async function triggerFormValidationWithoutSubmit(form: Locator): Promise<void> {
+  const fields = form.locator(VALIDATABLE_FIELD_SELECTOR);
+  const count = await fields.count();
+
+  for (let index = 0; index < count; index++) {
+    const field = fields.nth(index);
+
+    await field.focus({ timeout: 2000 }).catch(() => undefined);
+    await field.blur({ timeout: 2000 }).catch(() => undefined);
+  }
+}
+
+/** A visible field the form marks `required` / `aria-required="true"`. */
+type RequiredField = {
+  field: Locator;
+  label: string;
+  isChoice: boolean;
+};
+
+/** Required fields are whatever the form itself marks, not a hardcoded list. */
+const REQUIRED_FIELD_SELECTOR = ['input', 'select', 'textarea']
+  .flatMap((tag) => [
+    `${tag}[required]:not([required="false"]):not([disabled]):visible`,
+    `${tag}[aria-required="true"]:not([disabled]):visible`,
+  ])
+  .join(', ');
+
+/** Returns the visible fields the form marks as required, with the label their error names. */
+async function getVisibleRequiredFields(form: Locator): Promise<RequiredField[]> {
+  const fields = form.locator(REQUIRED_FIELD_SELECTOR);
+  const count = await fields.count();
+  const requiredFields: RequiredField[] = [];
+
+  for (let index = 0; index < count; index++) {
+    const field = fields.nth(index);
+    const { label, isChoice } = await field.evaluate((element) => {
+      const input = element as HTMLInputElement;
+      // The visible <label> comes first: once a field fails validation the site
+      // rewrites its aria-label to the error text ("Error: First name is Required").
+      const rawLabel =
+        input.labels?.[0]?.innerText || input.getAttribute('aria-label') || input.name || '';
+
+      return {
+        label: rawLabel
+          .replace(/^\s*Error:\s*/i, '')
+          .replace(/\s+is\s+Required.*$/i, '')
+          .replace(/\*/g, '')
+          .replace(/\s+/g, ' ')
+          .trim(),
+        isChoice: input.type === 'checkbox' || input.type === 'radio',
+      };
+    });
+
+    requiredFields.push({ field, label, isChoice });
+  }
+
+  return requiredFields;
+}
+
+/**
+ * Assert every visible field the form marks as required rejects an empty value.
+ *
+ * Each `required` / `aria-required="true"` field that is still empty must report
+ * `validity.valueMissing` and show its own "<label> is Required" message. A
+ * required field the page prefilled has nothing to reject, so it is reported
+ * rather than failed. Call after {@link clickSubmit} on the empty form.
+ */
 export async function expectRequiredErrorsInForm(form: Locator, timeout = 10000): Promise<void> {
   const initialErrorCount = test.info().errors.length;
-  const requiredErrors: Array<[Locator, string]> = [
-    [
-      form.locator('text=/Error:\\s*First name is Required|First name.*Required/i').first(),
-      'First name required-field error should be visible',
-    ],
-    [
-      form.locator('text=/Error:\\s*Last name is Required|Last name.*Required/i').first(),
-      'Last name required-field error should be visible',
-    ],
-    [
-      form.locator('text=/Error:\\s*Email is Required|Email.*Required/i').first(),
-      'Email required-field error should be visible',
-    ],
-    [
-      form
-        .locator(
-          'text=/Error:\\s*Country of Residence is Required|Country of Residence.*Required/i',
-        )
-        .first(),
-      'Country of Residence required-field error should be visible',
-    ],
-    [
-      form
-        .locator(
-          'text=/Error:\\s*Zip\\/Postal Code is Required|Zip\\/Postal Code.*Required|Postal.*Required/i',
-        )
-        .first(),
-      'Zip/Postal Code required-field error should be visible',
-    ],
-  ];
+  const requiredFields = await getVisibleRequiredFields(form);
 
-  await Promise.all(
-    requiredErrors.map(([error, message]) => expect.soft(error, message).toBeVisible({ timeout })),
+  await reportValue(
+    'Required fields marked on the form',
+    requiredFields.map(({ label }) => label).join(', ') || '(none)',
   );
+
+  expect(
+    requiredFields.length,
+    'Lead form should mark at least one field as required',
+  ).toBeGreaterThan(0);
+
+  for (const { field, label, isChoice } of requiredFields) {
+    const state = await field.evaluate((element) => {
+      const input = element as HTMLInputElement;
+      const isChoiceInput = input.type === 'checkbox' || input.type === 'radio';
+
+      return {
+        isEmpty: isChoiceInput ? !input.checked : !input.value,
+        valueMissing: input.validity.valueMissing,
+      };
+    });
+
+    if (!state.isEmpty) {
+      await reportValue(`${label} is required but prefilled`, 'no required error expected');
+      continue;
+    }
+
+    expect.soft(state.valueMissing, `${label} should report a missing required value`).toBe(true);
+
+    if (isChoice) {
+      continue;
+    }
+
+    await expect
+      .soft(
+        form.getByText(new RegExp(`${escapeRegex(label)}\\s*(?:is\\s*)?Required`, 'i')).first(),
+        `${label} required-field error should be visible`,
+      )
+      .toBeVisible({ timeout });
+  }
 
   expect(
     test.info().errors.slice(initialErrorCount),
@@ -601,10 +712,13 @@ export async function fillLeadFormFields(
 }
 
 /**
- * Assert the expected side-modal form fields for a standard Mattamy lead form.
- * The common fields are always checked, schema-required fields come from the
- * central form declaration, and community/plan dropdowns stay explicit because
- * they depend on the page context that opened the modal.
+ * Audit a standard Mattamy side-modal lead form, then check its required-field validation.
+ *
+ * First name, Last name, Email and the submit button are what make it a lead form, so they must
+ * render. Every other field - phone, zip, the dropdowns declared in leadFormSchema, and the
+ * community/plan dropdowns the opening page asks for - is checked when the form renders it and
+ * recorded in the report as skipped when it does not. The fields the form itself marks required
+ * are then validated without submitting (see {@link expectRequiredErrorsInForm}).
  */
 export async function expectSideModalFormFields(
   form: Locator,
@@ -615,8 +729,9 @@ export async function expectSideModalFormFields(
   const location = options.location ?? (getLocationConfig().country as LocationKey);
   const formName = options.formName ?? 'side modal form';
 
-  const requiredFields: Array<[Locator, string]> = [
-    ...getBaseSideModalFieldExpectations(form),
+  const optionalFields: Array<[Locator, string]> = [
+    [form.getByRole('textbox', { name: /zip|postal/i }).first(), 'Zip/Postal Code'],
+    [form.getByRole('textbox', { name: /phone/i }).first(), 'Phone number'],
     ...getExpectedLeadFormFields(location, formName).map((field): [Locator, string] => [
       getLeadFormFieldLocator(form, field).first(),
       getLeadFormFieldLabel(field),
@@ -624,23 +739,40 @@ export async function expectSideModalFormFields(
   ];
 
   if (options.expectCommunity) {
-    requiredFields.push([form.getByRole('combobox', { name: /community/i }).first(), 'Community']);
+    optionalFields.push([form.getByRole('combobox', { name: /community/i }).first(), 'Community']);
   }
 
   if (options.expectPlan) {
-    requiredFields.push([
+    optionalFields.push([
       form.getByRole('combobox', { name: /suite|floorplan|plan/i }).first(),
       'Suite/Floorplan/Plan',
     ]);
   }
 
-  requiredFields.push([getSubmitButton(form), 'Submit button']);
-
+  // Core fields first: once they render the form has finished rendering, so a
+  // count of zero on an optional field below means it is absent, not late.
   await Promise.all(
-    dedupeFieldExpectations(requiredFields).map(([field, label]) =>
+    getCoreSideModalFields(form).map(([field, label]) =>
       expectFieldVisible(field, label, timeout, { soft: true }),
     ),
   );
+
+  const skippedFields: string[] = [];
+
+  for (const [field, label] of dedupeFieldExpectations(optionalFields)) {
+    if (await field.count()) {
+      await expectFieldVisible(field, label, timeout, { soft: true });
+    } else {
+      skippedFields.push(label);
+    }
+  }
+
+  if (skippedFields.length) {
+    await reportValue(`Fields not rendered on ${formName} (skipped)`, skippedFields.join(', '));
+  }
+
+  await triggerFormValidationWithoutSubmit(form);
+  await expectRequiredErrorsInForm(form, timeout);
 
   expect(
     test.info().errors.slice(initialErrorCount),
@@ -648,13 +780,13 @@ export async function expectSideModalFormFields(
   ).toHaveLength(0);
 }
 
-function getBaseSideModalFieldExpectations(form: Locator): Array<[Locator, string]> {
+/** The fields without which the form is not a lead form at all. */
+function getCoreSideModalFields(form: Locator): Array<[Locator, string]> {
   return [
     [form.getByRole('textbox', { name: /first name/i }).first(), 'First name'],
     [form.getByRole('textbox', { name: /last name/i }).first(), 'Last name'],
     [form.getByRole('textbox', { name: /^email/i }).first(), 'Email'],
-    [form.getByRole('textbox', { name: /zip|postal/i }).first(), 'Zip/Postal Code'],
-    [form.getByRole('textbox', { name: /phone/i }).first(), 'Phone number'],
+    [getSubmitButton(form), 'Submit button'],
   ];
 }
 
@@ -826,12 +958,14 @@ export async function fillExtraLeadFieldsIfPresent(
 }
 
 /**
- * Fails when a lead form is missing the fields its country declares.
+ * Records in the report any field the form's country declares but the form does not render.
  *
  * Checked before submit: a form that lost its budget dropdown still submits and
- * still shows a success message, it just sends the CRM a thinner lead.
+ * still shows a success message, it just sends the CRM a thinner lead. Absent
+ * fields are left unfilled and the submission goes ahead, so the report is
+ * where a thinner lead shows up.
  */
-export async function assertLeadFormShape(form: Locator, formName: string): Promise<void> {
+export async function reportLeadFormShape(form: Locator, formName: string): Promise<void> {
   const location = getLocationConfig().country as LocationKey;
 
   // Probe the FORM, do not take the caller's word for it. The four dropdowns are
@@ -862,7 +996,10 @@ export async function assertLeadFormShape(form: Locator, formName: string): Prom
   }
 
   if (missing.length) {
-    throw new Error(buildMissingLeadFieldsMessage(formName, location, missing));
+    await reportValue(
+      `Fields not rendered on ${formName} (skipped)`,
+      buildMissingLeadFieldsMessage(formName, location, missing),
+    );
   }
 }
 

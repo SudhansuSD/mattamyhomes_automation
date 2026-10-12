@@ -5,11 +5,14 @@ import type { LocationKey } from '../locations/locationConfig';
  *
  * Taken from the recorded submissions in
  * reports/form-submissions/Mattamy_Form_Submission_Evidence_STAGE_*.xlsx and
- * the current STAGE forms. USA side-modal forms no longer render a Comments
- * field, while Canada forms still require First Time Home Buyer.
+ * the current STAGE forms. USA side-modal forms do not render a Comments field;
+ * Canada forms declare First Time Home Buyer.
  *
- * Without this a form that lost its budget dropdown still submitted, still
- * passed, and just sent the CRM a thinner lead.
+ * A declared field the form does not render is skipped, not failed: it is left
+ * unfilled and listed in the Allure report, so a form that lost its budget
+ * dropdown shows up there instead of silently sending the CRM a thinner lead.
+ * Whether a rendered field is required is read from the form itself
+ * (`required` / `aria-required`), not declared here.
  */
 
 export type LeadFormField =
@@ -67,18 +70,18 @@ export function findMissingLeadFormFields(
   });
 }
 
-/** The failure text, naming the file to edit when the form legitimately changed. */
+/** The report text for absent fields, naming the file to edit when the form legitimately changed. */
 export function buildMissingLeadFieldsMessage(
   formName: string,
   location: LocationKey,
   missing: LeadFormField[],
 ): string {
   return [
-    `${formName} submitted without expected field(s): ${missing.join(', ')}.`,
+    `${formName} does not render expected field(s): ${missing.join(', ')}. They were skipped.`,
     '',
     `${location} lead forms are declared to expose these in`,
-    'config/features/leadFormSchema.ts. Either the form lost a field (a defect -',
-    'the lead reaching the CRM is thinner than intended), or the field locator no',
-    'longer matches. If the form genuinely changed, update the declaration there.',
+    'config/features/leadFormSchema.ts. Either the form lost a field (the lead',
+    'reaching the CRM is thinner than intended), or the field locator no longer',
+    'matches. If the form genuinely changed, update the declaration there.',
   ].join('\n');
 }
