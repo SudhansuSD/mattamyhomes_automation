@@ -24,11 +24,8 @@ export class PromoPage extends BasePage {
   private static readonly PAGE_LOAD_TIMEOUT = 30000;
 
   private offerDisclaimerHandlerRegistered = false;
+  private promoFormPresent: boolean | null = null;
 
-  readonly heroImage: Locator;
-  readonly promoHeading: Locator;
-  readonly offerHeading: Locator;
-  readonly discoverOrlandoSection: Locator;
   readonly formTitle: Locator;
   readonly promoForm: Locator;
   readonly submitButton: Locator;
@@ -38,16 +35,6 @@ export class PromoPage extends BasePage {
   constructor(page: Page) {
     super(page);
 
-    this.heroImage = page.locator('img[alt="Lifestyle"]').first();
-    this.promoHeading = page.getByRole('heading', {
-      name: /A Special Thank You to Our Hometown Heroes/i,
-    });
-    this.offerHeading = page.getByRole('heading', {
-      name: /We are honored to offer you a/i,
-    });
-    this.discoverOrlandoSection = page.getByRole('heading', {
-      name: /Discover Mattamy Orlando/i,
-    });
     this.formTitle = page.getByRole('heading', {
       name: /Request more information/i,
     });
@@ -76,37 +63,69 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /** Checks the promo page loaded with its expected title, heading and form. */
+  /**
+   * Checks the configured promo page loaded with real content.
+   *
+   * Every check is structural - no promo's wording is assumed - so pointing `promoURL` at a
+   * different promotion needs no code change. The one content check is the market: promo routes
+   * are `/<region>/<market>/promos/<slug>` and each promo's title names that market.
+   */
   async verifyPageLoaded(): Promise<void> {
-    await this.step('Verify Hometown Heroes promo page loaded', async () => {
+    await this.step(`Verify ${this.location.country} promo page loaded`, async () => {
       await this.assertPageUrl(
         new RegExp(this.promoPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'),
         'Promo URL should match the configured route',
         PromoPage.PAGE_LOAD_TIMEOUT,
       );
-      await this.assertPageTitle(
-        /Hometown Heroes.*Orlando/i,
-        'Hometown Heroes promo page title should match',
-      );
+      await this.assertPageTitle(/^(?!.*Page Not Found).*\S/i, 'Promo page should have a title');
+      await this.reportValue('Promo page title', await this.page.title());
+
+      const market = this.promoMarket;
+
+      if (market) {
+        await this.assertPageTitle(
+          new RegExp(market.replace(/[-\s]+/g, '[-\\s]+'), 'i'),
+          `Promo page title should name the ${market} market`,
+        );
+      }
+
+      const heroImage = this.page.locator('main img:visible').first();
+
       await this.assertVisible(
-        this.heroImage,
-        'Hometown Heroes promo hero image should be visible',
+        heroImage,
+        'Promo hero image should be visible',
         PromoPage.PAGE_LOAD_TIMEOUT,
       );
+      await expect
+        .poll(() => heroImage.evaluate((img) => (img as HTMLImageElement).naturalWidth), {
+          message: 'Promo hero image should load',
+          timeout: PromoPage.PAGE_LOAD_TIMEOUT,
+        })
+        .toBeGreaterThan(0);
+
+      const promoHeading = this.page.locator('main h2:visible').filter({ hasText: /\S/ }).first();
+
       await this.assertVisible(
-        this.promoHeading,
-        'Hometown Heroes promo heading should be visible',
+        promoHeading,
+        'Promo heading should be visible',
         PromoPage.PAGE_LOAD_TIMEOUT,
       );
-      await this.assertVisible(
-        this.offerHeading,
-        'Hometown Heroes offer heading should be visible',
-      );
-      await this.assertVisible(
-        this.discoverOrlandoSection,
-        'Discover Orlando section should be visible',
-      );
+      await this.reportValue('Promo heading', (await promoHeading.innerText()).trim());
     });
+  }
+
+  /** Reports whether this promo carries a lead form; absence is declared in featureExpectations. */
+  async hasPromoForm(): Promise<boolean> {
+    if (this.promoFormPresent === null) {
+      this.promoFormPresent = await this.isFeaturePresent(
+        this.promoForm,
+        'promo.leadForm',
+        'Promo lead form',
+        { state: 'attached', timeout: 10000 },
+      );
+    }
+
+    return this.promoFormPresent;
   }
 
   /** Checks every field the promo form should offer is on screen. */
@@ -224,6 +243,14 @@ export class PromoPage extends BasePage {
     return promoURL;
   }
 
+  /** Gets the market named in the promo route, or null when the route has no market segment. */
+  private get promoMarket(): string | null {
+    const segments = this.promoPath.split('/').filter(Boolean);
+    const promosIndex = segments.indexOf('promos');
+
+    return promosIndex > 0 ? segments[promosIndex - 1].replace(/-/g, ' ') : null;
+  }
+
   /** Gets the community field locator. */
   private get communityField(): Locator {
     return this.promoForm.getByRole('combobox', { name: /Community of Interest/i }).first();
@@ -291,9 +318,33 @@ export class PromoPage extends BasePage {
     await this.promoForm.scrollIntoViewIfNeeded();
   }
 
+  /**
+   * Selects the test-data community, or the first real option when this promo does not list it.
+   *
+   * Each promo scopes the dropdown to its own market, so a community from another market is
+   * never on offer; falling back keeps the form checks working for whatever `promoURL` points at.
+   */
+  private async selectCommunity(preferred: string): Promise<void> {
+    await expect
+      .poll(() => this.communityField.locator('option').count(), {
+        message: 'Community of Interest options should load',
+        timeout: PromoPage.PAGE_LOAD_TIMEOUT,
+      })
+      .toBeGreaterThan(1);
+
+    const labels = (await this.communityField.locator('option').allInnerTexts()).map((label) =>
+      label.trim(),
+    );
+    const realOptions = labels.filter((label, index) => index > 0 && label);
+    const community = realOptions.includes(preferred) ? preferred : realOptions[0];
+
+    await this.reportValue('Community of Interest', community);
+    await this.communityField.selectOption({ label: community });
+  }
+
   /** Fills every promo field and ticks the consent boxes. */
   private async fillPromoForm(leadData: PromoLeadData): Promise<void> {
-    await this.communityField.selectOption({ label: leadData.community });
+    await this.selectCommunity(leadData.community);
     await this.firstNameField.fill(leadData.firstName);
     await this.lastNameField.fill(leadData.lastName);
     await this.emailField.fill(leadData.email);

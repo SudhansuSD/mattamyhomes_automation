@@ -39,14 +39,20 @@ export type FeatureKey =
   | 'mpc.galleryModalMedia'
   // About Us
   | 'about.showMore'
-  | 'about.investorForm';
+  | 'about.investorForm'
+  // Promo page
+  | 'promo.leadForm';
 
 type OptionalFeatureRules = Partial<Record<LocationKey, readonly FeatureKey[]>>;
 
 /** Features that genuinely do not exist for a country, in every environment. */
 const OPTIONAL_BY_LOCATION: OptionalFeatureRules = {
-  // Canadian community pages have no appointment scheduling at all.
+  // `promoURL` can point at any promotion, and not every promotion carries a
+  // lead form - the form checks run when it is there and are skipped when not.
+  USA: ['promo.leadForm'],
   CAN: [
+    'promo.leadForm',
+    // Canadian community pages have no appointment scheduling at all.
     'community.scheduleAppointmentCta',
     // Condo plan pages list every floorplan and link out to search with
     // "View all" instead of expanding in place.

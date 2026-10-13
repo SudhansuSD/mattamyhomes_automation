@@ -13,6 +13,7 @@ import { PromoPage } from '../pages/PromoPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
 const location = getLocationConfig();
+const NO_FORM_REASON = `Promo page has no lead form (${location.country})`;
 
 test.describe(`Promo Page Tests - ${location.country}`, () => {
   // A country with no promotion running declares promoURL: null in locationConfig.
@@ -42,18 +43,24 @@ test.describe(`Promo Page Tests - ${location.country}`, () => {
         await promoPage.verifyPageLoaded();
       });
 
-      await test.step('Verify promo form fields are visible', async () => {
-        await promoPage.verifyPromoFormFields();
-      });
+      if (await promoPage.hasPromoForm()) {
+        await test.step('Verify promo form fields are visible', async () => {
+          await promoPage.verifyPromoFormFields();
+        });
+      }
     });
 
     test(`@regression @promo-form-required | ${location.country} | Validate promo form required field errors`, async () => {
+      test.skip(!(await promoPage.hasPromoForm()), NO_FORM_REASON);
+
       await test.step('Verify required validation errors', async () => {
         await promoPage.validateRequiredFieldErrors();
       });
     });
 
     test(`@regression @promo-form-email | ${location.country} | Validate promo form invalid email error`, async () => {
+      test.skip(!(await promoPage.hasPromoForm()), NO_FORM_REASON);
+
       await test.step('Verify invalid email validation error', async () => {
         await promoPage.validateInvalidEmailError();
       });
@@ -64,6 +71,8 @@ test.describe(`Promo Page Tests - ${location.country}`, () => {
     test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 
     test(`@regression @lead-submit @STAGE @promo-form-submit | ${location.country} | Validate promo form successful submission`, async () => {
+      test.skip(!(await promoPage.hasPromoForm()), NO_FORM_REASON);
+
       await test.step('Submit promo form with valid data and verify success message', async () => {
         await promoPage.verifySuccessfulSubmission();
       });
