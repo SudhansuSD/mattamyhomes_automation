@@ -143,29 +143,32 @@ test.describe(`Community Detail - ${location.community}`, () => {
       });
     });
 
-    test.describe('Footer Form Validation', () => {
-      test(`@smoke @regression | ${location.country} | Validate footer form required field errors`, async () => {
-        await test.step('Validate footer form required field errors', async () => {
-          await communityPage.validateFooterFormEmptyErrors();
-        });
-      });
-
-      test(`@regression | ${location.country} | Validate footer form invalid email format`, async () => {
-        await test.step('Validate footer form invalid email format', async () => {
-          await communityPage.validateFooterFormInvalidEmail();
-        });
-      });
-
-      test.describe('Footer form submission', () => {
-        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
-
-        test(`@regression @lead-submit @STAGE | ${location.country} | Validate footer form successful submission`, async () => {
-          await test.step('Validate footer form successful submission', async () => {
-            await communityPage.verifyFooterFormSuccessSubmission();
-          });
-        });
-      });
-    });
+    // The community page renders no footer lead form; uncomment these together with
+    // the footer methods in CommunityPage if the form returns.
+    //
+    // test.describe('Footer Form Validation', () => {
+    //   test(`@smoke @regression | ${location.country} | Validate footer form required field errors`, async () => {
+    //     await test.step('Validate footer form required field errors', async () => {
+    //       await communityPage.validateFooterFormEmptyErrors();
+    //     });
+    //   });
+    //
+    //   test(`@regression | ${location.country} | Validate footer form invalid email format`, async () => {
+    //     await test.step('Validate footer form invalid email format', async () => {
+    //       await communityPage.validateFooterFormInvalidEmail();
+    //     });
+    //   });
+    //
+    //   test.describe('Footer form submission', () => {
+    //     test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
+    //
+    //     test(`@regression @lead-submit @STAGE | ${location.country} | Validate footer form successful submission`, async () => {
+    //       await test.step('Validate footer form successful submission', async () => {
+    //         await communityPage.verifyFooterFormSuccessSubmission();
+    //       });
+    //     });
+    //   });
+    // });
   });
 
   test.describe('Media Validation', () => {

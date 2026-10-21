@@ -849,7 +849,7 @@ export class CommunityPage extends SearchablePage {
    * The in-page lead forms, in DOM order.
    *
    * Deliberately excludes anything inside the side modal / dialog: the primary
-   * and footer forms are page content, and letting a dialog into this set makes
+   * form is page content, and letting a dialog into this set makes
    * "the primary form" mean different elements on different runs. Prefers real
    * <form> elements and falls back to the Sitecore /
    * ScheduleAVisit / #contact wrappers for the pages that render a lead form
@@ -871,24 +871,27 @@ export class CommunityPage extends SearchablePage {
     return (await this.inPageForms()).first();
   }
 
-  /**
-   * The footer community form: the second in-page lead form.
-   *
-   * Positional, but within a single homogeneous set (in-page lead forms, never
-   * dialogs) rather than counted across unrelated locator groups - the page can
-   * render further forms below it (newsletter-style, no validation), so `.last()`
-   * is not the same thing. Throws when the page has no second form rather than
-   * quietly re-validating the primary one.
-   */
-  private async footerForm(): Promise<Locator> {
-    const forms = await this.inPageForms();
-
-    if ((await forms.count()) < 2) {
-      throw new Error('Footer community form not present - page rendered only one in-page form');
-    }
-
-    return forms.nth(1);
-  }
+  // The community page renders no footer lead form; restore this with the footer
+  // methods and tests if it returns.
+  //
+  // /**
+  //  * The footer community form: the second in-page lead form.
+  //  *
+  //  * Positional, but within a single homogeneous set (in-page lead forms, never
+  //  * dialogs) rather than counted across unrelated locator groups - the page can
+  //  * render further forms below it (newsletter-style, no validation), so `.last()`
+  //  * is not the same thing. Throws when the page has no second form rather than
+  //  * quietly re-validating the primary one.
+  //  */
+  // private async footerForm(): Promise<Locator> {
+  //   const forms = await this.inPageForms();
+  //
+  //   if ((await forms.count()) < 2) {
+  //     throw new Error('Footer community form not present - page rendered only one in-page form');
+  //   }
+  //
+  //   return forms.nth(1);
+  // }
 
   /** Clicks the Get Information CTA, unless the form is already open. */
   private async openLeadFormFromGetInformationCtaIfPresent(): Promise<void> {
@@ -1224,10 +1227,11 @@ export class CommunityPage extends SearchablePage {
   private async submitSuccessfulFormFor(
     resolveForm: () => Promise<Locator>,
     formName: string,
+    leadData: Partial<LeadFieldData> = {},
   ): Promise<void> {
     const form = await this.getAvailableForm(resolveForm, formName);
 
-    const valid = getValidLeadData('community');
+    const valid = { ...getValidLeadData('community'), ...leadData };
 
     await this.fillCommunityLeadForm(form, valid);
 
@@ -1241,14 +1245,17 @@ export class CommunityPage extends SearchablePage {
   }
 
   /** Fills the side modal form with valid data and checks it submits. */
-  private async submitSuccessfulSideModalForm(formName: string): Promise<void> {
+  private async submitSuccessfulSideModalForm(
+    formName: string,
+    leadData: Partial<LeadFieldData> = {},
+  ): Promise<void> {
     const form = await this.getAvailableGetInformationForm(formName);
 
     if (!form) {
       return;
     }
 
-    await fillValidSideModalForm(form, 'communityGetInfo');
+    await fillValidSideModalForm(form, 'communityGetInfo', {}, leadData);
 
     await this.submitLeadFormAndCaptureApi({
       form: form,
@@ -1271,12 +1278,15 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Opens the footer community form and checks it is usable. */
-  async viewFooterForm(): Promise<void> {
-    await this.step('View footer community form', async () => {
-      await this.viewNamedForm(() => this.footerForm(), 'Footer community form');
-    });
-  }
+  // The community page renders no footer lead form, so the footer methods below
+  // (and footerForm) are commented out alongside their tests in communityPage.spec.ts.
+
+  // /** Opens the footer community form and checks it is usable. */
+  // async viewFooterForm(): Promise<void> {
+  //   await this.step('View footer community form', async () => {
+  //     await this.viewNamedForm(() => this.footerForm(), 'Footer community form');
+  //   });
+  // }
 
   /** Opens the side modal form and checks it is usable. */
   async viewSideModalForm(): Promise<void> {
@@ -1297,12 +1307,12 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Submits the footer form empty and checks the required-field errors appear. */
-  async validateFooterFormEmptyErrors(): Promise<void> {
-    await this.step('Validate footer form empty errors', async () => {
-      await this.validateEmptyFormErrorsFor(() => this.footerForm(), 'Footer community form');
-    });
-  }
+  // /** Submits the footer form empty and checks the required-field errors appear. */
+  // async validateFooterFormEmptyErrors(): Promise<void> {
+  //   await this.step('Validate footer form empty errors', async () => {
+  //     await this.validateEmptyFormErrorsFor(() => this.footerForm(), 'Footer community form');
+  //   });
+  // }
 
   /** Checks the side modal form shows its fields. */
   async verifySideModalFormFields(): Promise<void> {
@@ -1341,12 +1351,12 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks the footer form rejects an invalid email address. */
-  async validateFooterFormInvalidEmail(): Promise<void> {
-    await this.step('Validate footer form invalid email', async () => {
-      await this.validateInvalidEmailFor(() => this.footerForm(), 'Footer community form');
-    });
-  }
+  // /** Checks the footer form rejects an invalid email address. */
+  // async validateFooterFormInvalidEmail(): Promise<void> {
+  //   await this.step('Validate footer form invalid email', async () => {
+  //     await this.validateInvalidEmailFor(() => this.footerForm(), 'Footer community form');
+  //   });
+  // }
 
   /** Checks the side modal form rejects an invalid email address. */
   async validateSideModalFormInvalidEmail(): Promise<void> {
@@ -1356,18 +1366,22 @@ export class CommunityPage extends SearchablePage {
   }
 
   /** Fills the primary form with valid data and checks it submits. */
-  async verifyPrimaryFormSuccessSubmission(): Promise<void> {
+  async verifyPrimaryFormSuccessSubmission(leadData: Partial<LeadFieldData> = {}): Promise<void> {
     await this.step('Submit primary community form successfully', async () => {
-      await this.submitSuccessfulFormFor(() => this.primaryForm(), 'Primary community form');
+      await this.submitSuccessfulFormFor(
+        () => this.primaryForm(),
+        'Primary community form',
+        leadData,
+      );
     });
   }
 
-  /** Fills the footer form with valid data and checks it submits. */
-  async verifyFooterFormSuccessSubmission(): Promise<void> {
-    await this.step('Submit footer community form successfully', async () => {
-      await this.submitSuccessfulFormFor(() => this.footerForm(), 'Footer community form');
-    });
-  }
+  // /** Fills the footer form with valid data and checks it submits. */
+  // async verifyFooterFormSuccessSubmission(): Promise<void> {
+  //   await this.step('Submit footer community form successfully', async () => {
+  //     await this.submitSuccessfulFormFor(() => this.footerForm(), 'Footer community form');
+  //   });
+  // }
 
   /**
    * Open the Get Information side modal lead form and return its container.
@@ -1389,9 +1403,9 @@ export class CommunityPage extends SearchablePage {
   }
 
   /** Fills the side modal form with valid data and checks it submits. */
-  async verifySideModalFormSuccessSubmission(): Promise<void> {
+  async verifySideModalFormSuccessSubmission(leadData: Partial<LeadFieldData> = {}): Promise<void> {
     await this.step('Submit Get Information community sideModalForm successfully', async () => {
-      await this.submitSuccessfulSideModalForm('Get Information community sideModalForm');
+      await this.submitSuccessfulSideModalForm('Get Information community sideModalForm', leadData);
     });
   }
 

@@ -21,6 +21,7 @@ import {
   getSubmitButton as getLeadFormSubmitButton,
   getValidLeadData,
   GET_INFORMATION_CTA_TEXT,
+  LeadFieldData,
   SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadform/leadFormHelper';
 
@@ -56,7 +57,7 @@ const FORM_CONTAINER_SELECTOR = [
 export class CondoCommunityPage extends SearchablePage {
   /**
    * Excludes side-modal/dialog content from in-page form lookups so the three
-   * condo community form paths stay distinct: side modal, primary, and footer.
+   * condo community form paths stay distinct: side modal and primary.
    */
   private static readonly NOT_IN_DIALOG =
     ':not([role="dialog"] *):not(.ReactModal__Content *):not([id*="ModalForm"] *)';
@@ -415,12 +416,15 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks the footer condo form shows its fields and submit button. */
-  async validateFooterFormFields(): Promise<void> {
-    await this.step('Validate footer condo form fields', async () => {
-      await this.validateFormFieldsByIndex(1, 'Footer condo form');
-    });
-  }
+  // The condo community page renders no footer lead form, so the footer methods in
+  // this class are commented out alongside their tests in condoCommunity.spec.ts.
+
+  // /** Checks the footer condo form shows its fields and submit button. */
+  // async validateFooterFormFields(): Promise<void> {
+  //   await this.step('Validate footer condo form fields', async () => {
+  //     await this.validateFormFieldsByIndex(1, 'Footer condo form');
+  //   });
+  // }
 
   /** Checks the Get Information CTA opens the side modal form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
@@ -469,14 +473,19 @@ export class CondoCommunityPage extends SearchablePage {
   }
 
   /** Fills the side modal form with valid data and checks it submits. */
-  async verifySideModalFormSuccessSubmission(): Promise<void> {
+  async verifySideModalFormSuccessSubmission(leadData: Partial<LeadFieldData> = {}): Promise<void> {
     await this.step('Submit Get Information condo sideModalForm successfully', async () => {
       const form = await this.getAvailableGetInformationForm();
-      await fillValidSideModalForm(form, 'condoCommunity', {
-        emailName: /email/i,
-        selectCommunity: true,
-        selectPlan: true,
-      });
+      await fillValidSideModalForm(
+        form,
+        'condoCommunity',
+        {
+          emailName: /email/i,
+          selectCommunity: true,
+          selectPlan: true,
+        },
+        leadData,
+      );
       await this.submitLeadFormAndCaptureApi({
         form: form,
         formName: 'Get Information condo sideModalForm',
@@ -500,12 +509,12 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Submits the footer condo form empty and checks the required-field errors appear. */
-  async validateFooterFormRequiredErrors(): Promise<void> {
-    await this.step('Validate footer condo form required errors', async () => {
-      await this.validateRequiredFieldErrorsByIndex(1, 'Footer condo form');
-    });
-  }
+  // /** Submits the footer condo form empty and checks the required-field errors appear. */
+  // async validateFooterFormRequiredErrors(): Promise<void> {
+  //   await this.step('Validate footer condo form required errors', async () => {
+  //     await this.validateRequiredFieldErrorsByIndex(1, 'Footer condo form');
+  //   });
+  // }
 
   /** Checks the primary condo form rejects an invalid email address. */
   async validateInvalidEmailError(): Promise<void> {
@@ -519,26 +528,26 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /** Checks the footer condo form rejects an invalid email address. */
-  async validateFooterFormInvalidEmailError(): Promise<void> {
-    await this.step('Validate footer condo form invalid email', async () => {
-      await this.validateInvalidEmailErrorByIndex(1, 'Footer condo form');
-    });
-  }
+  // /** Checks the footer condo form rejects an invalid email address. */
+  // async validateFooterFormInvalidEmailError(): Promise<void> {
+  //   await this.step('Validate footer condo form invalid email', async () => {
+  //     await this.validateInvalidEmailErrorByIndex(1, 'Footer condo form');
+  //   });
+  // }
 
   /** Fills the primary condo form with valid data and checks it submits. */
-  async verifyPrimaryFormSuccessSubmission(): Promise<void> {
+  async verifyPrimaryFormSuccessSubmission(leadData: Partial<LeadFieldData> = {}): Promise<void> {
     await this.step('Submit primary condo form successfully', async () => {
-      await this.submitSuccessfulFormByIndex(0, 'Primary condo form');
+      await this.submitSuccessfulFormByIndex(0, 'Primary condo form', leadData);
     });
   }
 
-  /** Fills the footer condo form with valid data and checks it submits. */
-  async verifyFooterFormSuccessSubmission(): Promise<void> {
-    await this.step('Submit footer condo form successfully', async () => {
-      await this.submitSuccessfulFormByIndex(1, 'Footer condo form');
-    });
-  }
+  // /** Fills the footer condo form with valid data and checks it submits. */
+  // async verifyFooterFormSuccessSubmission(): Promise<void> {
+  //   await this.step('Submit footer condo form successfully', async () => {
+  //     await this.submitSuccessfulFormByIndex(1, 'Footer condo form');
+  //   });
+  // }
 
   // Private Form Validation Helpers
 
@@ -593,12 +602,16 @@ export class CondoCommunityPage extends SearchablePage {
   }
 
   /** Fills the form at this index with valid data and checks it submits. */
-  private async submitSuccessfulFormByIndex(formIndex: number, formName: string): Promise<void> {
+  private async submitSuccessfulFormByIndex(
+    formIndex: number,
+    formName: string,
+    leadData: Partial<LeadFieldData> = {},
+  ): Promise<void> {
     const form = await this.getAvailableForm(formIndex, formName);
 
     if (!form) return;
 
-    await this.fillLeadFormWithValidData(form);
+    await this.fillLeadFormWithValidData(form, leadData);
     await this.submitLeadFormAndCaptureApi({
       form: form,
       formName,
@@ -835,14 +848,21 @@ export class CondoCommunityPage extends SearchablePage {
       .catch(() => false);
   }
 
-  /** Fills the form with valid lead data. */
-  private async fillLeadFormWithValidData(form: Locator): Promise<void> {
+  /** Fills the form with valid lead data, letting the caller replace any field's value. */
+  private async fillLeadFormWithValidData(
+    form: Locator,
+    leadData: Partial<LeadFieldData> = {},
+  ): Promise<void> {
     // Check the form id first, then fill: Canada forms also get the four extra fields.
-    await fillLeadFormByFormId(form, getValidLeadData('condoCommunity'), {
-      emailName: /email/i,
-      selectCommunity: true,
-      selectPlan: true,
-    });
+    await fillLeadFormByFormId(
+      form,
+      { ...getValidLeadData('condoCommunity'), ...leadData },
+      {
+        emailName: /email/i,
+        selectCommunity: true,
+        selectPlan: true,
+      },
+    );
   }
 
   /** Returns the condo form at this index once it is usable. */

@@ -157,35 +157,38 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       });
     });
 
-    test.describe('Footer Condo Form Validation', () => {
-      test(`@smoke @regression | ${location.country} | Validate footer condo form fields`, async () => {
-        await test.step('Validate footer condo form fields', async () => {
-          await condoCommunityPage.validateFooterFormFields();
-        });
-      });
-
-      test(`@smoke @regression | ${location.country} | Validate footer condo form required field errors`, async () => {
-        await test.step('Validate footer condo form required field errors', async () => {
-          await condoCommunityPage.validateFooterFormRequiredErrors();
-        });
-      });
-
-      test(`@regression | ${location.country} | Validate footer condo form invalid email error`, async () => {
-        await test.step('Validate footer condo form invalid email error', async () => {
-          await condoCommunityPage.validateFooterFormInvalidEmailError();
-        });
-      });
-
-      test.describe('Footer condo form submission', () => {
-        test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
-
-        test(`@regression @lead-submit @STAGE | ${location.country} | Validate footer condo form successful submission`, async () => {
-          await test.step('Validate footer condo form successful submission', async () => {
-            await condoCommunityPage.verifyFooterFormSuccessSubmission();
-          });
-        });
-      });
-    });
+    // The condo community page renders no footer lead form; uncomment these together
+    // with the footer methods in CondoCommunityPage if the form returns.
+    //
+    // test.describe('Footer Condo Form Validation', () => {
+    //   test(`@smoke @regression | ${location.country} | Validate footer condo form fields`, async () => {
+    //     await test.step('Validate footer condo form fields', async () => {
+    //       await condoCommunityPage.validateFooterFormFields();
+    //     });
+    //   });
+    //
+    //   test(`@smoke @regression | ${location.country} | Validate footer condo form required field errors`, async () => {
+    //     await test.step('Validate footer condo form required field errors', async () => {
+    //       await condoCommunityPage.validateFooterFormRequiredErrors();
+    //     });
+    //   });
+    //
+    //   test(`@regression | ${location.country} | Validate footer condo form invalid email error`, async () => {
+    //     await test.step('Validate footer condo form invalid email error', async () => {
+    //       await condoCommunityPage.validateFooterFormInvalidEmailError();
+    //     });
+    //   });
+    //
+    //   test.describe('Footer condo form submission', () => {
+    //     test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
+    //
+    //     test(`@regression @lead-submit @STAGE | ${location.country} | Validate footer condo form successful submission`, async () => {
+    //       await test.step('Validate footer condo form successful submission', async () => {
+    //         await condoCommunityPage.verifyFooterFormSuccessSubmission();
+    //       });
+    //     });
+    //   });
+    // });
   });
 
   test.describe('Media Validation', () => {

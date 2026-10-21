@@ -859,13 +859,17 @@ export async function fillInvalidSideModalForm(
   await fillLeadFormFields(form, getInvalidLeadData(profile), options);
 }
 
-/** Fill a side modal form with valid data using the shared profile, including any extra dropdowns present. */
+/**
+ * Fill a side modal form with valid data using the shared profile, including any extra dropdowns
+ * present. Fields in `leadData` replace the profile's values, such as a caller-supplied email.
+ */
 export async function fillValidSideModalForm(
   form: Locator,
   profile: LeadFormProfileKey,
   options: FillLeadOptions = {},
+  leadData: Partial<LeadFieldData> = {},
 ): Promise<ExtraLeadFields> {
-  return fillLeadFormByFormId(form, getValidLeadData(profile), options);
+  return fillLeadFormByFormId(form, { ...getValidLeadData(profile), ...leadData }, options);
 }
 
 /*

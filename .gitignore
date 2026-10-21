@@ -75,6 +75,7 @@ tests/formProfaneSubmissionEvidence.spec.ts
 tests/pasadenaRidge404.spec.ts
 tests/scheduleAVisitCanadaFormEvidence.spec.ts
 tests/sideModalFormEvidence.spec.ts
+tests/communityLeadFormApiEvidence.spec.ts
 
 # ---- Keep .env.example tracked even though .env* is ignored above -----------
 !.env.example
