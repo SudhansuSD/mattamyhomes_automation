@@ -1,0 +1,779 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: mpc.spec.ts >> MPC page tests - USA >> Content Sections >> @regression | USA | Validate image gallery if available
+- Location: tests/mpc.spec.ts:79:9
+
+# Error details
+
+```
+Error: MPC image gallery was not found on https://stagemh-sc.exsquared.com/florida/jacksonville-st-augustine/st-johns/rivertown.
+
+This is treated as a failure because "mpc.imageGallery" is not declared optional for USA.
+If this feature genuinely does not exist there, add it to OPTIONAL_BY_LOCATION in
+config/features/featureExpectations.ts under "USA". Otherwise the locator or the
+page itself is broken - which is exactly what this assertion exists to surface.
+```
+
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic:
+    - link "Skip to main content" [ref=e2] [cursor=pointer]
+    - link "Skip to footer" [ref=e3] [cursor=pointer]
+  - region "national notification" [ref=e7]:
+    - generic [ref=e10]:
+      - img [ref=e13]
+      - paragraph [ref=e15]:
+        - text: Move Savings Event—Don’t Miss Your Chance to Unlock Limited-Time Incentives!
+        - link "Shop Today!" [ref=e16] [cursor=pointer]:
+          - /url: /promos/dec-2024
+  - generic [ref=e18]:
+    - banner [ref=e19]:
+      - generic [ref=e20]:
+        - link "Mattamy logo. Go to HomePage" [ref=e21] [cursor=pointer]:
+          - /url: /
+          - figure [ref=e22]:
+            - img "Mattamy logo" [ref=e23]
+        - navigation [ref=e24]:
+          - generic [ref=e25]:
+            - button "Find Your Dream Home" [ref=e27] [cursor=pointer]:
+              - paragraph [ref=e28]:
+                - text: Find Your Dream Home
+                - img [ref=e29]
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - button:
+                      - generic:
+                        - text: Arizona
+                        - generic:
+                          - img
+                  - generic:
+                    - button:
+                      - menuitem:
+                        - text: Phoenix
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Tucson
+                        - generic:
+                          - img
+                - generic:
+                  - generic:
+                    - button:
+                      - generic:
+                        - text: Florida
+                        - generic:
+                          - img
+                  - generic:
+                    - button:
+                      - menuitem:
+                        - text: Fort Lauderdale
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Jacksonville-St. Augustine
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Naples-Fort Myers
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Orlando
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Palm Beach
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Palm City-Stuart
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Port St. Lucie
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Sarasota
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Tampa
+                        - generic:
+                          - img
+                - generic:
+                  - generic:
+                    - button:
+                      - generic:
+                        - text: North Carolina
+                        - generic:
+                          - img
+                  - generic:
+                    - button:
+                      - menuitem:
+                        - text: Charlotte
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Raleigh
+                        - generic:
+                          - img
+                - generic:
+                  - generic:
+                    - button:
+                      - generic:
+                        - text: South Carolina
+                        - generic:
+                          - img
+                  - generic:
+                    - button:
+                      - menuitem:
+                        - text: Clover
+                        - generic:
+                          - img
+                    - button:
+                      - menuitem:
+                        - text: Rock Hill
+                        - generic:
+                          - img
+                - generic:
+                  - generic:
+                    - button:
+                      - generic:
+                        - text: Texas
+                        - generic:
+                          - img
+                  - generic:
+                    - button:
+                      - menuitem:
+                        - text: Dallas-Fort Worth
+                        - generic:
+                          - img
+          - link "Design Studio" [ref=e32] [cursor=pointer]:
+            - /url: /design-studio
+            - paragraph [ref=e33]: Design Studio
+          - button "Homebuying" [ref=e36] [cursor=pointer]:
+            - paragraph [ref=e37]:
+              - text: Homebuying
+              - img [ref=e38]
+          - link "Customer Care" [ref=e41] [cursor=pointer]:
+            - /url: /customer-care
+            - paragraph [ref=e42]: Customer Care
+          - button "About" [ref=e45] [cursor=pointer]:
+            - paragraph [ref=e46]:
+              - text: About
+              - img [ref=e47]
+          - link "Contact Us" [ref=e50] [cursor=pointer]:
+            - /url: /contact
+            - paragraph [ref=e51]: Contact Us
+        - generic [ref=e52]:
+          - button "Go to Favorites Page" [ref=e53] [cursor=pointer]:
+            - img "Favorite Icon" [ref=e54]
+          - button "Select your country. USA country is selected" [ref=e59] [cursor=pointer]:
+            - generic [ref=e61]: USA
+            - img [ref=e63]
+    - main [ref=e65]:
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - heading "RiverTown - Master-Planned Community" [level=1] [ref=e70]
+          - button "Add to favorites" [ref=e72] [cursor=pointer]:
+            - img [ref=e73]
+        - generic [ref=e75]: An impressive riverfront master-planned community with incredible resort-style amenities.
+        - button "Stay updated about this community" [ref=e76] [cursor=pointer]:
+          - generic [ref=e77]: Get Information
+      - generic [ref=e79]:
+        - generic [ref=e80]:
+          - generic [ref=e81]: RiverTown - Master-Planned Community
+          - generic [ref=e82]:
+            - link [ref=e83] [cursor=pointer]:
+              - /url: https://maps.google.com/maps?cid=16962111512092516096
+              - img [ref=e84]
+              - generic [ref=e86]:
+                - text: 90 Lanier Street, St Johns FL 32259
+                - img [ref=e87]
+            - link [ref=e90] [cursor=pointer]:
+              - /url: tel:9043721153
+              - img [ref=e91]
+              - generic [ref=e93]: 904-372-1153
+            - link [ref=e94] [cursor=pointer]:
+              - /url: mailto:rivertown.jax@mattamycorp.com
+              - img [ref=e95]
+              - generic [ref=e98]: rivertown.jax@mattamycorp.com
+        - link [ref=e100] [cursor=pointer]:
+          - generic [ref=e101]: Get Information
+      - region "Sales center contact and quick links" [ref=e104]:
+        - generic [ref=e105]:
+          - generic [ref=e106]: New Home Gallery
+          - generic [ref=e107]:
+            - generic [ref=e108]: 90 Lanier Street, St Johns, FL 32259
+            - generic [ref=e109]: 904-372-1153
+          - generic [ref=e110]:
+            - link "Call 904-372-1153" [ref=e111] [cursor=pointer]:
+              - /url: tel:9043721153
+              - img "Call Icon" [ref=e112]
+            - link "Email rivertown.jax@mattamycorp.com" [ref=e114] [cursor=pointer]:
+              - /url: mailto:rivertown.jax@mattamycorp.com
+              - img "Mail Icon" [ref=e115]
+            - button "Hours" [ref=e118] [cursor=pointer]
+            - link "Get directions to sales center, opens in new tab" [ref=e119] [cursor=pointer]:
+              - /url: https://maps.google.com/maps?cid=16962111512092516096
+              - img "Map Location Icon" [ref=e120]
+              - generic [ref=e122]: Directions
+      - generic [ref=e124]:
+        - generic [ref=e126]:
+          - img "Marketing Logo" [ref=e128]
+          - generic [ref=e129]:
+            - heading "Designed For the Way You Live" [level=2] [ref=e130]
+            - generic [ref=e131]:
+              - generic [ref=e132]:
+                - generic [ref=e133]: RiverTown is a master-planned community nestled along the pristine shores of the St. Johns River, with nearly 5,000 acres of preserve for future generations. Each of the thoughtfully designed amenities is geared toward staying fit, meeting new friends, trying new activities and having fun in northeast Florida’s year-round sun. RiverTow...
+                - button "Show more" [ref=e134] [cursor=pointer]: More+
+              - paragraph
+              - paragraph
+        - generic [ref=e136]:
+          - paragraph [ref=e137]: Home Details
+          - generic [ref=e138]:
+            - img [ref=e139]
+            - generic [ref=e141]:
+              - generic [ref=e142]: Home Types
+              - generic [ref=e143]: Single Family | Townhome | Single Family - Active Adult | Villa - Active Adult
+          - generic [ref=e144]:
+            - generic [ref=e145]:
+              - img [ref=e146]
+              - generic [ref=e148]:
+                - generic [ref=e149]: Bedrooms
+                - generic [ref=e150]: 2 - 5
+            - generic [ref=e151]:
+              - img [ref=e152]
+              - generic [ref=e154]:
+                - generic [ref=e155]: Full Bathrooms
+                - generic [ref=e156]: 2 - 4
+            - generic [ref=e157]:
+              - img [ref=e158]
+              - generic [ref=e171]:
+                - generic [ref=e172]: Half Bathrooms
+                - generic [ref=e173]: "1"
+            - generic [ref=e174]:
+              - img [ref=e175]
+              - generic [ref=e177]:
+                - generic [ref=e178]: Sq. Ft.
+                - generic [ref=e179]: 1206 - 4461
+            - generic [ref=e180]:
+              - img [ref=e181]
+              - generic [ref=e191]:
+                - generic [ref=e192]: Stories
+                - generic [ref=e193]: 1 - 2
+            - generic [ref=e194]:
+              - img [ref=e195]
+              - generic [ref=e202]:
+                - generic [ref=e203]: Garages
+                - generic [ref=e204]: 2 - 3
+      - generic [ref=e206]:
+        - heading "Your destination - for work, play and life" [level=2] [ref=e207]
+        - generic [ref=e208]:
+          - article [ref=e209]:
+            - heading "Amphitheater" [level=3] [ref=e211]
+            - paragraph
+          - article [ref=e212]:
+            - heading "Clubhouse" [level=3] [ref=e214]
+            - paragraph
+          - article [ref=e215]:
+            - heading "Firepit" [level=3] [ref=e217]
+            - paragraph
+          - article [ref=e218]:
+            - heading "Fitness Center" [level=3] [ref=e220]
+            - paragraph
+          - article [ref=e221]:
+            - heading "Game Room" [level=3] [ref=e223]
+            - paragraph
+          - article [ref=e224]:
+            - heading "Park" [level=3] [ref=e226]
+            - paragraph
+          - article [ref=e227]:
+            - heading "Paw Park" [level=3] [ref=e229]
+            - paragraph
+          - article [ref=e230]:
+            - heading "Playground" [level=3] [ref=e232]
+            - paragraph
+        - button "SHOW MORE" [ref=e234] [cursor=pointer]:
+          - paragraph [ref=e236]: SHOW MORE
+      - generic [ref=e237]:
+        - generic [ref=e241]:
+          - generic [ref=e244]:
+            - generic [ref=e245]:
+              - button "Previous slide on Multiblock" [ref=e247] [cursor=pointer]:
+                - img [ref=e248]
+              - generic [ref=e251]:
+                - img "US_JAX_RT_RiverLodge" [ref=e259]
+                - img [ref=e263]
+                - img [ref=e267]
+                - img [ref=e275]
+                - img [ref=e279]
+                - img [ref=e287]
+                - img [ref=e295]
+              - button "Next slide of Multiblock" [ref=e297] [cursor=pointer]:
+                - img [ref=e298]
+            - paragraph [ref=e301]: 1/9
+          - log [ref=e303]:
+            - generic [ref=e304]:
+              - heading "RiverTown | RiverLodge Amenity" [level=2] [ref=e305]
+              - generic [ref=e306]: Experience a perfect blend of relaxation and recreation. Get active and energize yourself with a workout at the Fitness Center, immerse yourself in the calm and peaceful environment of the Lakeside Lagoon, or indulge in some family fun at the lively Play Park. Take a leisurely float down the Lazy River Run or unwind in the tranquil and serene RiverLodge Pool.
+              - link "Tour the RiverLodge" [ref=e308] [cursor=pointer]:
+                - /url: https://my.matterport.com/show/?m=LE9MUFccyx3
+                - generic [ref=e309]: Tour the RiverLodge
+        - generic [ref=e313]:
+          - img "Lifestyle" [ref=e318]
+          - generic [ref=e321]:
+            - heading "WaterSong | 55+ Living" [level=2] [ref=e322]
+            - generic [ref=e323]: 55+ Living Mattamy Style. WaterSong is an exclusive gated neighborhood for Active Adults. Located within RiverTown, a master-planned community, designed to combine modern, resort-style amenities with an unspoiled natural setting. Our homes are built to take full advantage of this riverfront location and its peaceful views. Best of all, this riverfront paradise has five thousand acres of preserve and set aside for future generations of WaterSong and RiverTown residents.
+            - link "Learn More" [ref=e325] [cursor=pointer]:
+              - /url: https://mattamyhomes.com/florida/jacksonville-st-augustine/st-johns/rivertown/watersong
+              - generic [ref=e326]: Learn More
+        - generic [ref=e330]:
+          - generic [ref=e333]:
+            - generic [ref=e334]:
+              - button "Previous slide on Multiblock" [ref=e336] [cursor=pointer]:
+                - img [ref=e337]
+              - generic [ref=e340]:
+                - img [ref=e344]
+                - img "HIGH RES Premier Streetscape by Rob-Harris_1920x1080" [ref=e348]
+                - img [ref=e352]
+                - img [ref=e356]
+              - button "Next slide of Multiblock" [ref=e358] [cursor=pointer]:
+                - img [ref=e359]
+            - paragraph [ref=e362]: 1/2
+          - log [ref=e364]:
+            - generic [ref=e365]:
+              - heading "RiverTown | Single-Family Homes" [level=2] [ref=e366]
+              - generic [ref=e367]: Mattamy Homes offers a wide variety of homes throughout our neighborhoods in RiverTown, including single-family designs that we are especially proud of. Take a virtual or in-person tour to experience the flowing space and thoughtful features we build into each floorplan. Our single-family homes are available from mid $300s, with between 1,360 and 3,800 square feet of space available in 5 communities within RiverTown — including 55-and-up WaterSong.
+      - generic [ref=e368]:
+        - generic [ref=e369]:
+          - heading "Explore the community" [level=2] [ref=e370]
+          - generic [ref=e371]: Take a closer look at the community sitemap and get familiar with our available offerings.
+        - img "image with Builder Map" [ref=e375]
+      - generic [ref=e376]:
+        - generic [ref=e377]:
+          - heading "Explore neighborhoods in this community" [level=2] [ref=e378]
+          - generic [ref=e379]: People live in houses. And we live together in neighborhoods. The Mattamy Way is an approach to home and community design that prioritizes how you really live.
+        - generic [ref=e380]:
+          - generic [ref=e381]:
+            - listitem [ref=e382]:
+              - link "RiverTown - Cove St Johns, Florida Choose a quick move-in home or personalize your dream home with your ideal homesite and floorplan—featuring serene wetland preserves and beautiful water views.Starting from $552,990. View RiverTown - Cove information." [ref=e384] [cursor=pointer]:
+                - /url: /florida/jacksonville-st-augustine/st-johns/rivertown/rivertown-cove
+                - generic [ref=e385]:
+                  - img "JAX_RiverTown_Rowan" [ref=e388]
+                  - generic [ref=e389]:
+                    - generic [ref=e390]:
+                      - paragraph [ref=e393]: Now Selling
+                      - generic [ref=e394]: RiverTown - Cove
+                      - generic [ref=e396]:
+                        - paragraph [ref=e398]: St Johns, Florida
+                        - paragraph [ref=e400]: Choose a quick move-in home or personalize your dream home with your ideal homesite and floorplan—featuring serene wetland preserves and beautiful water views.
+                    - button "Starting from $552,990" [ref=e401]:
+                      - generic [ref=e402]: Starting from $552,990
+            - listitem [ref=e403]:
+              - link "RiverTown - Forest St Johns, Florida Experience contemporary floorplans, a prime location, and a wealth of amenities, all surrounded by preserved landscapes and scenic water views.Starting from $380,990. View RiverTown - Forest information." [ref=e405] [cursor=pointer]:
+                - /url: /florida/jacksonville-st-augustine/st-johns/rivertown/forest
+                - generic [ref=e406]:
+                  - img "JAX_RiverTown_Hawkin" [ref=e409]
+                  - generic [ref=e410]:
+                    - generic [ref=e411]:
+                      - paragraph [ref=e414]: Now Selling
+                      - generic [ref=e415]: RiverTown - Forest
+                      - generic [ref=e417]:
+                        - paragraph [ref=e419]: St Johns, Florida
+                        - paragraph [ref=e421]: Experience contemporary floorplans, a prime location, and a wealth of amenities, all surrounded by preserved landscapes and scenic water views.
+                    - button "Starting from $380,990" [ref=e422]:
+                      - generic [ref=e423]: Starting from $380,990
+            - listitem [ref=e424]:
+              - link "RiverTown - Meadows St. Johns, Florida No CDD Debt Fees. Affordable townhome living in RiverTownStarting from $248,001. View RiverTown - Meadows information." [ref=e426] [cursor=pointer]:
+                - /url: /florida/jacksonville-st-augustine/st-johns/rivertown/rivertown-meadows
+                - generic [ref=e427]:
+                  - img "US_JAX_RT_Meadows_Davy_Model" [ref=e430]
+                  - generic [ref=e431]:
+                    - generic [ref=e432]:
+                      - paragraph [ref=e435]: Now Selling
+                      - generic [ref=e436]: RiverTown - Meadows
+                      - generic [ref=e438]:
+                        - paragraph [ref=e440]: St. Johns, Florida
+                        - paragraph [ref=e442]: No CDD Debt Fees. Affordable townhome living in RiverTown
+                    - button "Starting from $248,001" [ref=e443]:
+                      - generic [ref=e444]: Starting from $248,001
+            - listitem [ref=e445]:
+              - link "RiverTown - Ravines St. Johns, Florida Offering quick move-in homes surrounded by wetland preservesStarting from $530,990. View RiverTown - Ravines information." [ref=e447] [cursor=pointer]:
+                - /url: /florida/jacksonville-st-augustine/st-johns/rivertown/rivertown-ravines-55s
+                - generic [ref=e448]:
+                  - img "JAX_RiverTown_Rowan_Model" [ref=e451]
+                  - generic [ref=e452]:
+                    - generic [ref=e453]:
+                      - paragraph [ref=e456]: Now Selling
+                      - generic [ref=e457]: RiverTown - Ravines
+                      - generic [ref=e459]:
+                        - paragraph [ref=e461]: St. Johns, Florida
+                        - paragraph [ref=e463]: Offering quick move-in homes surrounded by wetland preserves
+                    - button "Starting from $530,990" [ref=e464]:
+                      - generic [ref=e465]: Starting from $530,990
+            - listitem
+            - listitem
+            - listitem
+          - button "SHOW MORE" [ref=e466] [cursor=pointer]:
+            - paragraph [ref=e468]: SHOW ALL
+      - generic [ref=e472]:
+        - generic [ref=e474]:
+          - generic [ref=e476]:
+            - heading "New Home Gallery" [level=3] [ref=e477]
+            - generic [ref=e478]:
+              - generic [ref=e479]:
+                - img [ref=e481]
+                - link "Go to 90 Lanier Street St Johns Florida 32259. Opens in Googlemaps" [ref=e484] [cursor=pointer]:
+                  - /url: https://maps.google.com/maps?cid=16962111512092516096
+                  - paragraph [ref=e485]: 90 Lanier Street
+                  - paragraph [ref=e486]:
+                    - text: St Johns, FL 32259
+                    - img "OpenNewTab Icon" [ref=e487]
+              - generic [ref=e490]:
+                - img [ref=e492]
+                - link "Call to 904-372-1153" [ref=e494] [cursor=pointer]:
+                  - /url: tel:904-372-1153
+                  - text: 904-372-1153
+          - generic [ref=e495]:
+            - heading "Hours" [level=3] [ref=e496]
+            - generic [ref=e497]:
+              - img [ref=e499]
+              - button "Show Schedule" [ref=e502] [cursor=pointer]:
+                - paragraph [ref=e503]: Open Now - Closes at 6:00pm
+                - img [ref=e505]
+        - generic [ref=e508]:
+          - generic [ref=e509]:
+            - heading "Sign Up For Community Updates" [level=3] [ref=e510]
+            - generic [ref=e512]: Required fields are marked with *
+            - separator [ref=e513]
+          - group [ref=e514]:
+            - generic [ref=e515]:
+              - textbox [ref=e516]
+              - textbox "company" [ref=e517]:
+                - /placeholder: ""
+              - generic [ref=e518]:
+                - generic [ref=e519]: Community of Interest *
+                - generic [ref=e520]:
+                  - combobox "Community of Interest" [ref=e521] [cursor=pointer]:
+                    - option [disabled] [selected]
+                    - option "RiverTown - Cove"
+                    - option "RiverTown - Forest"
+                    - option "RiverTown - Meadows"
+                    - option "RiverTown - Ravines"
+                    - option "RiverTown - Springs"
+                    - option "RiverTown - Vista"
+                    - option "RiverTown - WaterSong"
+                  - generic:
+                    - img
+              - generic [ref=e522]:
+                - generic [ref=e523]: First name *
+                - textbox "First name" [ref=e525]:
+                  - /placeholder: ""
+              - generic [ref=e526]:
+                - generic [ref=e527]: Last name *
+                - textbox "Last name" [ref=e529]:
+                  - /placeholder: ""
+              - generic [ref=e530]:
+                - generic [ref=e531]: Email *
+                - textbox "Email" [ref=e533]:
+                  - /placeholder: ""
+              - generic [ref=e534]:
+                - generic [ref=e535]: Country of Residence *
+                - generic [ref=e536]:
+                  - combobox "Country of Residence" [ref=e537] [cursor=pointer]:
+                    - option [disabled] [selected]
+                    - option "Canada"
+                    - option "United States"
+                    - option "Other"
+                  - generic:
+                    - img
+              - generic [ref=e538]:
+                - generic [ref=e539]: Zip/Postal Code *
+                - textbox "Zip/Postal Code" [ref=e541]:
+                  - /placeholder: ""
+              - generic [ref=e542]:
+                - generic [ref=e543]: Phone number
+                - textbox "Phone number" [ref=e545]:
+                  - /placeholder: ""
+              - generic [ref=e546]:
+                - generic [ref=e547]: When do you want to move into your home?
+                - generic [ref=e548]:
+                  - combobox "When do you want to move into your home?" [ref=e549] [cursor=pointer]:
+                    - option [disabled] [selected]
+                    - option "0-3 Months"
+                    - option "3-6 Months"
+                    - option "6-12 Months"
+                    - option "12+ Months"
+                  - generic:
+                    - img
+              - generic [ref=e550]:
+                - generic [ref=e551]: How many bedrooms do you need?
+                - generic [ref=e552]:
+                  - combobox "How many bedrooms do you need?" [ref=e553] [cursor=pointer]:
+                    - option [disabled] [selected]
+                    - option "1"
+                    - option "2"
+                    - option "3"
+                    - option "4"
+                    - option "5+"
+                  - generic:
+                    - img
+              - generic [ref=e554]:
+                - generic [ref=e555]: What is your budget?
+                - generic [ref=e556]:
+                  - combobox "What is your budget?" [ref=e557] [cursor=pointer]:
+                    - option [disabled] [selected]
+                    - option "$200,000 - $299,000"
+                    - option "$300,000 - $399,000"
+                    - option "$400,000 - $499,000"
+                    - option "$500,000 - $599,000"
+                    - option "$600,000 - $699,000"
+                    - option "$700,000 - $799,000"
+                    - option "$800,000 - $899,000"
+                    - option "$900,000 - $999,000"
+                    - option "$1M - $1.25M"
+                    - option "$1.25M - $1.5M"
+                    - option "$1.5M - $2M"
+                    - option "$2M+"
+                  - generic:
+                    - img
+              - generic [ref=e559] [cursor=pointer]:
+                - checkbox "I am a Real Estate Agent" [ref=e560]
+                - generic [ref=e561]: I am a Real Estate Agent
+              - generic [ref=e563] [cursor=pointer]:
+                - 'checkbox "By entering my phone number and/or email address and checking the box, I confirm I would like to receive promotional emails and/or text messages (SMS) from Mattamy Homes and its affiliates. Msg/data rates may apply. Consent is not a condition of purchase. I can opt out anytime (i.e. SMS: reply STOP or use any other method described in our SMS Privacy Policy ; email: use unsubscribe link). Mattamy and our providers may collect campaign engagement data to improve our marketing efforts. For more information, see our Privacy Policy , SMS Privacy Policy , SMS Terms of Service , and/or Contact Us ." [ref=e564]'
+                - generic [ref=e565]:
+                  - text: "By entering my phone number and/or email address and checking the box, I confirm I would like to receive promotional emails and/or text messages (SMS) from Mattamy Homes and its affiliates. Msg/data rates may apply. Consent is not a condition of purchase. I can opt out anytime (i.e. SMS: reply STOP or use any other method described in our"
+                  - link "SMS Privacy Policy" [ref=e566]:
+                    - /url: /sms-privacy-policy
+                  - text: "; email: use unsubscribe link). Mattamy and our providers may collect campaign engagement data to improve our marketing efforts. For more information, see our"
+                  - link "Privacy Policy" [ref=e567]:
+                    - /url: /privacy-policy
+                  - text: ","
+                  - link "SMS Privacy Policy" [ref=e568]:
+                    - /url: /sms-privacy-policy
+                  - text: ","
+                  - link "SMS Terms of Service" [ref=e569]:
+                    - /url: /sms-terms-of-service
+                  - text: ", and/or"
+                  - link "Contact Us" [ref=e570]:
+                    - /url: /contact-us
+                  - text: .
+              - button "SUBMIT" [ref=e572] [cursor=pointer]
+      - generic [ref=e574]:
+        - generic [ref=e575] [cursor=pointer]:
+          - generic [ref=e576]:
+            - generic [ref=e577]: US - Sidebar Stage
+            - img "Click Here US - Sidebar Stage" [ref=e579]
+          - button "US Test - Sidebar CTA for testing" [ref=e580]:
+            - generic [ref=e581]: US Test - Sidebar CTA for testing
+        - button "x" [ref=e582] [cursor=pointer]
+    - contentinfo "footer" [ref=e583]:
+      - generic [ref=e585]:
+        - generic [ref=e586]:
+          - generic [ref=e587]:
+            - heading "Explore" [level=2] [ref=e588]
+            - list [ref=e590]:
+              - listitem [ref=e591]:
+                - link "Mattamy Homes USA" [ref=e592] [cursor=pointer]:
+                  - /url: https://stagemh-sc.exsquared.com/us
+              - listitem [ref=e593]:
+                - link "Mattamy Homes Canada" [ref=e594] [cursor=pointer]:
+                  - /url: https://stagemh-sc.exsquared.com/ca
+              - listitem [ref=e595]:
+                - link "Design Studio" [ref=e596] [cursor=pointer]:
+                  - /url: /design-studio
+              - listitem [ref=e597]:
+                - link "Customer Care" [ref=e598] [cursor=pointer]:
+                  - /url: /customer-care
+          - generic [ref=e600]:
+            - heading "About Mattamy" [level=2] [ref=e601]
+            - list [ref=e603]:
+              - listitem [ref=e604]:
+                - link "About Us" [ref=e605] [cursor=pointer]:
+                  - /url: /about/about-mattamy
+              - listitem [ref=e606]:
+                - link "Contact Us" [ref=e607] [cursor=pointer]:
+                  - /url: /contact
+              - listitem [ref=e608]:
+                - link "Careers" [ref=e609] [cursor=pointer]:
+                  - /url: /about/careers
+              - listitem [ref=e610]:
+                - link "Media and Investor Relations" [ref=e611] [cursor=pointer]:
+                  - /url: /about/media-and-investor-relations
+          - generic [ref=e613]:
+            - heading "Connect With Us" [level=2] [ref=e614]
+            - generic [ref=e616]:
+              - link "Facebook (opens in a new tab)" [ref=e617] [cursor=pointer]:
+                - /url: https://www.facebook.com/MattamyHomesUSA
+                - img [ref=e618]
+              - link "Instagram (opens in a new tab)" [ref=e620] [cursor=pointer]:
+                - /url: https://www.instagram.com/mattamyhomesusa/
+                - img [ref=e621]
+              - link "Youtube (opens in a new tab)" [ref=e623] [cursor=pointer]:
+                - /url: https://www.youtube.com/user/MattamyHomesOnline
+                - img [ref=e624]
+              - link "Pinterest (opens in a new tab)" [ref=e626] [cursor=pointer]:
+                - /url: https://www.pinterest.com/mattamyhomes/
+                - img [ref=e627]
+              - link "Linkedin (opens in a new tab)" [ref=e629] [cursor=pointer]:
+                - /url: https://www.linkedin.com/company/mattamy-homes
+                - img [ref=e630]
+        - generic [ref=e633]:
+          - paragraph [ref=e634]:
+            - link "Accessibility" [ref=e635] [cursor=pointer]:
+              - /url: /accessibility
+              - text: Accessibility
+              - generic [ref=e636]: "|"
+            - button "Cookie Settings" [ref=e637] [cursor=pointer]:
+              - text: Cookie Settings
+              - generic [ref=e638]: "|"
+            - link "Legal Disclaimers" [ref=e639] [cursor=pointer]:
+              - /url: /legal-disclaimers
+              - text: Legal Disclaimers
+              - generic [ref=e640]: "|"
+            - link "Privacy Policy" [ref=e641] [cursor=pointer]:
+              - /url: /privacy-policies
+              - text: Privacy Policy
+              - generic [ref=e642]: "|"
+            - link "Terms and Conditions" [ref=e643] [cursor=pointer]:
+              - /url: /terms-and-conditions
+              - text: Terms and Conditions
+              - generic [ref=e644]: "|"
+            - link "About Us" [ref=e645] [cursor=pointer]:
+              - /url: /about/about-mattamy
+          - paragraph [ref=e646]:
+            - img "copyright disclaimer logo" [ref=e647]
+            - text: Copyright © 2025 Mattamy Homes. All rights reserved.
+```
+
+# Test source
+
+```ts
+  21  |   | 'community.directionsCta'
+  22  |   | 'community.scheduleAppointmentCta'
+  23  |   // Market page
+  24  |   | 'market.communitySection'
+  25  |   | 'market.discoverOurHomesSection'
+  26  |   // QMI page
+  27  |   | 'qmi.salesOfficeSection'
+  28  |   | 'qmi.salesOfficeMapLink'
+  29  |   // Plan / condo plan
+  30  |   | 'plan.mediaGallery'
+  31  |   | 'condoPlan.showMoreFloorplans'
+  32  |   // Condo community
+  33  |   | 'condoCommunity.availableFloorplansSection'
+  34  |   | 'condoCommunity.galleryModal'
+  35  |   | 'condoCommunity.galleryModalMedia'
+  36  |   | 'condoCommunity.inPageGalleryMedia'
+  37  |   // MPC
+  38  |   | 'mpc.imageGallery'
+  39  |   | 'mpc.galleryModalMedia'
+  40  |   // About Us
+  41  |   | 'about.showMore'
+  42  |   | 'about.investorForm'
+  43  |   // Promo page
+  44  |   | 'promo.leadForm';
+  45  | 
+  46  | type OptionalFeatureRules = Partial<Record<LocationKey, readonly FeatureKey[]>>;
+  47  | 
+  48  | /** Features that genuinely do not exist for a country, in every environment. */
+  49  | const OPTIONAL_BY_LOCATION: OptionalFeatureRules = {
+  50  |   // `promoURL` can point at any promotion, and not every promotion carries a
+  51  |   // lead form - the form checks run when it is there and are skipped when not.
+  52  |   USA: ['promo.leadForm'],
+  53  |   CAN: [
+  54  |     'promo.leadForm',
+  55  |     // Canadian community pages have no appointment scheduling at all.
+  56  |     'community.scheduleAppointmentCta',
+  57  |     // Condo plan pages list every floorplan and link out to search with
+  58  |     // "View all" instead of expanding in place.
+  59  |     'condoPlan.showMoreFloorplans',
+  60  |   ],
+  61  | };
+  62  | 
+  63  | /** Per-environment exceptions, for content that only exists on one environment. */
+  64  | const OPTIONAL_BY_ENVIRONMENT: Partial<Record<string, OptionalFeatureRules>> = {
+  65  |   // PROD: { USA: ['market.discoverOurHomesSection'] },
+  66  | };
+  67  | 
+  68  | /** True when this feature is allowed to be missing for the location being run. */
+  69  | export function isFeatureOptional(feature: FeatureKey, location: LocationKey): boolean {
+  70  |   const { envName } = getEnvConfig();
+  71  | 
+  72  |   if (OPTIONAL_BY_ENVIRONMENT[envName]?.[location]?.includes(feature)) {
+  73  |     return true;
+  74  |   }
+  75  | 
+  76  |   return OPTIONAL_BY_LOCATION[location]?.includes(feature) ?? false;
+  77  | }
+  78  | 
+  79  | /** Failure text naming the key and file to edit if the absence is real. */
+  80  | export function buildMissingFeatureMessage(
+  81  |   feature: FeatureKey,
+  82  |   description: string,
+  83  |   location: LocationKey,
+  84  |   pageUrl: string,
+  85  | ): string {
+  86  |   return [
+  87  |     `${description} was not found on ${pageUrl}.`,
+  88  |     '',
+  89  |     `This is treated as a failure because "${feature}" is not declared optional for ${location}.`,
+  90  |     'If this feature genuinely does not exist there, add it to OPTIONAL_BY_LOCATION in',
+  91  |     `config/features/featureExpectations.ts under "${location}". Otherwise the locator or the`,
+  92  |     'page itself is broken - which is exactly what this assertion exists to surface.',
+  93  |   ].join('\n');
+  94  | }
+  95  | 
+  96  | /**
+  97  |  * The present / optional / missing decision.
+  98  |  *
+  99  |  * No Playwright types here on purpose, so desktop and mobile
+  100 |  * share one rule instead of two copies that drift apart. Returns the value when
+  101 |  * present, null when declared optional, throws when required and missing.
+  102 |  */
+  103 | export function resolveFeature<T>(
+  104 |   value: T | null | undefined,
+  105 |   feature: FeatureKey,
+  106 |   description: string,
+  107 |   location: LocationKey,
+  108 |   pageUrl: string,
+  109 | ): { value: T; skipMessage?: undefined } | { value: null; skipMessage: string } {
+  110 |   if (value) {
+  111 |     return { value };
+  112 |   }
+  113 | 
+  114 |   if (isFeatureOptional(feature, location)) {
+  115 |     return {
+  116 |       value: null,
+  117 |       skipMessage: `${description} not present (declared optional for ${location})`,
+  118 |     };
+  119 |   }
+  120 | 
+> 121 |   throw new Error(buildMissingFeatureMessage(feature, description, location, pageUrl));
+      |         ^ Error: MPC image gallery was not found on https://stagemh-sc.exsquared.com/florida/jacksonville-st-augustine/st-johns/rivertown.
+  122 | }
+  123 | 
+```

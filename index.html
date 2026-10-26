@@ -29,10 +29,10 @@
   <body>
     <div class="wrap">
       <h1>Mattamy Homes Automation — Report Builds</h1>
-      <p class="sub">20 retained builds. Each row opens that build's full Allure report.</p>
+      <p class="sub">21 retained builds. Each row opens that build's full Allure report.</p>
 
       <div class="filters">
-        <select id="runTypeFilter"><option value="">All run types</option><option value="Smoke">Smoke</option></select>
+        <select id="runTypeFilter"><option value="">All run types</option><option value="Regression">Regression</option><option value="Smoke">Smoke</option></select>
         <select id="environmentFilter"><option value="">All environments</option><option value="PROD">PROD</option><option value="STAGE">STAGE</option></select>
       </div>
 
@@ -46,6 +46,20 @@
             </tr>
           </thead>
           <tbody id="builds">
+<tr data-run-type="Regression" data-environment="STAGE">
+        <td><a href="regression/stage/285/">#285</a></td>
+        <td>Regression</td>
+        <td>STAGE</td>
+        <td>CAN</td>
+        <td>Chrome + Mobile Safari (iPhone 14)</td>
+        <td class="bad">89%</td>
+        <td>374</td>
+        <td>299</td>
+        <td>37</td>
+        <td>38</td>
+        <td>2026-10-26 19:07 UTC</td>
+        <td><a href="https://github.com/SudhansuSD/mattamyhomes_automation/actions/runs/40346020188">CI run</a></td>
+      </tr>
 <tr data-run-type="Smoke" data-environment="PROD">
         <td><a href="smoke/prod/284/">#284</a></td>
         <td>Smoke</td>
