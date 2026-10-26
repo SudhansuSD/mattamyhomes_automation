@@ -442,22 +442,64 @@ export class CommunityPage extends SearchablePage {
 
   // PLAN NAVIGATION
 
-  /** Checks the Plans link jumps to its section. */
+  /** Checks the first visible floorplan card opens its plan page. */
   async verifyPlansNavigation(): Promise<void> {
     await this.step('Verify plans navigation', async () => {
-      const firstPlan = this.page.locator('a[href*="/brinkley"]').first();
+      await this.selectFloorplansTabIfPresent();
 
-      if (await firstPlan.count()) {
-        const href = await firstPlan.getAttribute('href');
+      // Plan cards sit one segment below the community path, while QMI cards sit
+      // two below (/community/plan/address). Every plan card is in the DOM even
+      // when its tab or carousel slide is hidden, so only a visible one is clickable.
+      const communityPath = new URL(this.page.url()).pathname.replace(/\/$/, '');
+      const planLinkPattern = new RegExp(`^${escapeRegex(communityPath)}/[^/]+/?$`, 'i');
+      const visibleCommunityLinks = this.page
+        .locator(`a[href^="${communityPath}/"]`)
+        .filter({ visible: true });
 
-        await Promise.all([this.page.waitForLoadState('domcontentloaded'), firstPlan.click()]);
+      let planHref: string | undefined;
+      await expect
+        .poll(
+          async () => {
+            const hrefs = await visibleCommunityLinks.evaluateAll((els) =>
+              els.map((el) => el.getAttribute('href') ?? ''),
+            );
+            planHref = hrefs.find((href) => planLinkPattern.test(href));
+            return planHref;
+          },
+          { message: 'No visible floorplan card on the community page', timeout: 10000 },
+        )
+        .toBeTruthy();
 
-        await expect(this.page).toHaveURL(new RegExp(href!, 'i'));
+      const planLink = visibleCommunityLinks
+        .and(this.page.locator(`a[href="${planHref}"]`))
+        .first();
+      await this.reportValue('Plan link', this.buildFullUrl(planHref!));
 
-        await this.page.goBack();
-        await this.waitForPageReady();
-      }
+      await Promise.all([this.page.waitForLoadState('domcontentloaded'), planLink.click()]);
+
+      await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(planHref!)}/?$`, 'i'));
+
+      await this.page.goBack();
+      await this.waitForPageReady();
     });
+  }
+
+  /** Switches the Home type toggle to Floorplans when the community page has one. */
+  private async selectFloorplansTabIfPresent(): Promise<void> {
+    const floorplansTab = this.page.getByRole('radio', { name: /Floorplans/i }).first();
+
+    const present = await floorplansTab
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!present) {
+      return;
+    }
+
+    await floorplansTab.scrollIntoViewIfNeeded();
+    await floorplansTab.click();
+    await expect(floorplansTab).toBeChecked();
   }
 
   /**
