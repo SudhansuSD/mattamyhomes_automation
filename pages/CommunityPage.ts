@@ -9,6 +9,7 @@ import {
   toTitleCase,
 } from '../utils/web/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
+import { HomeTypeTabs } from '../support/HomeTypeTabs';
 import {
   checkConsentIfPresent,
   clickSubmit,
@@ -38,11 +39,18 @@ export class CommunityPage extends SearchablePage {
   /** Window held back from the CTA polls so the covered-CTA fallback still gets its attempt. */
   private static readonly CTA_FALLBACK_RESERVE = 12_000;
 
+  /** The Quick Move-In Homes / Floorplans tabs in the Available Homes section. */
+  private readonly homeTypeTabs: HomeTypeTabs;
+
   // Constructor
 
   /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
+    this.homeTypeTabs = new HomeTypeTabs(page, {
+      report: (message, value) => this.reportValue(message, value),
+      waitForPageReady: () => this.waitForPageReady(),
+    });
   }
 
   // LOCATORS
@@ -420,23 +428,30 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
+  // HOME TYPE TABS
+
+  /**
+   * Checks the Quick Move-In Homes / Floorplans tabs match the community's inventory: both tabs when
+   * it has quick move-in homes, none - with floorplans shown directly - when it does not.
+   */
+  async verifyHomeTypeTabsMatchInventory(): Promise<void> {
+    await this.step('Verify Quick Move-In Homes / Floorplans tabs match inventory', async () => {
+      await this.homeTypeTabs.verifyTabsMatchInventory();
+    });
+  }
+
   // AVAILABLE HOMES NAVIGATION
 
-  /** Checks the Available Homes link jumps to its section. */
+  /** Checks the first visible quick move-in card opens its home page. */
   async verifyAvailableHomesNavigation(): Promise<void> {
     await this.step('Verify available homes navigation', async () => {
-      const firstHome = this.page.locator('a[href*="/quick-move-in"]').first();
-
-      if (await firstHome.count()) {
-        const href = await firstHome.getAttribute('href');
-
-        await Promise.all([this.page.waitForLoadState('domcontentloaded'), firstHome.click()]);
-
-        await expect(this.page).toHaveURL(new RegExp(href!, 'i'));
-
-        await this.page.goBack();
-        await this.waitForPageReady();
+      // A community without QMI inventory has no tabs and no QMI cards to follow - that state is
+      // asserted by verifyHomeTypeTabsMatchInventory.
+      if (!(await this.homeTypeTabs.showQuickMoveIns())) {
+        return;
       }
+
+      await this.openFirstVisibleCard('qmi', 'QMI link');
     });
   }
 
@@ -445,61 +460,35 @@ export class CommunityPage extends SearchablePage {
   /** Checks the first visible floorplan card opens its plan page. */
   async verifyPlansNavigation(): Promise<void> {
     await this.step('Verify plans navigation', async () => {
-      await this.selectFloorplansTabIfPresent();
-
-      // Plan cards sit one segment below the community path, while QMI cards sit
-      // two below (/community/plan/address). Every plan card is in the DOM even
-      // when its tab or carousel slide is hidden, so only a visible one is clickable.
-      const communityPath = new URL(this.page.url()).pathname.replace(/\/$/, '');
-      const planLinkPattern = new RegExp(`^${escapeRegex(communityPath)}/[^/]+/?$`, 'i');
-      const visibleCommunityLinks = this.page
-        .locator(`a[href^="${communityPath}/"]`)
-        .filter({ visible: true });
-
-      let planHref: string | undefined;
-      await expect
-        .poll(
-          async () => {
-            const hrefs = await visibleCommunityLinks.evaluateAll((els) =>
-              els.map((el) => el.getAttribute('href') ?? ''),
-            );
-            planHref = hrefs.find((href) => planLinkPattern.test(href));
-            return planHref;
-          },
-          { message: 'No visible floorplan card on the community page', timeout: 10000 },
-        )
-        .toBeTruthy();
-
-      const planLink = visibleCommunityLinks
-        .and(this.page.locator(`a[href="${planHref}"]`))
-        .first();
-      await this.reportValue('Plan link', this.buildFullUrl(planHref!));
-
-      await Promise.all([this.page.waitForLoadState('domcontentloaded'), planLink.click()]);
-
-      await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(planHref!)}/?$`, 'i'));
-
-      await this.page.goBack();
-      await this.waitForPageReady();
+      await this.homeTypeTabs.showFloorplans();
+      await this.openFirstVisibleCard('floorplans', 'Plan link');
     });
   }
 
-  /** Switches the Home type toggle to Floorplans when the community page has one. */
-  private async selectFloorplansTabIfPresent(): Promise<void> {
-    const floorplansTab = this.page.getByRole('radio', { name: /Floorplans/i }).first();
+  /** Opens the first visible card of one home type, checks where it lands, then comes back. */
+  private async openFirstVisibleCard(type: 'qmi' | 'floorplans', label: string): Promise<void> {
+    // Every card is in the DOM even when its tab or carousel slide is hidden, so only a visible
+    // one is clickable.
+    let href: string | undefined;
+    await expect
+      .poll(async () => (href = (await this.homeTypeTabs.visibleCardHrefs(type))[0]), {
+        message: `No visible ${type === 'qmi' ? 'quick move-in' : 'floorplan'} card on the community page`,
+        timeout: 10000,
+      })
+      .toBeTruthy();
 
-    const present = await floorplansTab
-      .waitFor({ state: 'visible', timeout: 5000 })
-      .then(() => true)
-      .catch(() => false);
+    const cardLink = this.availableHomesSection
+      .locator(`a[href="${href}"]`)
+      .filter({ visible: true })
+      .first();
+    await this.reportValue(label, this.buildFullUrl(href!));
 
-    if (!present) {
-      return;
-    }
+    await Promise.all([this.page.waitForLoadState('domcontentloaded'), cardLink.click()]);
 
-    await floorplansTab.scrollIntoViewIfNeeded();
-    await floorplansTab.click();
-    await expect(floorplansTab).toBeChecked();
+    await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(href!)}/?$`, 'i'));
+
+    await this.page.goBack();
+    await this.waitForPageReady();
   }
 
   /**
@@ -724,40 +713,23 @@ export class CommunityPage extends SearchablePage {
     expectedCommunity: string,
   ): Promise<void> {
     await this.step('Verify QMI cards match current community', async () => {
-      const availableHomesSection = await this.getAvailableHomesSection();
-
-      if (!availableHomesSection) {
-        await this.reportValue(
-          'Available homes section not present - skipping QMI community-name validation',
-        );
+      // A community without QMI inventory has no tabs and no QMI cards to check - that state is
+      // asserted by verifyHomeTypeTabsMatchInventory.
+      if (!(await this.homeTypeTabs.showQuickMoveIns())) {
         return;
       }
 
-      await this.scrollTo(availableHomesSection);
-      await this.waitForPageReady();
-
-      if (!(await availableHomesSection.isVisible({ timeout: 5000 }).catch(() => false))) {
-        await this.reportValue(
-          'Available homes section not visible - skipping QMI community-name validation',
-        );
-        return;
-      }
-
-      const qmiCards = availableHomesSection
+      // Every visible card link under the selected Quick Move-In Homes tab, deliberately not
+      // pre-filtered by path, so a card pointing at another community is caught below.
+      const qmiCards = this.availableHomesSection
         .locator('a[href]:visible')
         .filter({ hasNotText: /view all/i });
 
-      await qmiCards
-        .first()
-        .waitFor({ state: 'visible', timeout: 10000 })
-        .catch(() => undefined);
+      await expect(qmiCards.first(), 'Quick Move-In Homes tab should show a card').toBeVisible({
+        timeout: 10000,
+      });
 
       const qmiCardCount = await qmiCards.count();
-
-      if (!qmiCardCount) {
-        await this.reportValue('No QMI cards present - skipping QMI community-name validation');
-        return;
-      }
 
       const currentCommunitySegment = getLastPathSegment(this.page.url());
 
@@ -785,25 +757,6 @@ export class CommunityPage extends SearchablePage {
         `Validated ${qmiCardCount} QMI card(s) against community segment '${currentCommunitySegment}'`,
       );
     });
-  }
-
-  /** Returns the Available Homes section, or null when the community has none. */
-  private async getAvailableHomesSection(): Promise<Locator | null> {
-    const sectionById = this.availableHomesSection.first();
-
-    if (await sectionById.count()) {
-      return sectionById;
-    }
-
-    const qmiHeading = this.page
-      .getByRole('heading', { name: /Quick Move-In Homes ready when you are/i })
-      .first();
-
-    if (!(await qmiHeading.count())) {
-      return null;
-    }
-
-    return qmiHeading.locator('xpath=ancestor::*[(self::section or self::div) and .//a[@href]][1]');
   }
 
   /** Checks the address and market shown match this community. */

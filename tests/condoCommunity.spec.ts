@@ -61,6 +61,12 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       });
     });
 
+    test(`@smoke @regression | ${location.country} | Validate Quick Move-In Homes and Floorplans tabs match available inventory`, async () => {
+      await test.step('Validate Quick Move-In Homes and Floorplans tabs match available inventory', async () => {
+        await condoCommunityPage.verifyHomeTypeTabsMatchInventory();
+      });
+    });
+
     test(`@smoke @regression | ${location.country} | Validate available condo floorplans section when available`, async () => {
       await test.step('Validate available condo floorplans section when available', async () => {
         await condoCommunityPage.verifyAvailableFloorplansSection(condoCommunity!);

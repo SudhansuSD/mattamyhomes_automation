@@ -7,6 +7,7 @@ import {
   isLocatorVisible,
 } from '../utils/web/pageObjectUtils';
 import { SearchablePage } from './SearchablePage';
+import { HomeTypeTabs } from '../support/HomeTypeTabs';
 import {
   clickSubmit,
   expectSideModalFormFields,
@@ -62,11 +63,18 @@ export class CondoCommunityPage extends SearchablePage {
   private static readonly NOT_IN_DIALOG =
     ':not([role="dialog"] *):not(.ReactModal__Content *):not([id*="ModalForm"] *)';
 
+  /** The Quick Move-In Homes / Floorplans tabs in the Available Homes section. */
+  private readonly homeTypeTabs: HomeTypeTabs;
+
   /** Sets up the page object for the Canada-only condo experience. */
   constructor(page: Page) {
     // Condo communities exist only in Canada, so this page always runs against
     // the Canadian site regardless of the LOCATION the run started with.
     super(page, 'CAN');
+    this.homeTypeTabs = new HomeTypeTabs(page, {
+      report: (message, value) => this.reportValue(message, value),
+      waitForPageReady: () => this.waitForPageReady(),
+    });
   }
 
   // Page Locators
@@ -319,10 +327,23 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
+  /**
+   * Checks the Quick Move-In Homes / Floorplans tabs match the community's inventory: both tabs when
+   * it has quick move-in homes, none - with floorplans shown directly - when it does not.
+   */
+  async verifyHomeTypeTabsMatchInventory(): Promise<void> {
+    await this.step('Verify Quick Move-In Homes / Floorplans tabs match inventory', async () => {
+      await this.homeTypeTabs.verifyTabsMatchInventory();
+    });
+  }
+
   /** Checks the floorplans section lists plans and its View All link works. */
   async verifyAvailableFloorplansSection(expectedCommunity: string): Promise<void> {
     await this.step('Verify available floorplans section', async () => {
       await this.waitForPageReady();
+      // With QMI inventory the floorplans listing sits behind its tab, and its heading stays hidden
+      // until that tab is selected.
+      await this.homeTypeTabs.showFloorplans();
 
       const section = await this.requireFeature(
         await this.getAvailableFloorplansSection(),
@@ -940,6 +961,9 @@ export class CondoCommunityPage extends SearchablePage {
     const links = section.locator('a[href]');
     const linkCount = await links.count();
     const loggedHrefs = new Set<string>();
+    // A quick move-in card sits two segments below the community (/community/plan/address); it
+    // belongs to the hidden Quick Move-In Homes tab, not to this listing.
+    const qmiCardPath = new RegExp(`^${escapeRegex(condoCommunityPath)}/[^/]+/[^/]+$`, 'i');
     let floorplanLinkCount = 0;
 
     for (let i = 0; i < linkCount; i++) {
@@ -953,7 +977,7 @@ export class CondoCommunityPage extends SearchablePage {
 
       const pathname = getPathnameFromHref(href!, this.page.url());
 
-      if (loggedHrefs.has(pathname)) {
+      if (loggedHrefs.has(pathname) || qmiCardPath.test(pathname)) {
         continue;
       }
 
@@ -999,10 +1023,13 @@ export class CondoCommunityPage extends SearchablePage {
     section: Locator,
     expectedCommunity: string,
   ): Promise<void> {
+    // Visible only: with QMI inventory the section also holds the Quick Move-In Homes tab's own
+    // View All, hidden while the Floorplans tab is selected.
     const viewAllLink = section
       .locator('a[href]')
       .filter({
         hasText: TEXT.viewAll,
+        visible: true,
       })
       .first();
 

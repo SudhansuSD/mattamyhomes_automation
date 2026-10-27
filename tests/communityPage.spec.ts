@@ -45,6 +45,12 @@ test.describe(`Community Detail - ${location.community}`, () => {
       });
     });
 
+    test(`@smoke @regression | ${location.country} | Validate Quick Move-In Homes and Floorplans tabs match available inventory`, async () => {
+      await test.step('Validate Quick Move-In Homes and Floorplans tabs match available inventory', async () => {
+        await communityPage.verifyHomeTypeTabsMatchInventory();
+      });
+    });
+
     test(`@regression | ${location.country} | Validate QMI card community name matches current community`, async () => {
       await test.step('Validate QMI card community name matches current community', async () => {
         await communityPage.verifyQmiCardCommunityNameMatchesCurrentCommunity(location.community);
