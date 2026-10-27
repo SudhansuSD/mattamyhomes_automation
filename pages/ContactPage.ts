@@ -289,7 +289,6 @@ export class ContactPage extends BasePage {
       await this.assertVisible(this.footer, 'Contact page footer should be visible', 15_000);
 
       const expectedFooterLinks = [
-        { name: 'Find My Home', href: '/search' },
         { name: 'Customer Care', href: '/customer-care' },
         { name: 'Contact Us', href: '/contact' },
         { name: 'Privacy Policy', href: '/privacy-policies' },

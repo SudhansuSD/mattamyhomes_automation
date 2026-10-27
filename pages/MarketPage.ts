@@ -136,7 +136,9 @@ export class MarketPage extends BasePage {
       return null;
     }
 
-    return this.discoverOurHomesSection.locator('xpath=ancestor::section[1]');
+    // The heading sits in the market contact bar, not in a <section> of its own,
+    // so the section is the nearest ancestor that also holds its search links.
+    return this.discoverOurHomesSection.locator('xpath=ancestor::*[.//a][1]');
   }
 
   /** Returns the community cards section scrolled into view, or null when it is not shown. */

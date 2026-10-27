@@ -11,6 +11,7 @@ import {
   type BrowserProjectKey,
 } from './config/browserSelection';
 import { getEnvConfig } from './config/environments/envConfig';
+import { getChromiumTrackerBlockArgs } from './config/environments/thirdPartyTrackers';
 import { DESKTOP_ALLURE_RESULTS_DIR, MOBILE_ALLURE_RESULTS_DIR } from './scripts/allurePaths';
 import { getBoolEnv, getNumberEnv, isCI, loadEnv } from './config/env';
 import { LOCATION_AGNOSTIC_SPEC_GLOBS } from './config/locations/locationAgnosticSpecs';
@@ -61,9 +62,11 @@ const desktopViewport = { width: 1920, height: 1080 };
 // more than one at a time surfaced as "page.goto: Page crashed" rather than as
 // a test failure - the renderer being killed, not the product breaking.
 
+// Tracker blocking rides along with them: see config/environments/thirdPartyTrackers.ts.
 const chromiumStabilityArgs = [
   '--disable-dev-shm-usage',
   '--disable-features=site-per-process,IsolateOrigins',
+  ...getChromiumTrackerBlockArgs(),
 ];
 
 const projectsByBrowser = {

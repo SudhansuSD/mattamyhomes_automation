@@ -10,6 +10,9 @@ import { getEnvConfig } from '../environments/envConfig';
  *
  * `promoURL` is the promotion page the promo suite validates for that country,
  * or null when the country runs no promotion - the suite skips on null.
+ *
+ * `galleryMpc` is the MPC the image gallery test runs against. The primary
+ * `mpc` entry has no image gallery, so the gallery is validated on one that does.
  */
 const ENVIRONMENT_LOCATION_OVERRIDES = {
   STAGE: {
@@ -26,6 +29,10 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
           url: '/florida/jacksonville-st-augustine/st-johns/rivertown',
         },
       ],
+      galleryMpc: {
+        name: 'Newfield',
+        url: '/florida/palm-city-stuart/palm-city/newfield',
+      },
       community: 'Landmarke',
       communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
       qmiAddress: '294 W FLAX DR',
@@ -219,6 +226,10 @@ const ENVIRONMENT_LOCATION_OVERRIDES = {
           url: '/florida/jacksonville-st-augustine/st-johns/rivertown',
         },
       ],
+      galleryMpc: {
+        name: 'Newfield',
+        url: '/florida/palm-city-stuart/palm-city/newfield',
+      },
       community: 'Landmarke',
       communityPath: '/arizona/phoenix/san-tan-valley/landmarke-50s',
       qmiAddress: '337 W FLOYD DR',

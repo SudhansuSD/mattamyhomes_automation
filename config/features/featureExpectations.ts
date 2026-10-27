@@ -26,6 +26,7 @@ export type FeatureKey =
   // QMI page
   | 'qmi.salesOfficeSection'
   | 'qmi.salesOfficeMapLink'
+  | 'qmi.relatedQmiSection'
   // Plan / condo plan
   | 'plan.mediaGallery'
   | 'condoPlan.showMoreFloorplans'
@@ -49,9 +50,14 @@ type OptionalFeatureRules = Partial<Record<LocationKey, readonly FeatureKey[]>>;
 const OPTIONAL_BY_LOCATION: OptionalFeatureRules = {
   // `promoURL` can point at any promotion, and not every promotion carries a
   // lead form - the form checks run when it is there and are skipped when not.
-  USA: ['promo.leadForm'],
+  //
+  // The related Quick Move-In section on a QMI page is driven by inventory: it
+  // only renders when other quick move-in homes are listed nearby, so a home
+  // without any shows no section at all.
+  USA: ['promo.leadForm', 'qmi.relatedQmiSection'],
   CAN: [
     'promo.leadForm',
+    'qmi.relatedQmiSection',
     // Canadian community pages have no appointment scheduling at all.
     'community.scheduleAppointmentCta',
     // Condo plan pages list every floorplan and link out to search with

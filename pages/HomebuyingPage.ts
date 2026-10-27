@@ -160,9 +160,10 @@ export class HomebuyingPage extends BasePage {
    * Checks the Affiliated Business Arrangement (ABA) disclosure modal behind
    * the "Mortgage Calculator" CTA.
    *
-   * The Financing page does NOT host a calculator - the CTA opens this
+   * The USA Financing page does NOT host a calculator - the CTA opens this
    * disclosure, and acknowledging it hands off to Mattamy Home Funding in a new
-   * tab. The acknowledge link is deliberately NOT clicked: it leaves the site
+   * tab. Canada has no affiliated lender and embeds the calculator instead; see
+   * validateEmbeddedMortgageCalculator. The acknowledge link is deliberately NOT clicked: it leaves the site
    * for a third party. Its destination is asserted from the href instead, and
    * the modal is dismissed so the page is left in a clean state.
    */
@@ -232,6 +233,83 @@ export class HomebuyingPage extends BasePage {
     }
 
     await expect(modal, 'ABA disclosure modal should close').toBeHidden({ timeout: 8_000 });
+  }
+
+  /**
+   * Checks the embedded mortgage calculator expands and returns the right payment.
+   *
+   * The calculator starts collapsed behind "Get Started". The calculation runs in
+   * the browser and sends nothing to a lead endpoint. The expected payment uses
+   * Canadian mortgage convention - interest compounded semi-annually, paid
+   * monthly - which is what the site implements; a monthly-compounded figure for
+   * the same inputs comes out about $14 higher, so the check tells the two apart.
+   */
+  async validateEmbeddedMortgageCalculator(): Promise<void> {
+    await this.step('Validate embedded mortgage calculator', async () => {
+      const calculator = this.page.locator('[class*="MortgageCalculator__TitleCTAContainer"]');
+      await calculator.scrollIntoViewIfNeeded({ timeout: 10_000 }).catch(() => undefined);
+      await this.assertVisible(
+        calculator.getByText(/^Mortgage Calculator$/i),
+        'Embedded Mortgage Calculator heading should be visible',
+        10_000,
+      );
+
+      const expand = calculator.getByRole('button', { name: /Expand calculator/i });
+      await this.assertVisible(expand, 'Calculator "Get Started" button should be visible');
+      await expand.click({ timeout: 10_000 });
+      await expect(
+        calculator.getByRole('button', { name: /Collapse calculator/i }),
+        'Calculator should report itself expanded',
+      ).toHaveAttribute('aria-expanded', 'true', { timeout: 10_000 });
+
+      const inputs = { price: 600_000, downPayment: 120_000, ratePercent: 5, years: 25 };
+      await calculator.getByLabel('Home purchase amount').fill(String(inputs.price));
+      await calculator.getByLabel('Downpayment').fill(String(inputs.downPayment));
+      await calculator.getByLabel('Percentage of Interest Rate').fill(String(inputs.ratePercent));
+      await calculator.getByLabel('Loan Term on Years').fill(String(inputs.years));
+      await calculator
+        .getByRole('button', { name: 'Click to calculate and display results' })
+        .click({ timeout: 10_000 });
+
+      const readPayment = async (): Promise<number | null> => {
+        const text = await calculator.innerText().catch(() => '');
+        const match = text.match(/Estimated Monthly Payment[^$]*\$\s*([\d,]+)/i);
+
+        return match ? Number(match[1].replace(/,/g, '')) : null;
+      };
+      await expect
+        .poll(readPayment, {
+          message: 'Calculator should display an estimated monthly payment',
+          timeout: 10_000,
+        })
+        .not.toBeNull();
+
+      const shown = (await readPayment()) ?? 0;
+      const expected = Math.round(
+        HomebuyingPage.canadianMonthlyPayment(
+          inputs.price - inputs.downPayment,
+          inputs.ratePercent,
+          inputs.years,
+        ),
+      );
+      await this.reportValue(
+        'Estimated monthly payment',
+        `$${shown} for $${inputs.price} - $${inputs.downPayment} down at ${inputs.ratePercent}% over ${inputs.years} years (expected $${expected})`,
+      );
+
+      expect(
+        Math.abs(shown - expected),
+        `Estimated monthly payment should be $${expected}, got $${shown}`,
+      ).toBeLessThanOrEqual(1);
+    });
+  }
+
+  /** Returns the monthly payment for a Canadian mortgage (semi-annual compounding). */
+  private static canadianMonthlyPayment(principal: number, ratePercent: number, years: number) {
+    const monthlyRate = Math.pow(1 + ratePercent / 100 / 2, 1 / 6) - 1;
+    const payments = years * 12;
+
+    return (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -payments));
   }
 
   /** Checks the savings calculator sidebar renders an estimated savings value. */

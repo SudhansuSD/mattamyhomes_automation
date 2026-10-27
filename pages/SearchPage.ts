@@ -12,6 +12,18 @@ type SortValidationConfig = {
   label: string;
 };
 
+/** A beds or baths filter option as picked: its number, and whether it means "or more". */
+export type BedsBathsOption = {
+  value: number;
+  orMore: boolean;
+  label: string;
+};
+
+export type BedsBathsSelection = {
+  beds: BedsBathsOption;
+  baths: BedsBathsOption;
+};
+
 export class SearchPage extends SearchablePage {
   // The result card itself. Shared by the card locator and its own drift fallback.
   private static readonly RESULT_CARD_SELECTOR = '#ProductInfo:visible';
@@ -942,9 +954,9 @@ export class SearchPage extends SearchablePage {
   // Filter by beds and baths
 
   /** Applies the minimum bedrooms and bathrooms from the Beds & Baths filter. */
-  async filterByBedroomsAndBathrooms(minBeds: number, minBaths: number): Promise<void> {
-    await this.step(
-      `Apply beds & baths filter: ${minBeds}+ Bedrooms, ${minBaths}+ Bathrooms`,
+  async filterByBedroomsAndBathrooms(beds: number, baths: number): Promise<BedsBathsSelection> {
+    return this.step(
+      `Apply beds & baths filter: ${beds} bedrooms, ${baths} bathrooms`,
       async () => {
         await this.waitForPageReady();
         await this.openFilter('Select Beds & Baths');
@@ -955,15 +967,17 @@ export class SearchPage extends SearchablePage {
           .getByRole('button', { name: /^Bedrooms$/i })
           .first()
           .click({ timeout: 10000 });
-        await this.selectBedsOrBathsOption('Bedroom', minBeds);
+        const bedsOption = await this.selectBedsOrBathsOption('Bedroom', beds);
         await this.waitForResultsToLoad();
 
         await this.page
           .getByRole('button', { name: /^Bathrooms$/i })
           .first()
           .click({ timeout: 10000 });
-        await this.selectBedsOrBathsOption('Bathroom', minBaths);
+        const bathsOption = await this.selectBedsOrBathsOption('Bathroom', baths);
         await this.waitForResultsToLoad();
+
+        return { beds: bedsOption, baths: bathsOption };
       },
     );
   }
@@ -1003,7 +1017,7 @@ export class SearchPage extends SearchablePage {
 
   /**
    * Selects the beds/baths option for `count` from the options the site actually
-   * offers, and returns the number selected.
+   * offers, and returns the option selected.
    *
    * Composing the label (`${count} Bedrooms`) breaks on every real variant: the
    * site renders "1 Bedroom" (singular), "4+ Bedrooms" (plus sign), and nothing
@@ -1011,11 +1025,14 @@ export class SearchPage extends SearchablePage {
    * checkbox that does not exist. This reads the rendered options,
    * picks the highest one that does not exceed `count`, and falls back to the
    * highest available when `count` is beyond the range.
+   *
+   * Only an option labelled with "+" means "or more"; "3 Bedrooms" matches homes
+   * with exactly three, which is what the site filters on.
    */
   private async selectBedsOrBathsOption(
     group: 'Bedroom' | 'Bathroom',
     count: number,
-  ): Promise<number> {
+  ): Promise<BedsBathsOption> {
     const options = this.page.getByRole('checkbox', {
       name: new RegExp(`^\\s*\\d+\\+?\\s+${group}s?\\s*$`, 'i'),
     });
@@ -1044,10 +1061,12 @@ export class SearchPage extends SearchablePage {
       parsed.filter((entry) => entry.value <= count).sort((a, b) => b.value - a.value)[0] ??
       highest;
 
-    await options.nth(chosen.index).click();
-    await this.reportValue(`${group} filter selected`, names[chosen.index].trim());
+    const label = names[chosen.index].trim();
 
-    return chosen.value;
+    await options.nth(chosen.index).click();
+    await this.reportValue(`${group} filter selected`, label);
+
+    return { value: chosen.value, orMore: /\d\s*\+/.test(label), label };
   }
 
   /** Clicks Reset and waits for the default results to come back. */
@@ -1116,23 +1135,34 @@ export class SearchPage extends SearchablePage {
       // Measured on Charlotte: 14 communities -> 4+ bedrooms -> 5 -> 4+ bathrooms
       // -> 3 -> minimum price "$ 1M" -> 0, with the site's own no-results status.
       // 99 is intentionally beyond range; the helper clamps to the highest option.
-      await this.filterByBedroomsAndBathrooms(99, 99);
+      const selection = await this.filterByBedroomsAndBathrooms(99, 99);
 
       // Close the beds/baths panel so it does not overlay the price filter.
       await this.page.keyboard.press('Escape').catch(() => undefined);
       await this.settle(1000);
 
-      await this.openFilter('Dropdown price filter');
-      await this.dropdownOption('$ No min').click();
-
-      const minPriceLabel = await this.highestPriceOptionLabel();
-
-      await this.dropdownOption(minPriceLabel).first().click();
-      await this.reportValue('No-results criteria: min price', minPriceLabel);
-
-      await this.waitForResultsToLoad();
-
       const noResults = this.noResultsMessage();
+
+      // A market with no 4+ bed, 4+ bath homes (Calgary) is already empty here,
+      // and the site removes the price filter along with the results - so the
+      // price squeeze only runs when there is something left to squeeze.
+      if (await noResults.isVisible().catch(() => false)) {
+        await this.reportValue(
+          'No-results criteria',
+          `${this.describeSelection(selection)} alone leaves no results`,
+        );
+      } else {
+        await this.openFilter('Dropdown price filter');
+        await this.dropdownOption('$ No min').click();
+
+        const minPriceLabel = await this.highestPriceOptionLabel();
+
+        await this.dropdownOption(minPriceLabel).first().click();
+        await this.reportValue('No-results criteria: min price', minPriceLabel);
+
+        await this.waitForResultsToLoad();
+      }
+
       await expect(noResults, 'Search page should show a clear no-results state').toBeVisible({
         timeout: 20000,
       });
@@ -1226,33 +1256,69 @@ export class SearchPage extends SearchablePage {
   }
   // Validation: Beds & Baths
 
-  /** Runs the beds/baths check on every tab and reports all mismatches together. */
-  async validateBedsBathsAcrossTabs(minBeds: number, minBaths: number): Promise<void> {
+  /**
+   * Runs the beds/baths check on every tab and reports all mismatches together.
+   *
+   * The site disables a tab the filter has emptied ("All Plans. No results
+   * found."), so that tab counts as zero cards rather than something to click.
+   * At least one tab must still return cards, or the filter was never checked.
+   */
+  async validateBedsBathsAcrossTabs(selection: BedsBathsSelection): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
     const allMismatches: string[] = [];
+    let checkedCards = 0;
 
     for (const tab of tabs) {
       await this.step(`Validate beds & baths on ${tab} tab`, async () => {
+        if (await this.isTabEmptied(tab)) {
+          await this.reportValue(`${tab}: no results for ${this.describeSelection(selection)}`);
+          return;
+        }
+
         await this.verifyResults(tab);
 
-        const mismatches = await this.validateBedsBaths(minBeds, minBaths, tab);
+        checkedCards += await (await this.resultCards()).count();
+        const mismatches = await this.validateBedsBaths(selection, tab);
         allMismatches.push(...mismatches);
       });
     }
 
     expect(
+      checkedCards,
+      `Beds & Baths filter (${this.describeSelection(selection)}) should return at least one result to validate`,
+    ).toBeGreaterThan(0);
+    expect(
       allMismatches,
       `Beds & Baths filter validation failed:\n${allMismatches.join('\n')}`,
     ).toHaveLength(0);
   }
+
+  /** True when the site has disabled this results tab because the filters left it empty. */
+  private async isTabEmptied(tab: ResultsTab): Promise<boolean> {
+    return this.page
+      .getByRole('button', {
+        name: new RegExp(`^All ${escapeRegex(tab)}\\. No results found`, 'i'),
+      })
+      .first()
+      .isVisible()
+      .catch(() => false);
+  }
+
+  /** Describes a beds/baths selection the way the filter labels it. */
+  private describeSelection(selection: BedsBathsSelection): string {
+    return `${selection.beds.label} / ${selection.baths.label}`;
+  }
+
   // Validation: Beds & Baths on each card
 
-  /** Checks each card meets the bed and bath minimums, returning the ones that do not. */
-  async validateBedsBaths(
-    minBeds: number,
-    minBaths: number,
-    tabName?: ResultsTab,
-  ): Promise<string[]> {
+  /**
+   * Checks each card matches the selected beds and baths, returning the ones that do not.
+   *
+   * A card shows a single count ("3 Beds") or a range ("3 - 4 Beds"). An exact
+   * option matches when the range includes it; a "4+" option matches when the
+   * range reaches it.
+   */
+  async validateBedsBaths(selection: BedsBathsSelection, tabName?: ResultsTab): Promise<string[]> {
     const cards = await this.resultCards();
     const count = await cards.count();
 
@@ -1260,45 +1326,66 @@ export class SearchPage extends SearchablePage {
 
     for (let i = 0; i < count; i++) {
       const card = cards.nth(i);
-
-      // Safely get card text
       const text = await card.innerText().catch(() => '');
 
-      // Regex extraction
-      const bedsMatch = text.match(/(\d+)\s*Beds?/i);
-      const bathsMatch = text.match(/(\d+)\s*Baths?/i);
+      const beds = this.parseCountRange(text, 'Beds?');
+      const baths = this.parseCountRange(text, 'Baths?');
 
-      const beds = bedsMatch ? Number(bedsMatch[1]) : null;
-      const baths = bathsMatch ? Number(bathsMatch[1]) : null;
-
-      // Skip if no info found
-      if (beds === null && baths === null) {
+      if (!beds && !baths) {
         continue;
       }
 
       let reason = '';
 
-      if (beds !== null && beds < minBeds) {
-        reason += `Beds ${beds} < ${minBeds}. `;
+      if (beds && !this.rangeMatchesOption(beds, selection.beds)) {
+        reason += `Beds ${beds.text} do not match ${selection.beds.label}. `;
       }
 
-      if (baths !== null && baths < minBaths) {
-        reason += `Baths ${baths} < ${minBaths}. `;
+      if (baths && !this.rangeMatchesOption(baths, selection.baths)) {
+        reason += `Baths ${baths.text} do not match ${selection.baths.label}. `;
       }
 
       if (reason) {
-        const logLine = `Card ${i + 1} | Beds: ${beds ?? 'N/A'} | Baths: ${baths ?? 'N/A'}`;
+        const logLine = `Card ${i + 1} | Beds: ${beds?.text ?? 'N/A'} | Baths: ${baths?.text ?? 'N/A'}`;
         mismatches.push(`${tabName ?? 'Unknown Tab'} - ${logLine} | ${reason.trim()}`);
       }
     }
 
+    const scope = `${this.describeSelection(selection)}${tabName ? ` (${tabName})` : ''}`;
     await this.reportValue(
       mismatches.length > 0
-        ? `${mismatches.length} card(s) below ${minBeds} beds / ${minBaths} baths${tabName ? ` (${tabName})` : ''}`
-        : `All cards meet ${minBeds}+ beds / ${minBaths}+ baths${tabName ? ` (${tabName})` : ''}`,
+        ? `${mismatches.length} card(s) do not match ${scope}`
+        : `All ${count} card(s) match ${scope}`,
     );
 
     return mismatches;
+  }
+
+  /** Reads a count or count range ("3 Beds", "3 - 4 Beds") from card text. */
+  private parseCountRange(
+    text: string,
+    unit: string,
+  ): { min: number; max: number; text: string } | null {
+    const match = text.match(new RegExp(`(\\d+)(?:\\s*-\\s*(\\d+))?\\s*${unit}\\b`, 'i'));
+
+    if (!match) {
+      return null;
+    }
+
+    const min = Number(match[1]);
+    const max = match[2] ? Number(match[2]) : min;
+
+    return { min, max, text: max === min ? `${min}` : `${min} - ${max}` };
+  }
+
+  /** True when a card's count range satisfies an exact or "or more" filter option. */
+  private rangeMatchesOption(
+    range: { min: number; max: number },
+    option: BedsBathsOption,
+  ): boolean {
+    return option.orMore
+      ? range.max >= option.value
+      : range.min <= option.value && option.value <= range.max;
   }
 
   // Results Validation
@@ -1601,6 +1688,98 @@ export class SearchPage extends SearchablePage {
     }
   }
 
+  /**
+   * Checks the Communities A-Z order, which groups master-planned communities.
+   *
+   * The results list each MPC as a header row ("Westfall MPC | Learn More") with
+   * its member communities beneath it, and A-Z sorts that group under the MPC's
+   * title rather than each member's own name - so "Bratton Pointe" sits under
+   * "Mattamy Bratton Pointe", between Hedgecliff and Porter's Row. The expected
+   * order keys each community by its MPC title when it has one, then by its own
+   * title; every community outside an MPC is still held to plain alphabetical.
+   */
+  private async validateCommunityTitleOrder(label: string): Promise<void> {
+    const entries = await this.getSortableCommunityEntries();
+
+    expect(entries.length, `${label}: at least 2 sortable values are required`).toBeGreaterThan(1);
+
+    for (const entry of entries.filter((item) => item.mpc)) {
+      await this.reportValue(`${entry.title} is sorted under its MPC`, entry.mpc);
+    }
+
+    const sortKey = (entry: { title: string; mpc: string | null }) => entry.mpc ?? entry.title;
+    const expected = [...entries].sort(
+      (a, b) => sortKey(a).localeCompare(sortKey(b)) || a.title.localeCompare(b.title),
+    );
+
+    expect(
+      entries.map((entry) => entry.title),
+      `${label} sorting is incorrect`,
+    ).toEqual(expected.map((entry) => entry.title));
+  }
+
+  /** Returns each community card's title with the title of the MPC it belongs to, if any. */
+  private async getSortableCommunityEntries(): Promise<{ title: string; mpc: string | null }[]> {
+    const cards = await this.resultCards();
+    const count = await this.getSortableCardCount('Communities', await cards.count());
+    const mpcGroups = await this.getMpcGroupHeaders();
+    const entries: { title: string; mpc: string | null }[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const card = cards.nth(i);
+      const title = await this.getCardTitle(card, 'Communities');
+
+      if (!title) {
+        continue;
+      }
+
+      const href = await card.evaluate((element) => {
+        const container = element.closest('[class*="SearchCard__Card"]') ?? element;
+        const link = Array.from(container.querySelectorAll('a[href]')).find(
+          (anchor) => !/^\s*Learn More\s*$/i.test(anchor.textContent ?? ''),
+        );
+
+        return link?.getAttribute('href') ?? '';
+      });
+      const group = mpcGroups.find((mpc) => href.startsWith(`${mpc.href}/`));
+
+      entries.push({ title, mpc: group?.title ?? null });
+    }
+
+    return entries;
+  }
+
+  /** Returns the MPC header rows in the results, as their link and title. */
+  private async getMpcGroupHeaders(): Promise<{ href: string; title: string }[]> {
+    return this.page
+      .locator('a[href]')
+      .filter({ hasText: /^\s*Learn More\s*$/i })
+      .evaluateAll((links) =>
+        links
+          .map((link) => {
+            // The title sits beside the link in the header row, not inside it.
+            let row = link.parentElement;
+
+            for (let depth = 0; row && depth < 4; depth++) {
+              if ((row.textContent ?? '').replace(/Learn More/gi, '').trim()) {
+                break;
+              }
+
+              row = row.parentElement;
+            }
+
+            return {
+              href: (link.getAttribute('href') ?? '').replace(/\/$/, ''),
+              title: (row?.textContent ?? '')
+                .replace(/Learn More/gi, '')
+                .replace(/\s+/g, ' ')
+                .trim(),
+            };
+          })
+          .filter((header) => header.href && header.title),
+      );
+  }
+
   /** Fails if the values are not in alphabetical order. */
   private validateAlphabetical(actual: string[], label: string): void {
     const expected = [...actual].sort((a, b) => a.localeCompare(b));
@@ -1710,6 +1889,11 @@ export class SearchPage extends SearchablePage {
       await this.selectSortOption(tabName, config.option);
 
       await this.step(`Validate ${tabName} ${config.label} sort order`, async () => {
+        if (tabName === 'Communities' && config.criterion === 'title') {
+          await this.validateCommunityTitleOrder(`${tabName} ${config.label}`);
+          return;
+        }
+
         const values = await this.getSortableValues(tabName, config.criterion);
         this.validateSortableValues(values, config, tabName);
       });

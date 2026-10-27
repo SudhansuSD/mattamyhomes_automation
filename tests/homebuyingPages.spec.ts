@@ -72,9 +72,25 @@ test.describe(`Homebuying Pages - ${location.country}`, () => {
       });
     });
 
+    // The ABA disclosure and Mattamy Home Funding handoff exist only in the USA;
+    // Canada has no affiliated lender and embeds the calculator on the page.
     test(`@regression | ${location.country} | Mortgage Calculator CTA should open the ABA disclosure modal`, async () => {
+      test.skip(
+        location.country !== 'USA',
+        'The ABA disclosure is USA-only; Canada embeds the mortgage calculator instead.',
+      );
       await test.step('Validate mortgage calculator disclosure modal', async () => {
         await homebuyingPage.validateMortgageCalculatorModal();
+      });
+    });
+
+    test(`@regression | ${location.country} | Embedded mortgage calculator should calculate a monthly payment`, async () => {
+      test.skip(
+        location.country !== 'CAN',
+        'The embedded calculator is Canada-only; the USA hands off to Mattamy Home Funding.',
+      );
+      await test.step('Validate embedded mortgage calculator', async () => {
+        await homebuyingPage.validateEmbeddedMortgageCalculator();
       });
     });
   });

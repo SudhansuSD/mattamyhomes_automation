@@ -12,6 +12,8 @@ import { annotate, Severity } from '../utils/reporting/allureMeta';
 // (or with no LOCATION at all) still exercises MPC instead of skipping it.
 const location = getLocationConfig('USA');
 const mpc = ('mpc' in location ? location.mpc?.[0] : undefined) as MPCConfig | undefined;
+const galleryMpc = ('galleryMpc' in location ? location.galleryMpc : undefined) as
+  MPCConfig | undefined;
 
 test.describe(`MPC page tests - ${location.country}`, () => {
   let mpcPage: MPCPage;
@@ -73,12 +75,6 @@ test.describe(`MPC page tests - ${location.country}`, () => {
     test(`@regression | ${location.country} | Validate community promotion CTA`, async () => {
       await test.step('Validate community promotion CTA', async () => {
         await mpcPage.validatePromotionCTA(mpc!.url);
-      });
-    });
-
-    test(`@regression | ${location.country} | Validate image gallery if available`, async () => {
-      await test.step('Validate image gallery if available', async () => {
-        await mpcPage.validateImageGallery();
       });
     });
   });
@@ -172,6 +168,37 @@ test.describe(`MPC page tests - ${location.country}`, () => {
       await test.step('Validate MPC page image and video URLs return 200', async () => {
         await mpcPage.validateImageAndVideoUrlsReturn200('MPC page');
       });
+    });
+  });
+});
+
+// The image gallery runs against its own MPC: the primary MPC above has no
+// gallery, so validating it there would only ever test an absent feature.
+test.describe(`MPC image gallery - ${location.country}`, () => {
+  let mpcPage: MPCPage;
+
+  test.skip(!galleryMpc, 'Gallery MPC configuration is not available for this environment');
+
+  test.beforeEach(async ({ page }) => {
+    mpcPage = new MPCPage(page);
+
+    await annotate({
+      location: location.country,
+      feature: 'Master Planned Community Page',
+      owner: 'QA Automation',
+      severity: Severity.NORMAL,
+      tags: ['regression'],
+    });
+
+    await test.step('Navigate to gallery MPC page', async () => {
+      await mpcPage.navigateToMPC(galleryMpc!.url);
+      await mpcPage.verifyMPCPage(galleryMpc!);
+    });
+  });
+
+  test(`@regression | ${location.country} | Validate MPC image gallery`, async () => {
+    await test.step('Validate MPC image gallery', async () => {
+      await mpcPage.validateImageGallery();
     });
   });
 });

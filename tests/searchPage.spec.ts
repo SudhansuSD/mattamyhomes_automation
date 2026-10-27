@@ -77,12 +77,13 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
       });
     });
 
+    // "3 Bedrooms" and "2 Bathrooms" are exact options, and 3 bed / 2 bath is
+    // stocked in every configured market - Calgary has no exact 3 bed / 3 bath home.
     test(`@regression | ${location.country} | Validate filter by beds and bathrooms functionality`, async () => {
-      await test.step('Filter by bedrooms and bathrooms', async () => {
-        await searchPage.filterByBedroomsAndBathrooms(3, 3);
-      });
+      const selection = await test.step('Filter by bedrooms and bathrooms', async () =>
+        searchPage.filterByBedroomsAndBathrooms(3, 2));
       await test.step('Validate beds and baths across tabs', async () => {
-        await searchPage.validateBedsBathsAcrossTabs(3, 3);
+        await searchPage.validateBedsBathsAcrossTabs(selection);
       });
     });
 

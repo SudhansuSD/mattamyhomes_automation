@@ -1,5 +1,6 @@
 import { expect, Locator, Page, type Response as PlaywrightResponse, test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
+import { installTrackerBlocking } from '../config/environments/thirdPartyTrackers';
 import { getLocationConfig, LocationKey } from '../config/locations/locationConfig';
 import { resolveFeature, type FeatureKey } from '../config/features/featureExpectations';
 import { OverlayManager } from '../support/OverlayManager';
@@ -51,6 +52,7 @@ export class BasePage {
   private readonly media: MediaAuditor;
   private readonly leadForms: LeadFormFlow;
   private readonly prodSubmissionGuard: Promise<void>;
+  private readonly trackerBlocking: Promise<void>;
 
   /**
    * Country this page object is pinned to, if any.
@@ -64,8 +66,9 @@ export class BasePage {
   constructor(page: Page, locationOverride?: LocationKey) {
     this.page = page;
     this.locationOverride = locationOverride;
-    // Started here so it covers every page object; awaited before each navigation.
+    // Started here so they cover every page object; awaited before each navigation.
     this.prodSubmissionGuard = installProdSubmissionGuard(page);
+    this.trackerBlocking = installTrackerBlocking(page);
     this.overlays = new OverlayManager(page, {
       settle: (ms) => this.settle(ms),
       report: (message, value) => this.reportValue(message, value),
@@ -106,6 +109,7 @@ export class BasePage {
 
     await test.step(`Open Mattamy Homes home page for ${location.country} in ${envName}`, async () => {
       await this.prodSubmissionGuard;
+      await this.trackerBlocking;
       await this.registerConsentDialogHandlers();
       let response: PlaywrightResponse | null = null;
       try {
@@ -188,6 +192,7 @@ export class BasePage {
     options: { waitUntil?: 'domcontentloaded' | 'load' | 'commit'; timeout?: number } = {},
   ): Promise<PlaywrightResponse | null> {
     await this.prodSubmissionGuard;
+    await this.trackerBlocking;
 
     const response = await this.page.goto(url, {
       waitUntil: options.waitUntil ?? 'domcontentloaded',

@@ -2,15 +2,20 @@ import { getEnvConfig } from './envConfig';
 
 declare const process: { env: { ALLOW_LEAD_SUBMISSION?: string } };
 
+type EnvName = ReturnType<typeof getEnvConfig>['envName'];
+
 /**
- * Live lead submissions are paused on every environment, STAGE included, until the client asks
- * for them again. STAGE submissions still create real CRM records, so the pause is a default here
- * rather than something a runner has to opt into - it has to hold for every run, however started.
+ * Whether live lead submissions are paused, per environment. STAGE submissions create real CRM
+ * records, so the switch lives here rather than in a runner flag - it has to hold for every run,
+ * however started.
  *
- * To resume, either set `ALLOW_LEAD_SUBMISSION=true` for a single run or flip
- * `LEAD_SUBMISSIONS_PAUSED` to false. PROD stays blocked regardless.
+ * Set an environment to `true` to pause it; a paused environment can still run once with
+ * `ALLOW_LEAD_SUBMISSION=true`. PROD stays blocked regardless of this table.
  */
-const LEAD_SUBMISSIONS_PAUSED = true;
+const LEAD_SUBMISSIONS_PAUSED: Record<EnvName, boolean> = {
+  STAGE: false,
+  PROD: true,
+};
 
 /** True when the current run is allowed to submit a live lead form. */
 export function isLeadSubmissionAllowed(): boolean {
@@ -20,7 +25,10 @@ export function isLeadSubmissionAllowed(): boolean {
     return false;
   }
 
-  return !LEAD_SUBMISSIONS_PAUSED || process?.env?.ALLOW_LEAD_SUBMISSION?.toLowerCase() === 'true';
+  return (
+    !LEAD_SUBMISSIONS_PAUSED[envName] ||
+    process?.env?.ALLOW_LEAD_SUBMISSION?.toLowerCase() === 'true'
+  );
 }
 
 /**
@@ -36,7 +44,7 @@ export function getLeadSubmissionSkipReason(): string | null {
 
   return envName === 'PROD'
     ? 'Lead submissions must run only on STAGE.'
-    : 'Lead submissions are paused on all environments until re-enabled; set ALLOW_LEAD_SUBMISSION=true to run one.';
+    : `Lead submissions are paused on ${envName}; set ALLOW_LEAD_SUBMISSION=true to run one.`;
 }
 
 /** True when the current run must not submit a live lead form - the guard page objects assert on. */

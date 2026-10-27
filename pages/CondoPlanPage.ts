@@ -80,9 +80,19 @@ export class CondoPlanPage extends SearchablePage {
     this.heading = page.getByRole('heading', { level: 1 });
     this.breadcrumb = page.locator('#breadcrumb, nav[aria-label*="breadcrumb" i]').first();
     this.body = page.locator('body');
+    // The sticky title bar carries a floorplan thumbnail that is first in the DOM
+    // but has no size until the page scrolls, so it is excluded in favour of the
+    // main floorplan image.
     this.floorplanImage = page
       .locator(
-        'img[alt*="Floorplan" i], img[alt*="floor plan" i], img[src*="floorplan" i], img[src*="floor-plan" i]',
+        [
+          'img[alt*="Floorplan" i]',
+          'img[alt*="floor plan" i]',
+          'img[src*="floorplan" i]',
+          'img[src*="floor-plan" i]',
+        ]
+          .map((selector) => `${selector}:not([class*="TitleDetailsBlock"])`)
+          .join(', '),
       )
       .first();
     this.getInformationCta = getVisibleInformationCta(page);

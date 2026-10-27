@@ -112,19 +112,20 @@ pass per country. Specs read `getLocationConfig()` rather than hardcoding.
 Country-specific page objects pin themselves with `locationOverride` - MPC is
 USA-only, condo community and condo plan are CAN-only.
 
-**Live lead submissions are currently paused on every environment, STAGE
-included.** STAGE submissions create real CRM records, so the pause lives in
-`config/environments/leadSubmissionPolicy.ts` rather than in a runner flag - it
-has to hold for every run, however that run was started. Guard anything that
-submits a live form through that module, never by testing `envName` directly:
+**Live lead submissions run on STAGE and are blocked on PROD.** STAGE
+submissions create real CRM records, so the per-environment switch
+(`LEAD_SUBMISSIONS_PAUSED`) lives in `config/environments/leadSubmissionPolicy.ts`
+rather than in a runner flag - it has to hold for every run, however that run
+was started. Guard anything that submits a live form through that module, never
+by testing `envName` directly:
 
 ```ts
 test.skip(isLeadSubmissionBlocked(), getLeadSubmissionSkipReason() ?? '');
 ```
 
-A single run can opt back in with `ALLOW_LEAD_SUBMISSION=true`; PROD stays
-blocked regardless. Only flip `LEAD_SUBMISSIONS_PAUSED` back to `false` when the
-client asks for submissions to resume.
+Pausing STAGE (`STAGE: true`) is how submissions are stopped when the client
+asks; a paused STAGE run can opt back in with `ALLOW_LEAD_SUBMISSION=true`.
+PROD stays blocked regardless.
 
 **No lead form is ever submitted on PROD, validation tests included.** On PROD
 `clickSubmit` does not click: it focuses and leaves each field, which raises the
@@ -141,6 +142,15 @@ one deliberate exception to "a missing element is not a reason to pass". Which
 fields are required is read from the form's own `required` / `aria-required`
 attributes; each one must reject an empty value with its "<label> is Required"
 message.
+
+**Third-party tracking tags are blocked in every run.** The site keeps its body
+hidden until `window.onload`, and the marketing/analytics tags (GA4, Google Ads,
+Meta, TikTok, LinkedIn, StackAdapt, Clarity, Mouseflow, Siteimprove, ShareThis)
+roughly double that wait and add to renderer memory. The host list and switch live
+in `config/environments/thirdPartyTrackers.ts`: Chromium blocks them at DNS via its
+launch arguments, other browsers through a route `BasePage` installs. Keep Google
+Tag Manager, OneTrust, the chatbot and the site-map embeds off the list - tests and
+pages depend on them. `BLOCK_TRACKERS=false` loads the tags again.
 
 ## Untracked evidence specs
 

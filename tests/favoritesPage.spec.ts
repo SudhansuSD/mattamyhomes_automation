@@ -78,7 +78,7 @@ test.describe(`Favorites Page - ${location.country}`, () => {
       saved = await favoritesPage.saveFirstVisibleHome();
     });
 
-    // Assert rather than skip: search cards DO expose a "Mark as favorite" control,
+    // Assert rather than skip: search cards DO expose an "Add <home> to favorites" control,
     // so its absence is a real regression. Skipping here would turn that into a
     // silent pass and hide the fact that nothing is being saved.
     expect(saved, 'Search result cards should expose a favorite control to save a home').toBe(true);

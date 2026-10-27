@@ -29,27 +29,21 @@ export class FavoritesPage extends BasePage {
   }
 
   /**
-   * Returns the "Mark as favorite" controls on search result cards.
+   * Gets the not-yet-saved favorite controls on result cards.
    *
-   * The control is a DIV with aria-label="Mark as favorite" (it flips to "Mark as
-   * unfavorite" once saved), positioned over the card rather than inside
-   * #ProductInfo. The previous selector list only looked for <button> elements, so
-   * it matched nothing and every save silently did nothing - which is why the
-   * Favorites page then listed zero saved homes.
-   *
-   * "Go to Favorites Page" is excluded: it is the header link, not a toggle.
+   * The control is a DIV with role="button" positioned over the card rather than
+   * inside #ProductInfo, labelled "Add <home> to favorites" and relabelled
+   * "Remove <home> from favorites" once saved. Matching on <button> elements alone
+   * finds nothing, so every save would silently do nothing. The header's "Go to
+   * Favorites Page" link never matches either label.
    */
-  private favoriteToggles(): Locator {
-    return this.page
-      .locator(
-        '[aria-label*="Mark as favorite" i]:visible, [aria-label*="Mark as unfavorite" i]:visible',
-      )
-      .filter({ hasNotText: /Go to Favorites Page/i });
+  private unsavedFavoriteToggles(): Locator {
+    return this.page.locator('[aria-label^="Add " i][aria-label$=" to favorites" i]:visible');
   }
 
-  /** Gets only the not-yet-saved favorite controls. */
-  private unsavedFavoriteToggles(): Locator {
-    return this.page.locator('[aria-label*="Mark as favorite" i]:visible');
+  /** Gets only the already-saved favorite controls. */
+  private savedFavoriteToggles(): Locator {
+    return this.page.locator('[aria-label^="Remove " i][aria-label$=" from favorites" i]:visible');
   }
 
   /** Opens the Favorites page through the header link on the country home page. */
@@ -166,15 +160,20 @@ export class FavoritesPage extends BasePage {
       }
 
       const toggle = toggles.first();
+      const homeName = ((await toggle.getAttribute('aria-label')) ?? '')
+        .replace(/^Add\s+/i, '')
+        .replace(/\s+to favorites$/i, '');
       await toggle.scrollIntoViewIfNeeded().catch(() => undefined);
       await toggle.click();
 
       // Confirm the save actually registered: the control relabels itself to
-      // "Mark as unfavorite". Without this the test could "save" nothing and only
-      // discover it later on the Favorites page.
+      // "Remove <home> from favorites". Without this the test could "save" nothing
+      // and only discover it later on the Favorites page.
       await expect(
-        this.page.locator('[aria-label*="Mark as unfavorite" i]').first(),
-        'Favorite toggle should switch to the saved state after clicking',
+        this.page
+          .getByRole('button', { name: `Remove ${homeName} from favorites`, exact: true })
+          .first(),
+        `Favorite toggle for ${homeName} should switch to the saved state after clicking`,
       ).toBeVisible({ timeout: 10_000 });
 
       await this.settle(1000);
@@ -206,7 +205,7 @@ export class FavoritesPage extends BasePage {
         return;
       }
 
-      const toggle = this.favoriteToggles().first();
+      const toggle = this.savedFavoriteToggles().first();
       await toggle.scrollIntoViewIfNeeded().catch(() => undefined);
       await toggle.click();
       await this.settle(1000);

@@ -482,6 +482,18 @@ export class QMIPage extends SearchablePage {
       await this.page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await this.waitForPageReady();
 
+      if (
+        !(await this.isFeaturePresent(
+          this.relatedQmiSection,
+          'qmi.relatedQmiSection',
+          'Related QMI section',
+          { timeout: 15_000 },
+        ))
+      ) {
+        await this.reportValue('Related QMI section is not available for this home');
+        return;
+      }
+
       await this.relatedQmiSection.scrollIntoViewIfNeeded();
       await expect(this.relatedQmiSection, 'Related QMI section should be visible').toBeVisible({
         timeout: QMIPage.PAGE_LOAD_TIMEOUT,
