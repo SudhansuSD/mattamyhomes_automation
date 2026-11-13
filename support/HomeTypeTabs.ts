@@ -1,12 +1,18 @@
 import { expect, Locator, Page } from '@playwright/test';
-import { escapeRegex, getPathnameFromHref } from '../utils/web/pageObjectUtils';
+import {
+  escapeRegex,
+  getFooter,
+  getPathnameFromHref,
+  scrollToUncoveredSpot,
+} from '../utils/web/pageObjectUtils';
 
 /**
  * The Quick Move-In Homes / Floorplans tabs in a community's Available Homes section.
  *
  * The tabs only exist when the community has both kinds of inventory. A community with no quick
- * move-in homes renders no tabs at all and shows its floorplans directly, so "no tabs" is a valid
- * state with its own expectations rather than a missing feature.
+ * move-in homes renders no tabs at all and shows its floorplans directly, and a community with
+ * neither leaves the whole Available Homes section out of the page. Both are valid states with
+ * their own expectations rather than missing features.
  */
 export type HomeTypeTabsDeps = {
   report: (message: string, value?: unknown) => Promise<void>;
@@ -14,6 +20,11 @@ export type HomeTypeTabsDeps = {
 };
 
 export type HomeType = 'qmi' | 'floorplans';
+
+/**
+ * What the Available Homes section lists: both kinds behind tabs, floorplans alone, or nothing.
+ */
+export type Inventory = 'tabbed' | 'floorplansOnly' | 'none';
 
 const HOME_TYPES: Record<
   HomeType,
@@ -34,6 +45,9 @@ const HOME_TYPES: Record<
 };
 
 const TIMEOUT = 15_000;
+
+const NO_INVENTORY_MESSAGE =
+  'Community has no quick move-in homes or floorplans - Available Homes section not rendered';
 
 export class HomeTypeTabs {
   private readonly page: Page;
@@ -75,11 +89,25 @@ export class HomeTypeTabs {
     return this.section.locator('[aria-live]').filter({ hasText: HOME_TYPES[type].liveRegion });
   }
 
+  /**
+   * True when the page renders the Available Homes section at all.
+   *
+   * The section is server-rendered between the contact block and the footer, and a community with
+   * neither quick move-in homes nor floorplans leaves it out entirely - no tabs, no count and no
+   * empty-state message, only a "Coming Soon" status in the hero. Once the footer is on the page,
+   * a missing section is final rather than still on its way.
+   */
+  async hasSection(): Promise<boolean> {
+    await expect(
+      getFooter(this.page).first(),
+      'Community page should render through to its footer',
+    ).toBeAttached({ timeout: TIMEOUT });
+
+    return (await this.section.count()) > 0;
+  }
+
   /** Brings the section on screen and waits for its listing to render. */
-  async waitForRendered(): Promise<void> {
-    await expect(this.section, 'Available Homes section should be on the page').toBeAttached({
-      timeout: TIMEOUT,
-    });
+  private async waitForRendered(): Promise<void> {
     await this.section.scrollIntoViewIfNeeded();
     await this.deps.waitForPageReady();
 
@@ -91,11 +119,15 @@ export class HomeTypeTabs {
     ).toBeAttached({ timeout: TIMEOUT });
   }
 
-  /** True when the community shows the Quick Move-In Homes / Floorplans tabs. */
-  async hasTabs(): Promise<boolean> {
+  /** Reads which listings the community renders once the section has hydrated. */
+  async inventory(): Promise<Inventory> {
+    if (!(await this.hasSection())) {
+      return 'none';
+    }
+
     await this.waitForRendered();
 
-    return (await this.tabGroup.count()) > 0;
+    return (await this.tabGroup.count()) > 0 ? 'tabbed' : 'floorplansOnly';
   }
 
   /** Switches to one home type's tab and checks it is the selected one. */
@@ -107,7 +139,8 @@ export class HomeTypeTabs {
     });
 
     if ((await tab.getAttribute('aria-checked')) !== 'true') {
-      await tab.scrollIntoViewIfNeeded();
+      // On a phone the tabs otherwise end up under the pinned banners or sticky bars.
+      await scrollToUncoveredSpot(tab);
       await tab.click();
     }
 
@@ -121,18 +154,34 @@ export class HomeTypeTabs {
     ).toBeVisible({ timeout: TIMEOUT });
   }
 
-  /** Shows the floorplans listing, selecting its tab when the community has tabs. */
-  async showFloorplans(): Promise<void> {
-    if (await this.hasTabs()) {
+  /**
+   * Shows the floorplans listing, selecting its tab when the community has tabs, or returns false
+   * when the community has no inventory at all.
+   */
+  async showFloorplans(): Promise<boolean> {
+    const inventory = await this.inventory();
+
+    if (inventory === 'none') {
+      await this.deps.report(NO_INVENTORY_MESSAGE);
+      return false;
+    }
+
+    if (inventory === 'tabbed') {
       await this.select('floorplans');
     }
+
+    return true;
   }
 
   /** Shows the quick move-in listing, or returns false when the community has no QMI inventory. */
   async showQuickMoveIns(): Promise<boolean> {
-    if (!(await this.hasTabs())) {
+    const inventory = await this.inventory();
+
+    if (inventory !== 'tabbed') {
       await this.deps.report(
-        'Community has no quick move-in inventory - Home type tabs not rendered',
+        inventory === 'none'
+          ? NO_INVENTORY_MESSAGE
+          : 'Community has no quick move-in inventory - Home type tabs not rendered',
       );
       return false;
     }
@@ -197,12 +246,19 @@ export class HomeTypeTabs {
     return Number(total);
   }
 
-  /** Checks the tabs match the inventory: two tabs with QMI homes, none without. */
+  /**
+   * Checks the tabs match the inventory: two tabs with QMI homes, none without, and no listing at
+   * all without any inventory.
+   */
   async verifyTabsMatchInventory(): Promise<void> {
-    if (await this.hasTabs()) {
+    const inventory = await this.inventory();
+
+    if (inventory === 'tabbed') {
       await this.verifyTabbedListing();
-    } else {
+    } else if (inventory === 'floorplansOnly') {
       await this.verifyFloorplansOnlyListing();
+    } else {
+      await this.verifyNoInventory();
     }
   }
 
@@ -294,5 +350,29 @@ export class HomeTypeTabs {
       'Floorplans shown directly',
       `${(await this.visibleCardHrefs('floorplans')).length} visible card(s)`,
     );
+  }
+
+  /**
+   * Checks a community without the Available Homes section shows no part of either listing anywhere
+   * on the page.
+   *
+   * Searched page-wide rather than inside the section, which is not there: a Home type tab group or
+   * a listing heading elsewhere means the listing moved out from under `#availablehomes`, and the
+   * page has inventory after all.
+   */
+  async verifyNoInventory(): Promise<void> {
+    await this.deps.report(NO_INVENTORY_MESSAGE);
+
+    await expect(
+      this.page.getByRole('radiogroup', { name: /^Home type$/i }),
+      'No Home type tabs should render without the Available Homes section',
+    ).toHaveCount(0);
+
+    for (const type of ['qmi', 'floorplans'] as const) {
+      await expect(
+        this.page.locator('h2, h3').filter({ hasText: HOME_TYPES[type].heading }),
+        `No ${HOME_TYPES[type].label} listing should render without the Available Homes section`,
+      ).toHaveCount(0);
+    }
   }
 }

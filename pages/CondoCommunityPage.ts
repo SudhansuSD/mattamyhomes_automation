@@ -329,7 +329,8 @@ export class CondoCommunityPage extends SearchablePage {
 
   /**
    * Checks the Quick Move-In Homes / Floorplans tabs match the community's inventory: both tabs when
-   * it has quick move-in homes, none - with floorplans shown directly - when it does not.
+   * it has quick move-in homes, none - with floorplans shown directly - when it does not, and no
+   * listing at all when it has neither.
    */
   async verifyHomeTypeTabsMatchInventory(): Promise<void> {
     await this.step('Verify Quick Move-In Homes / Floorplans tabs match inventory', async () => {
@@ -342,8 +343,11 @@ export class CondoCommunityPage extends SearchablePage {
     await this.step('Verify available floorplans section', async () => {
       await this.waitForPageReady();
       // With QMI inventory the floorplans listing sits behind its tab, and its heading stays hidden
-      // until that tab is selected.
-      await this.homeTypeTabs.showFloorplans();
+      // until that tab is selected. A community without any inventory has no floorplans to list -
+      // that state is asserted by verifyHomeTypeTabsMatchInventory.
+      if (!(await this.homeTypeTabs.showFloorplans())) {
+        return;
+      }
 
       const section = await this.requireFeature(
         await this.getAvailableFloorplansSection(),
@@ -1008,12 +1012,15 @@ export class CondoCommunityPage extends SearchablePage {
       'Explore available floorplans should include at least one floorplan link',
     ).toBeGreaterThan(0);
 
-    // The module has to be on screen, not just in the DOM - asserted on the first
-    // floorplan link, which the carousel always keeps on its visible track.
-    await expect(
-      links.filter({ hasNotText: TEXT.viewAll }).first(),
-      'Explore available floorplans should render at least one visible floorplan link',
-    ).toBeVisible({ timeout: TIMEOUT.short });
+    // The module has to be on screen, not just in the DOM - asserted on the floorplan cards only,
+    // since with QMI inventory the section also holds the Quick Move-In Homes cards, which stay
+    // hidden while the Floorplans tab is selected.
+    await expect
+      .poll(async () => (await this.homeTypeTabs.visibleCardHrefs('floorplans')).length, {
+        message: 'Explore available floorplans should render at least one visible floorplan link',
+        timeout: TIMEOUT.short,
+      })
+      .toBeGreaterThan(0);
 
     await this.reportValue(`Validated ${floorplanLinkCount} condo floorplan link(s)`);
   }

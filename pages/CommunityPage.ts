@@ -5,6 +5,7 @@ import {
   getLastPathSegment,
   getNormalizedText,
   getPathSegments,
+  scrollToUncoveredSpot,
   toSlug,
   toTitleCase,
 } from '../utils/web/pageObjectUtils';
@@ -374,11 +375,19 @@ export class CommunityPage extends SearchablePage {
   /** Checks every core section of the community page is present. */
   async verifyCoreSections(): Promise<void> {
     await this.step('Verify core community sections', async () => {
-      await this.verifySection(
-        this.availableHomesSection,
-        'Available Homes',
-        'community.availableHomesSection',
-      );
+      // A community with neither quick move-in homes nor floorplans leaves the Available Homes
+      // section out of the page entirely, which is its own checked state rather than a missing
+      // section.
+      if (await this.homeTypeTabs.hasSection()) {
+        await this.verifySection(
+          this.availableHomesSection,
+          'Available Homes',
+          'community.availableHomesSection',
+        );
+      } else {
+        await this.homeTypeTabs.verifyNoInventory();
+      }
+
       await this.verifySection(this.mapSection, 'Map', 'community.mapSection');
       await this.verifySection(this.contactSection, 'Contact', 'community.contactSection');
     });
@@ -432,7 +441,8 @@ export class CommunityPage extends SearchablePage {
 
   /**
    * Checks the Quick Move-In Homes / Floorplans tabs match the community's inventory: both tabs when
-   * it has quick move-in homes, none - with floorplans shown directly - when it does not.
+   * it has quick move-in homes, none - with floorplans shown directly - when it does not, and no
+   * listing at all when it has neither.
    */
   async verifyHomeTypeTabsMatchInventory(): Promise<void> {
     await this.step('Verify Quick Move-In Homes / Floorplans tabs match inventory', async () => {
@@ -460,7 +470,12 @@ export class CommunityPage extends SearchablePage {
   /** Checks the first visible floorplan card opens its plan page. */
   async verifyPlansNavigation(): Promise<void> {
     await this.step('Verify plans navigation', async () => {
-      await this.homeTypeTabs.showFloorplans();
+      // A community without any inventory has no floorplan cards to follow - that state is
+      // asserted by verifyHomeTypeTabsMatchInventory.
+      if (!(await this.homeTypeTabs.showFloorplans())) {
+        return;
+      }
+
       await this.openFirstVisibleCard('floorplans', 'Plan link');
     });
   }
@@ -483,7 +498,9 @@ export class CommunityPage extends SearchablePage {
       .first();
     await this.reportValue(label, this.buildFullUrl(href!));
 
-    await Promise.all([this.page.waitForLoadState('domcontentloaded'), cardLink.click()]);
+    // On a phone the card otherwise ends up under the pinned banners or sticky bars.
+    await scrollToUncoveredSpot(cardLink);
+    await cardLink.click();
 
     await expect(this.page).toHaveURL(new RegExp(`${escapeRegex(href!)}/?$`, 'i'));
 

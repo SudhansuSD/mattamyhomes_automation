@@ -53,6 +53,58 @@ export async function isFloatingCta(locator: Locator): Promise<boolean> {
     .catch(() => false);
 }
 
+/**
+ * Viewport heights, as fractions, tried in turn when looking for an uncovered spot. Centre first,
+ * then the lower band, which on a phone is the one left clear between the top and bottom chrome.
+ */
+const UNCOVERED_SPOT_FRACTIONS = [0.5, 0.65, 0.75, 0.85, 0.35, 0.2];
+
+/**
+ * Scrolls an element to a point in the viewport where nothing covers it, and returns whether one
+ * was found.
+ *
+ * On a phone the community page pins the promotion and notification banners and the sticky
+ * `#detailsBlockBar` over the top half of the viewport, and the View Promotions bar and the
+ * scroll-to-top button over the bottom. Centring the target lands it under the banners, and
+ * Playwright's own retry scrolls only cycle between the same covered edges, so the click times out
+ * on "subtree intercepts pointer events". Each position is hit-tested after the page settles,
+ * because the banners collapse once the page scrolls and shift the layout under the target.
+ */
+export async function scrollToUncoveredSpot(locator: Locator): Promise<boolean> {
+  for (const fraction of UNCOVERED_SPOT_FRACTIONS) {
+    await locator
+      .evaluate((element, target) => {
+        const rect = element.getBoundingClientRect();
+
+        window.scrollBy(0, rect.top + rect.height / 2 - window.innerHeight * target);
+      }, fraction)
+      .catch(() => undefined);
+    await locator.page().waitForTimeout(250);
+
+    const uncovered = await locator
+      .evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+
+        if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) {
+          return false;
+        }
+
+        const topMost = document.elementFromPoint(x, y);
+
+        return !!topMost && (topMost === element || element.contains(topMost));
+      })
+      .catch(() => false);
+
+    if (uncovered) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export async function isLocatorVisible(locator: Locator, timeout?: number): Promise<boolean> {
   return typeof timeout === 'number'
     ? locator.isVisible({ timeout }).catch(() => false)
