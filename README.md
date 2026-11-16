@@ -158,6 +158,7 @@ PLATFORMS=mobile npm run test:smoke       # phone only
 PLATFORMS=web npm run test:regression     # web only, roughly half the wall clock
 
 MOBILE_BROWSER=mobile-chrome PLATFORMS=mobile npm test   # Pixel 7 instead of iPhone 14
+BROWSER=chromium,firefox PLATFORMS=web npm run test:smoke  # one pass per desktop browser
 ```
 
 `.env` supplies the defaults — `PLATFORMS=web,mobile` and
@@ -313,7 +314,7 @@ come from GitHub **secrets**, not a file.
 | --- | --- | --- | --- |
 | `ENV` | `envConfig.ts`, reports | selecting STAGE/PROD base URL and report label | `STAGE` |
 | `LOCATION` | `locationConfig.ts` | selecting USA/CAN data (`ALL`/unset = one pass per location) | all locations |
-| `BROWSER` | `playwright.config.ts`, reports | desktop engine, and the web half of the report label | `Chrome` |
+| `BROWSER` | `playwright.config.ts`, reports | desktop engine(s), and the web half of the report label; `run-locations.ts` runs each entry of a comma-separated list | `Chrome` |
 | `ALLURE_REPORT_URL` | email report | report link | — |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_SECURE` | email report | sending email | `587` / `false` |
 | `EMAIL_USER` / `EMAIL_PASSWORD` | email report | SMTP auth | — |
@@ -332,7 +333,7 @@ is still useful for local or manual runs when you want to override the link.
 | `LEAD_API_URL_PATTERN` | `BasePage.ts` | identifying lead API call | — |
 | `LEAD_API_CAPTURE_XLSX` | `leadApiCapture.ts` | output path (repo-root anchored) | `results/lead-api-data.xlsx` |
 | `PLATFORMS` | `run-locations.ts` | platforms a run covers: `web`, `mobile`, `web,mobile` | `web` in code, `web,mobile` in `.env.example` and CI |
-| `MOBILE_BROWSER` | `run-locations.ts` | device profile for the mobile pass | `mobile-safari` |
+| `MOBILE_BROWSER` | `run-locations.ts` | device profile(s) for the mobile pass; a comma-separated list runs each | `mobile-safari` |
 | `CI` | configs | CI-only behavior | set by GitHub Actions |
 
 ---
@@ -346,14 +347,30 @@ run's email shows times in IST. GitHub Actions schedules can start late, so the
 email arrives whenever that day's run finishes.
 
 The test workflow also runs on push to `main` and manual dispatch. It runs in the official
-Playwright container and takes three dispatch inputs — **suite / env /
-location**.
+Playwright container and takes five dispatch inputs — **suite / env /
+location / device / browser**.
 
-Platform coverage is not an input. Every run covers both, pinned in the job
-environment as `PLATFORMS=web,mobile` with `BROWSER=chromium` and
-`MOBILE_BROWSER=mobile-safari`, so a dispatched `ci` or `regression` run reports
-on desktop Chrome and the iPhone 14 / WebKit profile exactly as the daily smoke
-run does. Pick a different engine locally instead (§4).
+Scheduled and push runs always cover desktop Chrome and the iPhone 14 / WebKit
+profile (`PLATFORMS=web,mobile`, `BROWSER=chromium`, `MOBILE_BROWSER=mobile-safari`).
+A manual run chooses its own coverage, and its defaults (`all` / `default`)
+resolve to that same pair:
+
+| `device` | Runs |
+| --- | --- |
+| `all` | desktop and mobile web |
+| `desktop` | desktop only |
+| `mobile` | mobile web only |
+
+| `browser` | Desktop | Mobile |
+| --- | --- | --- |
+| `default` | Chrome | iPhone 14 (Safari) |
+| `all` | Chrome, Firefox, WebKit | Pixel 7 (Chrome), iPhone 14 (Safari) |
+| `chrome` | Chrome | Pixel 7 (Chrome) |
+| `firefox` | Firefox | — (no phone profile; the run is desktop only, with a warning) |
+| `safari` | WebKit | iPhone 14 (Safari) |
+
+Each browser is its own pass per location, so `browser: all` with `device: all`
+is five passes per location - roughly two and a half times the default run.
 
 The job pins Node via `.nvmrc`, `npm ci`, **type-check → lint → tests → Allure
 report** (quality gates fail the job loudly, no `continue-on-error`), and uploads

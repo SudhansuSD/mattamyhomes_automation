@@ -53,8 +53,29 @@ export function getBrowserProjectKey(
   return browser;
 }
 
+/**
+ * Splits a comma-separated browser selection (`chromium,firefox`) into its
+ * entries. The runner accepts a list per platform and gives each entry its own
+ * Playwright process, so a single process only ever sees one value.
+ */
+export function parseBrowserList(rawBrowsers: string): string[] {
+  return [
+    ...new Set(
+      rawBrowsers
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+/** Display name for a browser selection; a list reads as "Chrome + Firefox". */
 export function getBrowserDisplayName(rawBrowser = getEnv('BROWSER', 'chromium')): string {
-  return BROWSER_DISPLAY_NAMES[getBrowserProjectKey(rawBrowser)];
+  const names = parseBrowserList(rawBrowser).map(
+    (browser) => BROWSER_DISPLAY_NAMES[getBrowserProjectKey(browser)],
+  );
+
+  return names.join(' + ') || BROWSER_DISPLAY_NAMES.chromium;
 }
 
 /** Display name of the device profile the mobile pass runs under. */

@@ -44,7 +44,11 @@ const locationSuffix = locationPassTotal > 1 && location ? `/${location.toUpperC
  */
 const isMobileRun = isMobileBrowserProject();
 const allureResultsDir = isMobileRun ? MOBILE_ALLURE_RESULTS_DIR : DESKTOP_ALLURE_RESULTS_DIR;
-const platformSuffix = isMobileRun ? '/mobile' : '/desktop';
+// Playwright empties outputDir at the start of every run, so when one platform
+// runs several browsers each needs its own folder or the next pass deletes the
+// previous one's traces.
+const browserSuffix = getNumberEnv('BROWSER_PASS_TOTAL', 1) > 1 ? `/${getBrowserProjectKey()}` : '';
+const platformSuffix = `${isMobileRun ? '/mobile' : '/desktop'}${browserSuffix}`;
 
 // Location-agnostic specs are ignored after pass 0 so later passes do not write
 // duplicate Allure entries for specs that are not location-specific.
@@ -188,24 +192,11 @@ export default defineConfig({
   },
   // Govern web-first assertions centrally instead of scattering magic timeouts.
   expect: { timeout: 15_000 },
-  /*
-   * Serial by default, and a deliberate reliability choice.
-   *
-   * The limit is rendering, not CPU. These pages ship 350-600KB of SSR HTML and
-   * hydrate client side, and concurrency starves that: the four static legal
-   * pages pass 7/7 serially and lose 1-2 to "heading not found" at two or four
-   * workers, on the same machine minutes apart. Parallelism buys about 1.4x wall
-   * clock and pays for it by turning passing tests red, so raise PW_WORKERS only
-   * for a run whose failures you are willing to re-check serially.
-   */
-  workers: getNumberEnv('PW_WORKERS', 1),
+
+  workers: getNumberEnv('PW_WORKERS', 2),
   fullyParallel: true,
-  /*
-   * Per-test budget: five minutes, so a wedged page fails on its own rather than
-   * consuming the CI job budget. Tests that legitimately walk many pages raise
-   * it themselves with test.setTimeout.
-   */
   timeout: 5 * 60 * 1000,
+
   // Keep retries opt-in so staging instability remains visible in Allure trends.
   retries: Math.max(0, Math.trunc(getNumberEnv('PW_RETRIES', 0))),
   projects,

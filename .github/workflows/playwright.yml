@@ -35,6 +35,29 @@ on:
           - ALL
           - CAN
           - USA
+      device:
+        description: Devices to run (all = desktop and mobile web)
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - desktop
+          - mobile
+      browser:
+        description: >-
+          Browsers to run. default = desktop Chrome + iPhone 14 (Safari). Mobile maps
+          chrome to Pixel 7 and safari to iPhone 14; Firefox has no phone profile, so
+          firefox runs desktop only
+        required: true
+        default: default
+        type: choice
+        options:
+          - default
+          - all
+          - chrome
+          - firefox
+          - safari
 
 # A full run is hours of browser time whose only deliverables are the published
 # report and the email, so an in-flight run is never cancelled for a newer one -
@@ -73,16 +96,27 @@ jobs:
       # run one pass per location and report on both.
       TEST_LOCATION: ${{ github.event.inputs.location || 'ALL' }}
       TEST_SUITE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[single-test]') && 'ci' || github.event.inputs.suite || 'smoke' }}
-      # Every run covers both platforms in one report: desktop Chrome plus the
-      # iPhone 14 profile on WebKit, which is the engine every iOS browser uses.
-      # Fixed rather than a dispatch input because the published report and the
-      # email are meant to speak for web and mobile together - a run that quietly
-      # covered only one would still look complete. run-locations.ts gives each
-      # platform its own Playwright process and Allure results dir, and deselects
-      # @chrome-only tests on the mobile pass.
-      PLATFORMS: web,mobile
-      BROWSER: chromium
-      MOBILE_BROWSER: mobile-safari
+      # Scheduled and push runs always cover both platforms in one report: desktop
+      # Chrome plus the iPhone 14 profile on WebKit, which is the engine every iOS
+      # browser uses. A manual run can narrow or widen that through the device and
+      # browser inputs; their defaults resolve to the same pair. BROWSER and
+      # MOBILE_BROWSER take a comma-separated list, and run-locations.ts gives each
+      # platform + browser its own Playwright process, keeps one Allure results dir
+      # per platform, and deselects @chrome-only tests off desktop Chrome. The
+      # report and email name the browsers actually covered.
+      PLATFORMS: >-
+        ${{ (github.event.inputs.device == 'desktop' || github.event.inputs.browser == 'firefox') && 'web'
+        || github.event.inputs.device == 'mobile' && 'mobile'
+        || 'web,mobile' }}
+      BROWSER: >-
+        ${{ github.event.inputs.browser == 'all' && 'chromium,firefox,webkit'
+        || github.event.inputs.browser == 'firefox' && 'firefox'
+        || github.event.inputs.browser == 'safari' && 'webkit'
+        || 'chromium' }}
+      MOBILE_BROWSER: >-
+        ${{ github.event.inputs.browser == 'all' && 'mobile-chrome,mobile-safari'
+        || github.event.inputs.browser == 'chrome' && 'mobile-chrome'
+        || 'mobile-safari' }}
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
       # One retry on CI only. A test that fails then passes is reported by Allure
       # as FLAKY rather than green, so instability stays visible in the trend -
@@ -108,6 +142,16 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Show device and browser selection
+        shell: bash
+        run: |
+          echo "Platforms: ${PLATFORMS} | Desktop: ${BROWSER} | Mobile: ${MOBILE_BROWSER}" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event.inputs.browser }}" = "firefox" ] && [ "${{ github.event.inputs.device }}" != "desktop" ]; then
+            msg="Firefox has no mobile profile - the mobile pass is skipped and this run covers desktop Firefox only."
+            echo "::warning::${msg}"
+            echo "${msg}" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # Each suite step carries its own cap so an overrunning run fails the step
       # and leaves the job alive for reporting. A job-level kill skips every

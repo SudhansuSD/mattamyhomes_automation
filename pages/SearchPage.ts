@@ -40,7 +40,11 @@ export class SearchPage extends SearchablePage {
   constructor(page: Page) {
     super(page);
 
-    this.sortButton = page.locator('div[aria-label^="Sort by:"] button[aria-label*="dropdown"]');
+    // Two markups are live: a "Sort by:" wrapper div around a "dropdown list"
+    // button, and a single button that carries the "Sort by:" label itself.
+    this.sortButton = page.locator(
+      'button[aria-label^="Sort by:"], div[aria-label^="Sort by:"] button[aria-label*="dropdown"]',
+    );
     this.sortMenuItems = page.locator('div.px-2 button');
     this.resetFiltersButton = page.getByRole('button', { name: /Reset all filters/i });
   }
