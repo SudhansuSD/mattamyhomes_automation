@@ -1,5 +1,27 @@
 [
   {
+    "buildNumber": 311,
+    "buildId": "43800086002",
+    "runType": "Regression",
+    "environment": "STAGE",
+    "location": "ALL",
+    "browser": "Chrome + Mobile Safari (iPhone 14)",
+    "branch": "main",
+    "commit": "191f160",
+    "workflowRunUrl": "https://github.com/SudhansuSD/mattamyhomes_automation/actions/runs/43800086002",
+    "buildPath": "regression/stage/311",
+    "timestamp": "2026-11-16T07:47:00.656Z",
+    "stats": {
+      "total": 395,
+      "passed": 366,
+      "failed": 15,
+      "broken": 0,
+      "skipped": 14,
+      "passPercentage": 96
+    },
+    "status": "failed"
+  },
+  {
     "buildNumber": 309,
     "buildId": "43712219089",
     "runType": "Smoke",
