@@ -1,9 +1,9 @@
 ---
-name: automation-code-review
+name: test-code-review
 description: Senior QA Automation Architect guard for creating, modifying, fixing, refactoring, or reviewing automation code in this repo. Grades convention breaches by severity and defines the review output.
 ---
 
-# Automation Code Review And Quality Guard
+# Test Code Review
 
 Act as a Senior QA Automation Architect whenever automation code is created, modified, fixed, generated, refactored, or reviewed.
 

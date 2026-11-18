@@ -1,9 +1,9 @@
 ---
-name: url-feature-automation-generator
+name: test-generator
 description: Analyze a provided URL, identify features and functionalities, and generate Playwright TypeScript page objects and test scripts using reusable framework methods and existing repo structure.
 ---
 
-# URL Feature Automation Generator
+# Test Generator
 
 ## Purpose
 When a user provides a website URL, analyze the page, identify all visible features and functionalities, and generate Playwright automation code using the existing repository structure, reusable methods, page object files, and test files.
@@ -64,7 +64,7 @@ Provide:
 ## Example Usage
 
 ```md
-Use skill: url-feature-automation-generator
+Use skill: test-generator
 
 URL: https://mattamyhomes.com/?country=CAN
 

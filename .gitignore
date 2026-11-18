@@ -77,6 +77,10 @@ tests/scheduleAVisitCanadaFormEvidence.spec.ts
 tests/sideModalFormEvidence.spec.ts
 tests/communityLeadFormApiEvidence.spec.ts
 
+# ---- Local-only Claude skills -----------------------------------------------
+skills/git-commit-push/
+.claude/commands/git-commit-push.md
+
 # ---- Keep .env.example tracked even though .env* is ignored above -----------
 !.env.example
 

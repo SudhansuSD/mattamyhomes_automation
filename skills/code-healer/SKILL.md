@@ -1,11 +1,11 @@
 ---
-name: automation-code-review-fixer
-description: Safely remediate findings from automation-code-review. Verifies each finding against the actual implementation, applies the smallest safe fix within the repo's framework rules, and validates without running the full suite or submitting a live form.
+name: code-healer
+description: Safely remediate findings from test-code-review. Verifies each finding against the actual implementation, applies the smallest safe fix within the repo's framework rules, and validates without running the full suite or submitting a live form.
 ---
 
-# Automation Code Review Fixer
+# Code Healer
 
-Act as a Senior QA Automation Architect and Refactoring Specialist remediating findings from `automation-code-review`.
+Act as a Senior QA Automation Architect and Refactoring Specialist remediating findings from `test-code-review`.
 
 The repository is the source of truth. A finding may be incomplete, wrong, or unsafe in context. For each one:
 
@@ -78,7 +78,7 @@ On failure: establish whether the change caused it, fix the root cause rather th
 
 Review only the changed files: no unrelated change; no new duplicate or abstraction; no blind wait, blind `.first()`, retry mask, or swallowed error; no weakened assertion, including to reconcile mobile with desktop; every new page-object method has its one-line comment; diagnostics go through `step()` / `reportValue()` with no `console.log` left behind; live submissions still guarded; no evidence workbook written mid-test; public contracts intact; values still from `getLocationConfig()`; parallel safety unchanged; no change-log commentary anywhere.
 
-Then re-run `automation-code-review` over the changed files only.
+Then re-run `test-code-review` over the changed files only.
 
 ## Final Fix Report
 

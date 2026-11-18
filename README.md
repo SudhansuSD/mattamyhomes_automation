@@ -293,14 +293,14 @@ In Claude Code, run the project command — no `JIRA_API_TOKEN` needed (auth is 
 connector's OAuth):
 
 ```
-/jira-fetch MTTMY-1234
+/requirement-fetch MTTMY-1234
 ```
 
 It fetches the ticket via the Atlassian MCP connector and writes `data/requirement-input.json`
 (and `data/jira/<TICKET>.json`); then continue with `npm run generate:testcases` /
 `npm run generate:automation`. MCP tools are only available to Claude Code in a session —
 they are **not** callable from the `scripts/*` Node tools or CI, so keep path (a) for
-unattended runs. See [`.claude/commands/jira-fetch.md`](.claude/commands/jira-fetch.md).
+unattended runs. See [`.claude/commands/requirement-fetch.md`](.claude/commands/requirement-fetch.md).
 
 ---
 

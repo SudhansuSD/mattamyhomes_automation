@@ -28,10 +28,11 @@ Run `typecheck` and `lint` before handing work back.
 
 Repo-local skills live in `skills/`, one folder per skill:
 
-- `skills/automation-code-review/SKILL.md` - apply when writing, changing, or
+- `skills/test-code-review/SKILL.md` - apply when writing, changing, or
   reviewing automation code
-- `skills/automation-code-review-fixer/SKILL.md` - apply when remediating that
+- `skills/code-healer/SKILL.md` - apply when remediating that
   review's findings
+- `skills/git-commit-push/SKILL.md` - apply when committing and pushing changes
 - `skills/shared/references/playwright-craft.md` - locator, synchronization,
   assertion, reuse, and typing rationale, read on demand by either guard
 

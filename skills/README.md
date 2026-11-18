@@ -22,16 +22,20 @@ A slash command in `.claude/commands/` dispatches to a skill. It should name the
 
 ## Current URL Automation Skills
 
-- `url-feature-automation-generator`
+- `test-generator`
 
 ## Current Mobile Skills
 
 
 ## Current Quality Guard Skills
 
-- `automation-code-review`
-- `automation-code-review-fixer`
+- `test-code-review`
+- `code-healer`
 - `shared/references/playwright-craft.md` - locator, synchronization, assertion, reuse, and typing rationale for both guards
+
+## Current Git Skills
+
+- `git-commit-push`
 
 ## Add Future Skills
 
@@ -48,14 +52,26 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-codex-skills.ps1
 
 ## Claude Usage
 
+Claude Code can generate page objects and tests for a page through:
+
+```text
+/test-generator <URL to automate>
+```
+
 Claude Code can apply the automation quality guard through:
 
 ```text
-/automation-code-review <automation task or review scope>
+/test-code-review <automation task or review scope>
 ```
 
 Claude Code can safely remediate findings from the quality guard through:
 
 ```text
-/automation-code-review-fixer <Code Review Summary, issue list, or affected files>
+/code-healer <Code Review Summary, issue list, or affected files>
+```
+
+Claude Code can commit and push the current changes, after the typecheck and lint gates pass, through:
+
+```text
+/git-commit-push [commit message or files to include]
 ```

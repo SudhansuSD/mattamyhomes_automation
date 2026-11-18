@@ -1,6 +1,6 @@
 # Playwright Craft Reference
 
-Shared by `automation-code-review` and `automation-code-review-fixer`. Both skills carry the rules in condensed form; this file holds the reasoning behind them. Read it only when a finding or a fix needs the argument spelled out - not on every invocation.
+Shared by `test-code-review` and `code-healer`. Both skills carry the rules in condensed form; this file holds the reasoning behind them. Read it only when a finding or a fix needs the argument spelled out - not on every invocation.
 
 ## Locators
 
