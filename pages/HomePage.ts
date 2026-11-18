@@ -24,9 +24,8 @@ type HeroVideoState = {
 };
 
 type HeroImageState = {
-  configuredImageUrl: string;
   posterImageUrl: string;
-  preloadedImageUrl: string;
+  backgroundImageUrl: string;
   videoDisplayed: boolean;
 };
 
@@ -114,19 +113,21 @@ export class HomePage extends SearchablePage {
     return viewportWidth < HERO_VIDEO_MIN_WIDTH;
   }
 
-  // Checks the phone masthead exposes its configured hero image in place of the video.
+  // Checks the phone masthead shows its fallback hero image in place of the video.
   private async validateHeroImage(): Promise<void> {
     await this.step('Validate hero image', async () => {
       const imageState = await this.getHeroImageState();
 
-      await this.reportValue('Hero image URL', imageState.configuredImageUrl);
+      await this.reportValue('Hero poster image URL', imageState.posterImageUrl);
+      await this.reportValue('Hero background image URL', imageState.backgroundImageUrl);
 
       this.expectHeroImageSource(imageState);
-      await this.expectHeroImageRendered(imageState.configuredImageUrl);
+      await this.expectHeroImageRendered(imageState.posterImageUrl, 'Hero poster image');
+      await this.expectHeroImageRendered(imageState.backgroundImageUrl, 'Hero background image');
     });
   }
 
-  // Reads the masthead's configured phone image source and whether the desktop video is on screen.
+  // Reads the video's poster fallback, the masthead's painted background, and whether the video is on screen.
   private async getHeroImageState(): Promise<HeroImageState> {
     return this.heroSection.evaluate((section: HTMLElement) => {
       // An empty source stays empty: resolved against the page it would become the page's own URL,
@@ -143,37 +144,32 @@ export class HomePage extends SearchablePage {
         }
       };
 
-      const configuredImageUrl = toAbsoluteUrl(section.getAttribute('background') ?? '');
       const video = section.querySelector('video');
-      const preloadedImage = Array.from(
-        document.querySelectorAll<HTMLLinkElement>('link[rel="preload"][as="image"]'),
-      ).find((link) => toAbsoluteUrl(link.href) === configuredImageUrl);
+      // The painted background is a different CDN rendition of the poster image
+      // (a "-source" path rather than a sized one), so the two are checked
+      // separately rather than compared for equality.
+      const backgroundUrl =
+        /url\(["']?(.*?)["']?\)/.exec(window.getComputedStyle(section).backgroundImage)?.[1] ?? '';
 
       return {
-        configuredImageUrl,
         posterImageUrl: toAbsoluteUrl(video?.getAttribute('poster') ?? ''),
-        preloadedImageUrl: toAbsoluteUrl(preloadedImage?.href ?? ''),
+        backgroundImageUrl: toAbsoluteUrl(backgroundUrl),
         videoDisplayed: video ? window.getComputedStyle(video).display !== 'none' : false,
       };
     });
   }
 
-  // Asserts the phone masthead uses the CMS image fallback, and that the video it replaces stays hidden.
+  // Asserts the phone masthead carries the poster fallback and a painted background, and keeps the video hidden.
   private expectHeroImageSource(imageState: HeroImageState): void {
     expect(
-      imageState.configuredImageUrl,
-      'Masthead should declare a hero image source for phone viewports',
+      imageState.posterImageUrl,
+      'Hero video should declare a poster image as the fallback when autoplay is unavailable',
     ).toBeTruthy();
 
     expect(
-      imageState.posterImageUrl,
-      'Hidden hero video should carry the same poster image used for phone viewports',
-    ).toBe(imageState.configuredImageUrl);
-
-    expect(
-      imageState.preloadedImageUrl,
-      'Phone hero image should be preloaded before the hidden video fallback is needed',
-    ).toBe(imageState.configuredImageUrl);
+      imageState.backgroundImageUrl,
+      'Masthead should paint a hero background image on phone viewports',
+    ).toBeTruthy();
 
     expect(
       imageState.videoDisplayed,
@@ -182,7 +178,7 @@ export class HomePage extends SearchablePage {
   }
 
   // Confirms the browser decoded the hero image, rather than the URL merely being declared.
-  private async expectHeroImageRendered(imageUrl: string): Promise<void> {
+  private async expectHeroImageRendered(imageUrl: string, imageName: string): Promise<void> {
     const decodedWidth = await this.page.evaluate(async (url) => {
       const image = new Image();
       image.src = url;
@@ -200,7 +196,7 @@ export class HomePage extends SearchablePage {
 
     expect(
       decodedWidth,
-      'Hero image should load from the CDN with real pixel dimensions',
+      `${imageName} should load from the CDN with real pixel dimensions`,
     ).toBeGreaterThan(0);
   }
 
