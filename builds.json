@@ -1,5 +1,27 @@
 [
   {
+    "buildNumber": 324,
+    "buildId": "45421087456",
+    "runType": "Smoke",
+    "environment": "PROD",
+    "location": "ALL",
+    "browser": "Chrome + Mobile Safari (iPhone 14)",
+    "branch": "main",
+    "commit": "d327145",
+    "workflowRunUrl": "https://github.com/SudhansuSD/mattamyhomes_automation/actions/runs/45421087456",
+    "buildPath": "smoke/prod/324",
+    "timestamp": "2026-11-24T16:08:24.489Z",
+    "stats": {
+      "total": 144,
+      "passed": 140,
+      "failed": 0,
+      "broken": 2,
+      "skipped": 2,
+      "passPercentage": 99
+    },
+    "status": "failed"
+  },
+  {
     "buildNumber": 323,
     "buildId": "45373402734",
     "runType": "Smoke",
@@ -194,28 +216,6 @@
       "broken": 0,
       "skipped": 2,
       "passPercentage": 99
-    },
-    "status": "failed"
-  },
-  {
-    "buildNumber": 314,
-    "buildId": "44095423851",
-    "runType": "Smoke",
-    "environment": "PROD",
-    "location": "ALL",
-    "browser": "Chrome + Mobile Safari (iPhone 14)",
-    "branch": "main",
-    "commit": "44f36f8",
-    "workflowRunUrl": "https://github.com/SudhansuSD/mattamyhomes_automation/actions/runs/44095423851",
-    "buildPath": "smoke/prod/314",
-    "timestamp": "2026-11-17T14:57:18.430Z",
-    "stats": {
-      "total": 144,
-      "passed": 139,
-      "failed": 1,
-      "broken": 2,
-      "skipped": 2,
-      "passPercentage": 98
     },
     "status": "failed"
   },
