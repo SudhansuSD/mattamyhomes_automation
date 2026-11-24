@@ -7,9 +7,7 @@ import { getLocationConfig } from '../config/locations/locationConfig';
 import { MPCConfig, MPCPage } from '../pages/MPCPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
-// Master-Planned Communities are a USA-only offering, so this suite always uses
-// USA data and MPCPage always drives the USA site — running it under LOCATION=CAN
-// (or with no LOCATION at all) still exercises MPC instead of skipping it.
+// MPCs are USA-only, so this suite always uses USA data whatever LOCATION says.
 const location = getLocationConfig('USA');
 const mpc = ('mpc' in location ? location.mpc?.[0] : undefined) as MPCConfig | undefined;
 const galleryMpc = ('galleryMpc' in location ? location.galleryMpc : undefined) as
@@ -172,8 +170,7 @@ test.describe(`MPC page tests - ${location.country}`, () => {
   });
 });
 
-// The image gallery runs against its own MPC: the primary MPC above has no
-// gallery, so validating it there would only ever test an absent feature.
+// Uses a separate MPC because the primary one has no image gallery.
 test.describe(`MPC image gallery - ${location.country}`, () => {
   let mpcPage: MPCPage;
 

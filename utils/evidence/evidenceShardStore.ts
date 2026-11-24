@@ -2,17 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type ExcelJS from 'exceljs';
 
-/**
- * Collects evidence rows without two workers fighting over one .xlsx.
- *
- * Workers are separate processes, so a read-modify-write of a shared workbook
- * loses rows - and ExcelJS writes a zip, so a read landing mid-write fails with
- * "Corrupted zip ?". Instead each worker appends JSON lines to its own file and
- * globalTeardown merges them once. Shards left by a killed run are picked up by
- * the next one.
- */
+// Each worker appends JSON lines to its own shard and globalTeardown merges them once, because
+// concurrent read-modify-write of one .xlsx loses rows and corrupts the zip.
 
-/** Where the merged workbook should end up. Stored next to the shards. */
+/** Where the merged workbook goes; stored next to the shards. */
 export type ShardMeta = {
   outputFile: string;
   legacyOutputFile?: string;
@@ -20,17 +13,12 @@ export type ShardMeta = {
 
 const META_FILE = 'meta.json';
 
-/** Shard folder, kept next to the workbook so one .gitignore entry covers both. */
+/** Shard folder next to the workbook. */
 export function getShardDir(outputFile: string, name: string): string {
   return path.join(path.dirname(outputFile), `.${name}-shards`);
 }
 
-/**
- * One shard file per worker process.
- *
- * The pid is in the name because Playwright reuses TEST_PARALLEL_INDEX after a
- * worker restart, and a restarted worker must not truncate its predecessor's shard.
- */
+/** This worker's shard file; includes the pid since worker indexes are reused after restarts. */
 function getShardFile(shardDir: string): string {
   const workerIndex = process.env.TEST_WORKER_INDEX ?? process.env.TEST_PARALLEL_INDEX ?? '0';
   return path.join(shardDir, `shard-w${workerIndex}-p${process.pid}.jsonl`);
@@ -48,7 +36,7 @@ export function appendShardRow<T>(shardDir: string, meta: ShardMeta, row: T): vo
   fs.appendFileSync(getShardFile(shardDir), `${JSON.stringify(row)}\n`, 'utf8');
 }
 
-/** Reads every shard. A malformed line is skipped, not fatal. */
+/** Reads every shard, skipping malformed lines. */
 export function readShards<T>(shardDir: string): {
   rows: T[];
   shardFiles: string[];
@@ -92,17 +80,12 @@ export function readShards<T>(shardDir: string): {
   return { rows, shardFiles, meta };
 }
 
-/** Deletes a consumed shard set. Call only after the workbook write succeeded. */
+/** Deletes a shard set; call only after the workbook is written. */
 export function clearShards(shardDir: string): void {
   fs.rmSync(shardDir, { recursive: true, force: true });
 }
 
-/**
- * Writes the workbook, retrying while Excel holds it open.
- *
- * These files are often open on someone's desktop when a run finishes. Rather
- * than lose the rows, back off and finally write to a sibling file.
- */
+/** Writes the workbook, retrying while it is locked and falling back to a sibling file. */
 export async function writeWorkbookWithRetry(
   workbook: ExcelJS.Workbook,
   outputFile: string,

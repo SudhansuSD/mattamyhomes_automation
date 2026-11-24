@@ -2,10 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { JiraIssueRequirement } from '../utils/jiraClient';
 
-// A single legacy-path → destination-path rewrite (e.g. /florida/tampa → /florida/bradenton).
+// A legacy-path to destination-path rewrite.
 type PathReplacement = { from: string; to: string };
 
-// A query-parameter rewrite applied when a source URL carries a legacy value (e.g. metro=Tampa → metro=Bradenton).
+// A query-parameter rewrite applied when a source URL carries a legacy value.
 type QueryReplacement = { param: string; from: string; to: string };
 
 // Ticket-specific redirect mapping, supplied per ticket via data/jira/<TICKET>.redirect-rules.json.
@@ -17,7 +17,7 @@ type RedirectRules = {
 type RedirectScenario = {
   sourceUrl: string;
   expectedPathContains: string;
-  // Human-readable label of the redirect rule that matched, used to group tests in the generated spec.
+  // Label of the matching redirect rule; groups tests in the generated spec.
   group: string;
   title: string;
   priority: string;
@@ -142,8 +142,7 @@ function buildRedirectScenarios(
   return scenarios.slice(0, 250);
 }
 
-// Applies the ticket's path/query rewrite rules to a source URL; returns the expected destination
-// plus the label of the rule that matched (used to group tests), or null when no rule matches.
+// Returns the expected destination and matching rule label for a source URL, or null when no rule matches.
 function matchRedirectRule(
   rawUrl: string,
   rules: RedirectRules,

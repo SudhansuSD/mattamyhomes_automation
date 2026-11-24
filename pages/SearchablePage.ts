@@ -82,8 +82,7 @@ export class SearchablePage extends BasePage {
 
   // SEARCH FEATURE
 
-  // Types the value into the search box character by character and opens the first matching
-  // suggestion; retries, recovers a hidden search box, and falls back to direct navigation.
+  // Types the value and opens the first matching suggestion, with retries and direct-navigation fallbacks.
   async search(value: string, searchType?: SearchType): Promise<void> {
     await this.step(`Search for "${value}"`, async () => {
       await this.waitForPageReady();
@@ -117,12 +116,7 @@ export class SearchablePage extends BasePage {
         for (const char of value) {
           typedValue += char;
 
-          // Typed one character at a time so the earliest matching suggestion
-          // wins and long values do not have to be entered in full. The cost is
-          // paid per character, so the keystroke delay stays small and the wait
-          // for suggestions to redraw is a settle() that returns as soon as the
-          // DOM goes quiet rather than a fixed sleep - a 24-character QMI
-          // address otherwise spends most of the test in this loop.
+          // One character at a time so the earliest match wins; keep the per-character wait short.
           await searchBox.type(char, { delay: 80 });
           await this.settle(250);
 
@@ -466,10 +460,7 @@ export class SearchablePage extends BasePage {
     if (this.isCurrentConfiguredHomePage()) {
       await this.acceptCookiesIfPresent();
       await this.waitForPageReady();
-      // Already here means navigate() - and with it the wait for the page to
-      // clear its anti-flicker gate - was skipped. Without this the search box
-      // is looked for while the whole document is still visibility:hidden, and
-      // the miss is reported as a missing search input.
+      // navigate() was skipped, so wait for the page to paint before looking for the search box.
       await this.waitForAppPainted();
 
       return;
@@ -498,8 +489,7 @@ export class SearchablePage extends BasePage {
     return true;
   }
 
-  // Orchestrates a full search-and-validate flow for the given type; market validation lives here,
-  // while every other type delegates validation to its dedicated page object.
+  // Searches for a value and validates the result page for the given search type.
   async searchAndValidateByValue(searchType: SearchType, searchValue: string): Promise<void> {
     await this.step(`Search and validate ${searchType}: ${searchValue}`, async () => {
       const location = this.location as LocationWithCondoPlan;
@@ -543,10 +533,8 @@ export class SearchablePage extends BasePage {
             async () => {
               await this.verifySearchByMarket(mpcParentMarket);
 
-              // Tap the MPC card on the search results page to open its detail page.
               await this.clickMpcLearnMore(mpc.name);
 
-              // Validate both URL and MPC name on the MPC detail page.
               const { MPCPage } = require('./MPCPage') as typeof import('./MPCPage');
               await new MPCPage(this.page).verifyMPCPage({ name: mpc.name, url: mpc.url });
             },
@@ -681,23 +669,19 @@ export class SearchablePage extends BasePage {
     );
   }
 
-  // Finds the MPC card on the market search results page and clicks its Learn More CTA to open the detail page.
+  // Opens an MPC's detail page via the Learn More CTA on its search results card.
   async clickMpcLearnMore(mpcName: string): Promise<void> {
     await this.step(`Open MPC "${mpcName}" via Learn More`, async () => {
       await this.waitForPageReady();
 
-      // The promo popup renders after the results page settles, so the earlier
-      // dismissal in the search flow can run before it appears. Re-dismiss it here,
-      // at the point of use, so it cannot be picked up as the matching "card".
+      // The promo popup can appear late, after the earlier dismissal, so dismiss it again here.
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
 
       const learnMoreCta = this.page
         .getByRole('link', { name: /learn more/i })
         .or(this.page.getByRole('button', { name: /learn more/i }));
 
-      // Scope to the actual product card: the element that contains both the MPC
-      // name and a Learn More CTA, excluding promo/modal overlays. Use `.last()`
-      // to prefer the innermost (tightest) matching card over a broad wrapper.
+      // The card holding the name and a Learn More CTA, not a modal; last() picks the innermost.
       const mpcCard = this.page
         .locator('article, section, li, [class*="card"], [class*="Card"]')
         .filter({ hasText: new RegExp(escapeRegex(mpcName), 'i') })

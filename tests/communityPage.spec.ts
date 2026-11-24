@@ -149,8 +149,7 @@ test.describe(`Community Detail - ${location.community}`, () => {
       });
     });
 
-    // The community page renders no footer lead form; uncomment these together with
-    // the footer methods in CommunityPage if the form returns.
+    // No footer lead form on this page; uncomment with CommunityPage's footer methods if one appears.
     //
     // test.describe('Footer Form Validation', () => {
     //   test(`@smoke @regression | ${location.country} | Validate footer form required field errors`, async () => {

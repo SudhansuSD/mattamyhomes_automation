@@ -1,21 +1,6 @@
 /**
  * ENV=STAGE npx playwright test tests/designStudioPage.spec.ts --project=Chrome
- * Design Studio page validation.
- *
- * Design Studio exists for BOTH countries but is surfaced differently - a
- * top-level header item on USA, nested under the Resources mega-menu on CAN -
- * and each country lists its own markets (Arizona/Florida/... vs Alberta/
- * Ontario). So this suite covers both in a single run rather than only whichever
- * country LOCATION happens to be set to, and it enters the page the way a
- * visitor does: by clicking the country's header link from the home page instead
- * of hitting /design-studio directly. That keeps the placement itself covered -
- * a Design Studio link that disappears from the USA header, or drops out of the
- * CAN Resources menu, fails here even though the URL still resolves.
- *
- * Both platforms enter the same way. At phone widths the header collapses every
- * nav item behind the menu button, so `Header` opens that panel first and the
- * same top-level / nested placement is asserted inside it - the entry point is a
- * property of the country and the viewport, never of the browser under test.
+ * Design Studio validation for both countries, entered via each country's header link.
  */
 
 import { test } from '@playwright/test';
@@ -43,9 +28,7 @@ for (const locationKey of COUNTRIES) {
     let designStudioPage: DesignStudioPage;
 
     test.beforeEach(async ({ page }) => {
-      // Labeled before the skip runs: `test.skip()` ends the hook, and a test
-      // that never reaches `annotate()` carries no feature label, so it lands
-      // in the report under its spec file name instead of Design Studio.
+      // Annotate before the skip, which ends the hook and would leave the test unlabeled.
       await annotate({
         location: location.country,
         feature: 'Design Studio',
@@ -74,8 +57,7 @@ for (const locationKey of COUNTRIES) {
           await header.verifyTopLevelNavLinkVisible(designStudioNav.link);
           await header.clickTopLevelNavLink(designStudioNav.link);
         } else {
-          // Nested placement: the link must NOT stand on its own in the header,
-          // it is only reachable after opening the country's menu.
+          // Nested placement: the link must not appear as a top-level header item.
           await header.verifyNoTopLevelNavLink(designStudioNav.link);
           await header.clickMenuLink(designStudioNav.menuName, designStudioNav.link);
         }

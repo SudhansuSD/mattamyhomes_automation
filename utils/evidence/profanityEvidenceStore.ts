@@ -9,16 +9,8 @@ import {
   writeWorkbookWithRetry,
 } from './evidenceShardStore';
 
-/**
- * Excel evidence for the profanity lead-form suite.
- *
- * Rows go to per-worker shards and are merged once in globalTeardown:
- * rewriting the whole workbook per test races across workers.
- *
- * The row shape lives here, not in the spec, because the merge happens after
- * the spec's workers exit - and because that spec is gitignored, so this keeps
- * the workbook format under version control.
- */
+// Excel evidence for the profanity lead-form suite, sharded per worker and merged in teardown.
+// The row shape lives here because the spec is gitignored and teardown runs after its workers exit.
 
 export type YesNo = 'Yes' | 'No';
 export type TestStatus = 'Passed' | 'Failed';
@@ -89,7 +81,7 @@ function shardDirFor(outputFile: string): string {
   return getShardDir(outputFile, 'profanity-evidence');
 }
 
-/** Records one row. Called from the spec's `finally`, so it lands either way. */
+/** Records one evidence row. */
 export function appendProfanityEvidenceRow(
   row: ProfanityEvidenceRow,
   paths: { outputFile: string; legacyOutputFile?: string },
@@ -128,7 +120,7 @@ function stringifyCellValue(value: ExcelJS.CellValue): string {
   return String(value);
 }
 
-/** Reads rows already in the workbook so a re-run adds to the evidence, not replaces it. */
+/** Reads rows already in the workbook so a re-run adds to them. */
 async function readExistingRows(outputFile: string): Promise<ProfanityEvidenceRow[]> {
   if (!fs.existsSync(outputFile)) {
     return [];
@@ -165,7 +157,7 @@ async function readExistingRows(outputFile: string): Promise<ProfanityEvidenceRo
   return rows;
 }
 
-/** Later rows win, keyed by test case - a re-run updates its row instead of duplicating it. */
+/** Merges rows by test case; later rows win. */
 function mergeRows(...rowGroups: ProfanityEvidenceRow[][]): ProfanityEvidenceRow[] {
   const merged = new Map<string, ProfanityEvidenceRow>();
 
@@ -193,17 +185,11 @@ function applyWorkbookFormatting(worksheet: ExcelJS.Worksheet): void {
   });
 }
 
-/**
- * Folds every worker shard into the profanity evidence workbook.
- *
- * Runs once, in the main process, from playwrightGlobalTeardown. Returns null
- * when the suite did not run, so teardown stays silent on unrelated runs.
- */
+/** Merges profanity shards into the workbook from teardown; null when the suite did not run. */
 export async function mergeProfanityEvidence(
   outputFile?: string,
 ): Promise<{ outputFile: string; rowsMerged: number } | null> {
-  // Without an explicit path, discover the shard set from the default evidence
-  // folder - teardown has no idea which env/location the spec was built for.
+  // Without a path, search the default folders; teardown does not know the spec's env/location.
   const searchRoots = outputFile ? [shardDirFor(outputFile)] : discoverShardDirs();
 
   for (const dir of searchRoots) {

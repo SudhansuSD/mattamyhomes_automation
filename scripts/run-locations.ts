@@ -1,21 +1,10 @@
 /**
- * Location-aware Playwright runner.
+ * Runs Playwright once per platform, browser and location, then builds one Allure report.
+ * Specs resolve location at import time, so each country needs its own process.
  *
- * `LOCATION=CAN npm test`  -> one Playwright run for Canada.
- * `npm test`               -> one run per location (USA, then CAN), producing a
- *                             SINGLE Allure report that covers both.
- *
- * Location is resolved at import time inside every spec (`getLocationConfig()`
- * at module scope), so a process can only ever represent one country. Covering
- * both therefore means one child Playwright process per location, with the
- * Allure results accumulated across passes and the HTML report built once at
- * the end:
- *   - pass 0 clears allure-results/desktop (normal globalSetup behavior)
- *   - later passes set ALLURE_KEEP_RESULTS=1 so they append instead of wiping
- *   - every pass sets ALLURE_SKIP_REPORT=1; this script generates the report
- *
- * Any extra CLI arguments are forwarded verbatim to `playwright test`, so
- * `npm test -- --grep @smoke --project=Chrome` keeps working.
+ * `LOCATION=CAN npm test`  -> Canada only
+ * `npm test`               -> every location
+ * Extra CLI args are forwarded to `playwright test`.
  */
 import { spawnSync } from 'node:child_process';
 import { getBrowserProjectKey, parseBrowserList } from '../config/browserSelection';
@@ -31,14 +20,7 @@ const PLAYWRIGHT_CLI = require.resolve('@playwright/test/cli');
 
 type Platform = 'web' | 'mobile';
 
-/**
- * Platforms this invocation should cover.
- *
- * `PLATFORMS=web,mobile` runs each in its own Playwright process, because the
- * platform is chosen by BROWSER and playwright.config.ts resolves exactly one
- * project - and one Allure results dir - per process. Defaults to web only, so
- * every existing command behaves as before unless it opts in.
- */
+/** Platforms to run from PLATFORMS (default web); each runs in its own process. */
 function getPlatformsToRun(): Platform[] {
   const raw = getEnv('PLATFORMS', 'web');
   const requested = raw
@@ -57,17 +39,13 @@ function getPlatformsToRun(): Platform[] {
   return platforms.length ? [...new Set(platforms)] : ['web'];
 }
 
-/**
- * The BROWSER values a platform runs under, one Playwright process each.
- * BROWSER and MOBILE_BROWSER accept a comma-separated list.
- */
+/** Browsers a platform runs under, from the comma-separated BROWSER or MOBILE_BROWSER. */
 function getBrowsersForPlatform(platform: Platform): string[] {
   if (platform === 'web') {
     return parseBrowserList(getEnv('BROWSER', 'chromium'));
   }
 
-  // iPhone 14 on WebKit by default - WebKit is the engine every iOS browser
-  // uses, so it is the mobile profile that catches the most.
+  // Defaults to iPhone 14 on WebKit, the engine every iOS browser uses.
   return parseBrowserList(getEnv('MOBILE_BROWSER', 'mobile-safari'));
 }
 
@@ -98,11 +76,9 @@ function runLocation(pass: LocationPass, args: string[]): number {
       LOCATION: location,
       LOCATION_PASS_INDEX: String(index),
       LOCATION_PASS_TOTAL: String(total),
-      // Keep results from earlier passes so the final report covers them all.
-      // Per platform, not per run: each platform writes to its own results dir,
-      // so its first pass must still clear that dir.
+      // Keeps earlier passes' results; each platform's first pass still clears its own dir.
       ALLURE_KEEP_RESULTS: keepResults ? '1' : '',
-      // Build the HTML report once, after the last pass — not per pass.
+      // The report is built once, after the last pass.
       ALLURE_SKIP_REPORT: '1',
     },
   });
@@ -139,14 +115,10 @@ async function main(): Promise<void> {
     }
 
     for (const [browserIndex, browser] of browsers.entries()) {
-      // Resolved per browser, so whether @chrome-only applies has to be decided
-      // inside this loop.
       const args = [...baseArgs];
       const browserProject = getBrowserProjectKey(browser);
 
-      // Deselect Chrome-only tests on firefox/webkit rather than reporting them as
-      // skipped - "36 selected" is clearer than "42 passed, 6 skipped". The mobile
-      // profiles are included: @chrome-only marks desktop-Chrome-specific flows.
+      // Deselects @chrome-only tests on non-Chromium browsers (mobile included) rather than skipping them.
       if (browserProject !== 'chromium' && !args.some((arg) => arg.startsWith('--grep-invert'))) {
         args.push('--grep-invert', '@chrome-only');
         console.log(`[${platform}] Non-Chrome run (${browser}) — deselecting @chrome-only tests.`);
@@ -165,15 +137,13 @@ async function main(): Promise<void> {
           },
           args,
         );
-        // Keep going so the report covers every location even if one pass fails,
-        // but surface the failure in this process's exit code.
+        // Continues past a failed pass but keeps its exit code.
         if (status !== 0) exitCode = status;
       }
     }
   }
 
-  // Under CI the report is generated by an explicit workflow step (the same
-  // reason playwright.config.ts disables globalTeardown there).
+  // On CI a workflow step generates the report.
   if (!isCI) {
     for (const platform of platforms) {
       await generateAllureReport(platform === 'mobile' ? 'mobile' : 'desktop');

@@ -1,21 +1,5 @@
-/**
- * ENV=STAGE LOCATION=USA npx playwright test tests/visualRegression.spec.ts --project=Chrome
- *
- * First run (or after an intended redesign):
- *   ... tests/visualRegression.spec.ts --update-snapshots
- *
- * Screenshot comparison of every page template.
- *
- * The suite asserts that elements exist and that text matches, which says
- * nothing about whether the page still LOOKS right - a collapsed grid, a hero
- * that lost its background, or a footer overlapping content all pass every
- * functional check. One baseline per template covers that cheaply.
- *
- * Everything genuinely dynamic is masked rather than tolerated by a pixel
- * threshold: prices, inventory counts and community cards change on STAGE
- * daily, and a threshold loose enough to absorb them is loose enough to hide a
- * real layout break.
- */
+// Screenshot baselines per page template; refresh with --update-snapshots after an intended redesign.
+// Dynamic content is masked rather than absorbed by a loose pixel threshold that would hide real breaks.
 
 import { expect, test } from '@playwright/test';
 import { getEnvConfig } from '../config/environments/envConfig';
@@ -49,35 +33,17 @@ const TEMPLATES: Template[] = [
   ...(mpc ? [{ name: 'MPC page', slug: 'mpc', path: mpc.url }] : []),
 ];
 
-/**
- * Regions whose content legitimately changes between runs.
- *
- * Kept narrow. Masking whole carousels hollowed the baselines out - the QMI page
- * came back almost pure mask. A visual test that hides the layout cannot catch a
- * layout break, so only volatile text and the auto-rotating rail are masked.
- */
+/** Regions that change between runs; kept narrow so masks do not hide the layout. */
 const DYNAMIC_SELECTORS = [
   // Volatile text.
   '[class*="price" i]',
   '[class*="availab" i]',
   '[class*="quick-move" i] [class*="count" i]',
-  // The market-card rail auto-rotates, so whichever slide is showing at capture
-  // time is luck. Pinning the slick track to slide one blanks the whole rail, so
-  // the rail is masked instead and the rest of the page - hero, content blocks,
-  // footer - is compared for real.
+  // Auto-rotating market-card rail; pinning it to one slide blanks it, so mask it.
   '#cards',
 ];
 
-/**
- * Third-party overlays, hidden for the capture rather than masked.
- *
- * The chat widget renders on its own schedule and at its own size - launcher
- * alone, or launcher plus greeting bubble - and a mask is drawn to whatever the
- * element currently measures, so masking it made the footer baseline differ from
- * itself by six percent. Hiding excludes exactly the same elements and leaves
- * nothing size-dependent behind. Safe for layout: these are fixed-position
- * overlays, so the footer does not reflow without them.
- */
+/** Fixed-position chat overlays, hidden rather than masked because their size varies per run. */
 const THIRD_PARTY_OVERLAY_SELECTORS = ['[class*="chat" i]', '[id*="chat" i]', '[class*="drift" i]'];
 
 test.describe(`Visual regression - ${location.country}`, () => {
@@ -103,15 +69,12 @@ test.describe(`Visual regression - ${location.country}`, () => {
         await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 90_000 });
         await basePage.acceptCookiesIfPresent();
         await basePage.waitForPageReady();
-        // The blank/unhydrated render guard. Without it this spec captured
-        // unpainted pages and wrote them out as baselines - the market baseline
-        // came back as white space with a few price masks on it.
+        // Guards against capturing an unpainted page as a baseline.
         await basePage.ensurePageRendered();
         await basePage.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
       });
 
-      // Lazy media loads on scroll; without this the baseline captures empty
-      // image frames and every later run "differs" as they fill in.
+      // Scroll through so lazy media loads before capture.
       await test.step('Load lazy media', async () => {
         await page.evaluate(async () => {
           await new Promise<void>((resolve) => {
@@ -132,9 +95,7 @@ test.describe(`Visual regression - ${location.country}`, () => {
         await basePage.waitForPageReady();
       });
 
-      // Refuse to bless an empty page. --update-snapshots writes whatever it
-      // sees, so without this a blank render silently becomes the baseline and
-      // every later run compares against nothing.
+      // Stop --update-snapshots from saving a blank page as the baseline.
       await test.step('Confirm the page actually rendered', async () => {
         await expect(
           page.getByRole('heading', { level: 1 }).first(),
@@ -150,12 +111,8 @@ test.describe(`Visual regression - ${location.country}`, () => {
         ).toBeGreaterThan(500);
       });
 
-      // The home masthead plays a looping video behind a transparent header, so
-      // the header region captures a different frame on every run - six to
-      // twenty-nine percent of it, which no sane diff threshold absorbs.
-      // `animations: 'disabled'` covers CSS animation, not media playback, so
-      // every video is pinned to its first frame here. Masking the hero instead
-      // would paint over the header region itself and leave nothing to compare.
+      // Pin videos to frame 0 (the home header sits over a looping video) and hide
+      // chat overlays; `animations: 'disabled'` does not stop media playback.
       await test.step('Pin media to a fixed frame', async () => {
         await page.evaluate(() => {
           document.querySelectorAll('video').forEach((video) => {
@@ -171,19 +128,8 @@ test.describe(`Visual regression - ${location.country}`, () => {
         await basePage.waitForPageReady();
       });
 
-      // Header and footer, not the whole page.
-      //
-      // The two wider capture regions both fail for real reasons, recorded here so
-      // this is not "simplified" later:
-      //   - fullPage: the market-card rail renders at a different height each
-      //     run, so everything below it shifts. 7% of the home page differs
-      //     purely from that offset, body text visibly doubled in the diff.
-      //   - viewport: the home hero is an auto-rotating carousel, so Playwright
-      //     cannot take two consecutive stable screenshots of it at all.
-      //
-      // The chrome is what actually regresses in a way a human would call a bug -
-      // nav collapsing, footer columns reflowing - and it is stable on every
-      // template. Marketing content below it is verified functionally instead.
+      // Capture header and footer only: full-page shifts with the rail's height and
+      // the viewport hero carousel never stabilizes. Body content is checked functionally.
       const regions = [
         { name: 'header', locator: page.locator('header').first() },
         { name: 'footer', locator: getFooter(page) },

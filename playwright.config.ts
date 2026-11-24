@@ -18,9 +18,8 @@ import { LOCATION_AGNOSTIC_SPEC_GLOBS } from './config/locations/locationAgnosti
 
 loadEnv();
 
-// CI is always headless; local runs opt in with HEADLESS=1. Viewport follows
-// isHeadless, not isCI: headless ignores --start-maximized and otherwise falls
-// back to a small window that renders mobile navigation.
+// CI is always headless; locally set HEADLESS=1. Headless ignores
+// --start-maximized, so it gets a fixed desktop viewport to avoid mobile nav.
 const isHeadless = isCI || getBoolEnv('HEADLESS');
 const allowNonProdHttpsErrors = getEnvConfig().envName !== 'PROD';
 
@@ -32,27 +31,13 @@ if (locationPassTotal > 1 && !location) {
 }
 const locationSuffix = locationPassTotal > 1 && location ? `/${location.toUpperCase()}` : '';
 
-/*
- * Web and mobile are separate report streams, not one mixed pile.
- *
- * Exactly one project runs per Playwright process (see `projects` below), so the
- * selected BROWSER decides which Allure results dir this run writes to -
- * allure-results/desktop or allure-results/mobile - and the existing
- * desktop/mobile/merged report generators pick them up unchanged. Trace and
- * screenshot output is split the same way so a mobile failure's artifacts cannot
- * overwrite the desktop run's for the same test name.
- */
 const isMobileRun = isMobileBrowserProject();
 const allureResultsDir = isMobileRun ? MOBILE_ALLURE_RESULTS_DIR : DESKTOP_ALLURE_RESULTS_DIR;
-// Playwright empties outputDir at the start of every run, so when one platform
-// runs several browsers each needs its own folder or the next pass deletes the
-// previous one's traces.
+// Playwright empties outputDir each run, so each browser pass gets its own folder.
 const browserSuffix = getNumberEnv('BROWSER_PASS_TOTAL', 1) > 1 ? `/${getBrowserProjectKey()}` : '';
 const platformSuffix = `${isMobileRun ? '/mobile' : '/desktop'}${browserSuffix}`;
 
-// Location-agnostic specs are ignored after pass 0 so later passes do not write
-// duplicate Allure entries for specs that are not location-specific.
-
+// Location-agnostic specs run only in the first pass to avoid duplicate Allure entries.
 const isLaterLocationPass = getNumberEnv('LOCATION_PASS_INDEX', 0) > 0;
 const testIgnore: string[] = [];
 if (isLaterLocationPass) {
@@ -62,11 +47,7 @@ if (isLaterLocationPass) {
 type Project = NonNullable<PlaywrightTestConfig['projects']>[number];
 const desktopViewport = { width: 1920, height: 1080 };
 
-// Renderer-stability flags. These pages ship 350-600KB of SSR HTML and running
-// more than one at a time surfaced as "page.goto: Page crashed" rather than as
-// a test failure - the renderer being killed, not the product breaking.
-
-// Tracker blocking rides along with them: see config/environments/thirdPartyTrackers.ts.
+// Renderer-stability flags (large SSR pages crashed the renderer) plus tracker blocking.
 const chromiumStabilityArgs = [
   '--disable-dev-shm-usage',
   '--disable-features=site-per-process,IsolateOrigins',
@@ -100,16 +81,7 @@ const projectsByBrowser = {
       viewport: isHeadless ? undefined : desktopViewport,
     },
   },
-  /*
-   * Mobile web, as a device profile of this framework rather than a separate
-   * stack. The device descriptors carry viewport, device pixel ratio, touch and
-   * user agent, and their `viewport` overrides the desktop default in `use`
-   * below - so these must never be given the desktop viewport or the phone
-   * layout under test disappears.
-   *
-   * `metadata.platform` is what labels a result Web or Mobile in the report, so
-   * it is read from the running project rather than inferred from BROWSER.
-   */
+
   mobileChrome: {
     name: 'Mobile Chrome',
     metadata: { platform: 'mobile', browserLabel: 'Mobile Chrome (Pixel 7)' },
@@ -125,12 +97,6 @@ const projectsByBrowser = {
     metadata: { platform: 'mobile', browserLabel: 'Mobile Safari (iPhone 14)' },
     use: {
       ...devices['iPhone 14'],
-      // WebKit, not Chromium. WebKit is the engine every iOS browser is
-      // required to use, so an iPhone profile on Chromium would emulate the
-      // screen while rendering with the wrong engine - which is precisely the
-      // iOS-specific breakage these tests exist to catch. `devices['iPhone 14']`
-      // already defaults to webkit; naming it keeps that explicit alongside the
-      // other projects, which all set browserName directly.
       browserName: 'webkit',
       ignoreHTTPSErrors: allowNonProdHttpsErrors,
     },
@@ -140,11 +106,9 @@ const projectsByBrowser = {
 const projects = [projectsByBrowser[getBrowserProjectKey()]];
 
 const reporter: ReporterDescription[] = [
-  // Ahead of allure-playwright on purpose: it appends the hung-action detail to
-  // the test error, and reporters share the TestResult in registration order.
+  // Before allure-playwright so the hung-action detail reaches the Allure error.
   ['./utils/reporting/timeoutDiagnosticsReporter.ts'],
-  // Ahead of it for the same reason: it moves a runtime skip reason onto the
-  // test case, which is where Allure reads one from.
+  // Before allure-playwright so Allure sees runtime skip reasons.
   ['./utils/reporting/skipReasonReporter.ts'],
   ['list'],
   [
@@ -156,8 +120,7 @@ const reporter: ReporterDescription[] = [
     },
   ],
 ];
-// Registered last so its onExit runs after allure-playwright and the HTML
-// reporter have copied their attachments out of test-results.
+// Last, so it prunes only after other reporters have copied their attachments.
 reporter.push(['./utils/reporting/flakyTracePruner.ts']);
 if (isCI) {
   reporter.push([
@@ -172,32 +135,28 @@ export default defineConfig({
   testIgnore,
   outputDir: `test-results${platformSuffix}${locationSuffix}`,
   globalSetup: './scripts/playwrightGlobalSetup.ts',
-  // Registered under CI too: teardown is what merges the per-worker lead-API
-  // capture shards into the xlsx. It skips the Allure HTML build on CI itself.
+  // Also runs on CI: it merges the evidence shards into the xlsx.
   globalTeardown: './scripts/playwrightGlobalTeardown.ts',
-  // A committed `test.only` narrows a run to that one test, which on CI reads as
-  // a green pipeline over almost no coverage. Locally it stays allowed, because
-  // focusing one test is how you debug it.
+  // Block a committed `test.only` on CI; allow it locally for debugging.
   forbidOnly: isCI,
   use: {
     headless: isHeadless,
     viewport: isHeadless ? desktopViewport : null,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    // Playwright defaults these to 0 (no limit), so a single unstable action or
-    // navigation can otherwise consume the full per-test budget.
+    // Default is no limit, so one stuck action could eat the whole test timeout.
     actionTimeout: 30_000,
     navigationTimeout: 90_000,
     video: 'off',
   },
-  // Govern web-first assertions centrally instead of scattering magic timeouts.
+  // One central timeout for web-first assertions.
   expect: { timeout: 15_000 },
 
   workers: getNumberEnv('PW_WORKERS', 2),
   fullyParallel: true,
   timeout: 5 * 60 * 1000,
 
-  // Keep retries opt-in so staging instability remains visible in Allure trends.
+  // Retries are opt-in so instability stays visible in Allure.
   retries: Math.max(0, Math.trunc(getNumberEnv('PW_RETRIES', 0))),
   projects,
   reporter,

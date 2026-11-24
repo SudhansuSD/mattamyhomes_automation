@@ -7,9 +7,7 @@ import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoCommunityPage } from '../pages/CondoCommunityPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
-// Condos are a Canada-only offering, so this suite always uses CAN data and
-// CondoCommunityPage always drives the Canadian site — running it under
-// LOCATION=USA (or with no LOCATION) still exercises condos instead of skipping.
+// Condos are Canada-only, so this suite always uses CAN data whatever LOCATION says.
 const location = getLocationConfig('CAN');
 const condoCommunity = 'condoCommunity' in location ? location.condoCommunity : undefined;
 
@@ -163,8 +161,7 @@ test.describe(`Condo Community Detail - ${location.country}`, () => {
       });
     });
 
-    // The condo community page renders no footer lead form; uncomment these together
-    // with the footer methods in CondoCommunityPage if the form returns.
+    // No footer lead form on this page; uncomment with CondoCommunityPage's footer methods if one appears.
     //
     // test.describe('Footer Condo Form Validation', () => {
     //   test(`@smoke @regression | ${location.country} | Validate footer condo form fields`, async () => {

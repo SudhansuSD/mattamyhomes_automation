@@ -120,6 +120,34 @@ Methods keep one responsibility, a meaningful name, parameters for data-driven b
 
 Type parameters, return values, config shapes, and test-data shapes where it makes the code easier to verify. Replace `any` when a real type clarifies intent. Stop short of type complexity that costs more to read than the code it describes.
 
+## Triaging A Failed Run
+
+Sort every failure into one of three buckets before changing code. The run log and each test's `error-context.md` snapshot are usually enough.
+
+| Bucket | Signature | Response |
+| --- | --- | --- |
+| Environmental | `page.goto: Page crashed`, `Navigation failed because page crashed`, `Target crashed`, `browser has been closed`, or an action timing out on an element that is already resolved | Make the retry cheap and the crash contained (below). Not a timeout change. |
+| Application defect | Fails the same way in every run, and a fresh browser following the test's own route shows the same thing | Report it with evidence and leave the test failing. |
+| Automation defect | Passes in a fresh browser following the test's route, fails in the test the same way every time | Fix the locator, synchronization, or flow. |
+
+### Environmental: renderer crashes
+
+Chromium's renderer dies under memory pressure, and the heavier SSR pages here make it more likely as parallelism rises - 4 workers measured twice the failures of 2. After a crash Playwright marks the page's session dead and every later call fails, so a retry inside a page object cannot recover. The recovery is Playwright's test retry, which runs on a fresh page; CI sets `PW_RETRIES=1`. Keep that retry worth having:
+
+- A loop over configured items (markets, communities) is one test per item: `for (const market of location.markets) test(...)`. A crash fails one item, and a retry repeats one item instead of a fifteen-minute pass.
+- When the items are only known at runtime (carousel cards read from the DOM), open each in a fresh tab and a new page object, closed in `finally`, so renderer memory does not build up across the loop.
+- Do not raise the test timeout for a crash. A longer limit only makes a crashed run slower.
+
+### Application defects: reproduce along the test's route
+
+Reproduce with the same route the test takes, not just the final URL. Clicking through the header from `/us` and opening a URL directly can render differently: the site keeps the selected country in client state and serves a country-prefixed variant of the same path, and components can be removed after hydration even though the server HTML contains them. Check the rendered DOM after hydration, not only the raw response.
+
+A confirmed defect stays a failing test with its evidence in the report. The expectation changes only when the product owner says the behavior is intended.
+
+### Run budget
+
+Regression runs one Playwright pass per platform and location. On CI that is four passes at 2 workers, around four hours, against a 280-minute step cap inside the 360-minute GitHub-hosted job ceiling. A suite that keeps outgrowing that budget is split across parallel jobs rather than given more time.
+
 ## Independence And Parallel Safety
 
 Every test establishes its own state through setup, navigation helpers, config, or test data - never through another test's side effects. Before adding shared state, check for reused accounts, shared filenames, shared temporary files, global mutable data, and order dependence.

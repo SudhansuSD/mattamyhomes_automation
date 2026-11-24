@@ -33,6 +33,8 @@ Work `CRITICAL`, then `HIGH`, then `MEDIUM`, then `LOW`. Do not touch functional
 - **Mobile failure**: branch in the page object on `isMobileHeaderViewport()`. Never weaken an assertion so both layouts pass.
 - **Oversized page object**: move shared behavior into a `support/` collaborator. Never introduce a component class - `components/` is unused, and the header and footer are page objects extending `BasePage`.
 - **Duplication**: parameterize (`searchLocation(location: string)`) rather than extracting a utility that only cuts line count.
+- **Renderer crash** (`Page crashed`, `Target crashed`, `browser has been closed`): a crashed tab cannot be reused - Playwright marks its session dead - so an in-page retry cannot recover it. The recovery is Playwright's test retry, which starts on a fresh page. Make that retry cheap and the crash contained: split a loop over configured items into one test per item, and where the items are only known at runtime, open each one in a fresh tab via `this.page.context().newPage()` and a new page object, closing it in `finally`. Never raise a timeout or the worker count for a crash.
+- **Reproducible application defect**: a failure that repeats across runs and reproduces in a fresh browser is `APPLICATION ISSUE`. Leave the test failing, record the evidence (URL, what renders, how it was reproduced) in the fix report, and let the Allure failure stand. Change the expectation only when the product owner confirms the behavior is intended - and then through `featureExpectations.ts` when it is a per-location absence.
 
 Read `skills/shared/references/playwright-craft.md` only when a fix needs the full argument on locators, synchronization, assertions, reuse, or typing.
 

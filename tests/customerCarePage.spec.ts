@@ -7,8 +7,7 @@ import { test } from '@playwright/test';
 import { CUSTOMER_CARE_COUNTRIES, CustomerCarePage } from '../pages/CustomerCarePage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
-// Location-agnostic: covers both countries itself, so a multi-location run
-// executes it once — see config/locations/locationAgnosticSpecs.ts.
+// Location-agnostic: covers both countries itself, so it runs once.
 test.describe('Mattamy Homes - Customer Care Page', () => {
   test.beforeEach(async () => {
     await annotate({
@@ -24,8 +23,7 @@ test.describe('Mattamy Homes - Customer Care Page', () => {
       let customerCarePage: CustomerCarePage;
 
       test.beforeEach(async ({ page }) => {
-        // This suite runs once and covers both countries, so each test reports
-        // under the country it actually exercises rather than a shared bucket.
+        // Report each test under the country it exercises.
         await annotate({ location: countryConfig.locationKey });
 
         customerCarePage = new CustomerCarePage(page);

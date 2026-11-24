@@ -4,24 +4,9 @@ import { DESKTOP_ALLURE_RESULTS_DIR, MOBILE_ALLURE_RESULTS_DIR } from './allureP
 import { isMobileBrowserProject } from '../config/browserSelection';
 import { getBoolEnv } from '../config/env';
 
-/**
- * Playwright global setup — runs exactly ONCE in the main process before any
- * tests, and NEVER in a worker (or on worker restart).
- *
- * This is the correct place to clear stale Allure results. The top level of
- * playwright.config.ts is not: the config module is re-imported by every worker,
- * so a worker restart after a failing test wipes the results already written for
- * earlier tests (including the failures), leaving only the tests that ran after
- * the last restart in the report.
- *
- * ALLURE_KEEP_RESULTS=1 (set by scripts/run-locations.ts for every pass after
- * the first) preserves the results already written for earlier locations, so a
- * multi-location run produces one report covering all of them.
- *
- * Only THIS run's platform is cleared. Each platform owns its own results dir,
- * so a web+mobile run must not let one platform's first pass wipe the other's
- * results.
- */
+// Clears this platform's stale Allure results once per run. It lives here, not in
+// playwright.config.ts, because workers re-import the config and would wipe results on restart.
+// ALLURE_KEEP_RESULTS=1 keeps earlier location passes so one report covers them all.
 export default async function globalSetup(_config: FullConfig): Promise<void> {
   const resultsDir = isMobileBrowserProject()
     ? MOBILE_ALLURE_RESULTS_DIR

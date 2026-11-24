@@ -13,8 +13,6 @@ export class Footer extends BasePage {
   readonly footerSection: Locator;
   readonly privacyPolicyLink: Locator;
 
-  // Constructor – Initialize Locators
-
   /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
     super(page);
@@ -30,19 +28,15 @@ export class Footer extends BasePage {
   /** Checks that the footer loaded. */
   async verifyFooterLoaded(): Promise<void> {
     await this.step('Verify footer loaded', async () => {
-      // Scroll footer into view
       await this.footerSection.scrollIntoViewIfNeeded();
 
-      // Wait until visible
       await this.footerSection.waitFor({ state: 'visible' });
 
-      // Validate Privacy Policy link
       await this.assertVisible(
         this.privacyPolicyLink,
         'Privacy Policy footer link should be visible',
       );
 
-      // Hover for stability check
       await this.privacyPolicyLink.hover();
     });
   }
@@ -126,10 +120,7 @@ export class Footer extends BasePage {
     });
   }
 
-  /**
-   * Checks the footer newsletter signup when present: an email field with a
-   * subscribe control that enforces client-side validation on empty submit.
-   */
+  /** Checks the footer newsletter signup, when present, rejects an invalid email. */
   async verifyNewsletterSignup(): Promise<void> {
     await this.step('Verify footer newsletter signup', async () => {
       await this.footerSection.scrollIntoViewIfNeeded();

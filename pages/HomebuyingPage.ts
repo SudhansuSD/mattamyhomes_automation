@@ -7,15 +7,7 @@ import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 import { Header } from './Header';
 
-/*
- * Homebuying pages object.
- *
- * Covers the Homebuying section, driven by a per-path expectation map in the same shape as
- * AboutUsPage:
- *   - /homebuying/homebuying      Journey / What to Expect
- *   - /homebuying/financing       Financing + MortgageCalculator
- *   - /homebuying/shopping-tools  Shopping Tools + SavingsCalculator + Form
- */
+/* Homebuying section page object (Journey, Financing, Shopping Tools), driven by a per-path expectation map. */
 
 export type HomebuyingPageExpectation = {
   name: string;
@@ -54,7 +46,7 @@ export const HOMEBUYING_PAGES: Record<string, HomebuyingPageExpectation> = {
 /** Affiliated Business Arrangement disclosure modal shown before leaving the site. */
 const ABA_MODAL_SELECTOR = '#ABAModalContainer';
 
-/** Mattamy Home Funding calculators - the actual mortgage calculator destination. */
+/** Mattamy Home Funding calculator page the mortgage calculator CTA leads to. */
 const MORTGAGE_CALCULATOR_URL = /mattamyhf\.com\/Calculators\.html/i;
 
 export class HomebuyingPage extends BasePage {
@@ -156,17 +148,7 @@ export class HomebuyingPage extends BasePage {
     });
   }
 
-  /**
-   * Checks the Affiliated Business Arrangement (ABA) disclosure modal behind
-   * the "Mortgage Calculator" CTA.
-   *
-   * The USA Financing page does NOT host a calculator - the CTA opens this
-   * disclosure, and acknowledging it hands off to Mattamy Home Funding in a new
-   * tab. Canada has no affiliated lender and embeds the calculator instead; see
-   * validateEmbeddedMortgageCalculator. The acknowledge link is deliberately NOT clicked: it leaves the site
-   * for a third party. Its destination is asserted from the href instead, and
-   * the modal is dismissed so the page is left in a clean state.
-   */
+  /** Checks the USA Mortgage Calculator CTA opens the ABA disclosure linking to Mattamy Home Funding, then closes it. */
   async validateMortgageCalculatorModal(): Promise<void> {
     await this.step('Validate mortgage calculator disclosure modal', async () => {
       const trigger = this.page.getByRole('button', { name: /mortgage calculator/i }).first();
@@ -190,8 +172,7 @@ export class HomebuyingPage extends BasePage {
       ).toBeTruthy();
       await this.reportValue('ABA disclosure length', `${modalText.length} chars`);
 
-      // Assert the destination from the href only - clicking would open a
-      // third-party tab and leave the run with an extra page to clean up.
+      // Check the href only: clicking would leave the site for a third party.
       const acknowledge = modal
         .locator('a')
         .filter({ hasText: /acknowledge/i })
@@ -235,15 +216,7 @@ export class HomebuyingPage extends BasePage {
     await expect(modal, 'ABA disclosure modal should close').toBeHidden({ timeout: 8_000 });
   }
 
-  /**
-   * Checks the embedded mortgage calculator expands and returns the right payment.
-   *
-   * The calculator starts collapsed behind "Get Started". The calculation runs in
-   * the browser and sends nothing to a lead endpoint. The expected payment uses
-   * Canadian mortgage convention - interest compounded semi-annually, paid
-   * monthly - which is what the site implements; a monthly-compounded figure for
-   * the same inputs comes out about $14 higher, so the check tells the two apart.
-   */
+  /** Checks the embedded (CAN) mortgage calculator expands and returns the Canadian semi-annually compounded payment. */
   async validateEmbeddedMortgageCalculator(): Promise<void> {
     await this.step('Validate embedded mortgage calculator', async () => {
       const calculator = this.page.locator('[class*="MortgageCalculator__TitleCTAContainer"]');

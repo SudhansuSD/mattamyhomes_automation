@@ -37,13 +37,7 @@ type SelfHealingLocatorOptions = {
 // Base Page – Shared Navigation & Common Utilities
 
 export class BasePage {
-  /**
-   * How long the app gets to clear its anti-flicker gate and paint.
-   *
-   * Comfortably above the 10-17s measured on STAGE, because the gate is tied to
-   * `window.onload` and so tracks whatever the slowest third-party asset on the
-   * page is doing that day - see {@link waitForAppPainted}.
-   */
+  /** Time allowed for the app to paint; well above the 10-17s seen on STAGE, since it waits on window.onload. */
   protected static readonly APP_PAINT_TIMEOUT = 45_000;
 
   protected readonly page: Page;
@@ -54,12 +48,7 @@ export class BasePage {
   private readonly prodSubmissionGuard: Promise<void>;
   private readonly trackerBlocking: Promise<void>;
 
-  /**
-   * Country this page object is pinned to, if any.
-   *
-   * Some pages exist in one country only - MPC is USA-only, the condo pages are
-   * Canada-only - so they pin it here and ignore whatever LOCATION the run used.
-   */
+  /** Country this page object is pinned to (e.g. MPC is USA-only), overriding LOCATION. */
   protected readonly locationOverride?: LocationKey;
 
   /** Sets up the page object with the locators it needs. */
@@ -140,37 +129,23 @@ export class BasePage {
         }
       }
 
-      // Checked outside the try: a 4xx/5xx is not a navigation timeout, and
-      // letting the catch above swallow it is what turns a server error into a
-      // misleading locator failure much later in the test.
+      // Checked outside the try so a 4xx/5xx fails here, not as a misleading locator error later.
       this.expectNavigationServed(response, targetUrl);
 
       await this.acceptCookiesIfPresent();
 
-      // Use the shared load handler rather than an inline wait.
       await this.waitForPageReady();
 
-      // Recover from a blank render before handing control back.
       await this.ensurePageRendered();
 
-      // Clear the National-promotion overlay centrally, not in each page object: it
-      // appears a beat after navigation as a full-screen dialog and swallows clicks.
-      // appearTimeout gives it that beat; when it never shows, the wait is all it costs.
+      // The promo overlay appears a moment after load and swallows clicks, so give it time to show.
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
     });
   }
 
-  /**
-   * Fails the test when the server did not actually serve the page.
-   *
-   * A 4xx/5xx still renders a document, so an unchecked navigation leaves the
-   * suite hunting for content on the browser's error page and reporting
-   * "element(s) not found" 15s later instead of naming the status.
-   *
-   * A null response means a same-document navigation, which has no response of
-   * its own and nothing to check.
-   */
+  /** Fails the test when the server answered with a 4xx/5xx status. */
   protected expectNavigationServed(response: PlaywrightResponse | null, url: string): void {
+    // A null response is a same-document navigation, so there is nothing to check.
     if (!response) {
       return;
     }
@@ -181,12 +156,7 @@ export class BasePage {
     ).toBeLessThan(400);
   }
 
-  /**
-   * Opens a URL and checks the server served it.
-   *
-   * The shared entry point for page objects that navigate straight to their own
-   * URL instead of going through {@link navigate}.
-   */
+  /** Opens a URL directly (without {@link navigate}) and checks the server served it. */
   protected async gotoAndVerifyResponse(
     url: string,
     options: { waitUntil?: 'domcontentloaded' | 'load' | 'commit'; timeout?: number } = {},
@@ -204,28 +174,13 @@ export class BasePage {
     return response;
   }
 
-  /**
-   * Waits for the app to paint. Returns whether it did.
-   *
-   * The site ships an anti-flicker guard that sets `body.style.visibility =
-   * "hidden"` in the document head and clears it only from `window.onload`, so
-   * until the last image, iframe and third-party script has settled EVERY
-   * element on the page is correctly reported hidden - the header, the search
-   * box, the lead forms, all of it. Measured on STAGE that gate clears in 10-17s
-   * on a healthy connection, which is why nothing may conclude "blank page"
-   * inside the ordinary assertion window: doing so turns one slow load into a
-   * pile of unrelated-looking "element is not visible" failures.
-   *
-   * Non-throwing, so callers decide what a page that never painted means for
-   * them.
-   */
+  /** Waits for the site to unhide <body> (it stays hidden until window.onload); returns whether it did. */
   protected async waitForAppPainted(timeout = BasePage.APP_PAINT_TIMEOUT): Promise<boolean> {
     if (await this.pollBodyVisible(timeout)) {
       return true;
     }
 
-    // The guard is the site's own inline style, so a body still hidden after the
-    // full window is recoverable without touching anything else on the page.
+    // Still hidden after the full wait: clear the site's inline style and check once more.
     if (!(await this.clearAppPaintGuardIfStuck())) {
       return false;
     }
@@ -248,26 +203,13 @@ export class BasePage {
       .catch(() => false);
   }
 
-  /**
-   * Drops the site's anti-flicker guard when the load event never arrives.
-   *
-   * `<body style="visibility: hidden">` ships in the HTML and the site clears it
-   * from its own `window.onload` handler. WebKit can leave that load event
-   * pending for good - `document.readyState` sits at "interactive" with no
-   * requests outstanding - so a fully rendered DOM stays invisible and every
-   * visibility assertion fails for a reason that has nothing to do with the page
-   * under test.
-   *
-   * Deliberately narrow: it clears the inline attribute only, and only while
-   * that attribute is what hides the body. A body hidden by a stylesheet, by a
-   * parent, or one that rendered nothing at all is left exactly as it is, so a
-   * genuinely blank page still fails.
-   */
+  /** Removes the inline visibility:hidden on <body> when WebKit never fires window.onload; returns whether it cleared. */
   protected async clearAppPaintGuardIfStuck(): Promise<boolean> {
     const cleared = await this.page
       .evaluate(() => {
         const body = document.body;
 
+        // Only the inline style on a non-empty body, so a genuinely blank page still fails.
         if (!body || body.style.visibility !== 'hidden' || body.childElementCount === 0) {
           return false;
         }
@@ -288,20 +230,9 @@ export class BasePage {
     return cleared;
   }
 
-  /**
-   * Reloads the page when the app never painted.
-   *
-   * The HTML shell can load - so the title is right and the page looks fine -
-   * while the SPA renders nothing, leaving every locator to time out. Never
-   * throws: if it is still blank after the retries, the normal assertions say so.
-   *
-   * A single reload, because the page stays hidden until `window.onload` fires:
-   * reloading restarts the very load that was still running, so a page that is
-   * merely slow is only made slower by retrying it. The one reload earns its
-   * place on the case waiting cannot recover - a load event that never arrives
-   * at all.
-   */
+  /** Reloads the page once when the app never painted or rendered no header; never throws. */
   async ensurePageRendered(): Promise<void> {
+    // One reload only: reloading restarts a slow load, so retries just make slow pages slower.
     const maxAttempts = 2;
     const header = this.page.locator('header').first();
 
@@ -324,8 +255,7 @@ export class BasePage {
 
       if (attempt < maxAttempts) {
         await this.reportValue(`${cause} (attempt ${attempt}); reloading`, this.page.url());
-        // The reload can abort when the SPA starts its own navigation mid-reload.
-        // Swallow it and let the next attempt re-check rather than failing the test.
+        // The reload can abort if the SPA navigates mid-reload; the next attempt re-checks.
         await this.page
           .reload({ waitUntil: 'domcontentloaded', timeout: 90_000 })
           .catch(() => undefined);
@@ -338,11 +268,7 @@ export class BasePage {
       await this.reportValue(cause, this.page.url());
     }
 
-    // A visible <header> is not enough on its own: the SSR HTML ships a
-    // mobile-only header shell that satisfies the check above while the desktop
-    // navigation, and the country selector's real value, are still missing. An
-    // un-hydrated shell otherwise surfaces as unrelated-looking locator timeouts
-    // across the suite rather than as one cause.
+    // A visible <header> may still be the mobile SSR shell, without desktop nav or country selector.
     if (!(await this.waitForShellHydrated())) {
       await this.reportValue(
         'Page shell did not hydrate - header is still the mobile SSR shell, so desktop navigation and the country selector are unreliable',
@@ -351,17 +277,9 @@ export class BasePage {
     }
   }
 
-  /**
-   * True when the page is narrower than the site's header breakpoint.
-   *
-   * Read from the page rather than from the project name or `viewportSize()`:
-   * the site decides its own layout from `window.innerWidth`, and a headed run
-   * configured with `viewport: null` reports no size at all.
-   */
+  /** True when window.innerWidth is below the site's header breakpoint (the site's own layout signal). */
   protected async isMobileHeaderViewport(): Promise<boolean> {
-    // Falls back to the desktop width, not 0: every desktop project is at least
-    // this wide, so an unreadable page is treated as desktop rather than
-    // silently skipping the desktop-only checks that depend on this.
+    // Defaults to desktop so an unreadable page never silently skips desktop-only checks.
     const viewportWidth = await this.page
       .evaluate(() => window.innerWidth)
       .catch(() => DESKTOP_HEADER_MIN_WIDTH);
@@ -369,24 +287,14 @@ export class BasePage {
     return viewportWidth < DESKTOP_HEADER_MIN_WIDTH;
   }
 
-  /**
-   * Waits for the header shell to hydrate. Returns whether it did.
-   *
-   * Deliberately non-throwing: this runs on every navigation, and callers that
-   * actually validate the header assert on it themselves. Everything else just
-   * gets the cause recorded in the report instead of a downstream locator
-   * timeout that names the wrong thing.
-   */
+  /** Waits for the desktop header to hydrate; returns whether it did, without throwing. */
   protected async waitForShellHydrated(timeout = 8_000): Promise<boolean> {
-    // Below the site's own header breakpoint the mobile toggle IS the header, so
-    // there is no desktop navigation to wait for.
+    // On mobile the toggle is the real header, so there is nothing to wait for.
     if (await this.isMobileHeaderViewport()) {
       return true;
     }
 
-    // 'hidden' also passes for a detached element, so if the product renames the
-    // toggle this degrades to "assume hydrated" rather than stalling every
-    // navigation for the full timeout.
+    // 'hidden' also passes when the toggle is missing, so a renamed toggle never stalls navigation.
     return this.page
       .locator(MOBILE_NAV_TOGGLE_SELECTOR)
       .waitFor({ state: 'hidden', timeout })
@@ -394,19 +302,7 @@ export class BasePage {
       .catch(() => false);
   }
 
-  /**
-   * Waits for a client-side route change to finish swapping the page in.
-   *
-   * The router updates the URL first and renders the destination afterwards, so
-   * a navigation that has already satisfied `waitForURL` can still be showing
-   * the page it came from - long enough for the next assertion to read the
-   * previous page's title, heading and shell. The document title is what
-   * changes at the end of that swap, so it is the signal used here.
-   *
-   * Non-throwing, like {@link waitForShellHydrated}: callers assert on the page
-   * they expected, and a transition that never completes is recorded in the
-   * report rather than failing here with a message about a title.
-   */
+  /** Waits for the document title to change after a client-side route change (the URL updates before the content). */
   protected async waitForRouteContent(previousTitle: string, timeout = 30_000): Promise<void> {
     if (!previousTitle) {
       return;
@@ -432,17 +328,12 @@ export class BasePage {
 
   /** Waits until the page has stopped rendering. */
   async waitForPageReady(): Promise<void> {
-    // Arm the overlay handlers here, not just in navigate(): pages reached by a
-    // direct goto() or through search never went through navigate(), so they ran
-    // unprotected. Guarded inside, so repeat calls cost a boolean check.
+    // Also armed here for pages reached by direct goto() or search; repeat calls are cheap.
     await this.registerConsentDialogHandlers();
 
     await this.page.waitForLoadState('domcontentloaded');
 
-    // Wait for 'load' once per document, not on every call. The SPA hydrates
-    // around 'load', so this is what stops clicks landing on a dead page - but on
-    // pages that never fire it the wait costs its full timeout, and this method
-    // runs ~20x per test. Paying that every time took the suite from 3.2h to 5.8h.
+    // Wait for 'load' once per URL only: pages that never fire it would pay the full timeout every call.
     const currentUrl = this.page.url();
 
     if (this.loadStateWaitedForUrl !== currentUrl) {
@@ -467,15 +358,7 @@ export class BasePage {
     await this.waitForPageReady();
   }
 
-  /**
-   * Waits for the page to go quiet after a click or a keystroke, instead of
-   * sleeping blindly.
-   *
-   * Returns as soon as the DOM stops changing for `quietWindowMs`, and never
-   * waits longer than `ms`. That cap is enforced from Node as well as in the
-   * page, because in-page timers stop firing while the renderer is busy - one
-   * run burned its whole 5-minute budget inside a single `settle(3000)`.
-   */
+  /** Waits until the DOM stops changing for `quietWindowMs`, capped at roughly `ms`. */
   protected async settle(
     ms: number,
     target: Page = this.page,
@@ -509,8 +392,7 @@ export class BasePage {
       )
       .catch(() => undefined);
 
-    // Not awaited on its own: whichever finishes first wins, and the loser is
-    // already .catch()-guarded so it cannot surface as an unhandled rejection.
+    // Cap from Node too: in-page timers stop firing while the renderer is busy.
     let deadline: NodeJS.Timeout | undefined;
 
     await Promise.race([
@@ -529,28 +411,19 @@ export class BasePage {
     await this.media.validateAllMediaReturns200(pageName);
   }
 
-  // Allure reporting - thin wrappers over utils/reporting/allureReporter so page
-  // objects can call this.step(...). Specs import the standalone functions.
+  // Allure reporting wrappers over utils/reporting/allureReporter
 
   /** Runs an action as a named Allure step and returns whatever it returns. */
   protected async step<T>(name: string, body: () => Promise<T> | T): Promise<T> {
     return reportStep(name, body);
   }
 
-  /**
-   * Records a message, and optionally a value, as its own Allure step. Use this
-   * instead of console.log - a diagnostic not worth reporting is not worth keeping.
-   */
+  /** Records a message and optional value as an Allure step (use instead of console.log). */
   protected async reportValue(message: string, value?: unknown): Promise<void> {
     await reportValue(message, value);
   }
 
-  /**
-   * Decides what a missing element means, instead of assuming it means "skip".
-   *
-   * True when the feature is there. False only when it is missing AND declared
-   * optional for this location. Anything else fails, naming the key to add.
-   */
+  /** True when present, false when absent but declared optional for this location; otherwise fails. */
   protected async isFeaturePresent(
     locator: Locator,
     feature: FeatureKey,
@@ -559,9 +432,7 @@ export class BasePage {
   ): Promise<boolean> {
     const { timeout = 5000, state = 'visible' } = options;
 
-    // waitFor for both states. isVisible() ignores its timeout and answers straight
-    // away, so a section still rendering reads as absent - and absence is a hard
-    // failure, which turns a slow render into a red test.
+    // waitFor, not isVisible(): isVisible() ignores its timeout, so a slow section would read as absent.
     const present = await locator
       .first()
       .waitFor({ state, timeout })
@@ -571,10 +442,7 @@ export class BasePage {
     return (await this.requireFeature(present || null, feature, description)) !== null;
   }
 
-  /**
-   * Same decision as isFeaturePresent, for callers that already resolved the
-   * element themselves. Returns the value, or null when declared optional.
-   */
+  /** Like isFeaturePresent for an already-resolved value; returns it, or null when declared optional. */
   protected async requireFeature<T>(
     value: T | null | undefined,
     feature: FeatureKey,
@@ -595,13 +463,7 @@ export class BasePage {
     return resolved;
   }
 
-  /**
-   * Returns the first candidate locator that works, falling back down the list.
-   *
-   * When nothing matches, the primary locator comes back so the test still fails
-   * on the real selector. Every heal is reported as selector drift: a run kept
-   * green by a fallback still means the app changed, and someone has to see that.
-   */
+  /** Returns the first usable candidate locator, reporting any fallback as selector drift; else the primary. */
   protected async healLocator(
     label: string,
     candidates: SelfHealingLocatorCandidate[],
@@ -801,6 +663,7 @@ export class BasePage {
     });
   }
 
+  /** Checks a value is present (truthy). */
   protected assertTruthy<T>(
     value: T,
     label = 'Expected value should be present',
@@ -859,8 +722,7 @@ export class BasePage {
       return;
     }
 
-    // An unlabeled full-screen modal can sit over this control; without this the
-    // click below just burns its 30s timeout against an intercepted pointer.
+    // A full-screen modal can cover this control and intercept the click.
     await this.overlays.dismissBlockingModalIfPresent();
 
     const currentLabel = await countrySelector.getAttribute('aria-label').catch(() => '');
@@ -876,15 +738,12 @@ export class BasePage {
     await countrySelector.click();
     await this.settle(500);
 
-    // Each option's aria-label ("Country selector. USA") is its accessible name, so
-    // matching on the visible country text alone never finds it.
+    // Options are named by aria-label ("Country selector. USA"), not their visible text.
     const expectedCountryButton = this.page
       .getByRole('button', { name: new RegExp(`^Country selector\\.\\s*${expectedCountry}$`, 'i') })
       .last();
 
-    // Fail here, naming the real cause. Letting a missing option fall through to the
-    // poll below reports "selector should show USA" - which reads as the switch not
-    // taking, when the dropdown never opened at all.
+    // Fail here if the dropdown never opened, rather than as a confusing poll failure below.
     await expect(
       expectedCountryButton,
       `${expectedCountry} option should appear in the country selector after opening it ` +
@@ -911,19 +770,11 @@ export class BasePage {
 
   // Scroll Handler
 
-  /**
-   * Scrolls an element to the middle of the screen and lets the page settle.
-   *
-   * Centres twice because the first scroll can move the layout under the target. On a phone
-   * viewport the national notification banner reserves ~176px at the top of the page, collapses
-   * that space as soon as the page scrolls, and stays pinned over the top of the viewport. The
-   * content jumps up by the collapsed height after the first scroll, which leaves the target under
-   * the pinned banner ("#national-notification-banner subtree intercepts pointer events"). The
-   * second scroll measures the settled layout and puts the target clear of it.
-   */
+  /** Scrolls an element to the middle of the screen and lets the page settle. */
   protected async scrollTo(locator: Locator): Promise<void> {
     await locator.waitFor({ state: 'attached', timeout: 10000 });
 
+    // Twice: on phones the notification banner collapses on first scroll, shifting the target under it.
     for (let pass = 0; pass < 2; pass++) {
       await locator.evaluate((el) => {
         el.scrollIntoView({
@@ -960,13 +811,7 @@ export class BasePage {
     ]);
   }
 
-  /**
-   * Scrolls a target to the middle of the viewport before clicking it.
-   *
-   * Playwright's own scroll stops as soon as the element is just inside the
-   * viewport, where the sticky quick-action bar can still cover it and swallow
-   * the click. Centring keeps it clear of both the sticky header and footer.
-   */
+  /** Scrolls an element to the viewport centre so sticky bars cannot cover it before a click. */
   protected async scrollIntoCenter(locator: Locator): Promise<void> {
     await locator
       .evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }))

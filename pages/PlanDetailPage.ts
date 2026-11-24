@@ -154,9 +154,7 @@ export class PlanDetailPage extends SearchablePage {
     return this.page.getByText(/Thank you for your interest in Mattamy Homes/i).last();
   }
 
-  /**
-   * Returns the gallery media, falling back to the alternate selectors when the main one misses.
-   */
+  /** Returns the gallery media, trying alternate selectors if the main one misses. */
   private async planGalleryImages(): Promise<Locator> {
     return this.healLocator('plan detail gallery media', [
       {
@@ -174,10 +172,7 @@ export class PlanDetailPage extends SearchablePage {
     ]);
   }
 
-  /**
-   * Returns the quick move-in homes section, falling back to the alternate selectors when the main
-   * one misses.
-   */
+  /** Returns the quick move-in homes section, trying alternate selectors if the main one misses. */
   private async availableHomesSection(): Promise<Locator> {
     return this.healLocator('plan detail available homes section', [
       {
@@ -341,20 +336,12 @@ export class PlanDetailPage extends SearchablePage {
     });
   }
 
-  /**
-   * Checks the breadcrumb names this plan.
-   *
-   * The server ships the breadcrumb collapsed - one link back to the parent
-   * community and nothing else - and the full `state / market / city / community
-   * / plan` trail is rendered client side, at desktop widths only. So the two
-   * layouts get the assertion each one actually ships: the plan name in the
-   * expanded trail on desktop, and on a phone the collapsed link, checked to
-   * point at this plan's community rather than merely to exist.
-   */
+  /** Checks the breadcrumb names this plan (desktop) or links to its community (phone). */
   async verifyBreadcrumbContainsPlan(planName: string): Promise<void> {
     await this.step(`Verify breadcrumb contains '${planName}'`, async () => {
       await expect(this.breadcrumb).toBeVisible();
 
+      // Phones only get the collapsed breadcrumb: a single link to the parent community.
       if (await this.isMobileHeaderViewport()) {
         const communityLink = this.breadcrumb
           .locator(`a[href="${this.location.communityPath}"]`)
@@ -371,9 +358,7 @@ export class PlanDetailPage extends SearchablePage {
         return;
       }
 
-      // Longer than the shared expect timeout on purpose: this text arrives with
-      // the breadcrumb's client-side render, not with the document, so the wait
-      // is for hydration rather than for a value the page already holds.
+      // Longer timeout on purpose: the full trail is rendered client side after hydration.
       await expect(this.breadcrumb).toContainText(new RegExp(escapeRegex(planName), 'i'), {
         timeout: PlanDetailPage.BREADCRUMB_HYDRATION_TIMEOUT,
       });
@@ -416,13 +401,7 @@ export class PlanDetailPage extends SearchablePage {
     await this.settle(500);
   }
 
-  /**
-   * Verifies the plan's media gallery.
-   *
-   * The named tabs only render for media a plan actually has, so they are
-   * optional. The gallery itself is not - requiring a tab failed plans with a
-   * plain carousel while a plan with no gallery would have passed.
-   */
+  /** Checks the plan's media gallery shows media; named tabs are optional, the gallery is not. */
   async verifyPlanMediaGallery(): Promise<void> {
     await this.step('Verify plan media gallery', async () => {
       const gallery = this.page
@@ -471,9 +450,7 @@ export class PlanDetailPage extends SearchablePage {
         return;
       }
 
-      // No named tabs on this plan - it renders a plain carousel. Assert that
-      // the gallery actually shows media rather than returning having checked
-      // nothing, which is what the tab-only version did here.
+      // No named tabs means a plain carousel; it must still show media.
       await expect(
         gallery.locator('img:visible, video:visible, iframe:visible').first(),
         'Plan media gallery should render visible media',

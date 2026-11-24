@@ -1,12 +1,7 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { closeAtlasChatIframeIfOpen } from '../utils/leadform/leadFormHelper';
 
-/**
- * Consent banners, promotion overlays, and the DOM they leave behind.
- *
- * A collaborator of BasePage, which delegates its overlay handling here. Needs
- * only the page plus a way to settle and report.
- */
+/** What BasePage passes in so OverlayManager can settle and report while handling overlays. */
 export type OverlayManagerDeps = {
   settle: (ms: number) => Promise<void>;
   report: (message: string, value?: unknown) => Promise<void>;
@@ -23,16 +18,7 @@ export class OverlayManager {
     this.deps = deps;
   }
 
-  /**
-   * Registers auto-dismiss handlers for late-appearing consent dialogs.
-   *
-   * A "Privacy" consent dialog can load a beat after navigation and intercept
-   * clicks/navigation - it blocks the About > Careers navigation, leaving the
-   * URL on the home page so the route wait times out. addLocatorHandler runs the
-   * dismissal whenever the dialog obscures an action and then retries the
-   * action, so the navigation proceeds. Registered once per page; safe to call
-   * repeatedly.
-   */
+  /** Registers once per page the handlers that auto-dismiss late-appearing consent, promo and chat overlays. */
   async registerHandlers(): Promise<void> {
     if (this.handlersRegistered) {
       return;
@@ -41,13 +27,8 @@ export class OverlayManager {
 
     const privacyDialog = this.page.getByRole('dialog', { name: /privacy/i });
 
-    // Every step here is timeboxed, and the whole handler has to finish in about
-    // a second. A locator handler runs INSIDE the timeout budget of the action
-    // that triggered it, so slow work here does not delay the action - it
-    // consumes it. An untimed click inherits the 30s actionTimeout and can hang
-    // on a consent button while its banner animates away, starving a 15s
-    // assertion until it fails without ever sampling. Escalation is a single
-    // pass for the same reason.
+    // Every step is timeboxed: a locator handler spends the timeout budget of the action that
+    // triggered it, so an untimed click here can starve that action until it fails.
     await this.page.addLocatorHandler(privacyDialog, async (dialog) => {
       const dismissButton = this.page
         .locator('#onetrust-accept-btn-handler')
@@ -66,26 +47,14 @@ export class OverlayManager {
 
       await this.page.keyboard.press('Escape').catch(() => undefined);
 
-      // Escalate if it is still there. On CAN this dialog survived both the
-      // button click and Escape - the handler re-fired six times while the About
-      // Us menu navigation stayed blocked, and the test reported a title
-      // mismatch ("Mattamy Homes") because the browser never left the home page.
-      // A consent dialog we cannot dismiss is environmental noise, so it is
-      // removed rather than left to swallow every subsequent click. Removal is
-      // immediate rather than another click/Escape/wait loop, which is the one
-      // escalation cheap enough to run inside a caller's budget.
+      // Some dialogs survive both click and Escape and keep blocking navigation, so remove them outright.
       if (await dialog.isVisible().catch(() => false)) {
         await this.removeOverlayNode(dialog);
         await this.clearStaleModalAriaHidden();
       }
     });
 
-    // The National-promotion overlay behaves the same way but worse: it renders a
-    // beat after navigation AND can come back later (route change, timer), so a
-    // one-shot dismissal after navigate() misses it on pages reached through the
-    // search flow. A locator handler dismisses it whenever it actually obscures
-    // an action and then retries the action, on every page, for the whole test -
-    // which is what the scattered dismissPromoPopupIfPresent() calls could not do.
+    // The promotion overlay renders late and can come back, so a one-shot dismissal is not enough.
     const promotionOverlay = this.page
       .locator('[role="dialog"][aria-label*="promotion" i], [aria-label="National promotion"]')
       .first();
@@ -95,20 +64,12 @@ export class OverlayManager {
       async (overlay) => {
         await this.closeNationalPromotion(overlay);
       },
-      // The overlay can reappear, so this must stay armed for the whole test
-      // rather than firing once.
+      // Stays armed for the whole test because the overlay can reappear.
       { noWaitAfter: true },
     );
 
-    // The AtlasRTX chat widget mounts at 0x0 and only grows to its launcher size
-    // a few seconds later, so a one-off check before a click can see nothing to
-    // hide and then lose the click to the grown iframe - it covers links in the
-    // mobile navigation panel. The handler hides it whenever it is on screen
-    // during an action. It is only hidden, never detached, so the chatbot
-    // presence check still finds it. The site can mount the widget twice, and a
-    // handler locator is resolved strictly on every action and assertion, so it
-    // targets the first visible instance - a bare `#iAtlasChat` matching both
-    // throws a strict-mode violation from whatever assertion happens to be running.
+    // The chat widget grows a few seconds after mounting and can cover clicks, so hide it (never
+    // detach it - the chatbot check needs it). first() avoids strict-mode errors when it mounts twice.
     await this.page.addLocatorHandler(
       this.page.locator('#iAtlasChat:visible').first(),
       async () => {
@@ -144,25 +105,13 @@ export class OverlayManager {
     }
   }
 
-  /**
-   * Dismisses the promo popup / National-promotion overlay when present.
-   *
-   * `appearTimeout` is how long to wait for the National-promotion popup to
-   * render before concluding it is absent. The popup renders a beat AFTER
-   * navigation, and Playwright's `isVisible()` returns immediately (its
-   * `timeout` option is ignored), so a plain check would no-op and leave the
-   * promo sitting on top of the lead form where it blocks .fill()/.click().
-   * Pass a positive `appearTimeout` right after navigation to wait for it;
-   * leave it 0 (default) in tight loops where the popup is already handled so
-   * the check does not wait.
-   */
+  /** Dismisses the promo popup if present; pass `appearTimeout` right after navigation, since the popup renders late. */
   async dismissPromoPopup(options: { appearTimeout?: number } = {}): Promise<void> {
     await this.acceptCookies();
     await this.closeNotificationBanners();
 
     const appearTimeout = options.appearTimeout ?? 0;
-    // Case-insensitive / contains match: the aria-label varies across pages
-    // ("National promotion", "National Promotion popup", ...).
+    // Loose aria-label match: the label varies across pages.
     const nationalPromotionDialog = this.page
       .locator(
         '[role="dialog"][aria-label*="promotion" i]:visible, [aria-label="National promotion"]:visible',
@@ -181,18 +130,7 @@ export class OverlayManager {
     );
   }
 
-  /**
-   * Caps how long the optional overlay sweep may run, then moves on.
-   *
-   * Running out of time is reported, never thrown: the sweep is environmental
-   * noise handling, and the usual cause is the page's main thread being busy
-   * mid-hydration (a bare `isVisible` on the community page measured 4.7s), not
-   * an overlay. Throwing there failed the whole test in `beforeEach`, before it
-   * reached anything it was meant to check. A promo that really does cover an
-   * action is still dismissed by the locator handlers from registerHandlers().
-   * `isExpired` lets the sweep stop at its next step instead of pressing Escape
-   * or clicking in the background while the test carries on.
-   */
+  /** Caps how long the overlay sweep may run; a timeout is reported, not thrown, since a busy page is the usual cause. */
   private async withPromoDismissalDeadline(
     work: (isExpired: () => boolean) => Promise<void>,
     timeout: number,
@@ -224,6 +162,7 @@ export class OverlayManager {
     }
   }
 
+  /** Closes the promotion overlay, or any other visible promo-like dialog that holds no form. */
   private async dismissVisiblePromoPopup(
     nationalPromotionDialog: Locator,
     isExpired: () => boolean,
@@ -304,19 +243,7 @@ export class OverlayManager {
     await this.clearStaleModalAriaHidden();
   }
 
-  /**
-   * Closes the promotion / notification banners pinned to the top of the page.
-   *
-   * These are banners, not dialogs, so the modal sweep below never sees them: `<div
-   * id="national-notification-banner">` and `<div id="notification-banner">`, each with its own
-   * `Close ... banner` button. They stack to roughly 236px of absolutely positioned, z-40 content -
-   * more than a third of a phone viewport - and on the community template that lands squarely on the
-   * hero Get Information CTA, so the click reports "#national-notification-banner subtree intercepts
-   * pointer events" against a CTA that is visible, enabled and stable.
-   *
-   * Conditional, and quiet when they are absent: these are environmental noise, not a feature under
-   * test.
-   */
+  /** Closes the notification banners pinned to the top, which the dialog sweep misses and which can cover CTAs on phones. */
   private async closeNotificationBanners(): Promise<void> {
     const closeButtons = this.page.locator(
       [
@@ -341,30 +268,7 @@ export class OverlayManager {
     }
   }
 
-  /**
-   * Clears react-modal's page-level state when no modal is actually mounted.
-   *
-   * While a modal is open react-modal marks its app element `aria-hidden="true"`
-   * and puts `ReactModal__Body--open` on <body>, and undoes both from its own
-   * close handler. Every dismissal in this class closes those overlays the blunt
-   * way - force click, dispatchEvent, Escape, and finally `.remove()` on the
-   * overlay in closeNationalPromotion - so the modal goes away without that
-   * handler ever running and `#root` stays aria-hidden for the rest of the test.
-   *
-   * That one leftover attribute takes the whole page out of the accessibility
-   * tree, so every role-based lookup matches nothing while the page still looks
-   * perfectly normal on screen. On the USA community page it drops
-   * `getByRole('button', { name: /submit/i })` from 2 matches to 0 and
-   * `getByRole('textbox')` from 14 to 0 - which is how an open, visible form
-   * ends up reported as "not present on the page".
-   *
-   * The guard checks for a *visible* promotion/notification overlay rather than
-   * for any `.ReactModal__Content`: the promotion overlay is itself a mounted
-   * `.ReactModal__Content`, so the broader check skipped exactly when the flag
-   * needed clearing. Clearing it can't hide a real dialog either - react-modal
-   * portals its overlays outside `#root`, and the Get Information flyout is not
-   * a react-modal at all.
-   */
+  /** Removes react-modal's leftover `#root` aria-hidden (which blinds role lookups) when no promo overlay is visible. */
   async clearStaleModalAriaHidden(): Promise<void> {
     await this.page
       .evaluate(() => {
@@ -395,22 +299,7 @@ export class OverlayManager {
       .catch(() => undefined);
   }
 
-  /**
-   * Puts the page back in the accessibility tree after the promotion popup has
-   * taken it out.
-   *
-   * `dismissPromoPopupIfPresent` can miss the popup: it renders a beat after
-   * navigation, and the wait window is kept short so pages with no promo (the
-   * whole CAN site) don't pay for it on every call. A promo that mounts just
-   * after that window leaves `#root` aria-hidden for the rest of the test, and
-   * from there every role-based lookup quietly matches nothing - which is why
-   * this only ever showed up on USA, and only sometimes.
-   *
-   * Re-checking here is cheaper than waiting longer up front: one attribute
-   * lookup when all is well, a dismissal when it isn't. Never throws - if the
-   * promo refuses to close, the click it blocks reports it and names the
-   * intercepting element.
-   */
+  /** Re-dismisses a late promo popup that left `#root` aria-hidden; cheap when nothing is wrong and never throws. */
   async ensurePageInAccessibilityTree(): Promise<void> {
     const hiddenRoot = this.page.locator('#root[aria-hidden="true"]');
 
@@ -423,9 +312,7 @@ export class OverlayManager {
       this.page.url(),
     );
 
-    // Ends with clearStaleModalAriaHidden(), which is what actually drops the
-    // leftover attribute when the overlay was removed without react-modal's own
-    // close handler running.
+    // Ends with clearStaleModalAriaHidden(), which drops the leftover attribute.
     await this.dismissPromoPopup();
 
     await expect
@@ -437,21 +324,7 @@ export class OverlayManager {
       .catch(() => undefined);
   }
 
-  /**
-   * Closes the National-promotion overlay: click its close button (matching the
-   * varying aria-label / class) and press Escape, retrying briefly, then remove
-   * the overlay from the DOM as a last resort so a stuck promo cannot sit on top
-   * of a lead form and block .fill()/.click() until the action times out.
-   */
-
-  /**
-   * Closes a blocking full-screen modal that is not a lead form.
-   *
-   * The auto-dismiss handler only matches dialogs labeled "promotion"; the site
-   * also renders an unlabeled one that sat over the country selector until the
-   * click timed out. Dialogs containing a submit button are left alone - that is
-   * what distinguishes a lead form from an interstitial.
-   */
+  /** Closes an unlabeled blocking full-screen modal, leaving any dialog with a submit button (a lead form) alone. */
   async dismissBlockingModalIfPresent(): Promise<void> {
     const dialog = this.page.locator('[role="dialog"][aria-modal="true"]:visible').first();
 
@@ -473,21 +346,14 @@ export class OverlayManager {
     await this.closeNationalPromotion(dialog);
   }
 
-  /**
-   * Stops the AtlasRTX chat widget intercepting clicks.
-   *
-   * Its floating iframe sits over form Submit buttons and, at phone widths, over
-   * links in the mobile navigation panel. The frame is cross-origin, so close it
-   * by hiding the host container before the click rather than forcing the click
-   * through whatever is on top. It loads asynchronously, so call this right
-   * before each click it could cover, not once on arrival.
-   */
+  /** Hides the AtlasRTX chat iframe so it cannot cover a click; call before each click, since it loads late. */
   async neutralizeChatWidget(): Promise<void> {
     if (await closeAtlasChatIframeIfOpen(this.page)) {
       await this.deps.report('Closed the AtlasRTX chat iframe before clicking');
     }
   }
 
+  /** Closes the promotion overlay with a few click/Escape tries, removing it from the DOM as a last resort. */
   private async closeNationalPromotion(dialog: Locator): Promise<void> {
     const closeButton = this.page
       .getByRole('button', {
@@ -515,12 +381,7 @@ export class OverlayManager {
     await this.clearStaleModalAriaHidden();
   }
 
-  /**
-   * Removes an overlay we could not dismiss through its own UI.
-   *
-   * Takes the backdrop with it when there is one, so the page is left clickable
-   * rather than covered by an invisible layer.
-   */
+  /** Removes an undismissable overlay from the DOM, backdrop included, so the page stays clickable. */
   private async removeOverlayNode(dialog: Locator): Promise<void> {
     await dialog
       .evaluate((element) => {

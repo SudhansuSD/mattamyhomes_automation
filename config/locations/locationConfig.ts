@@ -1,19 +1,7 @@
 import { getEnvConfig } from '../environments/envConfig';
 
-/*
- * `homeURL` is the path the country's home page lives at, and it differs by
- * environment. Each configured environment routes USA through /us and Canada
- * through /ca, and that path is what selects the country there: /ca serves
- * Canadian content even when the query string says USA.
- *
- * `queryParam` is the country filter the search page still uses in its URL.
- *
- * `promoURL` is the promotion page the promo suite validates for that country,
- * or null when the country runs no promotion - the suite skips on null.
- *
- * `galleryMpc` is the MPC the image gallery test runs against. The primary
- * `mpc` entry has no image gallery, so the gallery is validated on one that does.
- */
+// Per-environment location data. `homeURL` (/us or /ca) is what selects the country; `promoURL`
+// is null when there is no promotion; `galleryMpc` is used because the main `mpc` has no gallery.
 const ENVIRONMENT_LOCATION_OVERRIDES = {
   STAGE: {
     USA: {
@@ -419,13 +407,7 @@ export const ALL_LOCATION_KEYS = ['USA', 'CAN'] as const satisfies readonly Loca
 /** Values of LOCATION that mean "no specific location — run them all". */
 const RUN_ALL_TOKENS = ['', 'ALL', 'BOTH'];
 
-/**
- * Locations a single `npm test` invocation should cover.
- *
- * LOCATION unset (or ALL/BOTH) => every location, run as one pass each, so the
- * report covers USA *and* Canada. LOCATION=CAN => that location only. An
- * unknown value still throws — a typo must fail fast, not silently run both.
- */
+/** Locations to run: all when LOCATION is unset/ALL/BOTH, else that one (unknown values throw). */
 export function getLocationsToRun(): LocationKey[] {
   const raw = (process?.env?.LOCATION ?? '').trim().toUpperCase();
 
@@ -453,13 +435,7 @@ function getMarketRegion(market: { url: string }): string {
   return market.url.split('/').filter(Boolean)[0] ?? market.url;
 }
 
-/**
- * One market per region, keeping config order.
- *
- * Smoke coverage only has to prove that a market page renders in each state and
- * province, and walking all 16 USA markets in a single test costs over half of a
- * smoke pass. Regression covers every market individually.
- */
+/** One market per region, in config order; keeps smoke fast while regression covers every market. */
 export function getMarketsPerRegion<T extends { url: string }>(markets: readonly T[]): T[] {
   const seenRegions = new Set<string>();
 

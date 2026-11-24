@@ -2,15 +2,7 @@ import { Locator, Page, expect } from '@playwright/test';
 import { getLocationConfig } from '../config/locations/locationConfig';
 import { SearchablePage } from './SearchablePage';
 
-/**
- * Viewport width at and above which the masthead swaps its hero image for the
- * hero video.
- *
- * This is the masthead's own breakpoint, not the header's: measured against
- * STAGE, the video is display:none at 767px and shown at 768px. Phone profiles
- * sit well under it, so each platform lands on the branch matching what the site
- * actually exposes for that viewport.
- */
+/** Viewport width from which the masthead shows the hero video instead of the image (its own breakpoint, not the header's). */
 const HERO_VIDEO_MIN_WIDTH = 768;
 
 type HeroVideoState = {
@@ -84,7 +76,7 @@ export class HomePage extends SearchablePage {
     });
   }
 
-  // Checks the masthead shows the hero media this viewport is meant to get - the video on desktop, the image on phones.
+  // Checks the masthead hero media: the video on desktop, the image on phones.
   async validateHeroMedia(): Promise<void> {
     await this.step('Validate hero media', async () => {
       await this.waitForPageReady();
@@ -101,11 +93,9 @@ export class HomePage extends SearchablePage {
     });
   }
 
-  // Tells whether the viewport is narrow enough that the masthead uses the hero image instead of the video.
+  // True when the viewport is narrow enough for the masthead to show the hero image.
   private async isHeroImageViewport(): Promise<boolean> {
-    // Falls back to the breakpoint itself, not 0, for the reason BasePage falls
-    // back to the desktop width: a viewport that cannot be read runs the stricter
-    // video checks rather than quietly settling for the image ones.
+    // Defaults to the breakpoint so an unreadable viewport runs the stricter video checks.
     const viewportWidth = await this.page
       .evaluate(() => window.innerWidth)
       .catch(() => HERO_VIDEO_MIN_WIDTH);
@@ -130,8 +120,7 @@ export class HomePage extends SearchablePage {
   // Reads the video's poster fallback, the masthead's painted background, and whether the video is on screen.
   private async getHeroImageState(): Promise<HeroImageState> {
     return this.heroSection.evaluate((section: HTMLElement) => {
-      // An empty source stays empty: resolved against the page it would become the page's own URL,
-      // and a masthead with no image would then pass every source check below.
+      // Keep empty as empty; resolving it would yield the page URL and falsely pass the checks.
       const toAbsoluteUrl = (url: string) => {
         if (!url.trim()) {
           return '';
@@ -145,9 +134,7 @@ export class HomePage extends SearchablePage {
       };
 
       const video = section.querySelector('video');
-      // The painted background is a different CDN rendition of the poster image
-      // (a "-source" path rather than a sized one), so the two are checked
-      // separately rather than compared for equality.
+      // A different CDN rendition of the poster, so it is checked separately, not compared.
       const backgroundUrl =
         /url\(["']?(.*?)["']?\)/.exec(window.getComputedStyle(section).backgroundImage)?.[1] ?? '';
 
@@ -159,7 +146,7 @@ export class HomePage extends SearchablePage {
     });
   }
 
-  // Asserts the phone masthead carries the poster fallback and a painted background, and keeps the video hidden.
+  // Asserts the phone masthead has a poster and background image and hides the video.
   private expectHeroImageSource(imageState: HeroImageState): void {
     expect(
       imageState.posterImageUrl,
@@ -177,14 +164,13 @@ export class HomePage extends SearchablePage {
     ).toBeFalsy();
   }
 
-  // Confirms the browser decoded the hero image, rather than the URL merely being declared.
+  // Confirms the browser can actually load and decode the hero image.
   private async expectHeroImageRendered(imageUrl: string, imageName: string): Promise<void> {
     const decodedWidth = await this.page.evaluate(async (url) => {
       const image = new Image();
       image.src = url;
 
-      // Raced rather than awaited outright: a CDN that never answers would
-      // otherwise hang here until the whole test times out, naming nothing.
+      // Capped at 15s so an unresponsive CDN cannot hang the test.
       return Promise.race([
         image
           .decode()
@@ -440,14 +426,7 @@ export class HomePage extends SearchablePage {
     );
   }
 
-  // Checks each market card exposes a valid link and a successfully loaded image.
-  /**
-   * Opens every market card from the home page and checks where it lands.
-   *
-   * The rest of the market coverage navigates to URLs held in locationConfig,
-   * which is how those go stale unnoticed. These links come from the site, so
-   * they cannot drift from the content.
-   */
+  // Opens every market card from the home page and checks the market page it lands on.
   async validateEachMarketCardOpens(): Promise<void> {
     await this.step('Open each market card from the home page', async () => {
       await this.waitForPageReady();
@@ -469,85 +448,19 @@ export class HomePage extends SearchablePage {
         const label = card.marketName || card.href;
 
         await this.step(`Open market card ${index + 1}/${cards.length}: ${label}`, async () => {
-          await this.navigate();
+          // A fresh tab per card keeps renderer memory from building up across the whole carousel,
+          // which is where this loop crashed when every card reused one tab.
+          const tab = await this.page.context().newPage();
 
-          const link = this.page.locator(`#cards a[href="${card.href}"]`).first();
+          try {
+            const failure = await new HomePage(tab).openMarketCard(card, label, expectedCountry);
 
-          // The slick carousel parks inactive slides outside the viewport, where
-          // even a forced click fails with "Element is outside of the viewport" -
-          // force skips the actionability checks but Playwright still needs
-          // coordinates to dispatch at. A DOM click still exercises the real
-          // anchor and its href, which is what this journey is checking.
-          await link.scrollIntoViewIfNeeded().catch(() => undefined);
-          await link.click({ force: true, timeout: 5000 }).catch(async () => {
-            await link.dispatchEvent('click');
-          });
-          await this.waitForPageReady();
-          await this.ensurePageRendered();
-
-          const landedUrl = this.page.url();
-
-          if (!landedUrl.includes(card.href)) {
-            failures.push(`${label}: expected to land on ${card.href}, got ${landedUrl}`);
-            return;
-          }
-
-          // Country context, not the query string. Card hrefs are bare paths, so
-          // an in-site click never carries ?country= - the site keeps the country
-          // in session state. Asserting the URL param here failed all 18 cards
-          // on the first run, which is the check being wrong, not the site.
-          // What actually matters is that the country survived the navigation.
-          const countrySelector = this.page
-            .locator('button[aria-label^="Select your country."]')
-            .first();
-
-          const countrySelectorPresent = await countrySelector
-            .waitFor({ state: 'visible', timeout: 5000 })
-            .then(() => true)
-            .catch(() => false);
-
-          if (countrySelectorPresent) {
-            // Poll, do not sample. The header renders its default before client
-            // state hydrates, so a single read right after navigation catches a
-            // transient CANADA on the way to USA - that read failed 3 of 18
-            // markets while the other 15 happened to settle first.
-            let shown = '';
-            const settled = await expect
-              .poll(
-                async () => {
-                  shown = `${await countrySelector.getAttribute('aria-label').catch(() => '')} ${await countrySelector.innerText().catch(() => '')}`;
-                  return new RegExp(expectedCountry, 'i').test(shown);
-                },
-                { timeout: 10000 },
-              )
-              .toBe(true)
-              .then(() => true)
-              .catch(() => false);
-
-            if (!settled) {
-              failures.push(
-                `${label}: country still reads "${shown.trim()}" 10s after opening the card (${landedUrl})`,
-              );
-              return;
+            if (failure) {
+              failures.push(failure);
             }
+          } finally {
+            await tab.close().catch(() => undefined);
           }
-
-          // waitFor, not isVisible: isVisible() ignores its timeout option and
-          // answers immediately, which samples the heading mid-render and fails a
-          // different three markets on every run. BasePage documents the same
-          // trap on dismissPromoPopupIfPresent.
-          const heading = this.page.getByRole('heading', { level: 1 }).first();
-          const headingRendered = await heading
-            .waitFor({ state: 'visible', timeout: 15000 })
-            .then(() => true)
-            .catch(() => false);
-
-          if (!headingRendered) {
-            failures.push(`${label}: market page rendered no level-1 heading (${landedUrl})`);
-            return;
-          }
-
-          await this.reportValue(`Opened ${label}`, landedUrl);
         });
       }
 
@@ -558,14 +471,82 @@ export class HomePage extends SearchablePage {
     });
   }
 
+  // Opens one market card from the home page and returns why it failed, or null when it landed correctly.
+  private async openMarketCard(
+    card: MarketSlide,
+    label: string,
+    expectedCountry: string,
+  ): Promise<string | null> {
+    await this.navigate();
+
+    const link = this.page.locator(`#cards a[href="${card.href}"]`).first();
+
+    // Inactive carousel slides sit off-screen where even a forced click fails; fall back to a DOM click.
+    await link.scrollIntoViewIfNeeded().catch(() => undefined);
+    await link.click({ force: true, timeout: 5000 }).catch(async () => {
+      await link.dispatchEvent('click');
+    });
+    await this.waitForPageReady();
+    await this.ensurePageRendered();
+
+    const landedUrl = this.page.url();
+
+    if (!landedUrl.includes(card.href)) {
+      return `${label}: expected to land on ${card.href}, got ${landedUrl}`;
+    }
+
+    // Check the header country, not ?country=: card links are bare paths and the site keeps country in session.
+    const countrySelector = this.page.locator('button[aria-label^="Select your country."]').first();
+
+    const countrySelectorPresent = await countrySelector
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (countrySelectorPresent) {
+      // Poll: the header briefly shows its default country before client state hydrates.
+      let shown = '';
+      const settled = await expect
+        .poll(
+          async () => {
+            shown = `${await countrySelector.getAttribute('aria-label').catch(() => '')} ${await countrySelector.innerText().catch(() => '')}`;
+            return new RegExp(expectedCountry, 'i').test(shown);
+          },
+          { timeout: 10000 },
+        )
+        .toBe(true)
+        .then(() => true)
+        .catch(() => false);
+
+      if (!settled) {
+        return `${label}: country still reads "${shown.trim()}" 10s after opening the card (${landedUrl})`;
+      }
+    }
+
+    // waitFor, not isVisible(): isVisible() ignores its timeout and would catch the heading mid-render.
+    const heading = this.page.getByRole('heading', { level: 1 }).first();
+    const headingRendered = await heading
+      .waitFor({ state: 'visible', timeout: 15000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (!headingRendered) {
+      return `${label}: market page rendered no level-1 heading (${landedUrl})`;
+    }
+
+    await this.reportValue(`Opened ${label}`, landedUrl);
+
+    return null;
+  }
+
+  // Checks each market card exposes a valid link and a successfully loaded image.
   async validateMarketCardMediaAndLinks(): Promise<void> {
     await this.step('Validate market card media and links', async () => {
       await this.waitForPageReady();
 
       const section = this.page.locator('text=Explore our locations near you');
       await section.scrollIntoViewIfNeeded();
-      // Wait for the slides to be attached, not visible: in the slick carousel only the active slide
-      // is visible at a time, so each card is scrolled into view individually in the loop below.
+      // Attached, not visible: only the active carousel slide is visible at a time.
       await this.page.waitForSelector('#cards .slick-slide:not(.slick-cloned)', {
         state: 'attached',
         timeout: 15000,
@@ -596,8 +577,7 @@ export class HomePage extends SearchablePage {
           timeout: 10000,
         });
 
-        // Bring the (often lazy-loaded) image into view, then poll until the browser has actually
-        // decoded it - checking naturalWidth in the same tick as the scroll races the lazy load.
+        // The image is lazy-loaded, so scroll it into view and poll until it has decoded.
         await image.scrollIntoViewIfNeeded().catch(() => undefined);
 
         await expect
@@ -625,7 +605,7 @@ export class HomePage extends SearchablePage {
     await this.step('Validate search autocomplete no-match state', async () => {
       await this.waitForPageReady();
 
-      // Reveal the search input first - on the home page it can sit behind the header search toggle.
+      // The search input can sit behind the header search toggle.
       const searchBox = await this.ensureSearchBoxVisible();
 
       await expect(searchBox, 'Home search input should be visible').toBeVisible({
@@ -718,7 +698,6 @@ export class HomePage extends SearchablePage {
       expect(text.length, 'A shown banner should render meaningful text').toBeGreaterThan(0);
       await this.reportValue('Promotion / notification banner text', text.slice(0, 120));
 
-      // Any link in the banner should carry a destination.
       const bannerLink = banner.locator('a[href]').first();
       if (await bannerLink.isVisible({ timeout: 2000 }).catch(() => false)) {
         const href = await bannerLink.getAttribute('href');
@@ -726,7 +705,6 @@ export class HomePage extends SearchablePage {
         await this.reportValue('Banner CTA', this.buildFullUrl(href));
       }
 
-      // When dismissible, closing it should hide the banner.
       const closeButton = banner
         .getByRole('button', { name: /close|dismiss|got it|ok|x/i })
         .or(

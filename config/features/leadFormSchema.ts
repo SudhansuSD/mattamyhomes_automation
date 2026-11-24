@@ -1,19 +1,7 @@
 import type { LocationKey } from '../locations/locationConfig';
 
-/**
- * Which fields a lead form should expose, per country.
- *
- * Taken from the recorded submissions in
- * reports/form-submissions/Mattamy_Form_Submission_Evidence_STAGE_*.xlsx and
- * the current STAGE forms. USA side-modal forms do not render a Comments field;
- * Canada forms declare First Time Home Buyer.
- *
- * A declared field the form does not render is skipped, not failed: it is left
- * unfilled and listed in the Allure report, so a form that lost its budget
- * dropdown shows up there instead of silently sending the CRM a thinner lead.
- * Whether a rendered field is required is read from the form itself
- * (`required` / `aria-required`), not declared here.
- */
+// Fields each country's lead forms should expose. A declared field that does not render is
+// skipped and listed in the report; whether a field is required is read from the form itself.
 
 export type LeadFormField =
   | 'comments'
@@ -70,7 +58,7 @@ export function findMissingLeadFormFields(
   });
 }
 
-/** The report text for absent fields, naming the file to edit when the form legitimately changed. */
+/** Report text for absent fields, naming the file to update. */
 export function buildMissingLeadFieldsMessage(
   formName: string,
   location: LocationKey,

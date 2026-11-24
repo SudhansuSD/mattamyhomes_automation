@@ -15,16 +15,7 @@ export class Header extends BasePage {
   readonly header: Locator;
   readonly mobileNavToggle: Locator;
   readonly mobileNavCloseButton: Locator;
-  /**
-   * The header together with the mobile navigation panel it opens.
-   *
-   * At phone widths the panel is not part of `<header>` at all: it mounts as a
-   * sibling dialog under `#root`, so a header-scoped locator resolves to none of
-   * the navigation it holds and every mobile nav item reads as absent. Scoping
-   * navigation lookups to the union gives each item one locator that works in
-   * both layouts, and stays exact on desktop because the dialog only exists
-   * while the panel is open.
-   */
+  /** The header plus the mobile nav panel, which mounts as a separate dialog outside `<header>`. */
   readonly navigationScope: Locator;
   readonly findYourHomeLink: Locator;
   readonly aboutUsLink: Locator;
@@ -44,32 +35,23 @@ export class Header extends BasePage {
     this.navigationScope = page.locator(
       `header, [role="dialog"]:has(${MOBILE_NAV_CLOSE_SELECTOR})`,
     );
-    // By role, not by id: the desktop header gives this control
-    // `id="Find Your Dream Home"`, while the same control inside the opened
-    // mobile navigation panel carries no id at all. The accessible name is the
-    // one thing both layouts share, so one locator serves both.
+    // By role, not id: only the desktop copy has an id; the accessible name is shared.
     this.findYourHomeLink = this.visibleNavigationItem(
       this.navigationScope.getByRole('button', { name: /^Find Your Dream Home$/i }),
     );
     this.aboutUsLink = this.visibleNavigationItem(
       this.navigationScope.getByRole('button', { name: /^About$/i }),
     );
-    // Two spellings for one item: the desktop header labels it `id="Contact Us"`,
-    // the mobile panel renders a plain `/contact` anchor with no id.
+    // Desktop uses an id; the mobile panel uses a plain /contact anchor.
     this.contactUsLink = this.visibleNavigationItem(
       this.navigationScope.locator('[id="Contact Us"], a[href="/contact"]'),
     );
-    // Two shapes for one item: the desktop heart icon is a button that routes from
-    // script with no href, while the phone panel renders a plain /favorites anchor.
+    // Desktop uses a heart button with no href; the mobile panel uses a /favorites anchor.
     this.favoritesLink = this.visibleNavigationItem(
       this.navigationScope.locator('#goToFavoritesButton, a[href="/favorites"]'),
     );
-    // Two layouts, one locator. The desktop flyout marks each entry as
-    // `a[role="button"]`; the phone panel renders plain anchors inside the
-    // collapsible section that follows the About trigger. The mobile half is
-    // scoped through that trigger rather than to the panel as a whole, because
-    // the panel also carries About pages the country promotes to top-level nav
-    // items - Sustainability on CAN - which do not belong to the flyout.
+    // Desktop flyout entries, plus mobile anchors under the expanded About section only
+    // (the panel also holds top-level About pages, e.g. Sustainability on CAN).
     this.aboutUsMenuLinks = this.navigationScope.locator(
       [
         'a[role="button"][href^="/about"]',
@@ -78,55 +60,31 @@ export class Header extends BasePage {
     );
   }
 
-  /**
-   * Narrows a navigation locator to the copy that is actually on screen.
-   *
-   * Both layouts ship in the DOM at once - the desktop nav stays mounted behind
-   * the phone header, and the panel keeps its items after it closes - so a
-   * navigation item routinely resolves to more than one node and only one of
-   * them belongs to the layout under test.
-   */
+  /** Narrows a nav locator to the on-screen copy, since desktop and mobile nav are both in the DOM. */
   private visibleNavigationItem(locator: Locator): Locator {
     return locator.filter({ visible: true }).first();
   }
 
   // Mobile Navigation Panel
 
-  /**
-   * Opens the mobile navigation panel, and does nothing when it is already open.
-   *
-   * The phone header collapses every nav item behind this toggle, so mobile runs
-   * have to open it before any nav item exists to assert on.
-   *
-   * Deliberately narrow: the toggle's own id plus a real click, so a toggle that
-   * has moved or is covered fails here. Matching a set of speculative selectors
-   * instead risks opening some other control and reporting success.
-   */
+  /** Opens the mobile navigation panel unless it is already open. */
   async openMobileNavIfClosed(): Promise<void> {
     await this.step('Open mobile navigation panel', async () => {
       if (await this.mobileNavCloseButton.isVisible().catch(() => false)) {
         return;
       }
 
-      // The consent dialog and promo overlay both sit on top of the toggle at
-      // phone widths, where there is far less room around it than on desktop.
+      // The consent dialog and promo overlay cover the toggle on phones.
       await this.acceptCookiesIfPresent();
       await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
 
-      // Asserted before the click, so a page still behind its flicker guard says
-      // that instead of reporting a toggle that is "not visible, enabled and
-      // stable" - which reads as a broken menu button rather than as a document
-      // that never finished loading.
+      // Checked first so an unpainted page is reported as such, not as a broken menu button.
       expect(
         await this.waitForAppPainted(),
         'Page has not painted, so the mobile navigation toggle cannot be tapped - the site keeps <body> hidden until window.onload fires',
       ).toBe(true);
 
-      // The phone header slides out of view as the page scrolls, which leaves the
-      // toggle visible, enabled and stable while sitting outside the viewport -
-      // Playwright then retries the click for its full timeout and reports a
-      // broken menu button. Scrolling back to the top brings the header in, and
-      // the poll waits for its slide-in to actually land.
+      // The phone header slides off-screen on scroll; scroll to top and wait for it to slide back in.
       await this.page.evaluate(() => window.scrollTo(0, 0));
       await expect
         .poll(
@@ -164,9 +122,6 @@ export class Header extends BasePage {
   /** Checks that the header links are visible. */
   async verifyHeaderLinksVisible(): Promise<void> {
     await this.step('Verify header links visible', async () => {
-      // Attached here, visible below: the two branches each assert visibility
-      // with a message naming their own layout, which a single visibility gate
-      // at this point cannot do.
       await this.header.first().waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
 
@@ -175,9 +130,7 @@ export class Header extends BasePage {
         'Header should be visible, not rendered with visibility:hidden',
       ).toBeVisible({ timeout: 20000 });
 
-      // On the mobile-web device profiles every nav item is collapsed behind the
-      // menu button, so the panel is opened and the SAME items are validated
-      // rather than the check being weakened to "a hamburger exists".
+      // On mobile, open the panel and validate the same items.
       if (await this.isMobileHeaderViewport()) {
         await expect(
           this.mobileNavToggle,
@@ -202,11 +155,7 @@ export class Header extends BasePage {
         return;
       }
 
-      // The desktop navigation does not exist until the header shell hydrates:
-      // the SSR HTML ships a mobile-only header, and the swap happens client
-      // side. Asserted first so a page that never hydrated says so, instead of
-      // reporting "[id=Find Your Dream Home] not attached" and pointing at a
-      // locator that is perfectly correct.
+      // Desktop nav only exists once the mobile SSR shell hydrates; check that first for a clear failure.
       await expect(
         this.mobileNavToggle,
         'Header should replace its mobile shell with the desktop navigation',
@@ -293,31 +242,21 @@ export class Header extends BasePage {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
       await this.page.evaluate(() => window.scrollTo(0, 0));
 
-      // The phone header carries the same links as the web header, but behind
-      // the hamburger: without opening it first the About Us trigger is not in
-      // the layout at all.
       await this.revealNavigationForViewport();
 
       await this.aboutUsLink.waitFor({ state: 'visible', timeout: 20000 });
       await this.aboutUsLink.hover();
 
-      // The phone panel's trigger is a toggle, so clicking one that is already
-      // expanded collapses the very section the caller is about to read. The
-      // desktop trigger carries no aria-expanded and still gets its click.
+      // On mobile the trigger toggles, so clicking an expanded one would collapse it.
       if ((await this.aboutUsLink.getAttribute('aria-expanded')) !== 'true') {
         await this.aboutUsLink.click();
       }
-      // navigationScope, not the header: at phone widths the panel that holds
-      // these links mounts as a sibling dialog, so a header-scoped locator finds
-      // none of them.
       await this.assertAttached(
         this.navigationScope.locator('a[href="/about/about-mattamy"]'),
         'About Us menu should open',
       );
 
-      // Wait for the flyout to finish populating before callers read it: the
-      // links render/animate in asynchronously, so a read taken right after the
-      // first link attaches can capture a partial list and flake a strict compare.
+      // Links render in asynchronously; wait for all of them so callers do not read a partial list.
       if (expectedLinkCount && expectedLinkCount > 0) {
         await expect
           .poll(async () => this.aboutUsMenuLinks.count(), {
@@ -378,8 +317,6 @@ export class Header extends BasePage {
   async verifyFindYourHomeLinks(): Promise<void> {
     await this.step('Verify Find Your Dream Home links', async () => {
       await this.registerNationalPromotionHandler();
-      // On mobile the control lives inside the collapsed panel, so it has to be
-      // opened before the flyout can be triggered at all.
       await this.revealNavigationForViewport();
       await this.clickFindYourHome();
 
@@ -431,10 +368,7 @@ export class Header extends BasePage {
         });
         await this.waitForPageReady();
 
-        // The campaign modal is injected shortly after the search page has loaded.
-        // Wait for it to actually appear (up to the same 5s) instead of always
-        // sleeping the full duration — returns as soon as it shows and never
-        // throws when it never appears, so the visibility check below is unchanged.
+        // The campaign modal appears shortly after load; wait up to 5s for it, without failing.
         if (!this.nationalPromotionDismissed) {
           await this.nationalPromotionDialog
             .waitFor({ state: 'visible', timeout: 5000 })
@@ -487,10 +421,7 @@ export class Header extends BasePage {
     await this.step('Verify About Us menu links', async () => {
       const actualLinks = await this.getVisibleAboutUsMenuLinks(expectedLinks.length);
 
-      // Order-independent comparison: the flyout can render links in a different
-      // order than the config, and the per-link assertions below already verify
-      // each expected link is present with the correct href. Compare as sets so
-      // the check is resilient to ordering without losing coverage.
+      // Compared sorted, since the flyout order can differ from the config.
       const sortByUrl = (links: readonly HeaderNavigationLink[]) =>
         [...links].sort((a, b) => a.url.localeCompare(b.url));
 
@@ -540,8 +471,7 @@ export class Header extends BasePage {
           this.buildFullUrl(expectedLink.url),
         );
 
-        // noWaitAfter: the link navigates and detaches, so post-click checks would
-        // time out against a gone element; waitForURL is the real assertion.
+        // noWaitAfter: the link detaches as it navigates; waitForURL is the real check.
         await menuLink.click({ noWaitAfter: true });
         await this.page.waitForURL((url) => url.pathname === expectedLink.url, { timeout: 30000 });
         await this.waitForPageReady();
@@ -572,18 +502,11 @@ export class Header extends BasePage {
 
       const previousTitle = await this.page.title().catch(() => '');
 
-      // noWaitAfter: this link navigates, so the element detaches mid-click. Without
-      // it, Playwright keeps running its post-click checks against the gone element
-      // and times out even though the navigation succeeded (seen on the heavier
-      // About pages such as Sustainability). The waitForURL below is the real
-      // assertion that the click worked.
+      // noWaitAfter: the link detaches as it navigates; waitForURL is the real check.
       await menuLink.click({ timeout: 10000, noWaitAfter: true });
       await this.page.waitForURL((url) => url.pathname === expectedLink.url, { timeout: 30000 });
 
-      // The router swaps the URL in before it renders the destination, so a
-      // caller that starts asserting here can read the home page's title - or the
-      // empty one the swap passes through - and report an About page that never
-      // loaded. Every other navigating header click waits for this.
+      // The URL changes before the new page renders, so wait for the content too.
       await this.waitForRouteContent(previousTitle);
 
       await this.waitForPageReady();
@@ -600,13 +523,7 @@ export class Header extends BasePage {
 
   // Generic Mega-Menu Flyout Validation
 
-  /**
-   * Opens a top-level header menu by its button label.
-   *
-   * The same trigger serves both layouts: a hover flyout on desktop, a
-   * collapsible section of the navigation panel at phone widths, which is why
-   * the panel is opened first there.
-   */
+  /** Opens a top-level header menu by its button label (a section of the nav panel on mobile). */
   async openMenu(menuName: string): Promise<void> {
     await this.step(`Open '${menuName}' menu`, async () => {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
@@ -676,14 +593,7 @@ export class Header extends BasePage {
     });
   }
 
-  /**
-   * Checks a link is NOT a top-level header item - it lives inside a flyout for
-   * this country. Asserted with no flyout opened, where the flyout's copy of the
-   * link is in the DOM but has no box, so ":visible" is what separates the two
-   * placements. On a phone the navigation panel itself is what has to be open
-   * for either placement to have a box at all, which is not the same as opening
-   * the flyout inside it.
-   */
+  /** Checks a link is not visible as a top-level header item while no flyout is open. */
   async verifyNoTopLevelNavLink(link: HeaderNavigationLink): Promise<void> {
     await this.step(`Verify ${link.name} is not a top-level nav link`, async () => {
       await this.header.waitFor({ state: 'attached', timeout: 20000 });
@@ -714,9 +624,7 @@ export class Header extends BasePage {
 
       await this.neutralizeChatWidget();
 
-      // noWaitAfter: the link navigates and detaches, so Playwright's post-click
-      // checks would time out against a gone element; waitForURL is the real
-      // assertion that the click worked.
+      // noWaitAfter: the link detaches as it navigates; waitForURL is the real check.
       await menuLink.click({ noWaitAfter: true });
       await this.page.waitForURL((url) => url.pathname === link.url, { timeout: 30000 });
       await this.waitForRouteContent(previousTitle);
@@ -771,9 +679,7 @@ export class Header extends BasePage {
 
       const previousTitle = await this.page.title().catch(() => '');
 
-      // Hovering the desktop heart swaps its icon for the filled one. A bare click
-      // triggers that swap mid-press, the icon under the pointer is replaced, and
-      // the button's click handler never fires - so hover and let the swap land.
+      // Hover first: the heart icon swaps on hover, and a click during the swap never fires.
       if (!(await this.isMobileHeaderViewport())) {
         await this.favoritesLink.hover();
         await expect(

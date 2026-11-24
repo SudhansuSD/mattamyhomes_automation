@@ -1,25 +1,8 @@
 import { test } from '@playwright/test';
 
-/*
- * Allure step reporting helpers.
- *
- * Shared helpers for producing clean, named Allure report steps instead of dumping diagnostics to
- * stdout. Specs import them directly:
- *
- *   import { reportValue, step } from '../reporting/allureReporter';
- *   await reportValue(`Page URL: ${page.url()}`);
- *
- * Page objects use the thin BasePage wrappers instead:
- *
- *   await this.reportValue('Opened QMI detail', address);
- *   await this.step('Verify hero section', async () => { ... });
- */
+// Named Allure steps for specs; page objects use the BasePage wrappers.
 
-/**
- * Records an informational message (optionally with a value) as a standalone
- * named Allure step. Use this in place of console.log for diagnostics worth
- * surfacing in the report; drop purely decorative logs entirely.
- */
+/** Records a message (and optional value) as an Allure step, in place of console.log. */
 export async function reportValue(message: string, value?: unknown): Promise<void> {
   const text =
     value === undefined
@@ -27,25 +10,16 @@ export async function reportValue(message: string, value?: unknown): Promise<voi
       : `${message} ${typeof value === 'object' ? JSON.stringify(value) : String(value)}`;
 
   await test.step(text, async () => {
-    /* informational step – no assertion */
+    /* informational step */
   });
 }
 
-/**
- * Runs an action inside a named Allure step so it shows as a labeled node in
- * the report tree (instead of an unnamed body with a large stdout dump).
- * Returns whatever the wrapped action returns.
- */
+/** Runs an action inside a named Allure step and returns its result. */
 export async function step<T>(name: string, body: () => Promise<T> | T): Promise<T> {
   return test.step(name, async () => body());
 }
 
-/**
- * Records selector drift as an attachment, not just a log line.
- *
- * A healed locator means the app changed and the suite absorbed it quietly.
- * The attachment shows it per test; the stdout marker makes it countable in CI.
- */
+/** Records a fallback-selector hit as an attachment, with a stdout marker countable in CI. */
 export async function reportSelectorDrift(
   label: string,
   primarySelector: string,

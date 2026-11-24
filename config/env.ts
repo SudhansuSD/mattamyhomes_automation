@@ -1,18 +1,4 @@
-/**
- * Central environment loader + validator.
- *
- * Goals:
- *  - Load `.env` exactly once, anchored to the repo root (NOT the caller's cwd),
- *    so scripts behave identically from VS Code, a plain terminal, or CI.
- *  - Tolerate CI, where there is no `.env` file and values arrive as real
- *    environment variables / GitHub secrets.
- *  - Fail fast with a clear, actionable message ("Missing EMAIL_USER — see
- *    .env.example") instead of blowing up deep inside a test or an SMTP call.
- *
- * Every entry point (playwright.config.ts and the scripts/*.ts) should
- * `import { loadEnv } from '<...>/config/env'` and call `loadEnv()` before
- * reading `process.env`.
- */
+/** Loads `.env` from the repo root once and validates required variables. */
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -26,11 +12,7 @@ export const isCI = !!process.env.CI;
 
 let loaded = false;
 
-/**
- * Load `.env` from the repo root a single time. Idempotent and safe to call
- * from every entry point. In CI there is usually no `.env` file — that is fine;
- * values are read straight from the process environment.
- */
+/** Loads `.env` once if present; CI reads values from the real environment. */
 export function loadEnv(): void {
   if (loaded) return;
   loaded = true;
@@ -39,38 +21,34 @@ export function loadEnv(): void {
   if (fs.existsSync(envPath)) {
     dotenv.config({ path: envPath });
   } else if (!isCI) {
-    // Not fatal — some flows (e.g. running only mobile tests) may not need it —
-    // but a missing .env locally is almost always a setup mistake worth noting.
+    // Not fatal, but locally a missing .env is usually a setup mistake.
     console.warn(
       `[env] No .env file found at ${envPath}. Copy .env.example to .env and fill in values.`,
     );
   }
 }
 
-/** Read a trimmed env var, falling back to a default (empty string) if unset. */
+/** Reads a trimmed env var, or the fallback if unset. */
 export function getEnv(name: string, fallback = ''): string {
   loadEnv();
   return process.env[name]?.trim() || fallback;
 }
 
-/** Read a boolean env var ("true"/"1" => true). */
+/** Reads a boolean env var ("true", "1", "yes", "on"). */
 export function getBoolEnv(name: string, fallback = false): boolean {
   const raw = getEnv(name);
   if (!raw) return fallback;
   return ['true', '1', 'yes', 'on'].includes(raw.toLowerCase());
 }
 
-/** Read a numeric env var, falling back if unset/invalid. */
+/** Reads a numeric env var, or the fallback if unset or invalid. */
 export function getNumberEnv(name: string, fallback: number): number {
   const raw = getEnv(name);
   const parsed = Number(raw);
   return raw && Number.isFinite(parsed) ? parsed : fallback;
 }
 
-/**
- * Assert that every named variable is present; throw one clear error listing
- * all that are missing. Use at the start of a script/flow that needs them.
- */
+/** Returns the named variables, throwing one error that lists any missing. */
 export function requireEnv(names: string[], context = ''): Record<string, string> {
   loadEnv();
   const resolved: Record<string, string> = {};
@@ -108,6 +86,7 @@ export const EMAIL_ENV_VARS = [
   'EMAIL_TO',
 ];
 
+/** Returns the Jira variables, throwing if any are missing. */
 export function requireJiraEnv() {
   return requireEnv(JIRA_ENV_VARS, 'Jira integration');
 }

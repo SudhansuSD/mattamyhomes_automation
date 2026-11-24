@@ -2,25 +2,12 @@ import type { Page } from '@playwright/test';
 import { getEnvConfig } from '../../config/environments/envConfig';
 
 /*
- * In-page guard that keeps every lead form on PROD from reaching the CRM.
- *
- * Validation tests still interact with live PROD forms, and `clickSubmit` already avoids the
- * Submit button there. This is the backstop for everything else: a direct `.click()` on a submit
- * button, a form that skips its own client-side validation, or a validation message that never
- * renders. Any write request to an endpoint that takes a lead is refused inside the page before it
- * leaves, so a PROD run cannot create a CRM record however the submit was triggered.
- *
- * It runs as an init script rather than a `page.route`: a route makes Playwright intercept every
- * request the page makes, which slows the heavy community pages enough to trip the overlay
- * dismissal deadlines. Wrapping `fetch`, XHR and native form posts costs nothing per request.
+ * Backstop that stops any PROD lead submission in the page, however the submit was triggered.
+ * An init script rather than `page.route`: routing every request slows heavy pages enough to
+ * trip overlay-dismissal deadlines.
  */
 
-/**
- * Endpoints that receive a lead. `/api/jss/formbuilder` is the Sitecore form action every Mattamy
- * lead form posts to; the rest mirror the lead endpoints `LeadFormFlow` captures as evidence.
- * Field-tracking telemetry (`/api/jss/fieldtracking/register`) is left alone: it fires on field
- * focus and creates no lead.
- */
+/** Lead endpoints (Sitecore formbuilder plus the ones LeadFormFlow captures); field tracking is left alone. */
 const LEAD_ENDPOINT_SOURCE =
   '\\/api\\/jss\\/formbuilder|formlogging\\/update|landingpageforms\\/forms|\\/api\\/dia|\\/lead|\\/submit|salesforce|eloqua|marketo';
 
@@ -31,7 +18,7 @@ export function isProdEnvironment(): boolean {
   return getEnvConfig().envName === 'PROD';
 }
 
-/** Installs the PROD lead-submission guard on a page once; a no-op on every other environment. */
+/** Installs the PROD lead-submission guard on a page once; does nothing on other environments. */
 export function installProdSubmissionGuard(page: Page): Promise<void> {
   const existing = installedGuards.get(page);
 
@@ -101,8 +88,7 @@ function blockLeadSubmissionsInPage(leadEndpointSource: string): void {
     return originalSend.call(this, body);
   };
 
-  // Bubble phase on window, after the page's own (React) submit handlers have run,
-  // so client-side validation still happens; only the native navigation post is stopped.
+  // Bubble phase, so the page's own validation still runs; only the native post is stopped.
   window.addEventListener('submit', (event) => {
     const form = event.target as HTMLFormElement | null;
 

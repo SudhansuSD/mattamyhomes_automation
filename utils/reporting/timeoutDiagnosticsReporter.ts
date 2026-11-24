@@ -1,20 +1,5 @@
-/**
- * Names the action that was still running when a test ran out of budget.
- *
- * Playwright's primary error stops at `Test timeout of 120000ms exceeded while
- * running "beforeEach" hook.` — it says the budget expired but not what was
- * hanging, and that primary error is the one Allure records as the status
- * message, so the report and the email summary lose the detail. Triage then
- * means opening the trace by hand.
- *
- * A wedged browser makes that worse: the in-flight call can outlive its own
- * timeout (a 5s `waitFor` once burned 393s because the page stopped answering
- * the driver), so the hanging call is exactly what a reader needs named.
- *
- * Registered ahead of `allure-playwright` in playwright.config.ts: reporters
- * receive the same TestResult instance in registration order, so appending here
- * puts the detail into the error before Allure reads it.
- */
+// Appends the still-running action to a timed-out test's error, which Playwright omits.
+// Must be registered before allure-playwright so Allure sees the detail.
 import type { Reporter, TestCase, TestResult, TestStep } from '@playwright/test/reporter';
 
 type RankedStep = {
@@ -22,7 +7,7 @@ type RankedStep = {
   depth: number;
 };
 
-/** Flattens the step tree, keeping each step's depth so the innermost one can win. */
+/** Flattens the step tree, keeping each step's depth. */
 function flattenSteps(steps: TestStep[], depth = 0, collected: RankedStep[] = []): RankedStep[] {
   for (const step of steps) {
     collected.push({ step, depth });
@@ -32,12 +17,7 @@ function flattenSteps(steps: TestStep[], depth = 0, collected: RankedStep[] = []
   return collected;
 }
 
-/**
- * The deepest errored step — the innermost call still waiting when the budget
- * expired. Playwright marks it and every ancestor as failed, so depth is what
- * separates `Wait for selector ...` from the `beforeEach hook` wrapping it.
- * Ties break on the latest start, which is the most recent attempt.
- */
+/** Finds the deepest errored step (latest start on ties): the call that hung. */
 function findHungStep(result: TestResult): TestStep | null {
   const errored = flattenSteps(result.steps).filter(({ step }) => Boolean(step.error));
 
@@ -54,7 +34,7 @@ function findHungStep(result: TestResult): TestStep | null {
   }).step;
 }
 
-/** Repo-relative `file:line` for the call site, so the hanging line is one click away. */
+/** Repo-relative `file:line` of the step's call site. */
 function formatLocation(step: TestStep): string {
   if (!step.location) {
     return '';
@@ -68,7 +48,7 @@ function formatLocation(step: TestStep): string {
   return ` at ${relativeFile}:${step.location.line}`;
 }
 
-/** How long the hung step had been waiting, which is normally the whole budget. */
+/** How long the hung step had been waiting. */
 function formatWaited(step: TestStep): string {
   return step.duration >= 0 ? ` after ${(step.duration / 1000).toFixed(1)}s` : '';
 }
@@ -84,12 +64,9 @@ class TimeoutDiagnosticsReporter implements Reporter {
       ? `${step.title}${formatLocation(step)}${formatWaited(step)}`
       : 'not recorded in any step — the hang was outside a tracked action';
 
-    // Kept to one short sentence: it is appended to the status message that the
-    // email report renders as a single line per failed scenario.
+    // One sentence, since the email shows one line per failure.
     const diagnostic = `Hung action: ${detail} (budget ${test.timeout}ms).`;
 
-    // Downstream reporters share this TestResult, so appending here is what puts
-    // the diagnostic into the Allure report and the email summary.
     if (result.error) {
       result.error.message = `${result.error.message ?? ''}\n${diagnostic}`.trim();
     } else {

@@ -56,10 +56,7 @@ const FORM_CONTAINER_SELECTOR = [
 ].join(', ');
 
 export class CondoCommunityPage extends SearchablePage {
-  /**
-   * Excludes side-modal/dialog content from in-page form lookups so the three
-   * condo community form paths stay distinct: side modal and primary.
-   */
+  /** Keeps in-page form lookups from matching forms inside the side modal or other dialogs. */
   private static readonly NOT_IN_DIALOG =
     ':not([role="dialog"] *):not(.ReactModal__Content *):not([id*="ModalForm"] *)';
 
@@ -68,8 +65,7 @@ export class CondoCommunityPage extends SearchablePage {
 
   /** Sets up the page object for the Canada-only condo experience. */
   constructor(page: Page) {
-    // Condo communities exist only in Canada, so this page always runs against
-    // the Canadian site regardless of the LOCATION the run started with.
+    // Condos are Canada-only, so this page always runs against CAN whatever LOCATION is set.
     super(page, 'CAN');
     this.homeTypeTabs = new HomeTypeTabs(page, {
       report: (message, value) => this.reportValue(message, value),
@@ -104,13 +100,7 @@ export class CondoCommunityPage extends SearchablePage {
     return this.page.locator('a, button').filter({ hasText: TEXT.cta });
   }
 
-  /**
-   * Finds community CTA that opens the lead form sidebar/modal.
-   *
-   * The hero CTA (`#HeaderPlanPage` > `<button aria-label="Stay updated about this community">`) is
-   * tried first, since naming that container rules out the off-canvas sticky-bar copies outright.
-   * The heading-relative lookup stays as a fallback for layouts without that hero id.
-   */
+  /** The CTA that opens the lead form; the hero CTA first, so off-canvas sticky-bar copies never match. */
   private get getInformationCta(): Locator {
     const headingScopedCta = this.page
       .getByRole('heading', { level: 1 })
@@ -327,11 +317,7 @@ export class CondoCommunityPage extends SearchablePage {
     });
   }
 
-  /**
-   * Checks the Quick Move-In Homes / Floorplans tabs match the community's inventory: both tabs when
-   * it has quick move-in homes, none - with floorplans shown directly - when it does not, and no
-   * listing at all when it has neither.
-   */
+  /** Checks the Quick Move-In Homes / Floorplans tabs match what the community has for sale. */
   async verifyHomeTypeTabsMatchInventory(): Promise<void> {
     await this.step('Verify Quick Move-In Homes / Floorplans tabs match inventory', async () => {
       await this.homeTypeTabs.verifyTabsMatchInventory();
@@ -342,9 +328,8 @@ export class CondoCommunityPage extends SearchablePage {
   async verifyAvailableFloorplansSection(expectedCommunity: string): Promise<void> {
     await this.step('Verify available floorplans section', async () => {
       await this.waitForPageReady();
-      // With QMI inventory the floorplans listing sits behind its tab, and its heading stays hidden
-      // until that tab is selected. A community without any inventory has no floorplans to list -
-      // that state is asserted by verifyHomeTypeTabsMatchInventory.
+      // Selects the Floorplans tab when present; no inventory at all is checked by
+      // verifyHomeTypeTabsMatchInventory.
       if (!(await this.homeTypeTabs.showFloorplans())) {
         return;
       }
@@ -654,8 +639,7 @@ export class CondoCommunityPage extends SearchablePage {
       return;
     }
 
-    // The hero CTA is only rendered once the hero scrolls into view, so counting straight after
-    // navigation finds nothing.
+    // The hero CTA only renders once the hero scrolls into view.
     await this.revealGetInformationCta();
 
     const getInformationCtas = this.getInformationCta;
@@ -675,8 +659,7 @@ export class CondoCommunityPage extends SearchablePage {
         continue;
       }
 
-      // click() auto-scrolls; a separate scroll only adds a step that throws outright when the page
-      // re-renders between counting the CTAs and reaching this one.
+      // No separate scroll: click() auto-scrolls, and an extra scroll throws if the page re-renders.
       let didClick = await cta
         .click()
         .then(() => true)
@@ -711,12 +694,7 @@ export class CondoCommunityPage extends SearchablePage {
     }
   }
 
-  /**
-   * Open the Get Information side modal lead form and return its container.
-   *
-   * Exposes the same CTA flow the side-modal checks use, so an evidence spec that only needs the
-   * open form reuses the click-with-DOM-fallback CTA handling instead of its own clicker.
-   */
+  /** Opens the Get Information side modal lead form and returns it, for evidence runs. */
   async openSideModalLeadForm(formName = 'Get Information condo sideModalForm'): Promise<Locator> {
     return this.getAvailableGetInformationForm(formName);
   }
@@ -921,10 +899,7 @@ export class CondoCommunityPage extends SearchablePage {
     return getLeadFormSubmitButton(form);
   }
 
-  /**
-   * Clicks this page's submit button - it takes a looser label - without waiting on the third-party
-   * request behind it.
-   */
+  /** Clicks this page's submit button without waiting on the third-party request behind it. */
   private async clickSubmit(form: Locator): Promise<void> {
     await clickSubmit(this.page, form, TIMEOUT.short, {
       submitButton: this.getSubmitButton(form),
@@ -965,8 +940,7 @@ export class CondoCommunityPage extends SearchablePage {
     const links = section.locator('a[href]');
     const linkCount = await links.count();
     const loggedHrefs = new Set<string>();
-    // A quick move-in card sits two segments below the community (/community/plan/address); it
-    // belongs to the hidden Quick Move-In Homes tab, not to this listing.
+    // Quick move-in cards (/community/plan/address) belong to the other tab, not this listing.
     const qmiCardPath = new RegExp(`^${escapeRegex(condoCommunityPath)}/[^/]+/[^/]+$`, 'i');
     let floorplanLinkCount = 0;
 
@@ -988,11 +962,8 @@ export class CondoCommunityPage extends SearchablePage {
       loggedHrefs.add(pathname);
       floorplanLinkCount++;
 
-      // Attached, not visible: this section renders as a horizontally scrolling
-      // carousel once the community has more floorplans than fit the track, and
-      // its off-track slides are legitimately hidden. Requiring every slide to be
-      // visible failed on exactly that (link 3 resolved, reported hidden, retried
-      // 13x). Visibility of the module itself is asserted once, below.
+      // Attached, not visible: off-screen carousel slides are hidden. The module's visibility
+      // is asserted once below.
       await expect(link, `Floorplan link ${floorplanLinkCount} should be attached`).toBeAttached({
         timeout: TIMEOUT.short,
       });
@@ -1012,9 +983,7 @@ export class CondoCommunityPage extends SearchablePage {
       'Explore available floorplans should include at least one floorplan link',
     ).toBeGreaterThan(0);
 
-    // The module has to be on screen, not just in the DOM - asserted on the floorplan cards only,
-    // since with QMI inventory the section also holds the Quick Move-In Homes cards, which stay
-    // hidden while the Floorplans tab is selected.
+    // At least one floorplan card must be visible; the hidden quick move-in cards are ignored.
     await expect
       .poll(async () => (await this.homeTypeTabs.visibleCardHrefs('floorplans')).length, {
         message: 'Explore available floorplans should render at least one visible floorplan link',
@@ -1030,8 +999,7 @@ export class CondoCommunityPage extends SearchablePage {
     section: Locator,
     expectedCommunity: string,
   ): Promise<void> {
-    // Visible only: with QMI inventory the section also holds the Quick Move-In Homes tab's own
-    // View All, hidden while the Floorplans tab is selected.
+    // Visible only: the hidden Quick Move-In Homes tab has its own View All link.
     const viewAllLink = section
       .locator('a[href]')
       .filter({
@@ -1061,10 +1029,8 @@ export class CondoCommunityPage extends SearchablePage {
       /\/search|find-your-home/i,
     );
 
-    // Read the query through URLSearchParams rather than decoding the raw URL: the search page
-    // re-writes its query with spaces as "+", which percent-decoding leaves in place, so a URL that
-    // does carry "Martha James Condominiums" reads as though it carries nothing and the check falls
-    // through to the page text - which on a phone lists no cards to read it from.
+    // URLSearchParams, not raw decoding: the search page writes spaces as "+", which
+    // percent-decoding leaves in place.
     const expectedCommunityText = expectedCommunity.toLowerCase();
     const carriesCommunity = [...new URL(this.page.url()).searchParams.values()].some((value) =>
       value.toLowerCase().includes(expectedCommunityText),

@@ -11,12 +11,8 @@ import { Footer } from '../pages/Footer';
 import { HomePage } from '../pages/HomePage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
-// The footer checks below are structural — footer visible with a Privacy Policy
-// link, social hrefs absolute, newsletter rejects a bad email — and use no
-// per-country data. The suite is therefore reported under ALL and runs once per
-// invocation instead of repeating identical assertions in every location pass
-// (see config/locations/locationAgnosticSpecs.ts). It still opens whichever
-// country LOCATION selects, so a direct `LOCATION=CAN` run checks the CAN footer.
+// Footer checks use no per-country data, so they report under ALL and run once,
+// on whichever country LOCATION selects.
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);
 

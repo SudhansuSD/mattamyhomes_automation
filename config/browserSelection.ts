@@ -2,15 +2,7 @@ import { getEnv } from './env';
 
 export type BrowserProjectKey = 'chromium' | 'firefox' | 'webkit' | 'mobileChrome' | 'mobileSafari';
 
-/**
- * Accepted BROWSER values, including the mobile-web device profiles.
- *
- * Mobile web is a device profile of this framework, not a separate stack: the
- * same specs and page objects run at a phone viewport. `mobile-safari` runs on
- * WebKit because WebKit *is* the iOS browser engine - running iPhone tests on
- * Chromium would emulate the screen while testing the wrong renderer, which is
- * the coverage that matters most on iOS.
- */
+/** Accepted BROWSER values; `mobile-safari` uses WebKit because that is the iOS engine. */
 const BROWSER_SELECTIONS: Record<string, BrowserProjectKey> = {
   chrome: 'chromium',
   chromium: 'chromium',
@@ -31,13 +23,14 @@ const BROWSER_DISPLAY_NAMES = {
   mobileSafari: 'Mobile Safari (iPhone 14)',
 } as const satisfies Record<BrowserProjectKey, string>;
 
-/** True for the phone-viewport device profiles, which share the mobile-web layout. */
+/** True for the phone device profiles. */
 export function isMobileBrowserProject(
   browser: BrowserProjectKey = getBrowserProjectKey(),
 ): boolean {
   return browser === 'mobileChrome' || browser === 'mobileSafari';
 }
 
+/** Maps the BROWSER value to a project key, throwing on unknown values. */
 export function getBrowserProjectKey(
   rawBrowser = getEnv('BROWSER', 'chromium'),
 ): BrowserProjectKey {
@@ -53,11 +46,7 @@ export function getBrowserProjectKey(
   return browser;
 }
 
-/**
- * Splits a comma-separated browser selection (`chromium,firefox`) into its
- * entries. The runner accepts a list per platform and gives each entry its own
- * Playwright process, so a single process only ever sees one value.
- */
+/** Splits a comma-separated browser list into unique entries. */
 export function parseBrowserList(rawBrowsers: string): string[] {
   return [
     ...new Set(
@@ -83,16 +72,7 @@ export function getMobileBrowserDisplayName(): string {
   return getBrowserDisplayName(getEnv('MOBILE_BROWSER', 'mobile-safari'));
 }
 
-/**
- * Names the browser(s) a run covers, in web-then-mobile order.
- *
- * Callers pass the coverage they can actually prove - which results directories
- * received results, or which stream a report is being built for - because a
- * two-platform run named after BROWSER alone reads as web-only, and the email
- * header is the one summary most recipients ever see. Falls back to the web
- * browser when a caller can prove neither, so a run that produced no results at
- * all still names something.
- */
+/** Names the browsers a run covered (web then mobile), defaulting to the web browser. */
 export function getBrowserCoverageLabel(coversWeb: boolean, coversMobile: boolean): string {
   const labels = [
     ...(coversWeb ? [getBrowserDisplayName()] : []),

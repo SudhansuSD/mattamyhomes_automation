@@ -1,12 +1,5 @@
-// Flat ESLint config (ESLint 9 + typescript-eslint 8).
-//
-// Deliberately pragmatic: this repo had no linter, so the rules are tuned to
-// catch real problems (accidental globals, unreachable code, unsafe compares)
-// while treating stylistic/legacy issues as warnings rather than hard errors,
-// so `npm run lint` is green today and can be tightened incrementally.
-//
-// Formatting is owned by Prettier (eslint-config-prettier disables any rule
-// that would fight it).
+// Flat ESLint config: real bugs are errors, stylistic issues are warnings.
+// Formatting is left to Prettier (eslint-config-prettier disables clashing rules).
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';

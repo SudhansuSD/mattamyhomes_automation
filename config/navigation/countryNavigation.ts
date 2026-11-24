@@ -1,23 +1,13 @@
 import { getLocationKey, LocationKey } from '../locations/locationConfig';
 
-/*
- * Country navigation source of truth.
- *
- * A page counts as available when a country's site navigation actually DISPLAYS it, not when the
- * raw URL resolves. Some pages (/homebuying/shopping-tools, for one) return 200 for both countries
- * but are linked in only one country's menu; for the other country they count as unavailable.
- */
+// Per-country navigation. A page is available only if the country's nav shows it, not if its URL resolves.
 
 export type NavLink = {
   name: string;
   url: string;
 };
 
-/**
- * The country-specific "Homebuying" (USA) / "Resources" (CAN) mega-menu
- * flyout and the exact links each surfaces. Drives the header mega-menu
- * validation.
- */
+/** The "Homebuying" (USA) / "Resources" (CAN) mega-menu and its links. */
 export const RESOURCE_MENU_BY_COUNTRY: Record<
   LocationKey,
   { menuName: string; links: readonly NavLink[] }
@@ -45,12 +35,7 @@ export type DesignStudioNavEntry =
   | { placement: 'top-level'; link: NavLink }
   | { placement: 'menu'; menuName: string; link: NavLink };
 
-/**
- * Where each country's header surfaces Design Studio. USA shows it as a
- * standalone top-level nav item; CAN nests it inside the Resources mega-menu.
- * Design Studio tests enter through this link instead of hitting the URL
- * directly, so the placement itself is covered and not just the landing page.
- */
+/** Where each country's header shows Design Studio (USA top-level, CAN under Resources). */
 export const DESIGN_STUDIO_NAV_BY_COUNTRY: Record<LocationKey, DesignStudioNavEntry> = {
   USA: {
     placement: 'top-level',
@@ -63,11 +48,7 @@ export const DESIGN_STUDIO_NAV_BY_COUNTRY: Record<LocationKey, DesignStudioNavEn
   },
 };
 
-/**
- * Full set of Design Studio / Homebuying section paths surfaced in each
- * country's navigation (top-level items + mega-menu links). A page NOT listed
- * here is not offered to that country's visitors even if its URL resolves.
- */
+/** Design Studio / Homebuying paths each country's navigation shows. */
 export const EXPOSED_PATHS_BY_COUNTRY: Record<LocationKey, readonly string[]> = {
   USA: [
     '/design-studio', // top-level nav item
@@ -79,8 +60,7 @@ export const EXPOSED_PATHS_BY_COUNTRY: Record<LocationKey, readonly string[]> = 
     '/design-studio', // Resources > Design Studio
     '/homebuying/homebuying', // Resources > What to Expect
     '/homebuying/financing', // Resources > Financing
-    // NOTE: /homebuying/shopping-tools resolves for CAN but is NOT displayed in
-    // CAN navigation, so it is intentionally excluded (treated as unavailable).
+    // /homebuying/shopping-tools resolves for CAN but is not in its nav.
   ],
 };
 
@@ -90,12 +70,7 @@ export function isPathExposedForCountry(path: string, country?: LocationKey): bo
   return (EXPOSED_PATHS_BY_COUNTRY[key] ?? []).includes(path);
 }
 
-/**
- * Static "About" section pages surfaced as TOP-LEVEL header items (outside the
- * About dropdown), per country. Sustainability lives under the About menu on
- * USA but is promoted to a standalone top-level item on CAN, so it is only
- * reachable via the top-level link there.
- */
+/** About pages shown as top-level header items, per country (CAN promotes Sustainability). */
 export const TOP_LEVEL_STATIC_LINKS_BY_COUNTRY: Record<LocationKey, readonly NavLink[]> = {
   USA: [],
   CAN: [{ name: 'Sustainability', url: '/about/sustainability' }],

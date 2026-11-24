@@ -21,7 +21,7 @@ import {
   SUBMIT_BUTTON_SELECTOR,
 } from '../utils/leadform/leadFormHelper';
 
-// QMI Page Object Model
+// Quick move-in (QMI) home page object.
 
 const location = getLocationConfig();
 
@@ -113,8 +113,7 @@ export class QMIPage extends SearchablePage {
     this.communitySitemapSection = this.getSectionByHeading(/Explore the community/i);
     this.homeDesignDetailsSection = this.getSectionByHeading(/Home Design Details/i);
     this.homeFeaturesSection = this.getSectionByHeading(/Home Features/i);
-    // The site does not head this block consistently - USA QMI pages call it
-    // "New Home Gallery", not "Sales Office" - so match all the variants.
+    // The heading varies by page (e.g. USA uses "New Home Gallery"), so match every variant.
     this.salesOfficeSection = page
       .locator('section')
       .filter({
@@ -137,14 +136,8 @@ export class QMIPage extends SearchablePage {
         .locator(
           '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
         )
-        // A Submit button, not just any input, is what separates a lead form from
-        // the page's other dialogs - the National-promotion overlay is a
-        // full-screen role="dialog" with inputs, so it matches everything else here. Matched
-        // by CSS rather than by role (see SUBMIT_BUTTON_SELECTOR): the promotion
-        // popup aria-hides the whole page while it is up, which left this filter
-        // matching nothing and an open side modal reporting as "did not open".
-        // and(), not filter({ hasNot }): the aria-label sits on the overlay
-        // itself, and hasNot only inspects descendants.
+        // A submit button marks a lead form; matched by CSS, not role, since the promotion popup
+        // aria-hides the page. and() excludes that overlay (hasNot only checks descendants).
         .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
         .and(
           this.page.locator(
@@ -732,14 +725,7 @@ export class QMIPage extends SearchablePage {
     }
   }
 
-  /**
-   * Dismisses the OneTrust cookie banner when it appears.
-   *
-   * Timeboxed and non-fatal, because this is environmental noise rather than anything under test.
-   * The banner animates itself away, so it is routinely visible when checked and gone by the time
-   * the click runs - and an untimed click there inherits the 30s action timeout and fails the whole
-   * test on a dismissal that had already succeeded on its own.
-   */
+  /** Dismisses the OneTrust cookie banner if shown; the click is timeboxed because the banner often animates away first. */
   private async dismissCookieBannerIfPresent(): Promise<void> {
     await this.acceptCookiesIfPresent();
 

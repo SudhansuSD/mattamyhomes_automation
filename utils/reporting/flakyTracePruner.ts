@@ -1,25 +1,5 @@
-/**
- * Drops the trace of a failed attempt once the test has passed on retry.
- *
- * A flaky test is still reported as FLAKY and keeps its failure screenshot and
- * error context, so the failure stays visible and diagnosable - but its trace,
- * the single largest artifact a run produces at 3-200MB apiece, is not carried
- * into the uploads for a test that ended up green. Traces of tests that
- * actually failed are left untouched.
- *
- * The work happens in `onExit`, the last hook Playwright calls: the Allure and
- * HTML reporters copy attachments out of `test-results` during their own
- * `onEnd`, so pruning any earlier would leave those copies behind - or race the
- * copy and dangle the link.
- *
- * Three stores hold the same trace, and each is handled differently. The raw
- * file under `test-results` is deleted. The Allure copy is deleted and its
- * reference removed from the result JSON, so the report the email and the
- * published site point at shows the screenshot with no missing attachment. The
- * HTML report names its copy after the file's SHA-1, so that copy is matched by
- * hash and deleted - its own index still lists the trace, so the button is there
- * with nothing behind it, which is the price of not shipping the file.
- */
+// Deletes traces of failed attempts for tests that passed on retry (traces are large; screenshots
+// stay). Runs in onExit so the Allure and HTML reporters have already copied their attachments.
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -28,7 +8,7 @@ import type { FullConfig, Reporter, Suite, TestResult } from '@playwright/test/r
 import { DESKTOP_ALLURE_RESULTS_DIR, MOBILE_ALLURE_RESULTS_DIR } from '../../scripts/allurePaths';
 import { REPO_ROOT } from '../../config/env';
 
-/** Allure's content type for a Playwright trace, and the raw pair it comes from. */
+/** Allure's content type for a Playwright trace, and the raw attachment name. */
 const ALLURE_TRACE_TYPE = 'application/vnd.allure.playwright-trace';
 const TRACE_ATTACHMENT_NAME = 'trace';
 
@@ -41,7 +21,7 @@ type AllureResult = {
   steps?: AllureStep[];
 };
 
-/** True for the trace attachment, in either the raw or the Allure-rewritten form. */
+/** True for a trace attachment, raw or Allure form. */
 function isTraceAttachment(attachment: AllureAttachment): boolean {
   return (
     attachment.type === ALLURE_TRACE_TYPE ||
@@ -49,13 +29,7 @@ function isTraceAttachment(attachment: AllureAttachment): boolean {
   );
 }
 
-/**
- * SHA-1 of a file's contents, read in chunks.
- *
- * The HTML reporter names each copied attachment `data/<sha1>.<ext>`, so this is
- * what matches a trace to the copy it made. Chunked because a trace of a long
- * test runs to hundreds of megabytes and must not be buffered whole.
- */
+/** SHA-1 of a file, read in chunks; matches the HTML report's hash-named copy. */
 function hashFile(filePath: string): string | undefined {
   const hash = crypto.createHash('sha1');
   const buffer = Buffer.alloc(64 * 1024);
@@ -84,7 +58,7 @@ function hashFile(filePath: string): string | undefined {
   }
 }
 
-/** Every `data` directory under the HTML report tree, whatever platform it sits in. */
+/** Finds every `data` directory under the HTML report tree. */
 function findAttachmentDataDirs(root: string): string[] {
   if (!fs.existsSync(root)) {
     return [];
@@ -110,7 +84,7 @@ function findAttachmentDataDirs(root: string): string[] {
   return found;
 }
 
-/** Removes a file and reports the bytes it was occupying, ignoring one already gone. */
+/** Deletes a file and returns its size, or 0 if it is already gone. */
 function deleteFile(filePath: string): number {
   try {
     const { size } = fs.statSync(filePath);
@@ -128,12 +102,12 @@ export default class FlakyTracePruner implements Reporter {
   private bytesFreed = 0;
   private readonly prunedTraceHashes = new Set<string>();
 
-  /** Keeps the root suite so `onExit` can ask each test how it finally ended. */
+  /** Keeps the root suite for `onExit`. */
   onBegin(_config: FullConfig, suite: Suite): void {
     this.suite = suite;
   }
 
-  /** Runs after every other reporter has written its copies. */
+  /** Prunes flaky traces from every store after other reporters finish. */
   async onExit(): Promise<void> {
     this.pruneTestResults();
     this.pruneHtmlReportCopies();
@@ -185,8 +159,7 @@ export default class FlakyTracePruner implements Reporter {
       }
     }
 
-    // Dropped from the in-memory result as well, so nothing downstream advertises
-    // a file that is no longer on disk.
+    // Also drop them from the in-memory result so nothing points at deleted files.
     result.attachments = result.attachments.filter((attachment) => !isRawTrace(attachment));
   }
 
@@ -203,13 +176,7 @@ export default class FlakyTracePruner implements Reporter {
     }
   }
 
-  /**
-   * Strips trace attachments from the Allure results of flaky tests.
-   *
-   * Both results directories are swept rather than only the running platform's:
-   * a multi-location run writes several passes into the same directory, and the
-   * merged report is built from whatever is left here.
-   */
+  /** Strips trace attachments from flaky tests' Allure results in both results directories. */
   private pruneAllureResults(): void {
     for (const resultsDir of [DESKTOP_ALLURE_RESULTS_DIR, MOBILE_ALLURE_RESULTS_DIR]) {
       if (!fs.existsSync(resultsDir)) {

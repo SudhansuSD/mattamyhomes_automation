@@ -25,10 +25,10 @@ export type BedsBathsSelection = {
 };
 
 export class SearchPage extends SearchablePage {
-  // The result card itself. Shared by the card locator and its own drift fallback.
+  // A visible result card.
   private static readonly RESULT_CARD_SELECTOR = '#ProductInfo:visible';
 
-  // Shared by card-detail and sort-title extraction as a fallback when card text is sparse.
+  // Fallback title selector for when a card's text is sparse.
   private static readonly CARD_TITLE_SELECTOR =
     'h1, h2, h3, h4, [data-testid*="title"], [class*="title"]';
 
@@ -40,8 +40,7 @@ export class SearchPage extends SearchablePage {
   constructor(page: Page) {
     super(page);
 
-    // Two markups are live: a "Sort by:" wrapper div around a "dropdown list"
-    // button, and a single button that carries the "Sort by:" label itself.
+    // Two sort markups are live: a "Sort by:" wrapper around a button, or one labelled button.
     this.sortButton = page.locator(
       'button[aria-label^="Sort by:"], div[aria-label^="Sort by:"] button[aria-label*="dropdown"]',
     );
@@ -51,29 +50,16 @@ export class SearchPage extends SearchablePage {
 
   // Locators
 
+  /** Returns the filter button whose aria-label contains this text. */
   private filterButton = (label: string) => this.page.locator(`button[aria-label*="${label}"]`);
 
-  /**
-   * Keep assertions scoped to cards visible in the active tab, with approved fallback selectors.
-   *
-   * Every card read in this page object comes through here, which is why the
-   * phone layout's list view is ensured here rather than at each caller: on a
-   * phone the results open as a map, and a map pin is not a card, so a read
-   * taken in the map state reports zero cards for a search that has results.
-   *
-   * The fallback chain is skipped while the site is showing its own no-results
-   * status, because there zero is the right answer and healing can only get it
-   * wrong: with no card to match, the loosest selector picks up the empty
-   * `MetroSearch__SearchCardsContainer` - which holds an `a[href]` because the
-   * footer sits inside it - and reports one card for a search that found none.
-   * Callers then read a results count out of a status line that has no number in
-   * it. Drift protection is kept for every state where cards are expected.
-   */
+  /** Returns the visible result cards, opening the phone list view first and skipping fallbacks on no-results. */
   private async resultCards(): Promise<Locator> {
     await this.ensureMobileResultsVisible();
 
     const primaryCards = this.page.locator(SearchPage.RESULT_CARD_SELECTOR);
 
+    // On no-results zero is correct; a loose fallback would match the empty results container.
     if (
       await this.noResultsMessage()
         .isVisible()
@@ -120,16 +106,10 @@ export class SearchPage extends SearchablePage {
       });
   }
 
+  /** Returns the dropdown option with this text. */
   private dropdownOption = (text: string) => this.page.getByText(text);
 
-  /**
-   * Opens a filter dropdown by its button label.
-   *
-   * On a phone the price, beds & baths and type dropdowns are folded into the
-   * filter menu rather than shown inline, so the menu is opened first - the
-   * dropdown buttons themselves keep the same `aria-label`s in both layouts,
-   * which is why only the menu step differs.
-   */
+  /** Opens a filter dropdown by its button label, opening the phone filter menu first when needed. */
   private async openFilter(label: string): Promise<void> {
     const button = this.filterButton(label);
 
@@ -142,10 +122,7 @@ export class SearchPage extends SearchablePage {
     await expect(button).toBeVisible({ timeout: 20000 });
     await expect(button).toBeEnabled({ timeout: 20000 });
 
-    // The trigger toggles, so a dropdown that is already expanded must be left
-    // alone: every filter applies the moment it is picked, and on a phone the
-    // list stays open afterwards, so a second openFilter() for the same control
-    // would close it and detach the options the caller is about to click.
+    // The trigger toggles, so clicking an already-open dropdown would close it.
     if ((await button.getAttribute('aria-expanded')) === 'true') {
       return;
     }
@@ -158,17 +135,7 @@ export class SearchPage extends SearchablePage {
 
   // Common Helpers
 
-  /**
-   * Opens the requested results tab.
-   *
-   * The phone layout has no tab bar: results open as a map, the Communities /
-   * Plans / Quick Move-Ins controls are folded into the filter menu, and the
-   * cards themselves only exist in the list view. The product type is carried by
-   * the `productType` query parameter - exactly the state that control writes
-   * when it is picked (Plans switches the URL to `productType=plan`) - so mobile
-   * makes the same state change through the URL and then opens the list, which
-   * reaches the results in one navigation instead of walking the menu.
-   */
+  /** Opens the requested results tab; on phones, which have no tab bar, it goes through the filter menu or URL. */
   async openTab(tabName: string): Promise<void> {
     await this.step(`Open '${tabName}' tab`, async () => {
       if (await this.isMobileHeaderViewport()) {
@@ -228,16 +195,7 @@ export class SearchPage extends SearchablePage {
     'quick move-ins': 'qmi',
   };
 
-  /**
-   * The map / list toggle pinned to the bottom of the phone results layout.
-   *
-   * Matched on the label at the END of the button's text rather than as the
-   * whole of it: in the list state the toggle carries an icon whose alt text is
-   * folded into the match with no separator ("Map Location IconMap"), so
-   * anchoring the start finds nothing. Anchoring only the tail still excludes
-   * the map widget's own "Map Data" control and the "Open this area in Google
-   * Maps" link, which a bare substring match would pick up.
-   */
+  /** The phone map/list toggle, matched on the label at the end of its text (icon alt text comes first). */
   private mobileResultsToggle(label: 'List' | 'Map'): Locator {
     return this.page
       .locator('button')
@@ -245,15 +203,7 @@ export class SearchPage extends SearchablePage {
       .first();
   }
 
-  /**
-   * The phone filter menu, and the product-type buttons the menu holds.
-   *
-   * Matched on the styled-components display name rather than the whole class:
-   * the emitted class is `MobileFilters__StyledButton-sc-<hash>-0 <generated>`,
-   * and only the display-name prefix survives a rebuild. The trigger is a `div`
-   * with no button role, so a role-based lookup finds nothing - hence the text
-   * fallback on the "Filters" label it wraps.
-   */
+  /** The phone filter menu trigger: a role-less div, matched by class prefix with a "Filters" text fallback. */
   private mobileFilterMenuTrigger(): Promise<Locator> {
     return this.healLocator('mobile filter menu', [
       {
@@ -277,11 +227,7 @@ export class SearchPage extends SearchablePage {
     return this.page.locator('[class*="PrimaryFilter__Button"]').filter({ hasText: label }).first();
   }
 
-  /**
-   * Opens the phone filter menu, which holds every control the desktop toolbar
-   * shows inline - the product-type toggles and the price, beds & baths and type
-   * dropdowns alike. Idempotent: a menu already open is left alone.
-   */
+  /** Opens the phone filter menu (which holds the desktop toolbar's controls), unless it is already open. */
   private async openMobileFilterMenu(): Promise<void> {
     const primaryFilter = this.page.locator('[class*="PrimaryFilter__Button"]').first();
 
@@ -303,22 +249,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /**
-   * Closes the phone filter menu.
-   *
-   * Every filter applies the moment it is picked - the URL gains `bedrooms=3`
-   * while the menu is still open - so closing it is only about getting the panel
-   * off the results, never about committing anything.
-   *
-   * The X in the panel header is what does it. The footer's "Show N results"
-   * button closes the panel too, but it sits underneath any dropdown the caller
-   * left expanded, so a click there reports `BedsBathDropdown__DropDownListContainer
-   * ... intercepts pointer events` against a button that is visible and enabled.
-   * The X stays clear at the top in every state.
-   *
-   * That X is an `svg` with no button role and no aria-label, so it is matched on
-   * the "Close Icon" title it carries; it exists only while the panel is open.
-   */
+  /** Closes the phone filter menu via its header X, since open dropdowns can cover the footer button. */
   private async closeMobileFilterMenu(): Promise<void> {
     const primaryFilter = this.page.locator('[class*="PrimaryFilter__Button"]').first();
 
@@ -337,17 +268,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /**
-   * Selects a results tab on the phone layout, then opens the list.
-   *
-   * Plans and Quick Move-Ins are `aria-pressed` toggles in the filter menu, the
-   * same contract the desktop tabs use, so they are driven the way a visitor
-   * drives them. Communities has no button of its own - it is the state with
-   * neither toggle pressed - and the menu's only route back to it is "Clear all",
-   * which also drops the price and beds & baths filters a caller may have just
-   * applied. So Communities flips `productType` in the URL instead, which every
-   * filter also writes itself and which therefore keeps them.
-   */
+  /** Selects a results tab on phones, then opens the list view. */
   private async openMobileResultsTab(tabName: string): Promise<void> {
     const productType = SearchPage.PRODUCT_TYPE_BY_TAB[tabName.toLowerCase()];
 
@@ -355,6 +276,7 @@ export class SearchPage extends SearchablePage {
       throw new Error(`No search product type is mapped for the '${tabName}' results tab`);
     }
 
+    // Communities has no toggle and "Clear all" would drop filters, so set it through the URL.
     if (productType === 'community') {
       const url = new URL(this.page.url());
 
@@ -380,35 +302,13 @@ export class SearchPage extends SearchablePage {
       await this.closeMobileFilterMenu();
     }
 
-    // The consent banner is pinned to the same bottom strip as the toggle and
-    // covers it outright, so the toggle reports visible and every click times
-    // out against #onetrust-group-container.
+    // The consent banner covers the bottom toggle, so clear it first.
     await this.dismissPromoPopupIfPresent({ appearTimeout: 2000 });
 
     await this.ensureMobileResultsVisible();
   }
 
-  /**
-   * Puts the phone results where the cards can be read: filter menu closed, list
-   * view open.
-   *
-   * The results open as a map and the filter menu covers them, so either state
-   * hides every card while the page itself looks perfectly healthy. The toggle
-   * flips its own label to "Map" once the list is showing, which is both how an
-   * already-open list is recognised and the signal that a switch took - the
-   * animation is never waited on directly.
-   *
-   * Two things sit over the toggle and have to move first. The consent banner
-   * covers it outright. The AtlasRTX chat widget is worse: its floating iframe
-   * spans the whole phone viewport and reports nothing about itself, so the click
-   * retries against `#iAtlasChat` for its full 20s and fails on a toggle that is
-   * visible, enabled and stable. Pointer events are disabled on the widget rather
-   * than the click being forced, so an overlay of our own that genuinely blocks
-   * the toggle still surfaces.
-   *
-   * The toggle is required, not optional: without the list there are no cards to
-   * read, and a silent skip here reports an empty results set as a clean pass.
-   */
+  /** On phones, closes the filter menu and switches to the list view so cards can be read; the toggle is required. */
   private async ensureMobileResultsVisible(): Promise<void> {
     if (!(await this.isMobileHeaderViewport())) {
       return;
@@ -416,12 +316,14 @@ export class SearchPage extends SearchablePage {
 
     await this.closeMobileFilterMenu();
 
+    // The toggle reads "Map" once the list is showing.
     const mapToggle = this.mobileResultsToggle('Map');
 
     if (await mapToggle.isVisible().catch(() => false)) {
       return;
     }
 
+    // The consent banner and chat iframe both sit over the toggle.
     await this.dismissPromoPopupIfPresent();
     await this.neutralizeChatWidget();
 
@@ -450,15 +352,7 @@ export class SearchPage extends SearchablePage {
     await this.settle(800);
   }
 
-  /**
-   * Returns the no-results message locator.
-   *
-   * Scoped to the results status only. The previous version also matched any
-   * visible `[aria-label*="No results found"]`, which the FILTER dropdowns use for
-   * their own empty lists ("Charlotte. No results found. Markets list") - so the
-   * assertion passed while the result set still held cards. A no-results check
-   * that can pass with results on screen is worse than no check at all.
-   */
+  /** Returns the results no-results status, scoped so filter dropdowns' own "No results found" never match. */
   private noResultsMessage(): Locator {
     return this.page
       .getByRole('status')
@@ -480,7 +374,7 @@ export class SearchPage extends SearchablePage {
     return (await this.resultCards()).count();
   }
 
-  // Waits for results to load and asserts at least one card is present before returning the count.
+  /** Returns the card count, failing if no cards are showing. */
   private async getStableCardCount(message: string): Promise<number> {
     const count = await this.getCardCount();
     expect(count, message).toBeGreaterThan(0);
@@ -526,10 +420,7 @@ export class SearchPage extends SearchablePage {
     return Number.isFinite(count) ? count : null;
   }
 
-  /**
-   * Returns how many cards to sort-check - the rendered cards, capped by the count the page
-   * reports.
-   */
+  /** Returns how many cards to sort-check: the rendered cards, capped by the page's reported count. */
   private async getSortableCardCount(tabName: ResultsTab, availableCards: number): Promise<number> {
     const displayedCount = await this.getDisplayedResultCount(tabName);
 
@@ -818,7 +709,7 @@ export class SearchPage extends SearchablePage {
     return locationLine;
   }
 
-  // Price Utilities (Production Ready)
+  // Price Utilities
 
   /** Returns the price shown on every result card. */
   async getAllPrices(): Promise<number[]> {
@@ -830,13 +721,13 @@ export class SearchPage extends SearchablePage {
     for (let i = 0; i < count; i++) {
       const card = cards.nth(i);
 
-      // Find all spans inside card and pick only the first clean price like "$459,999"
+      // Take the first span holding a clean price like "$459,999".
       const priceSpans = card.locator('span');
       const spanTexts = await priceSpans.allTextContents();
 
       const priceText = spanTexts.find((text) => /^\$\d[\d,]*$/.test(text.trim()));
 
-      // Skip cards with no valid / "coming soon" / malformed price text.
+      // Skip cards without a clean price (e.g. "Coming Soon").
       if (!priceText) {
         continue;
       }
@@ -965,8 +856,7 @@ export class SearchPage extends SearchablePage {
         await this.waitForPageReady();
         await this.openFilter('Select Beds & Baths');
 
-        // Group toggles are buttons; a `span` filter matches several nodes,
-        // non-clickable wrappers included, and times out.
+        // Match the group toggles by button role; a span match hits non-clickable wrappers.
         await this.page
           .getByRole('button', { name: /^Bedrooms$/i })
           .first()
@@ -986,14 +876,7 @@ export class SearchPage extends SearchablePage {
     );
   }
 
-  /**
-   * Returns the highest minimum-price option the open price dropdown offers.
-   *
-   * The dropdown labels prices as K/M with a space ("$ 150K" ... "$ 1M") - not as
-   * full amounts - so matching on "$300,000"-style text finds nothing in the
-   * dropdown and instead hits the full prices printed on result cards, whose
-   * click navigates away from search entirely.
-   */
+  /** Returns the highest price option in the open dropdown, matched in its "$ 150K" / "$ 1M" label format. */
   private async highestPriceOptionLabel(): Promise<string> {
     const labels = await this.page
       .locator('div, li, span, button, p')
@@ -1019,20 +902,7 @@ export class SearchPage extends SearchablePage {
     );
   }
 
-  /**
-   * Selects the beds/baths option for `count` from the options the site actually
-   * offers, and returns the option selected.
-   *
-   * Composing the label (`${count} Bedrooms`) breaks on every real variant: the
-   * site renders "1 Bedroom" (singular), "4+ Bedrooms" (plus sign), and nothing
-   * above 4+, so asking for "6 Bedrooms" just waits out the timeout on a
-   * checkbox that does not exist. This reads the rendered options,
-   * picks the highest one that does not exceed `count`, and falls back to the
-   * highest available when `count` is beyond the range.
-   *
-   * Only an option labelled with "+" means "or more"; "3 Bedrooms" matches homes
-   * with exactly three, which is what the site filters on.
-   */
+  /** Selects the highest rendered beds/baths option not above `count` (only "+" options mean "or more"). */
   private async selectBedsOrBathsOption(
     group: 'Bedroom' | 'Bathroom',
     count: number,
@@ -1082,9 +952,7 @@ export class SearchPage extends SearchablePage {
     });
   }
 
-  /**
-   * Filters, resets, and checks the results, filter label and URL all go back to how they started.
-   */
+  /** Filters, resets, and checks the results, filter label and URL return to their defaults. */
   async validateClearResetFiltersBehavior(): Promise<void> {
     await this.verifyResults('Communities');
 
@@ -1129,16 +997,8 @@ export class SearchPage extends SearchablePage {
   /** Filters down to something nothing matches and checks the no-results message appears. */
   async validateNoResultsState(): Promise<void> {
     await this.step('Apply unavailable criteria and verify no-results state', async () => {
-      // Order matters, and not for a cosmetic reason: the site only offers the
-      // beds/baths values present in the CURRENT result set. Apply the price
-      // minimum first and the remaining communities are price-less ones ("Coming
-      // Soon" / "Sold Out"), leaving the Beds & Baths panel with no options at all
-      // - clicking it then just times out. So filter beds/baths while the full
-      // result set is still on screen, then squeeze with price.
-      //
-      // Measured on Charlotte: 14 communities -> 4+ bedrooms -> 5 -> 4+ bathrooms
-      // -> 3 -> minimum price "$ 1M" -> 0, with the site's own no-results status.
-      // 99 is intentionally beyond range; the helper clamps to the highest option.
+      // Beds/baths must go first: the site only offers options present in the current results,
+      // and a price filter can leave none. 99 clamps to the highest option.
       const selection = await this.filterByBedroomsAndBathrooms(99, 99);
 
       // Close the beds/baths panel so it does not overlay the price filter.
@@ -1147,9 +1007,7 @@ export class SearchPage extends SearchablePage {
 
       const noResults = this.noResultsMessage();
 
-      // A market with no 4+ bed, 4+ bath homes (Calgary) is already empty here,
-      // and the site removes the price filter along with the results - so the
-      // price squeeze only runs when there is something left to squeeze.
+      // Some markets are already empty here and the price filter disappears with the results.
       if (await noResults.isVisible().catch(() => false)) {
         await this.reportValue(
           'No-results criteria',
@@ -1260,13 +1118,7 @@ export class SearchPage extends SearchablePage {
   }
   // Validation: Beds & Baths
 
-  /**
-   * Runs the beds/baths check on every tab and reports all mismatches together.
-   *
-   * The site disables a tab the filter has emptied ("All Plans. No results
-   * found."), so that tab counts as zero cards rather than something to click.
-   * At least one tab must still return cards, or the filter was never checked.
-   */
+  /** Runs the beds/baths check on every non-emptied tab, requiring at least one card checked overall. */
   async validateBedsBathsAcrossTabs(selection: BedsBathsSelection): Promise<void> {
     const tabs: ResultsTab[] = ['Communities', 'Plans', 'Quick Move-Ins'];
     const allMismatches: string[] = [];
@@ -1315,13 +1167,7 @@ export class SearchPage extends SearchablePage {
 
   // Validation: Beds & Baths on each card
 
-  /**
-   * Checks each card matches the selected beds and baths, returning the ones that do not.
-   *
-   * A card shows a single count ("3 Beds") or a range ("3 - 4 Beds"). An exact
-   * option matches when the range includes it; a "4+" option matches when the
-   * range reaches it.
-   */
+  /** Checks each card's beds/baths count or range satisfies the selection, returning the mismatches. */
   async validateBedsBaths(selection: BedsBathsSelection, tabName?: ResultsTab): Promise<string[]> {
     const cards = await this.resultCards();
     const count = await cards.count();
@@ -1400,13 +1246,11 @@ export class SearchPage extends SearchablePage {
       await this.openTab(tabName);
       await this.waitForPageReady();
 
-      // wait briefly after tab switch
       await this.settle(2000);
 
       const cards = await this.resultCards();
       const noResults = this.noResultsMessage();
 
-      // Wait for either cards OR no-results
       await Promise.race([
         cards
           .first()
@@ -1692,16 +1536,7 @@ export class SearchPage extends SearchablePage {
     }
   }
 
-  /**
-   * Checks the Communities A-Z order, which groups master-planned communities.
-   *
-   * The results list each MPC as a header row ("Westfall MPC | Learn More") with
-   * its member communities beneath it, and A-Z sorts that group under the MPC's
-   * title rather than each member's own name - so "Bratton Pointe" sits under
-   * "Mattamy Bratton Pointe", between Hedgecliff and Porter's Row. The expected
-   * order keys each community by its MPC title when it has one, then by its own
-   * title; every community outside an MPC is still held to plain alphabetical.
-   */
+  /** Checks the Communities A-Z order, where MPC members sort under their MPC's title, then their own. */
   private async validateCommunityTitleOrder(label: string): Promise<void> {
     const entries = await this.getSortableCommunityEntries();
 
@@ -1919,10 +1754,7 @@ export class SearchPage extends SearchablePage {
     await this.validateSortingBehavior('Quick Move-Ins');
   }
 
-  /**
-   * Checks the Savings Calculator sidebar on the search page: it renders
-   * adjustable inputs and surfaces a currency value.
-   */
+  /** Checks the search page's Savings Calculator sidebar has adjustable inputs and shows a currency value. */
   async validateSavingsCalculatorSidebar(): Promise<void> {
     await this.step('Validate savings calculator sidebar', async () => {
       const sidebar = this.page

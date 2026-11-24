@@ -65,11 +65,11 @@ type AllureReportTestCase = {
   name?: string;
   fullName?: string;
   status?: TestStatus;
-  /** True on a superseded attempt. Allure writes every attempt to `data/test-results`, but counts only the final one. */
+  /** True on a superseded attempt; Allure counts only the final one. */
   isRetry?: boolean;
-  /** How many superseded attempts this final result has; above zero means the test only settled on a retry. */
+  /** Superseded attempts before this final result; above zero means it settled on a retry. */
   retriesCount?: number;
-  /** The superseded attempts themselves, newest first - where a flaky test's failure text lives. */
+  /** Superseded attempts, newest first; holds a flaky test's failure text. */
   retries?: AllureReportTestCase[];
   error?: AllureReportError;
   steps?: AllureReportStep[];
@@ -83,58 +83,53 @@ type ExecutionSummary = {
   passed: number;
   failed: number;
   skipped: number;
-  /** Tests a retry turned green - counted under Passed, and listed on their own so they stay visible. */
+  /** Tests that passed on retry; counted under Passed and listed separately. */
   flaky: number;
   passPercentage: number;
   environment: string;
   browser: string;
   executionDateTime: string;
   reportUrl: string;
-  /** Root of the published report site — the catalog of all retained builds. */
+  /** Root of the published report site (catalog of retained builds). */
   reportSiteUrl: string;
   /** CI build number this report belongs to; empty for local runs. */
   buildNumber: string;
   runType: string;
   /** Every scenario that was still red after its last attempt. */
   failedTests: ReportedTest[];
-  /** Every scenario that failed an attempt and then passed - counted as passed, reported as flaky. */
+  /** Scenarios that failed an attempt and then passed (reported as flaky). */
   flakyTests: ReportedTest[];
-  /** Every scenario that did not run, with the reason it was skipped. Never folded into passed. */
+  /** Scenarios that did not run, with the skip reason. */
   skippedTests: ReportedTest[];
 };
 
 type ReportedTest = {
   name: string;
-  /** Spec file and line, shown under the scenario name; empty when it is the only label available. */
+  /** Spec file and line shown under the scenario name. */
   location: string;
-  /** Whether this result came from the desktop web pass or the mobile-web pass. */
+  /** Whether this result came from the web or mobile pass. */
   platform: ReportPlatform;
   message: string;
-  /** True when a retry of this scenario went on to pass - counted as passed, reported, not excused. */
+  /** True when a retry of this scenario passed. */
   recoveredOnRetry: boolean;
 };
 
 const chartPath = path.resolve(os.tmpdir(), 'test-summary-chart.png');
-/** ANSI color codes Playwright wraps around error text; built at runtime to keep the escape character out of source. */
+/** ANSI color codes in Playwright error text (built at runtime to keep the escape char out of source). */
 const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 const MAX_ERROR_SUMMARY_LENGTH = 300;
-/** Machine detail Playwright prints beside the message: locator dumps, matcher calls, stack frames, call-log bullets. */
+/** Machine detail lines in Playwright errors: locator dumps, matchers, stack frames, call log. */
 const MACHINE_DETAIL_PATTERN =
   /^(?:locator|expected|received|timeout|call log|snapshot|attachment|diff|selector|error message)\s*:|^(?:at\s|[-–+]\s|expect[\s(])/i;
-/** A leading "Error:" / "AssertionError:" label adds nothing once the line stands on its own. */
+/** Leading "Error:" style label to strip. */
 const ERROR_LABEL_PATTERN = /^(?:[A-Za-z]*Error|Failed|Failure)\s*:\s*/;
-/** A line still carrying code - matchers, locators, chained calls, markup - is not a readable summary. */
+/** Code fragments that make a line unreadable as a summary. */
 const CODE_FRAGMENT_PATTERN =
   /expect\(|locator\(|page\.[a-z]+\(|=>|\$\{|<\/?[a-z][^>]*>|\)\.(?:first|last|nth)\(/i;
 const chartCid = 'test-summary-chart';
 const RUN_TYPE_LABEL = 'runType';
 const PARENT_SUITE_LABEL = 'parentSuite';
-/**
- * CI runners are UTC, so an unlabeled timestamp read as an hour - and for the 03:30 UTC nightly,
- * a whole calendar day - off from when the run was actually seen. Stamp the report in Central
- * time and keep the CST/CDT label, which also makes the daylight-saving shift visible rather
- * than looking like the schedule moved on its own.
- */
+/** Report time zone (shown with its CST/CDT label); CI runners are UTC, which reads as the wrong day. */
 const REPORT_TIME_ZONE = 'America/Chicago';
 const RUN_TYPE_BY_KEY: Record<string, string> = {
   ci: 'CI',
@@ -269,13 +264,7 @@ function getPlatformFromLabels(labels: AllureLabel[] | undefined): ReportPlatfor
   return platformTag ?? 'All';
 }
 
-/**
- * The report the email summarizes: the merged web + mobile report when one was
- * built, else the desktop report.
- *
- * A run that covers a single platform never builds a merged report, so the
- * fallback keeps those emails working unchanged.
- */
+/** The report the email summarizes: merged when built, else the platform that ran. */
 function getSummaryReportDir(): string {
   const merged = path.join(MERGED_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
   const desktop = path.join(DESKTOP_ALLURE_REPORT_DIR, 'awesome', 'widgets', 'statistic.json');
@@ -311,11 +300,7 @@ function getSummaryReportPlatformFallback(): ReportPlatform {
   return 'All';
 }
 
-/**
- * The browser(s) the email header names, read from the platforms that actually
- * produced results rather than from BROWSER alone - the email summarizes the
- * whole run, so a web + mobile run named after the web engine understates it.
- */
+/** The browser(s) named in the email header, from the platforms that produced results. */
 function getCoveredBrowserLabel(): string {
   const { web, mobile } = getPlatformCoverage();
   return getBrowserCoverageLabel(web, mobile);
@@ -324,7 +309,7 @@ function getCoveredBrowserLabel(): string {
 function readAllureResults(): AllureResult[] {
   const results: AllureResult[] = [];
 
-  // Both platforms: the email covers the whole run, not one project.
+  // Reads both platforms; the email covers the whole run.
   const resultFiles = [
     ...collectResultFiles(DESKTOP_ALLURE_RESULTS_DIR).map((resultPath) => ({
       resultPath,
@@ -387,11 +372,7 @@ function readAllureReportTestCases(): AllureReportTestCase[] {
   return testCases;
 }
 
-/**
- * Playwright failure text arrives with ANSI color codes, matcher calls, locator dumps,
- * a stack trace, and a long "Call log" tail. An email reads as plain prose, so keep only
- * the human sentences and return an empty string when the failure carries none.
- */
+/** Reduces Playwright failure text to its plain-prose sentences; empty when there are none. */
 function summarizeErrorText(message: string, trace: string): string {
   const lines = (message || trace)
     .replace(ANSI_ESCAPE_PATTERN, '')
@@ -399,7 +380,7 @@ function summarizeErrorText(message: string, trace: string): string {
     .map((line) => line.trim())
     .filter(Boolean);
 
-  // Everything from "Call log:" onwards is the retry log, never a summary.
+  // Drops everything from "Call log:" onwards.
   const callLogIndex = lines.findIndex((line) => /^call log:/i.test(line));
   const meaningful = callLogIndex >= 0 ? lines.slice(0, callLogIndex) : lines;
 
@@ -420,7 +401,7 @@ function summarizeErrorText(message: string, trace: string): string {
     : summary;
 }
 
-/** A failing hook or step keeps its error off the test root, so walk nested steps too. */
+/** Finds the first error in a step tree; hook and step errors are not on the test root. */
 function findStepError(steps: AllureReportStep[] | undefined): AllureReportError | null {
   for (const step of steps ?? []) {
     if (step.error?.message || step.error?.trace) {
@@ -440,10 +421,7 @@ function findStepError(steps: AllureReportStep[] | undefined): AllureReportError
   return null;
 }
 
-/**
- * Error summary for a failed test: root error first, then the failing step, setup, or
- * teardown. Empty when no readable prose survives, so the email can hide the column.
- */
+/** Error summary for a failed test from its root, step, setup or teardown error. */
 function getReportFailureMessage(testCase: AllureReportTestCase): string {
   const error =
     (testCase.error?.message || testCase.error?.trace ? testCase.error : null) ??
@@ -454,11 +432,7 @@ function getReportFailureMessage(testCase: AllureReportTestCase): string {
   return error ? summarizeErrorText(error.message ?? '', error.trace ?? '') : '';
 }
 
-/**
- * Final attempts only. Allure writes one file per attempt into `data/test-results` and marks the
- * superseded ones `isRetry`, while `statistic.json` counts final attempts alone - so including
- * retries here listed scenarios under "Failed" that the counts reported as passed.
- */
+/** Final attempts only, matching what `statistic.json` counts. */
 function getVisibleTestCases(testCases: AllureReportTestCase[]): AllureReportTestCase[] {
   return testCases.filter((testCase) => !testCase.isRetry);
 }
@@ -490,11 +464,7 @@ function describeReportTest(
   };
 }
 
-/**
- * The error text for a scenario that failed, wherever the attempt that raised it
- * put it: on the test root, or - when a later attempt is the one on display - on
- * the most recent superseded attempt that ended red.
- */
+/** Error text for a scenario, from the test itself or its most recent failed attempt. */
 function getReportErrorText(testCase: AllureReportTestCase): string {
   return (
     getReportFailureMessage(testCase) ||
@@ -504,39 +474,21 @@ function getReportErrorText(testCase: AllureReportTestCase): string {
   );
 }
 
-/**
- * The scenarios that were still red after their last attempt.
- *
- * A retry that also failed does not make a test flaky, so `recoveredOnRetry` is
- * false for every row here however many attempts it took to give up.
- */
+/** The scenarios that were still red after their last attempt. */
 function getReportFailedTests(testCases: AllureReportTestCase[]): ReportedTest[] {
   return testCases
     .filter((testCase) => isFailedStatus(testCase.status))
     .map((testCase) => describeReportTest(testCase, getReportErrorText(testCase), false));
 }
 
-/**
- * The scenarios that failed an attempt and then passed.
- *
- * `markRecoveredTestsAsFlaky()` leaves the surviving attempt passed, so these
- * arrive counted under Passed; `retriesCount` is what still identifies them, and
- * the failed attempt's error is carried through so the email can say what went
- * wrong before the retry cleared it.
- */
+/** The scenarios that failed an attempt and then passed, with the failed attempt's error. */
 function getReportFlakyTests(testCases: AllureReportTestCase[]): ReportedTest[] {
   return testCases
     .filter((testCase) => testCase.status === 'passed' && (testCase.retriesCount ?? 0) > 0)
     .map((testCase) => describeReportTest(testCase, getReportErrorText(testCase), true));
 }
 
-/**
- * The reason a scenario did not run, as prose.
- *
- * A skip reason is already a written sentence, so it is trimmed rather than put
- * through the failure summarizer, which exists to strip locator dumps and stack
- * frames out of Playwright error text and would only chip away at this.
- */
+/** Trims a skip reason; it is already prose, so it skips the failure summarizer. */
 function summarizeSkipReason(reason: string): string {
   const text = reason.replace(ANSI_ESCAPE_PATTERN, '').replace(/\s+/g, ' ').trim();
 
@@ -545,13 +497,7 @@ function summarizeSkipReason(reason: string): string {
     : text;
 }
 
-/**
- * The scenarios that did not run, named with the reason each was skipped.
- *
- * Listed separately and never folded into passed: a skip is a scenario nobody
- * verified, and a country that does not surface a page reads very differently
- * from a check that was switched off and forgotten.
- */
+/** The scenarios that did not run, each with its skip reason. */
 function getReportSkippedTests(testCases: AllureReportTestCase[]): ReportedTest[] {
   return testCases
     .filter((testCase) => testCase.status === 'skipped')
@@ -677,9 +623,7 @@ function buildSummaryFromReport(): ExecutionSummary | null {
   const { web, mobile } = getPlatformCoverage();
   const summaryReportDir = getSummaryReportDir();
 
-  // A web + mobile email needs a report generated from both result streams. If
-  // the merged report is absent, fall back to raw results so mobile rows do not
-  // disappear behind the desktop report.
+  // A web + mobile run without a merged report falls back to raw results so mobile rows are kept.
   if (web && mobile && path.resolve(summaryReportDir) !== path.resolve(MERGED_ALLURE_REPORT_DIR)) {
     return null;
   }
@@ -710,7 +654,7 @@ function buildSummaryFromReport(): ExecutionSummary | null {
   );
 }
 
-/** Every attempt recorded per test, so a retry cannot hide the attempt that failed. */
+/** Groups every recorded attempt by test, so a retry cannot hide a failed attempt. */
 function groupAttemptsByTest(results: AllureResult[]): Map<string, AllureResult[]> {
   const attempts = new Map<string, AllureResult[]>();
 
@@ -739,14 +683,7 @@ function describeResult(
   };
 }
 
-/**
- * Summary straight from the raw results, for a run whose report was not built.
- *
- * It applies the rule `markRecoveredTestsAsFlaky()` writes into the results the
- * report is generated from - a test that failed an attempt and then passed is
- * flaky and counts as passed, one still red after its last attempt is failed -
- * so the two paths cannot disagree about whether a run was clean.
- */
+/** Summary from raw results when no report was built, using the same flaky rule as the report. */
 function buildSummaryFromResults(results: AllureResult[]): ExecutionSummary {
   const finalResults = dedupeRetries(results);
   const attemptsByTest = groupAttemptsByTest(results);
@@ -759,9 +696,7 @@ function buildSummaryFromResults(results: AllureResult[]): ExecutionSummary {
     return {
       result,
       failedAttempt,
-      // The surviving attempt decides the outcome; the error is still read off
-      // the attempt that raised it, because a recovered test's final attempt
-      // passed and carries no failure text of its own.
+      // The final attempt decides the outcome; the error comes from the failed attempt.
       status: result.status,
       recoveredOnRetry: Boolean(failedAttempt) && result.status === 'passed',
     };
@@ -866,10 +801,7 @@ function renderSummaryRows(summary: ExecutionSummary): string {
     ['Passed Tests', summary.passed],
     ['Failed Tests', summary.failed],
     ['Skipped Tests', summary.skipped],
-    // Only worth a row when it happened - a permanent "0" reads as noise. These
-    // are counted in Passed above; the row says how many of those needed a retry
-    // to get there, which is the difference between a healthy suite and an
-    // unstable one.
+    // Shown only when non-zero; these are already counted in Passed.
     ...(summary.flaky
       ? [['Flaky Tests (of which passed on retry)', summary.flaky] as [string, number]]
       : []),
@@ -892,14 +824,7 @@ function renderSummaryRows(summary: ExecutionSummary): string {
     .join('');
 }
 
-/**
- * A table of scenarios and the error each one raised.
- *
- * Shared by the failed and the flaky sections: the two differ in what the reader
- * is being asked to do about them, not in what there is to show. With no
- * readable message on any row the error column is dead weight, so it is dropped
- * and the scenarios are listed alone.
- */
+/** Renders scenarios with their errors; the error column is dropped when no row has one. */
 function renderScenarioTable(tests: ReportedTest[], heading: string): string {
   const hasErrorSummary = tests.some((test) => test.message.trim().length > 0);
 
@@ -944,15 +869,7 @@ function renderFailedTests(summary: ExecutionSummary): string {
   return renderScenarioTable(summary.failedTests, 'Failed Scenario');
 }
 
-/**
- * The scenarios a retry rescued, with the error the first attempt raised.
- *
- * A section of its own rather than a line in the totals: these count as passed,
- * so without it the only trace of the failure would be inside the Allure report.
- * The error is what says whether the run hit a real defect that happened to
- * clear or an unstable selector, and neither is excused by the retry. Present
- * only when a test actually recovered.
- */
+/** Renders the flaky section (tests that passed on retry), only when there are any. */
 function renderFlakyTests(summary: ExecutionSummary): string {
   if (summary.flakyTests.length === 0) {
     return '';
@@ -965,13 +882,7 @@ function renderFlakyTests(summary: ExecutionSummary): string {
   `;
 }
 
-/**
- * The scenarios nobody verified, with the reason each one was stood down.
- *
- * A section of its own rather than a line in the totals: the count says how many
- * went unchecked, and only the reasons say whether that was the intended
- * coverage. Present only when a test was skipped.
- */
+/** Renders the skipped section with each skip reason, only when there are any. */
 function renderSkippedTests(summary: ExecutionSummary): string {
   if (summary.skippedTests.length === 0) {
     return '';
@@ -1011,10 +922,7 @@ function renderSkippedTests(summary: ExecutionSummary): string {
   `;
 }
 
-/**
- * Subject line that identifies the run on its own, so a mailbox full of reports
- * stays readable: "Automation Report - Regression - STAGE - Build #142 - 96% Passed".
- */
+/** Subject line, e.g. "Automation Report - Regression - STAGE - Build #142 - 96% Passed". */
 function buildSubject(summary: ExecutionSummary): string {
   return [
     'Automation Report',
@@ -1034,8 +942,7 @@ function buildEmailHtml(summary: ExecutionSummary): string {
     ? `<a class="button" href="${escapeHtml(summary.reportUrl)}" target="_blank" rel="noopener noreferrer">View Full Report</a>`
     : '<span class="missing-link">Report link not configured</span>';
 
-  // The catalog link is what makes previous runs reachable — this build's report
-  // stays at its own permanent URL, and the catalog lists every retained build.
+  // Links to the catalog of every retained build.
   const siteLink = summary.reportSiteUrl
     ? `<p><a href="${escapeHtml(summary.reportSiteUrl)}" target="_blank" rel="noopener noreferrer">Browse all previous builds</a></p>`
     : '';

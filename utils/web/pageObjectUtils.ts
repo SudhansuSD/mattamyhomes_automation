@@ -53,23 +53,11 @@ export async function isFloatingCta(locator: Locator): Promise<boolean> {
     .catch(() => false);
 }
 
-/**
- * Viewport heights, as fractions, tried in turn when looking for an uncovered spot. Centre first,
- * then the lower band, which on a phone is the one left clear between the top and bottom chrome.
- */
+/** Viewport-height fractions tried in order when looking for an uncovered spot. */
 const UNCOVERED_SPOT_FRACTIONS = [0.5, 0.65, 0.75, 0.85, 0.35, 0.2];
 
-/**
- * Scrolls an element to a point in the viewport where nothing covers it, and returns whether one
- * was found.
- *
- * On a phone the community page pins the promotion and notification banners and the sticky
- * `#detailsBlockBar` over the top half of the viewport, and the View Promotions bar and the
- * scroll-to-top button over the bottom. Centring the target lands it under the banners, and
- * Playwright's own retry scrolls only cycle between the same covered edges, so the click times out
- * on "subtree intercepts pointer events". Each position is hit-tested after the page settles,
- * because the banners collapse once the page scrolls and shift the layout under the target.
- */
+/** Scrolls an element to a spot where nothing covers it; returns whether one was found. */
+// Needed on phones, where sticky banners cover the spots Playwright's own scrolling picks.
 export async function scrollToUncoveredSpot(locator: Locator): Promise<boolean> {
   for (const fraction of UNCOVERED_SPOT_FRACTIONS) {
     await locator
@@ -199,48 +187,20 @@ export function getSlugTextPattern(slug: string): RegExp {
 
 // Shared Page Shell Selectors
 
-/**
- * The global footer, however a page chooses to express it.
- *
- * Every branch of the union earns its place: most pages render a single
- * `<section id="footer" role="contentinfo">` and no `footer` tag at all, while
- * the market pages carry only the role. A tag-only locator resolves to nothing
- * on the former and reports a present footer as missing.
- */
+/** The global footer; most pages use `section#footer` and market pages only the role, not a `footer` tag. */
 export const FOOTER_SELECTOR = 'section[id="footer"], #footer, footer, [role="contentinfo"]';
 
 /** The page's global footer element. */
 export function getFooter(page: Page): Locator {
-  // .first() guards a page that renders both the section and a footer tag from
-  // becoming strict-mode ambiguous. Today the union matches exactly one element.
+  // .first() avoids strict-mode errors if a page renders more than one match.
   return page.locator(FOOTER_SELECTOR).first();
 }
 
-/**
- * The header's mobile menu button.
- *
- * The site serves a mobile-only header shell in its SSR HTML and swaps in the
- * desktop navigation on hydration, so this button still being visible on a
- * desktop-width viewport means the shell has not hydrated yet. Measured on
- * STAGE: the header holds 22 descendants with this toggle visible before
- * hydration, and 198 with it hidden after.
- */
+/** The header's mobile menu button; visible at desktop width means the header has not hydrated yet. */
 export const MOBILE_NAV_TOGGLE_SELECTOR = '#MobileNavigationMenu';
 
-/**
- * Close button inside the opened mobile navigation panel.
- *
- * Used as the "panel is open" signal rather than asserting on the nav links
- * themselves, so opening the panel and checking its contents stay separate
- * concerns.
- */
+/** Close button of the mobile nav panel, used as the "panel is open" signal. */
 export const MOBILE_NAV_CLOSE_SELECTOR = '#closeNavigationMenu';
 
-/**
- * Viewport width at and above which the header shows its desktop navigation.
- *
- * Measured against STAGE rather than assumed: the toggle is visible at 1023px and
- * hidden at 1024px. Below this the mobile toggle is the correct header, so there
- * is no desktop navigation to wait for.
- */
+/** Minimum viewport width (measured on STAGE) at which the header shows desktop navigation. */
 export const DESKTOP_HEADER_MIN_WIDTH = 1024;

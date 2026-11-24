@@ -11,7 +11,7 @@ if (!ticketId) {
 
 const jiraDir = path.resolve(__dirname, '../data/jira');
 const rawOutputPath = path.resolve(jiraDir, `${ticketId.toUpperCase()}.json`);
-// Normalized requirement consumed by the generate:* chain (same shape the generators expect).
+// Normalized requirement consumed by the generate:* chain.
 const requirementInputPath = path.resolve(__dirname, '../data/requirement-input.json');
 
 async function main(): Promise<void> {
@@ -30,7 +30,7 @@ async function main(): Promise<void> {
   console.log(`Requirement input saved to ${path.relative(process.cwd(), requirementInputPath)}`);
 }
 
-// Maps the full Jira requirement down to the RequirementInput shape used by generate-testcases/automation.
+// Maps the Jira requirement to the RequirementInput shape the generators use.
 function toRequirementInput(requirement: JiraIssueRequirement): {
   ticket: string;
   summary: string;

@@ -59,8 +59,7 @@ export class MPCPage extends BasePage {
 
   /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
-    // Master-Planned Communities are a USA-only offering, so this page always
-    // runs against the USA site regardless of the LOCATION the run started with.
+    // MPCs are USA-only, so this page always runs against the USA site.
     super(page, 'USA');
 
     this.heading = page.getByRole('heading', { level: 1 });
@@ -131,11 +130,8 @@ export class MPCPage extends BasePage {
             '[class*="sidebar" i]',
           ].join(', '),
         )
-        // visible: the page pre-renders hidden ModalForm/drawer shells that also
-        // contain inputs, so an unfiltered set reports the modal as already open
-        // and hands back a hidden container. and(): excludes the full-screen
-        // National-promotion overlay, whose aria-label sits on the element itself
-        // (filter({ hasNot }) only inspects descendants).
+        // visible: skips the hidden pre-rendered form shells. and(): excludes the promotion overlay,
+        // whose aria-label is on the element itself (hasNot only checks descendants).
         .filter({ visible: true })
         .filter({ has: this.page.getByRole('button', { name: /submit|register|request|send/i }) })
         .filter({ has: this.page.locator('input, select, textarea') })
@@ -432,10 +428,7 @@ export class MPCPage extends BasePage {
 
       await this.showGalleryPhotosIfAvailable();
 
-      // Poll rather than count once: the gallery is a carousel whose slides load
-      // lazily, so an immediate count can read 0 on a gallery that does populate a
-      // moment later. A gallery that still has no media after this is a genuine
-      // finding, not a timing artifact.
+      // Polled because the carousel slides load lazily.
       const mediaCount = await expect
         .poll(() => this.imageGalleryMedia.count(), {
           message: 'MPC image gallery should include at least one media item',

@@ -75,12 +75,14 @@ permissions:
 
 jobs:
   playwright:
-    # The job budget has to cover the longest suite plus the reporting tail.
-    # Regression across both locations and both platforms runs over three hours,
-    # and the test steps below are capped at 240 minutes - the 90 minutes left
-    # over is what guarantees report generation, publish, the email and the
-    # bounded uploads still get to run.
-    timeout-minutes: 330
+    # The job budget has to cover the longest suite plus the reporting tail, and
+    # 360 minutes is the GitHub-hosted ceiling. Regression across both locations
+    # and both platforms runs around four hours at 2 workers, so its step is
+    # capped at 280 minutes and the others at 240 - the 80 minutes left over is
+    # what guarantees report generation, publish, the email and the bounded
+    # uploads still get to run. 4 workers was measured at twice the failures
+    # (renderer crashes), so the suite stays at the default of 2.
+    timeout-minutes: 360
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
@@ -175,7 +177,7 @@ jobs:
 
       - name: Run regression tests
         if: env.TEST_SUITE == 'regression'
-        timeout-minutes: 240
+        timeout-minutes: 280
         run: npm run test:regression
         env:
           ENV: ${{ env.TEST_ENV }}

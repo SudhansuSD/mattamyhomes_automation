@@ -1,12 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, Page, test } from '@playwright/test';
 
-/**
- * WCAG scanning for the page templates.
- *
- * Serious and critical only. Minor and moderate findings on a marketing site
- * this size arrive in the hundreds and train everyone to ignore the report.
- */
+// WCAG scanning; fails on serious/critical only, since minor/moderate findings number in the hundreds.
 
 const DEFAULT_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 const BLOCKING_IMPACTS = new Set(['serious', 'critical']);
@@ -14,18 +9,13 @@ const BLOCKING_IMPACTS = new Set(['serious', 'critical']);
 export type AccessibilityScanOptions = {
   /** CSS selectors to exclude - third-party embeds we do not control. */
   exclude?: string[];
-  /** Rule ids to skip, each with the reason it is knowingly deferred. */
+  /** Rule ids to skip. */
   disableRules?: string[];
-  /** Fail on moderate findings too. Off by default - see the note above. */
+  /** Also fail on moderate findings. */
   includeModerate?: boolean;
 };
 
-/**
- * Scans the page and fails on serious/critical violations.
- *
- * Each one is attached with its rule, impact, help URL and selectors so the
- * failure is actionable without re-running locally.
- */
+/** Scans the page, attaches violation details, and fails on serious/critical violations. */
 export async function expectNoAccessibilityViolations(
   page: Page,
   pageName: string,
@@ -34,8 +24,7 @@ export async function expectNoAccessibilityViolations(
   await test.step(`Accessibility scan: ${pageName}`, async () => {
     let builder = new AxeBuilder({ page }).withTags(DEFAULT_TAGS);
 
-    // Third-party iframes (maps, Dynamics forms, floorplan tools) are not ours
-    // to fix and would otherwise dominate every result.
+    // Exclude third-party iframes and banners we cannot fix.
     const excluded = [
       'iframe',
       '#onetrust-banner-sdk',

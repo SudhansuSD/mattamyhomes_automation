@@ -1,7 +1,6 @@
 /**
- * ENV=STAGE COUNTRY=USA npx playwright test tests/qmiPage.spec.ts
- * QMI Detail Page Tests
- * @file tests/qmiPage.spec.ts
+ * ENV=STAGE LOCATION=USA npx playwright test tests/QMIPage.spec.ts
+ * QMI detail page tests.
  */
 
 import { test } from '@playwright/test';

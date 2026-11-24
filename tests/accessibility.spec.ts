@@ -1,10 +1,6 @@
 /**
  * ENV=STAGE LOCATION=USA npx playwright test tests/accessibility.spec.ts --project=Chrome
- *
- * WCAG 2.1 A/AA scan of every page template.
- *
- * One test per template so a contrast bug on one page does not hide a missing
- * label on another.
+ * WCAG 2.1 A/AA scan, one test per page template.
  */
 
 import { test } from '@playwright/test';

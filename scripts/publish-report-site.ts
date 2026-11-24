@@ -1,28 +1,11 @@
 /**
- * Add the Allure report just generated to the published, build-wise report site.
+ * Adds the generated Allure report to the gh-pages report site, one folder per
+ * run type / environment / build, checked out in REPORT_SITE_DIR.
  *
- * The site lives on the `gh-pages` branch and is served by GitHub Pages. Each
- * build is copied into its own folder keyed by run type, environment and build
- * number, so every retained report stays reachable:
- *
- *   <root>/index.html                     catalog of every retained build
- *   <root>/regression/stage/142/          build #142
- *   <root>/latest/regression/stage/       redirect to the newest such build
- *   <root>/builds.json                    machine-readable build manifest
- *   <root>/history/desktop-regression-stage.jsonl   Allure trend history
- *
- * The workflow checks the existing branch out into REPORT_SITE_DIR first, so
- * this script sees (and preserves) every build published before it.
- *
- * Two commands:
- *   restore  — copy this run type + environment's trend history out of the site
- *              so `allure:generate` can extend it. Runs BEFORE report generation.
- *   publish  — copy the generated report in, save the updated history back,
- *              refresh the manifest/catalog and prune old builds (the default).
- *
- * `publish` is idempotent: re-running it against a freshly fetched site replaces
- * this build's entry rather than duplicating it, which is what lets the workflow
- * recover from a rejected push by simply re-publishing on top of the new state.
+ * Commands:
+ *   restore  - copy this run's trend history out of the site (before allure:generate)
+ *   publish  - copy the report in, save history, refresh the catalog, prune old builds
+ *              (default; idempotent, so a rejected push can simply be re-published)
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -53,16 +36,7 @@ const MANIFEST_FILE = 'builds.json';
 const LATEST_DIR = 'latest';
 const HISTORY_DIR = 'history';
 
-/**
- * Attachment types stripped from the PUBLISHED copy of the report only.
- *
- * Playwright traces (.zip) embed DOM snapshots and full network request/response
- * bodies — including whatever a failing lead-form test submitted — and the site
- * is anonymously readable. Failure screenshots (.png) are kept: they are what
- * makes a shared report link useful for triage, and they show a rendered page
- * rather than the traffic behind it. Traces remain in the CI artifacts for
- * anyone who needs to debug the run properly.
- */
+/** Attachments stripped from the public site copy: traces hold submitted form data and network bodies. */
 const DEFAULT_EXCLUDED_ATTACHMENT_EXTENSIONS = ['.zip', '.webm', '.mp4', '.har'];
 
 type BuildStats = {
@@ -125,11 +99,7 @@ function getExcludedAttachmentExtensions(): string[] {
     .map((extension) => (extension.startsWith('.') ? extension : `.${extension}`));
 }
 
-/**
- * Copy a directory tree recursively (fs.cpSync is still experimental on Node 20),
- * skipping attachment files whose extension is excluded from publication.
- * Returns the number of files skipped.
- */
+/** Copies a directory tree, skipping excluded attachment types; returns the skipped count. */
 function copyDir(source: string, target: string, excludedExtensions: string[]): number {
   fs.mkdirSync(target, { recursive: true });
   let skipped = 0;
@@ -147,8 +117,7 @@ function copyDir(source: string, target: string, excludedExtensions: string[]): 
       continue;
     }
 
-    // Allure writes attachments to <plugin>/data/attachments/<id><ext>, keeping
-    // the original extension — so extension alone identifies them safely.
+    // Allure keeps each attachment's original extension under data/attachments.
     const isAttachment =
       path.dirname(from).split(path.sep).slice(-2).join('/') === 'data/attachments';
 
@@ -222,10 +191,7 @@ function readManifest(siteDir: string): BuildRecord[] {
   }
 }
 
-/**
- * Drop the oldest builds for each run type + environment pair so the branch does
- * not grow without bound. Returns the retained records, newest build first.
- */
+/** Deletes the oldest builds per run type + environment; returns the rest, newest first. */
 function pruneBuilds(
   siteDir: string,
   builds: BuildRecord[],
@@ -410,22 +376,13 @@ ${rows}
   fs.writeFileSync(path.join(siteDir, 'index.html'), html);
 }
 
-/**
- * Derive the GitHub Pages origin from GITHUB_REPOSITORY ("owner/repo"), which is
- * set for every trigger — unlike the event payload, which varies by event type.
- * REPORT_SITE_BASE_URL overrides this for a custom domain.
- */
+/** GitHub Pages URL derived from GITHUB_REPOSITORY ("owner/repo"). */
 function getDefaultSiteBaseUrl(): string {
   const [owner, repo] = getEnv('GITHUB_REPOSITORY').split('/');
   return owner && repo ? `https://${owner.toLowerCase()}.github.io/${repo}` : '';
 }
 
-/**
- * GitHub Pages refuses to publish a site larger than 1 GB, and it fails the
- * deployment rather than truncating — so the failure would surface as "reports
- * stopped updating", not as an obvious size error. Warn well before that, while
- * lowering KEEP_BUILDS_PER_COMBINATION is still a calm decision.
- */
+// GitHub Pages silently fails to deploy sites over 1 GB, so warn at 75%.
 const PAGES_SIZE_LIMIT_BYTES = 1024 ** 3;
 const PAGES_SIZE_WARN_BYTES = Math.floor(PAGES_SIZE_LIMIT_BYTES * 0.75);
 
@@ -474,14 +431,7 @@ const HISTORY_FILE_BY_MODE: Record<string, string> = {
   merged: MERGED_ALLURE_HISTORY_FILE,
 };
 
-/**
- * The local history file the published report reads and extends.
- *
- * One trend chain per run type + environment, owned by whichever report stream
- * gets published. REPORT_HISTORY_MODE has to name the same stream as
- * REPORT_SOURCE_DIR, or the published report extends a chain nothing wrote to
- * and its trend charts show a single point.
- */
+/** Local history file for REPORT_HISTORY_MODE, which must match the stream in REPORT_SOURCE_DIR. */
 function resolveHistoryFile(): string {
   const mode = getEnv('REPORT_HISTORY_MODE', 'desktop').trim().toLowerCase();
   const historyFile = HISTORY_FILE_BY_MODE[mode];
@@ -499,12 +449,7 @@ function resolveSiteDir(): string {
   return path.resolve(REPO_ROOT, getEnv('REPORT_SITE_DIR', 'gh-pages-site'));
 }
 
-/**
- * Copy this run type + environment's history out of the published site so Allure
- * extends the right trend chain. Storing history on the branch instead of in the
- * Actions cache means the history and the report it describes are written in one
- * commit — they cannot drift — and it survives the cache's 7-day eviction.
- */
+/** Copies this run's trend history out of the site; kept on the branch so it commits with its report. */
 export function restoreReportHistory(): void {
   const siteDir = resolveSiteDir();
   const runType = getRunType();
@@ -586,8 +531,7 @@ export function publishReportSite(): void {
 
   saveReportHistory(siteDir, runType, environment);
 
-  // Named from the platforms that produced results, so a build's row on the
-  // report site names both engines when the build covered both.
+  // The browser label names only platforms that produced results.
   const coverage = getPlatformCoverage();
 
   const serverUrl = getEnv('GITHUB_SERVER_URL', 'https://github.com');

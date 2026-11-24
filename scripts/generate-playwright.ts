@@ -46,8 +46,7 @@ const analysis = JSON.parse(fs.readFileSync(analysisPath, 'utf-8')) as Analysis;
 fs.writeFileSync(outputPath, buildSpec(analysis), 'utf-8');
 console.log(`Playwright spec generated into ${path.relative(process.cwd(), outputPath)}`);
 
-// Builds a redirect-validation spec grouped by the redirect rule that produced each scenario,
-// mirroring the hand-written tests/MTTMY-2091.spec.ts pattern.
+// Builds a redirect-validation spec with one test per redirect rule.
 function buildSpec(analysis: Analysis): string {
   const scenarios = analysis.positiveScenarios ?? [];
   const groups = [...new Set(scenarios.map((scenario) => scenario.group))].filter(Boolean);
@@ -87,7 +86,7 @@ function buildEmptyBlock(ticket: string): string {
   });`;
 }
 
-// Serializes a string as a safe double-quoted JavaScript literal for embedding in generated code.
+// Serializes a string as a JavaScript literal for generated code.
 function jsString(value: string): string {
   return JSON.stringify(value);
 }

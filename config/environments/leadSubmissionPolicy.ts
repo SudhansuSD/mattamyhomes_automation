@@ -4,14 +4,8 @@ declare const process: { env: { ALLOW_LEAD_SUBMISSION?: string } };
 
 type EnvName = ReturnType<typeof getEnvConfig>['envName'];
 
-/**
- * Whether live lead submissions are paused, per environment. STAGE submissions create real CRM
- * records, so the switch lives here rather than in a runner flag - it has to hold for every run,
- * however started.
- *
- * Set an environment to `true` to pause it; a paused environment can still run once with
- * `ALLOW_LEAD_SUBMISSION=true`. PROD stays blocked regardless of this table.
- */
+/** Per-environment pause for live submissions (`true` = paused); PROD is always blocked. */
+// Kept here, not in a runner flag, so it holds for every run since STAGE creates real CRM records.
 const LEAD_SUBMISSIONS_PAUSED: Record<EnvName, boolean> = {
   STAGE: false,
   PROD: true,
@@ -31,10 +25,7 @@ export function isLeadSubmissionAllowed(): boolean {
   );
 }
 
-/**
- * Reason to record when a submission is skipped, or null when submissions are allowed. Returned
- * as a message so the skip reads as a recorded decision in the report instead of a silent pass.
- */
+/** Skip reason for the report when submissions are blocked, or null when allowed. */
 export function getLeadSubmissionSkipReason(): string | null {
   if (isLeadSubmissionAllowed()) {
     return null;
@@ -47,7 +38,7 @@ export function getLeadSubmissionSkipReason(): string | null {
     : `Lead submissions are paused on ${envName}; set ALLOW_LEAD_SUBMISSION=true to run one.`;
 }
 
-/** True when the current run must not submit a live lead form - the guard page objects assert on. */
+/** True when the current run must not submit a live lead form. */
 export function isLeadSubmissionBlocked(): boolean {
   return !isLeadSubmissionAllowed();
 }

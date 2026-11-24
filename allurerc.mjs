@@ -124,10 +124,8 @@ export default defineConfig({
         reportName,
         reportLanguage: 'en',
         singleFile: false,
-        // parentSuite carries the platform (Web / Mobile) and sits directly under
-        // the run type, so the merged web + mobile report splits by platform
-        // before it splits by country. Without it the platform is visible only
-        // on a test's own page, never in the tree.
+        // parentSuite holds the platform (Web / Mobile), so the merged report's
+        // tree splits by platform before country.
         groupBy: ['label-name:runType', 'parentSuite', 'epic', 'feature', 'story', 'suite'],
         charts,
       },

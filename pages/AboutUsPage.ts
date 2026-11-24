@@ -80,11 +80,7 @@ export class AboutUsPage extends BasePage {
     });
   }
 
-  /**
-   * Lightweight validation for a top-level static About link (e.g. CAN's
-   * Sustainability), checking route, shell and meaningful content without the
-   * country-specific content expectations used by validateAboutPage.
-   */
+  /** Checks a top-level static About link's route, shell and content, without country-specific expectations. */
   async validateTopLevelAboutPage(link: HeaderNavigationLink): Promise<void> {
     await this.step(`Validate top-level About page: ${link.name}`, async () => {
       await this.waitForPageReady();
@@ -246,8 +242,7 @@ export class AboutUsPage extends BasePage {
     await this.step('Validate Careers functionality', async () => {
       await this.validateLinkIfPresent(/\/about\/careers\/early-careers/i);
 
-      // No SHOW MORE check: the only one on /about/careers belongs to the
-      // embedded third-party job board, not to us.
+      // No SHOW MORE check: the one on this page belongs to the embedded third-party job board.
 
       const nextSlideButton = this.main.getByRole('button', { name: /Next slide/i }).first();
 
@@ -320,15 +315,7 @@ export class AboutUsPage extends BasePage {
     await expect(form.getByRole('button', { name: /^SUBMIT$/i })).toBeVisible();
   }
 
-  /**
-   * Fails if any visible link on the page is missing its href.
-   *
-   * Polled rather than sampled once: the video transcript links render with an
-   * empty href and are handed a `blob:` URL only once the transcript has been
-   * fetched and wrapped in a Blob, so a single read can catch them mid-flight.
-   * The assertion itself is unchanged - a link that never gets a destination
-   * still fails, and the report still names it.
-   */
+  /** Fails if any visible link is missing its href; polled because transcript links get their blob: URL late. */
   private async validateVisibleLinksHaveDestinations(): Promise<void> {
     await expect
       .poll(
@@ -396,14 +383,7 @@ export class AboutUsPage extends BasePage {
     );
   }
 
-  /**
-   * Checks whether any button-like control matches the pattern.
-   *
-   * Includes links and role="button" elements, not just <button>: these pages
-   * render their calls to action as anchors (the Sustainability page's "Read Our
-   * 2025 Sustainability Report" is an <a>), so a <button>-only search reported a
-   * missing CTA on a page that renders one.
-   */
+  /** Checks whether any button, link or role="button" control matches; these pages render CTAs as anchors. */
   private async hasAnyButtonMatching(pattern: RegExp): Promise<boolean> {
     return this.main.locator('button, a, [role="button"]').evaluateAll(
       (controls, regexInput) => {

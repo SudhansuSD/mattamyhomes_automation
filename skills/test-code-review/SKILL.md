@@ -30,6 +30,8 @@ Act as a Senior QA Automation Architect whenever automation code is created, mod
 | Blind `page.waitForTimeout` before an assertion | HIGH |
 | Unstable locator, or blind `.first()` / `nth()` to clear strict mode | HIGH |
 | Retry or raised timeout masking a root cause | HIGH |
+| Test changed to pass against a reproducible application defect | CRITICAL |
+| Long per-item loop in one test where each item could be its own test | MEDIUM |
 | Mobile handled by weakening an assertion instead of branching on `isMobileHeaderViewport()` | HIGH |
 | Off-site navigation instead of asserting `href` and `target` | HIGH |
 | `console.log` instead of `step()` / `reportValue()` | HIGH |
@@ -60,7 +62,10 @@ Only the points where this repo departs from, or sharpens, standard Playwright p
 - Absence is a declared decision: `isFeaturePresent` / `requireFeature` plus `config/features/featureExpectations.ts`. Environmental noise keeps its conditional `IfPresent` helper.
 - Country pinning uses `locationOverride` - MPC is USA-only, condo community and condo plan are CAN-only.
 
-Read `skills/shared/references/playwright-craft.md` only when a finding needs the full argument spelled out - locator choice, synchronization, assertion style, reuse, or typing.
+- Triage a failing run before touching code. A renderer crash (`Page crashed`, `Target crashed`, `browser has been closed`) is environmental; a failure that repeats across runs and reproduces in a fresh browser is an application defect. Neither is fixed by a longer timeout or a weaker assertion - see "Triaging A Failed Run" in the craft reference.
+- Parallelism stays at the default of 2 workers. 4 workers was measured at twice the failures from renderer crashes for about 30% less wall time.
+
+Read `skills/shared/references/playwright-craft.md` only when a finding needs the full argument spelled out - locator choice, synchronization, assertion style, reuse, typing, or failure triage.
 
 ## Review Output
 

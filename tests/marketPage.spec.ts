@@ -35,10 +35,7 @@ test.describe(`Market page tests - ${location.country}`, () => {
 
   test.describe('Basic Market Validation', () => {
     test(`@smoke | ${location.country} | Validate one market per region navigation and heading`, async () => {
-      // One market per state or province rather than the full list: the smoke
-      // question is whether market pages render per region, and the sample
-      // answers it in a fraction of the time. Budget ~30s per market plus
-      // headroom - a ceiling to catch hangs, not a target.
+      // One market per region; ~30s per market plus headroom, as a hang ceiling.
       test.setTimeout(8 * 60 * 1000);
 
       for (const market of sampledMarkets) {
@@ -49,24 +46,17 @@ test.describe(`Market page tests - ${location.country}`, () => {
       }
     });
 
-    // Retries are off for this one: it walks every market in a single test, so a
-    // failure here is either a wedged market page or a genuinely broken one, and
-    // a second 15-minute attempt buys diagnosis nothing it did not already have.
+    // One test per market: each gets a fresh browser page, so a renderer crash fails only that
+    // market and a retry repeats one market rather than a pass over all of them.
     test.describe('All markets', () => {
-      test.describe.configure({ retries: 0 });
-
-      test(`@regression | ${location.country} | Validate all markets navigation and heading`, async () => {
-        // Navigates every configured market in one test (16 for USA), so it
-        // needs far more than the 5 min per-test default.
-        test.setTimeout(15 * 60 * 1000);
-
-        for (const market of location.markets) {
+      for (const market of location.markets) {
+        test(`@regression | ${location.country} | Validate ${market.name} market navigation and heading`, async () => {
           await test.step(`Verify market: ${market.name}`, async () => {
             await marketPage.navigateToMarket(market.url);
             await marketPage.verifyMarketPage(market);
           });
-        }
-      });
+        });
+      }
     });
   });
 
@@ -112,9 +102,7 @@ test.describe(`Market page tests - ${location.country}`, () => {
       });
     });
 
-    // The Discover Our Homes section is identical across markets, so it is
-    // validated once per country on the configured market rather than on all of
-    // them - same rationale as the lead form tests below.
+    // Identical across markets, so checked once on the configured market.
     test(`@regression | ${location.country} | Validate Discover Our Homes section`, async () => {
       await test.step('Validate discover section links and URLs', async () => {
         await marketPage.validateDiscoverOurHomesSection();

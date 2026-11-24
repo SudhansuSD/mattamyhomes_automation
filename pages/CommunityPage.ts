@@ -34,10 +34,10 @@ import {
 // Community Page – Page Object Model
 
 export class CommunityPage extends SearchablePage {
-  /** Ceiling on one wait for a Get Information CTA to render where a click would land. */
+  /** Max time one poll waits for a clickable Get Information CTA. */
   private static readonly CTA_POLL_TIMEOUT = 30_000;
 
-  /** Window held back from the CTA polls so the covered-CTA fallback still gets its attempt. */
+  /** Time kept back from CTA polls so the covered-CTA fallback still gets a try. */
   private static readonly CTA_FALLBACK_RESERVE = 12_000;
 
   /** The Quick Move-In Homes / Floorplans tabs in the Available Homes section. */
@@ -72,8 +72,7 @@ export class CommunityPage extends SearchablePage {
   }
   /** The map section. */
   private get mapSection(): Locator {
-    // #map stopped matching: the map moved into "Explore the community" with an
-    // embedded sitemap iframe. #map stays first for pages that still use it.
+    // Most pages put the map under "Explore the community"; #map covers the rest.
     return this.page
       .locator('#map')
       .or(this.page.locator('section').filter({ has: this.page.locator('a[href*="maps.google"]') }))
@@ -106,17 +105,7 @@ export class CommunityPage extends SearchablePage {
     return this.page.locator('a');
   }
 
-  /**
-   * The real hero CTA: a <button> that is NOT role="link".
-   *
-   * Targeted by structure rather than accessible name on purpose - the page
-   * also renders an off-canvas duplicate in the sticky quick-action bar as
-   * <button role="link"> with an empty aria-label, so name-based queries
-   * (getByRole with a name) miss it inconsistently. Excluding role="link"
-   * structurally drops that duplicate, which otherwise fails the click
-   * ("Element is outside of the viewport") and, being a link, can navigate away
-   * to /contact.
-   */
+  /** The real hero CTA button; excludes role="link" to skip the off-canvas sticky-bar duplicate. */
   private get getInformationButtonCta(): Locator {
     return this.page.locator(GET_INFORMATION_CTA_SELECTOR).filter({
       hasText: GET_INFORMATION_CTA_TEXT,
@@ -130,23 +119,12 @@ export class CommunityPage extends SearchablePage {
     });
   }
 
-  /**
-   * Resolves the Get Information CTA to actually click, or null when none is reachable yet.
-   *
-   * Every candidate goes through {@link firstInViewportIndex}, so this only ever hands back a CTA a
-   * click would land on. There is deliberately no "first match" fallback: the copies this would fall
-   * back to are the off-canvas sticky-bar duplicate and CTAs sitting under the promotion banners,
-   * and clicking one of those does not open the modal - it spends the action timeout on
-   * "subtree intercepts pointer events" and then fails the test. Returning null instead lets the
-   * caller clear the overlays and ask again, which is what actually resolves it.
-   */
+  /** Returns a clickable Get Information CTA, or null so the caller can clear overlays and retry. */
   private async resolveGetInformationCta(
     allowCoveredFallback = false,
     deadline?: number,
   ): Promise<Locator | null> {
-    // The hero CTA is the real trigger: `<button aria-label="Stay updated about this community">`
-    // inside #HeaderPlanPage. Matching that container first means the off-canvas sticky-bar copies
-    // cannot win on ordering.
+    // Hero CTA first, so the off-canvas sticky-bar copies cannot win on ordering.
     const heroCta = getHeroInformationCta(this.page);
     const heroIndex = await this.pollForInViewportCtaIndex(heroCta, deadline);
     if (heroIndex !== -1) {
@@ -166,14 +144,8 @@ export class CommunityPage extends SearchablePage {
       return candidates.nth(anyIndex);
     }
 
-    // Last resort, and only once the caller has run out of window: hand back a CTA that did not
-    // hit-test clean so the flow still attempts the click and fails with Playwright's call log
-    // naming whatever covered it, rather than with a bare "none found".
-    //
-    // The unfiltered set stands in when the visible one is empty: during the page's second
-    // hydration pass there is a window - measured at around six seconds in on the phone profiles -
-    // where every copy of the CTA is visibility:hidden at once, and a lookup that lands in it
-    // otherwise ends the flow with "none found" for a CTA the page does have.
+    // Last resort: return a covered CTA so the click fails with a log naming what covers it.
+    // Falls back to the unfiltered set because every copy is briefly hidden during re-hydration.
     if (allowCoveredFallback) {
       const fallback = (await candidates.count()) ? candidates : this.getInformationButtonCta;
 
@@ -185,27 +157,14 @@ export class CommunityPage extends SearchablePage {
     return null;
   }
 
-  /**
-   * Waits until one of the CTAs renders inside the viewport and returns its index, or -1 if none
-   * does.
-   *
-   * The ceiling covers the hero image load that gates the real CTA's visibility, which runs to about
-   * twelve seconds on the phone profiles, and is trimmed to whatever the caller has left. A poll
-   * that outlives its caller's window spends the entire budget on one attempt, so the retry loop
-   * around it never gets to clear an overlay, re-resolve, or fall back to a covered CTA - and the
-   * flow ends on "none found" instead of on the reason the click could not land.
-   */
+  /** Waits for a clickable CTA and returns its index, or -1; capped so the caller can still retry. */
   private async pollForInViewportCtaIndex(cta: Locator, deadline?: number): Promise<number> {
     let index = -1;
 
     await expect
       .poll(
         async () => {
-          // Re-centered on every pass, because where the CTA sits changes under this poll: the page
-          // re-renders after its second hydration pass and the hero CTA settles at the very bottom
-          // edge of a phone viewport - measured at y 634-694 of a 664px viewport on the Canadian
-          // community page - where its center point falls on the consent bar and the hit-test
-          // rejects it. Centring once up front is scrolled away by that re-render.
+          // Re-center every pass: a re-render can push the CTA under the consent bar on phones.
           await this.scrollCtaIntoCenter(cta);
 
           return (index = await this.firstInViewportIndex(cta));
@@ -245,19 +204,7 @@ export class CommunityPage extends SearchablePage {
     await this.settle(300);
   }
 
-  /**
-   * Returns the index of the first CTA in the set a click would actually land on, or -1 when none
-   * qualify.
-   *
-   * Hit-tests the center point rather than asking whether the box overlaps the viewport, because
-   * neither weaker check is enough on its own here. The hero container is `visibility: hidden` until
-   * its background image loads - about twelve seconds on a phone profile - and a
-   * `visibility: hidden` element still reports a full-size box at its final position, so going on
-   * the box alone hands back a CTA that is not there yet. And the promotion banners pinned to the
-   * top of the page cover the hero CTA on a phone viewport, so a CTA that is visible, enabled and
-   * stable still fails the click with "#national-notification-banner subtree intercepts pointer
-   * events". One hit-test rules out both, and the off-canvas sticky-bar duplicate with them.
-   */
+  /** Returns the first CTA a click would land on, or -1; a center hit-test skips covered CTAs. */
   private async firstInViewportIndex(cta: Locator): Promise<number> {
     const count = await cta.count();
 
@@ -314,16 +261,7 @@ export class CommunityPage extends SearchablePage {
       )
       .last();
   }
-  /**
-   * The lead form dialog or sidebar.
-   *
-   * Three filters, each earning its place. Visible, because the page pre-renders
-   * hidden modal shells that also hold inputs - an unfiltered set makes "did the
-   * modal open?" pass instantly against a hidden container. Has a Submit button,
-   * because that is what separates a lead form from the other dialogs (the
-   * promotion overlay is a full-screen role="dialog" with inputs). And not a
-   * promotion overlay, as belt and braces on the other two.
-   */
+  /** The open lead form dialog or sidebar: visible, with a submit button, and not a promo overlay. */
   private get leadFormDialogOrSidebar(): Locator {
     return (
       this.page
@@ -332,8 +270,7 @@ export class CommunityPage extends SearchablePage {
         )
         .filter({ visible: true })
         .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
-        // and(), not filter({ hasNot }): the aria-label sits on the overlay itself,
-        // and hasNot only inspects descendants.
+        // and(), not hasNot: the aria-label is on the overlay itself, not a descendant.
         .and(
           this.page.locator(
             ':not([aria-label*="promotion" i]):not([aria-label*="notification" i])',
@@ -357,8 +294,7 @@ export class CommunityPage extends SearchablePage {
         ).toHaveURL(new RegExp(escapeRegex(communityPath), 'i'), { timeout: 60000 });
       }
 
-      // The community page (reached via search, not navigate()) can also come up
-      // blank/unhydrated on the correct URL - recover before asserting content.
+      // The page can load blank on the right URL; recover before asserting content.
       await this.ensurePageRendered();
 
       const communityHeading = this.page
@@ -375,9 +311,7 @@ export class CommunityPage extends SearchablePage {
   /** Checks every core section of the community page is present. */
   async verifyCoreSections(): Promise<void> {
     await this.step('Verify core community sections', async () => {
-      // A community with neither quick move-in homes nor floorplans leaves the Available Homes
-      // section out of the page entirely, which is its own checked state rather than a missing
-      // section.
+      // No inventory at all means no Available Homes section, which is checked as its own state.
       if (await this.homeTypeTabs.hasSection()) {
         await this.verifySection(
           this.availableHomesSection,
@@ -400,14 +334,11 @@ export class CommunityPage extends SearchablePage {
       return;
     }
 
-    // Scroll safely
     const section = locator.first();
     await section.scrollIntoViewIfNeeded();
 
-    // Wait for SPA render
     await this.waitForPageReady();
 
-    // Assert visibility (with retry)
     await expect(section, `${name} section not visible`).toBeVisible({ timeout: 5000 });
   }
 
@@ -439,11 +370,7 @@ export class CommunityPage extends SearchablePage {
 
   // HOME TYPE TABS
 
-  /**
-   * Checks the Quick Move-In Homes / Floorplans tabs match the community's inventory: both tabs when
-   * it has quick move-in homes, none - with floorplans shown directly - when it does not, and no
-   * listing at all when it has neither.
-   */
+  /** Checks the Quick Move-In Homes / Floorplans tabs match what the community has for sale. */
   async verifyHomeTypeTabsMatchInventory(): Promise<void> {
     await this.step('Verify Quick Move-In Homes / Floorplans tabs match inventory', async () => {
       await this.homeTypeTabs.verifyTabsMatchInventory();
@@ -455,8 +382,7 @@ export class CommunityPage extends SearchablePage {
   /** Checks the first visible quick move-in card opens its home page. */
   async verifyAvailableHomesNavigation(): Promise<void> {
     await this.step('Verify available homes navigation', async () => {
-      // A community without QMI inventory has no tabs and no QMI cards to follow - that state is
-      // asserted by verifyHomeTypeTabsMatchInventory.
+      // No quick move-in homes is checked by verifyHomeTypeTabsMatchInventory.
       if (!(await this.homeTypeTabs.showQuickMoveIns())) {
         return;
       }
@@ -470,8 +396,7 @@ export class CommunityPage extends SearchablePage {
   /** Checks the first visible floorplan card opens its plan page. */
   async verifyPlansNavigation(): Promise<void> {
     await this.step('Verify plans navigation', async () => {
-      // A community without any inventory has no floorplan cards to follow - that state is
-      // asserted by verifyHomeTypeTabsMatchInventory.
+      // No inventory at all is checked by verifyHomeTypeTabsMatchInventory.
       if (!(await this.homeTypeTabs.showFloorplans())) {
         return;
       }
@@ -482,8 +407,7 @@ export class CommunityPage extends SearchablePage {
 
   /** Opens the first visible card of one home type, checks where it lands, then comes back. */
   private async openFirstVisibleCard(type: 'qmi' | 'floorplans', label: string): Promise<void> {
-    // Every card is in the DOM even when its tab or carousel slide is hidden, so only a visible
-    // one is clickable.
+    // Hidden tabs and carousel slides keep their cards in the DOM, so pick a visible one.
     let href: string | undefined;
     await expect
       .poll(async () => (href = (await this.homeTypeTabs.visibleCardHrefs(type))[0]), {
@@ -508,9 +432,7 @@ export class CommunityPage extends SearchablePage {
     await this.waitForPageReady();
   }
 
-  /**
-   * Checks the Hours, Directions and Schedule an Appointment CTAs, where the community has them.
-   */
+  /** Checks the Hours, Directions and Schedule an Appointment CTAs, where the community has them. */
   async verifyContactActionCtas(): Promise<void> {
     await this.step('Verify community contact action CTAs when available', async () => {
       await this.verifyHoursCta();
@@ -541,17 +463,11 @@ export class CommunityPage extends SearchablePage {
       timeout: 10000,
     });
 
-    // Leave the page clean: the Hours panel stays open otherwise and covers the
-    // Directions / Schedule an Appointment CTAs validated next, so their clicks
-    // land on this dialog instead.
+    // Close the Hours panel, or it covers the CTAs checked next.
     await this.closeOpenDialogIfPresent('Sales center hours');
   }
 
-  /**
-   * Closes an open dialog so the next CTA validation starts from a clean page.
-   *
-   * Best-effort by design - a dialog that has already closed itself is fine.
-   */
+  /** Closes this dialog if it is still open, so the next CTA check starts clean. */
   private async closeOpenDialogIfPresent(label: string): Promise<void> {
     const dialog = this.page.locator(`[role="dialog"][aria-label="${label}"]:visible`).first();
 
@@ -574,8 +490,7 @@ export class CommunityPage extends SearchablePage {
 
   /** Checks the Directions CTA links out to a map, without following it. */
   private async verifyDirectionsCta(): Promise<void> {
-    // By accessible name, not text. It is a link wrapping an icon plus the word
-    // "Directions", so /^Directions$/ failed on the markup whitespace.
+    // By accessible name: the link wraps an icon, so its raw text has extra whitespace.
     const directionsCta = this.page
       .getByRole('link', { name: /directions/i })
       .or(this.page.getByRole('button', { name: /directions/i }))
@@ -637,10 +552,7 @@ export class CommunityPage extends SearchablePage {
       return;
     }
 
-    // Scoped to VISIBLE dialogs: the page keeps hidden dialogs in the DOM (the
-    // "Sales center hours" panel and the privacy dialogs), and an unfiltered
-    // locator resolves to the hidden hours panel - whose text is just opening
-    // times - so the assertion failed even though the scheduling modal did open.
+    // Visible dialogs only: hidden ones (hours panel, privacy dialogs) stay in the DOM.
     const schedulingModal = this.page
       .locator(
         '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible',
@@ -648,10 +560,7 @@ export class CommunityPage extends SearchablePage {
       .filter({ hasText: /Schedule|Appointment|Visit|Tour|First Name|Last Name|Email/i })
       .first();
 
-    // The first click intermittently does not open the modal (nothing happens, no
-    // navigation, no error), so clicking once and asserting is flaky by
-    // construction. Re-click while the modal has not appeared; opening it twice is
-    // harmless, and a CTA that never opens it still fails below.
+    // The first click sometimes does nothing, so retry; a CTA that never opens it still fails below.
     for (let attempt = 1; attempt <= 3; attempt++) {
       await this.scrollIntoCenter(scheduleCta);
       await scheduleCta.click();
@@ -677,11 +586,7 @@ export class CommunityPage extends SearchablePage {
 
   // FORM VALIDATION
 
-  /**
-   * Selector fragment excluding anything rendered inside the side modal/dialog,
-   * so in-page form lookups cannot pick up the Get Information modal (or the
-   * National-promotion overlay) and shift what "primary"/"footer" mean.
-   */
+  /** Keeps in-page form lookups from matching forms inside the side modal or other dialogs. */
   private static readonly NOT_IN_DIALOG =
     ':not([role="dialog"] *):not(.ReactModal__Content *):not([id*="ModalForm"] *)';
 
@@ -730,14 +635,12 @@ export class CommunityPage extends SearchablePage {
     expectedCommunity: string,
   ): Promise<void> {
     await this.step('Verify QMI cards match current community', async () => {
-      // A community without QMI inventory has no tabs and no QMI cards to check - that state is
-      // asserted by verifyHomeTypeTabsMatchInventory.
+      // No quick move-in homes is checked by verifyHomeTypeTabsMatchInventory.
       if (!(await this.homeTypeTabs.showQuickMoveIns())) {
         return;
       }
 
-      // Every visible card link under the selected Quick Move-In Homes tab, deliberately not
-      // pre-filtered by path, so a card pointing at another community is caught below.
+      // Not pre-filtered by path, so a card for another community is caught below.
       const qmiCards = this.availableHomesSection
         .locator('a[href]:visible')
         .filter({ hasNotText: /view all/i });
@@ -781,9 +684,7 @@ export class CommunityPage extends SearchablePage {
     await this.page.evaluate(() => window.scrollTo(0, 0));
     await this.waitForPageReady();
 
-    // The address is not always rendered in a heading tag - on the community
-    // page it lives in the "Sales center" strip as a plain text element - so
-    // match by text content regardless of tag rather than restricting to h1-h4.
+    // Match by text, not heading tag: the address can sit in the Sales center strip as plain text.
     const addressHeading = this.page.getByText(/\d{1,}.+,\s*.+\b[A-Z]{2}\b/i).first();
     const currentPath = new URL(this.page.url()).pathname;
     const marketFromUrl = this.getMarketFromCurrentUrl();
@@ -836,10 +737,7 @@ export class CommunityPage extends SearchablePage {
     }
   }
 
-  /**
-   * Fallback in-page form containers for pages that render a lead form without a
-   * <form> tag. Same dialog exclusion as communityForms.
-   */
+  /** In-page lead form wrappers for pages that render no <form> tag. */
   private get communityFormContainers(): Locator {
     return this.page
       .locator(
@@ -857,28 +755,14 @@ export class CommunityPage extends SearchablePage {
       .filter({ has: this.page.locator('input, select, textarea') });
   }
 
-  /**
-   * The in-page lead forms, in DOM order.
-   *
-   * Deliberately excludes anything inside the side modal / dialog: the primary
-   * form is page content, and letting a dialog into this set makes
-   * "the primary form" mean different elements on different runs. Prefers real
-   * <form> elements and falls back to the Sitecore /
-   * ScheduleAVisit / #contact wrappers for the pages that render a lead form
-   * without a <form> tag.
-   */
+  /** Returns the in-page lead forms (never dialogs), falling back to form wrappers. */
   private async inPageForms(): Promise<Locator> {
     const forms = this.communityForms;
 
     return (await forms.count()) ? forms : this.communityFormContainers;
   }
 
-  /**
-   * The primary (top-most) in-page community form.
-   *
-   * Resolved by position within the in-page forms rather than by a global index,
-   * so a newly rendered dialog cannot shift what this refers to.
-   */
+  /** Returns the top-most in-page community form. */
   private async primaryForm(): Promise<Locator> {
     return (await this.inPageForms()).first();
   }
@@ -886,15 +770,7 @@ export class CommunityPage extends SearchablePage {
   // The community page renders no footer lead form; restore this with the footer
   // methods and tests if it returns.
   //
-  // /**
-  //  * The footer community form: the second in-page lead form.
-  //  *
-  //  * Positional, but within a single homogeneous set (in-page lead forms, never
-  //  * dialogs) rather than counted across unrelated locator groups - the page can
-  //  * render further forms below it (newsletter-style, no validation), so `.last()`
-  //  * is not the same thing. Throws when the page has no second form rather than
-  //  * quietly re-validating the primary one.
-  //  */
+  // /** Returns the second in-page lead form; not `.last()`, as newsletter forms can follow it. */
   // private async footerForm(): Promise<Locator> {
   //   const forms = await this.inPageForms();
   //
@@ -915,8 +791,7 @@ export class CommunityPage extends SearchablePage {
 
     const previousUrl = this.page.url();
 
-    // click() auto-scrolls; a separate scroll only adds a step that throws outright when the page
-    // re-renders between resolving the CTA and reaching it.
+    // No separate scroll: click() auto-scrolls, and an extra scroll throws if the page re-renders.
     await cta.click();
     await this.waitForPageReady();
 
@@ -927,18 +802,13 @@ export class CommunityPage extends SearchablePage {
     ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
-  /**
-   * Resolves a named in-page form and asserts it is usable.
-   *
-   * Always returns a form or throws - callers do not need a null check.
-   */
+  /** Returns a named in-page form once it is usable; throws if it is missing. */
   private async getAvailableForm(
     resolveForm: () => Promise<Locator>,
     formName: string,
   ): Promise<Locator> {
     await this.dismissPromoPopupIfPresent({ appearTimeout: 3000 });
-    // A promo that mounted after that window leaves `#root` aria-hidden, and the
-    // in-page form lookups below would then resolve to nothing.
+    // A late promo leaves #root aria-hidden, which hides the forms from the lookups below.
     await this.ensurePageInAccessibilityTree();
 
     let form = await resolveForm();
@@ -953,10 +823,7 @@ export class CommunityPage extends SearchablePage {
       throw new Error(`${formName} not present on the community page`);
     }
 
-    // This scroll earns its place: the footer form sits ~10,000px down and only
-    // hydrates once it enters the
-    // viewport, so submitting without scrolling clicks a button whose React
-    // handler is not attached yet and silently does nothing.
+    // Forms far down the page only hydrate once scrolled into view; before that, submit does nothing.
     await form.scrollIntoViewIfNeeded({ timeout: 10_000 });
     await this.settle(1000);
 
@@ -967,22 +834,13 @@ export class CommunityPage extends SearchablePage {
     return form;
   }
 
-  /**
-   * Clicks the Get Information / Stay Updated CTA that opens the side modal form.
-   *
-   * The side modal is only rendered as a result of that click, so a missing or
-   * unclickable CTA is a hard failure here rather than something the caller
-   * later reports as a form that "did not open". Skipped only when a side modal
-   * is already open (the locator is visible-filtered, so that is real).
-   */
+  /** Clicks the CTA that opens the side modal form; fails if it cannot, unless one is already open. */
   private async openSideModalFromGetInformationCta(formName: string): Promise<void> {
     if (await this.leadFormDialogOrSidebar.count()) {
       return;
     }
 
-    // The National-promotion overlay is a full-screen dialog that sits on top of
-    // the CTA and swallows the click. Dismiss it rather than clicking through it
-    // with force, so a genuinely unreachable CTA still fails.
+    // Dismiss the promo overlay rather than force-clicking, so an unreachable CTA still fails.
     await this.dismissPromoPopupIfPresent({ appearTimeout: 3000 });
 
     const previousUrl = this.page.url();
@@ -993,21 +851,15 @@ export class CommunityPage extends SearchablePage {
     let sawCandidate = false;
     let reloaded = false;
 
-    // Resolve and click in one loop, re-resolving each attempt: the page re-renders after its second
-    // hydration pass, which detaches a CTA resolved a moment earlier and leaves the click waiting on
-    // a node that is no longer in the document.
+    // Re-resolve each attempt: a re-render can detach a CTA resolved a moment earlier.
     while (Date.now() < deadline) {
       const cta = await this.resolveGetInformationCta(Date.now() > lastResortAfter, deadline);
 
       if (!cta) {
-        // Nothing reachable: the promotion banners pinned to the top of the page cover the hero CTA
-        // on a phone viewport, and they re-mount on a timer. Clearing them is what makes the next
-        // attempt differ from this one.
+        // Nothing reachable: clear the promo banners that cover the hero CTA on phones.
         await this.dismissPromoPopupIfPresent({ appearTimeout: 1000 });
 
-        // Not one CTA has been visible at all: the page is stuck in its server-rendered shell. These
-        // bundles intermittently die mid-hydration with "undefined is not a constructor", which
-        // leaves every control present but permanently zero-box, and only a reload recovers it.
+        // No CTA ever visible means hydration died, leaving a dead page shell; only a reload fixes it.
         if (!sawCandidate && !reloaded && Date.now() > reloadAfter) {
           reloaded = true;
 
@@ -1022,17 +874,13 @@ export class CommunityPage extends SearchablePage {
 
       sawCandidate = true;
 
-      // Center it before clicking. The hero CTA renders near the top of the page, right where the
-      // promotion banners sit, and those re-mount on a timer - so a CTA that hit-tests clean can be
-      // covered again a few hundred milliseconds later, when the click lands. Centring moves it
-      // clear of that band entirely rather than racing it.
+      // Center it first, clear of the promo banners that re-mount over the top of the page.
       await cta
         .evaluate((element) => element.scrollIntoView({ block: 'center' }))
         .catch(() => undefined);
       await this.settle(300);
 
-      // No force: click() runs the actionability checks, so a CTA covered by an overlay/banner
-      // fails here with a call log instead of silently "clicking" and breaking downstream.
+      // No force, so a covered CTA fails here with a call log instead of a silent miss.
       const clicked = await cta
         .click({ timeout: 10_000 })
         .then(() => true)
@@ -1042,8 +890,7 @@ export class CommunityPage extends SearchablePage {
         });
 
       if (!clicked) {
-        // The promotion banners and the promo portal re-mount on a timer and can land on top of the
-        // hero CTA between two attempts. Clearing them is what makes the next attempt differ.
+        // Promo banners re-mount on a timer and may now cover the CTA; clear them before retrying.
         await this.dismissPromoPopupIfPresent({ appearTimeout: 1000 });
         continue;
       }
@@ -1138,8 +985,7 @@ export class CommunityPage extends SearchablePage {
     await fillIfPresent(form.getByRole('textbox', { name: /phone/i }), leadData.phone);
     await fillIfPresent(form.getByRole('textbox', { name: /zip|postal/i }), leadData.zip);
     await this.selectCountryOfResidenceIfPresent(form);
-    // Four extra dropdowns (Bedroom Count, Desired Move Date, New Budget, First Time Home Buyer):
-    // optional on US / custom forms and required on Canada forms, so filled whenever present.
+    // The four extra dropdowns are required on Canada forms, optional elsewhere; fill when present.
     await fillExtraLeadFieldsIfPresent(form);
     await this.checkConsentIfPresent(form);
   }
@@ -1147,9 +993,7 @@ export class CommunityPage extends SearchablePage {
   /** Checks the Get Information CTA opens a lead form. */
   async verifyGetInformationCtaOpensLeadForm(): Promise<void> {
     await this.step('Verify Get Information CTA opens lead form', async () => {
-      // The CTA visibility check and the click both live in
-      // getAvailableGetInformationForm - the side modal exists only after that
-      // click, so resolving the CTA twice here would just double the 15s poll.
+      // getAvailableGetInformationForm already finds and clicks the CTA; don't resolve it twice.
       const form = await this.getAvailableGetInformationForm(
         'Get Information community sideModalForm',
       );
@@ -1395,13 +1239,7 @@ export class CommunityPage extends SearchablePage {
   //   });
   // }
 
-  /**
-   * Open the Get Information side modal lead form and return its container.
-   *
-   * Exposes the same CTA flow the side-modal checks use, so an evidence spec that only needs the
-   * open form reuses the viewport-aware CTA resolution instead of clicking the off-canvas
-   * sticky-bar duplicate.
-   */
+  /** Opens the Get Information side modal lead form and returns it, for evidence runs. */
   async openSideModalLeadForm(
     formName = 'Get Information community sideModalForm',
   ): Promise<Locator> {

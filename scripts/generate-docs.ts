@@ -1,23 +1,10 @@
 /**
- * generate-docs.ts
- * ------------------------------------------------------------------
- * Auto-generates living documentation for this Playwright + TypeScript
- * automation framework by statically reading the spec files (and, when
- * present, the latest Playwright JSON report / Allure results).
- *
- * Outputs (regenerated on every run, at the repo root):
- *   - test-plan.md   : human-readable test plan grouped by module
- *   - progress.md    : automation progress / coverage dashboard
+ * Generates test-plan.md and progress.md at the repo root from the spec files,
+ * plus the latest Playwright JSON / Allure results when present.
  *
  * Usage:
  *   npm run docs:generate
- *
- * Design notes:
- *   - No test cases are hardcoded. Everything is discovered from source.
- *   - The script NEVER throws on a missing report / Allure folder; it
- *     simply marks execution status as "Not Executed".
- *   - Pure Node std-lib only (fs/path), so it is Windows-compatible.
- * ------------------------------------------------------------------
+ *   npm run docs:inject-ids   (also writes test IDs back into the specs)
  */
 
 import fs from 'fs';
@@ -37,19 +24,14 @@ const PROJECT_NAME = 'Mattamy Homes Web Automation';
 const KNOWN_TAGS = ['@smoke', '@regression', '@sanity', '@ci'] as const;
 type KnownTag = (typeof KNOWN_TAGS)[number];
 
-/**
- * Spec files that are NOT page-specific (redirect / sitemap / 404 checks).
- * These are intentionally excluded from the generated docs so `test-plan.md`
- * only lists page test cases. Matched by file basename, case-insensitively.
- */
+/** Non-page specs (redirect / sitemap / 404) left out of the docs, matched by basename. */
 const NON_PAGE_SPECS = new Set<string>(
   ['MTTMY-2091.spec.ts', 'pasadenaRidge404.spec.ts', 'sitemapXml.spec.ts'].map((n) =>
     n.toLowerCase(),
   ),
 );
 
-/** Any `*Evidence.spec.ts` is a form-evidence export, not a page test — also
- *  excluded so future evidence specs never leak into the page-only plan. */
+/** Form-evidence specs (`*Evidence.spec.ts`), also left out of the docs. */
 const NON_PAGE_SPEC_RE = /evidence\.spec\.ts$/i;
 
 /** True when a spec basename should be kept out of the page-only docs. */
@@ -57,12 +39,10 @@ function isNonPageSpec(basename: string): boolean {
   return NON_PAGE_SPECS.has(basename.toLowerCase()) || NON_PAGE_SPEC_RE.test(basename);
 }
 
-/** Jira Requirement Scenarios are tied to the non-page MTTMY-2091 redirect
- *  spec, so they are excluded from the page-only test plan. */
+/** Jira requirement scenarios belong to the non-page redirect spec, so they stay out of the plan. */
 const INCLUDE_JIRA_REQUIREMENT_SCENARIOS = false;
 
-/** Candidate locations for a Playwright JSON report (none is configured by
- *  default in this repo, so all of these are best-effort / optional). */
+/** Optional locations checked for a Playwright JSON report. */
 const PLAYWRIGHT_JSON_CANDIDATES = [
   path.resolve(REPO_ROOT, 'playwright-report', 'results.json'),
   path.resolve(REPO_ROOT, 'test-results', 'results.json'),
@@ -210,11 +190,7 @@ function stripIdPrefix(title: string): string {
   return title.replace(ID_PREFIX_RE, '');
 }
 
-/**
- * Derive the clean descriptive text of a test from its raw title, tolerating
- * an already-injected `ID | tags | description` shape. Removes the id prefix,
- * all @tags and the `|` separators, then tidies interpolations/whitespace.
- */
+/** Returns a test title's description, without any injected id, @tags or `|` separators. */
 function cleanDescription(rawTitle: string): string {
   const noId = stripIdPrefix(rawTitle);
   const noTags = noId.replace(/@[\w-]+/g, '').replace(/\|/g, ' ');
@@ -248,12 +224,8 @@ function findSpecFiles(dir: string): string[] {
 // Spec parsing (regex / brace-depth based — no TS compiler needed)
 
 /**
- * Build a boolean mask over the source where `mask[i] === true` means the
- * character at index `i` lives inside a `//` or block comment. String and
- * template literals are respected (so `//` inside a string is NOT a comment).
- *
- * We keep the comments (rather than stripping them) so commented-out tests
- * can still be discovered and reported as "not yet added".
+ * Marks which source characters sit inside a comment (string literals respected).
+ * Comments are kept, not stripped, so commented-out tests can be reported as planned.
  */
 function computeCommentMask(src: string): boolean[] {
   const n = src.length;
@@ -323,17 +295,14 @@ function computeCommentMask(src: string): boolean[] {
   return mask;
 }
 
-/**
- * Extract the first string-literal argument starting at index `from`,
- * supporting single-quote, double-quote and template (backtick) literals.
- * Returns the unescaped raw contents and the index just after the literal.
- */
+/** The first string-literal argument found by readFirstStringArg, with its source positions. */
 interface StringArg {
   value: string; // unescaped contents
   contentStart: number; // index of first content char (just after opening quote)
   end: number; // index just after the closing quote
 }
 
+/** Reads the first quoted, double-quoted or template string literal at or after `from`. */
 function readFirstStringArg(src: string, from: number): StringArg | null {
   let i = from;
   // Skip whitespace up to the first quote character.
@@ -359,11 +328,7 @@ function readFirstStringArg(src: string, from: number): StringArg | null {
   return null; // unterminated
 }
 
-/**
- * Parse a single spec file into a SpecModule.
- * Associates each test with the nearest preceding describe (by source order)
- * and inherits tags from any describe titles that appear before it.
- */
+/** Parses a spec file into a SpecModule, attaching each test to its nearest preceding describe. */
 function parseSpec(filePath: string): SpecModule {
   const src = fs.readFileSync(filePath, 'utf-8');
   const commentMask = computeCommentMask(src);
@@ -390,9 +355,8 @@ function parseSpec(filePath: string): SpecModule {
   const describes: string[] = [];
   const tests: TestCase[] = [];
 
-  // Token regex: matches test.describe / test / test.only / test.skip /
-  // test.fixme / test.step at call sites. The `(?<!\.)` lookbehind prevents
-  // matching method calls such as `/regex/.test(...)`.
+  // Matches test / test.describe / test.step / test.only|skip|fixme calls;
+  // the `(?<!\.)` lookbehind skips method calls like `/regex/.test(...)`.
   const tokenRe =
     /(?<!\.)\btest\.describe(?:\.(?:only|skip|serial|parallel))?\s*\(|(?<!\.)\btest\.step\s*\(|(?<!\.)\btest\.(?:only|skip|fixme)\s*\(|(?<!\.)\btest\s*\(/g;
 
@@ -414,8 +378,7 @@ function parseSpec(filePath: string): SpecModule {
       const clean = cleanInterpolation(stripTags(rawTitle));
       describes.push(clean);
       nearestDescribe = clean;
-      // Only let active describes contribute inherited tags, so a commented
-      // describe block can't leak tags onto a later active test.
+      // Only active describes pass tags down, so commented blocks cannot leak tags.
       if (!commented) {
         for (const t of extractTags(rawTitle)) {
           if (!preTags.includes(t)) preTags.push(t);
@@ -437,8 +400,7 @@ function parseSpec(filePath: string): SpecModule {
     else if (token.includes('test.fixme')) modifier = 'fixme';
 
     const ownTags = extractTags(rawTitle);
-    // Active tests inherit describe tags; commented (planned) tests only carry
-    // their own, since we can't be sure which block they belong to.
+    // Commented (planned) tests keep only their own tags; their block is uncertain.
     const inherited = commented ? [] : preTags;
     const combined = [...new Set([...inherited, ...ownTags])];
     const tags = combined.filter((t) => (KNOWN_TAGS as readonly string[]).includes(t));
@@ -595,12 +557,7 @@ function loadExecutionResults(): ExecutionResult {
 const ADDED_MARK = '✅'; // code already added (active)
 const NOT_ADDED_MARK = '⬜'; // not yet added (commented-out / planned)
 
-/**
- * Derive a stable, page-specific prefix from a module name, e.g.
- * "Home Page" -> HOME, "QMI Page" -> QMI, "Condo Community" -> CONDOCOMMUNITY.
- * Generic "Page"/"Pages" tokens are dropped; the `used` set guarantees
- * uniqueness across modules (collisions get a numeric suffix).
- */
+/** Derives a unique ID prefix from a module name, e.g. "Home Page" -> HOME. */
 function modulePrefix(moduleName: string, used: Set<string>): string {
   let base = moduleName
     .replace(/\bpages?\b/gi, ' ')
@@ -614,10 +571,7 @@ function modulePrefix(moduleName: string, used: Set<string>): string {
   return prefix;
 }
 
-/**
- * Assign page-specific IDs to every test case (active + planned), numbered
- * sequentially in source order per module so IDs stay stable.
- */
+/** Assigns every test a page-specific ID, numbered in source order per module. */
 function assignIds(modules: SpecModule[]): void {
   const used = new Set<string>();
   for (const mod of modules) {
@@ -628,19 +582,12 @@ function assignIds(modules: SpecModule[]): void {
   }
 }
 
-/**
- * Rewrite each *active* test title in the spec files to the canonical
- * `ID | @tags | description` shape. Operates on the raw source substring of
- * the title (so template `${...}` expressions and escapes are preserved) and
- * is idempotent — re-running produces identical files. Returns a per-file
- * summary of how many titles were changed.
- */
+/** Rewrites active test titles in the specs to `ID | @tags | description` (idempotent). */
 function injectIdsIntoSpecs(modules: SpecModule[]): { file: string; changed: number }[] {
   const summary: { file: string; changed: number }[] = [];
 
   for (const mod of modules) {
-    // Only inject into active tests; commented-out (planned) tests are left
-    // untouched until they are activated.
+    // Commented-out (planned) tests are left untouched.
     const targets = mod.tests.filter((t) => t.added);
     if (targets.length === 0) continue;
 
@@ -686,7 +633,7 @@ function injectIdsIntoSpecs(modules: SpecModule[]): { file: string; changed: num
   return summary;
 }
 
-/** Tag counts consider only *added* (active) tests — real coverage. */
+/** Counts active tests carrying a tag. */
 function tagCount(modules: SpecModule[], tag: KnownTag): number {
   let n = 0;
   for (const mod of modules) for (const t of mod.tests) if (t.added && t.tags.includes(tag)) n++;
@@ -724,7 +671,6 @@ function loadJiraAnalyses(): JiraAnalysis[] {
 }
 
 function appendJiraRequirementScenarios(lines: string[]): void {
-  // Excluded from the page-only test plan (tied to the non-page MTTMY-2091 spec).
   if (!INCLUDE_JIRA_REQUIREMENT_SCENARIOS) {
     return;
   }
@@ -1236,14 +1182,12 @@ function main(): void {
     }
   }
 
-  // Sort modules alphabetically by friendly name for stable output.
   modules.sort((a, b) => a.module.localeCompare(b.module));
 
-  // Assign page-specific IDs (after sorting so prefixes/numbering are stable).
+  // After sorting, so prefixes and numbering are stable.
   assignIds(modules);
 
-  // Optionally write the IDs back into the spec files (opt-in: this mutates
-  // source). Enable with `--inject-ids` (npm run docs:inject-ids).
+  // Opt-in, since it rewrites the spec files.
   const injectIds = process.argv.includes('--inject-ids');
   if (injectIds) {
     log('Injecting page-specific IDs into spec files (--inject-ids)…');

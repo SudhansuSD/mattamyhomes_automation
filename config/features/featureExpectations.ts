@@ -1,16 +1,8 @@
 import { getEnvConfig } from '../environments/envConfig';
 import type { LocationKey } from '../locations/locationConfig';
 
-/**
- * Which page features are allowed to be missing.
- *
- * Everything is required unless listed below. A missing feature fails the test
- * and names the key to add here, so absence is a decision someone made rather
- * than something the suite quietly shrugged off.
- *
- * Only add a key when the feature genuinely does not exist for that country.
- * A flaky locator is a locator bug, not an optional feature.
- */
+// Features allowed to be missing; everything else is required. Only list a feature that truly
+// does not exist for that country - a flaky locator is a bug, not an optional feature.
 
 export type FeatureKey =
   // Community page
@@ -48,20 +40,15 @@ type OptionalFeatureRules = Partial<Record<LocationKey, readonly FeatureKey[]>>;
 
 /** Features that genuinely do not exist for a country, in every environment. */
 const OPTIONAL_BY_LOCATION: OptionalFeatureRules = {
-  // `promoURL` can point at any promotion, and not every promotion carries a
-  // lead form - the form checks run when it is there and are skipped when not.
-  //
-  // The related Quick Move-In section on a QMI page is driven by inventory: it
-  // only renders when other quick move-in homes are listed nearby, so a home
-  // without any shows no section at all.
+  // Not every promotion has a lead form; the related QMI section only renders
+  // when nearby inventory exists.
   USA: ['promo.leadForm', 'qmi.relatedQmiSection'],
   CAN: [
     'promo.leadForm',
     'qmi.relatedQmiSection',
     // Canadian community pages have no appointment scheduling at all.
     'community.scheduleAppointmentCta',
-    // Condo plan pages list every floorplan and link out to search with
-    // "View all" instead of expanding in place.
+    // Condo plan pages link to search via "View all" instead of expanding.
     'condoPlan.showMoreFloorplans',
   ],
 };
@@ -99,13 +86,7 @@ export function buildMissingFeatureMessage(
   ].join('\n');
 }
 
-/**
- * The present / optional / missing decision.
- *
- * No Playwright types here on purpose, so desktop and mobile
- * share one rule instead of two copies that drift apart. Returns the value when
- * present, null when declared optional, throws when required and missing.
- */
+/** Returns the value if present, null if declared optional, and throws if required and missing. */
 export function resolveFeature<T>(
   value: T | null | undefined,
   feature: FeatureKey,

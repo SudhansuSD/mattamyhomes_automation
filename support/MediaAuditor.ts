@@ -55,8 +55,7 @@ export class MediaAuditor {
       if (warnings.length) {
         const summary = warnings.join('\n');
 
-        // Surfaced, not swallowed: attached so it shows in the Allure report and
-        // marked in stdout so a CI log search can count it.
+        // Attached for Allure and tagged in stdout so CI log searches can count it.
         console.warn(`[media-warning] ${pageName}: ${summary}`);
         await test.info().attach(`placeholder-warnings-${pageName}`, {
           body: summary,
@@ -74,7 +73,7 @@ export class MediaAuditor {
     });
   }
 
-  /** Loads lazy media. */
+  /** Scrolls through the page so lazy-loaded media loads. */
   private async loadLazyMedia(): Promise<void> {
     await this.page.evaluate(async () => {
       const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -95,7 +94,7 @@ export class MediaAuditor {
     await this.deps.waitForPageReady();
   }
 
-  /** Collects image and video URLs. */
+  /** Collects the page's unique image and video URLs with a label for each. */
   private async collectImageAndVideoUrls(): Promise<
     Array<{ type: string; label: string; url: string }>
   > {
@@ -140,9 +139,7 @@ export class MediaAuditor {
 
         const trimmed = rawUrl.trim();
 
-        // Third-party trackers and Google Maps tiles are not site media. Map tiles
-        // are fetched under the embedded map's own session and return 404 when
-        // re-requested on their own, even though they rendered on the page.
+        // Skip trackers and Google Maps tiles; tiles 404 when re-requested outside the map's session.
         if (
           !trimmed ||
           /^(data|blob|javascript|about):/i.test(trimmed) ||
@@ -223,14 +220,14 @@ export class MediaAuditor {
     return [...unique.values()];
   }
 
-  /** Checks whether ignorable media URL. */
+  /** True for third-party tracker URLs that are not site media. */
   private isIgnorableMediaUrl(url: string): boolean {
     return /\/\/(?:bat\.bing\.com|www\.google-analytics\.com|googleads\.g\.doubleclick\.net|connect\.facebook\.net|static\.hotjar\.com|script\.hotjar\.com)\//i.test(
       url,
     );
   }
 
-  /** Gets the HTTP status for a media URL. */
+  /** Gets a media URL's HTTP status, falling back to GET when HEAD is refused. */
   private async getMediaUrlStatus(url: string): Promise<number | string> {
     const headResponse = await this.page.request
       .head(url, {
@@ -257,13 +254,7 @@ export class MediaAuditor {
   }
 }
 
-/**
- * CMS placeholders rather than page content.
- *
- * "Image Coming Soon" is what the site serves before a real photo is uploaded.
- * If that placeholder 404s it is a content/CDN issue, so it is reported as a
- * warning. Genuine page content still fails the test.
- */
+/** True for CMS placeholders like "Image Coming Soon"; their failures are warnings, not test failures. */
 function isContentPlaceholder(url: string, label: string): boolean {
   return /image[-_ ]?coming[-_ ]?soon|placeholder|no[-_ ]?image[-_ ]?available/i.test(
     `${url} ${label}`,

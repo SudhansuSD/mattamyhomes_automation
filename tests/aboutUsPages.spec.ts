@@ -1,11 +1,6 @@
 /**
  * ENV=STAGE LOCATION=USA npx playwright test tests/aboutUsPages.spec.ts --project=Chrome
- * Header About Us navigation validation for the configured country experience.
- *
- * Both platforms enter the same way. At phone widths the header collapses every
- * nav item behind the menu button, so `Header` opens that panel first and the
- * About flyout is asserted inside it - the entry point is a property of the
- * viewport, never of the browser under test.
+ * Header About Us navigation; on phones `Header` opens the menu panel first.
  */
 
 import { test } from '@playwright/test';
@@ -72,9 +67,7 @@ test.describe(`Mattamy Homes - ${location.country} Header About Us Links`, () =>
     }
   });
 
-  // Some static About pages are surfaced as top-level nav items rather than in
-  // the About flyout for a given country (e.g. Sustainability on CAN). Validate
-  // those via their top-level link so coverage matches what the country displays.
+  // About pages shown as top-level nav items (e.g. Sustainability on CAN).
   test.describe('Top-Level Static Page Validation', () => {
     for (const topLink of topLevelStaticLinks) {
       test(`@regression | ${location.country} | ${topLink.name} top-level page should load with valid UI`, async ({

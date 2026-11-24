@@ -7,12 +7,7 @@ import {
   getInformationCtas,
 } from '../utils/leadform/leadFormHelper';
 
-/**
- * Opening, submitting and capturing the lead forms.
- *
- * A collaborator of BasePage: page objects call BasePage's protected lead-form
- * methods, which delegate here.
- */
+/** Opens, submits and captures lead forms on behalf of BasePage's lead-form methods. */
 export type LeadFormFlowDeps = {
   neutralizeChatWidget: () => Promise<void>;
   report: (message: string, value?: unknown) => Promise<void>;
@@ -22,12 +17,7 @@ export type LeadFormFlowDeps = {
   ensureInAccessibilityTree: () => Promise<void>;
 };
 
-/**
- * Scroll offsets cycled through when hunting for the Get Information CTA.
- *
- * Zero is in the ladder because the community hero CTA sits at the top of the page, and the sticky
- * detail-page bars come down off their negative `top` as soon as the page moves at all.
- */
+/** Scroll offsets cycled while hunting for the CTA; 0 covers the community hero CTA at the top. */
 const CTA_SCROLL_POSITIONS = [0, 450, 900, 1400];
 
 export class LeadFormFlow {
@@ -40,20 +30,9 @@ export class LeadFormFlow {
     this.deps = deps;
   }
 
-  /*
-   * Get Information side modal lead form.
-   *
-   * The "Get Information / Stay Updated" CTA opens the same sidebar/modal lead form on the condo
-   * plan, plan detail and QMI pages. The flow is identical on all three - only the page label, the
-   * container locator and the timeouts differ - so it lives here rather than once per page object.
-   */
+  /* Get Information side modal lead form, shared by the condo plan, plan detail and QMI pages. */
 
-  /**
-   * Finds the Get Information / Stay Updated CTA to click.
-   *
-   * Prefers the breadcrumb CTA the plan detail, QMI and condo plan pages use, then the hero CTA the
-   * community pages use, then a scan of every CTA on the page.
-   */
+  /** Finds the Get Information CTA to click: breadcrumb, then hero, then any match. */
   async getVisibleGetInformationCta(pageLabel: string): Promise<Locator> {
     const candidate = await this.findGetInformationCta();
 
@@ -64,29 +43,14 @@ export class LeadFormFlow {
     return candidate.locator;
   }
 
-  /**
-   * Picks the best CTA copy and reports whether it already sits inside the viewport.
-   *
-   * The detail pages render the same trigger up to three times, and which copy is real depends on
-   * the viewport: the breadcrumb copy is the desktop one and boxes at 0x0 behind `hidden md:flex` on
-   * a phone, where the sticky `#anchor-cta` copy is the only tappable one. Zero-box copies drop out
-   * on `isVisible`, so the remaining choice is by position.
-   *
-   * `inViewport` is what callers act on rather than plain visibility, and it means "a click would
-   * land here" - see {@link isClickableInViewport}. Both sticky bars are `position: fixed` and park
-   * at a negative `top` until the hero is scrolled past: visible, with a real box, and unreachable,
-   * because Playwright cannot scroll a fixed element into view. Clicking one in that state fails
-   * with "Element is outside of the viewport" and burns the full action timeout, so a caller that
-   * gets `inViewport: false` scrolls the page instead of clicking.
-   */
+  /** Picks the best visible CTA copy and whether a click on it would land (fixed bars can be off-canvas). */
   private async findGetInformationCta(): Promise<{
     locator: Locator;
     inViewport: boolean;
   } | null> {
     let firstVisible: Locator | null = null;
 
-    // Most specific container first: the plan/QMI breadcrumb CTA, then the community hero CTA, then
-    // a scan of whatever else matches, which is what reaches the sticky mobile CTA.
+    // Most specific first; the final catch-all scan is what reaches the sticky mobile CTA.
     const ctaSets = [
       getBreadcrumbInformationCta(this.page),
       getHeroInformationCta(this.page),
@@ -114,16 +78,7 @@ export class LeadFormFlow {
     return firstVisible ? { locator: firstVisible, inViewport: false } : null;
   }
 
-  /**
-   * Whether a locator is where a click would actually land.
-   *
-   * Hit-tests the center point rather than asking whether the box overlaps the viewport. Overlap
-   * alone is not enough: Playwright scrolls a partly visible element to the viewport edge, which on
-   * these pages parks it under the sticky site header, and the click then fails with
-   * "Header__StyledContainer ... subtree intercepts pointer events" against an element it has just
-   * reported as visible, enabled and stable. Hit-testing catches that, and the promotion banners and
-   * the chat bubble with it, without this having to name any of them.
-   */
+  /** True when a click would land on the locator; hit-tests its center so headers and banners on top count as covered. */
   private async isClickableInViewport(locator: Locator): Promise<boolean> {
     const box = await locator.boundingBox().catch(() => null);
 
@@ -151,20 +106,7 @@ export class LeadFormFlow {
       .catch(() => false);
   }
 
-  /**
-   * Scrolls until a Get Information CTA sits inside the viewport.
-   *
-   * Polls over the scroll positions instead of walking them once, because on these templates the CTA
-   * is not merely below the fold - it does not exist yet. The detail pages hydrate in two passes: the
-   * SSR shell renders every CTA `visibility: hidden`, React then unmounts and re-renders the page
-   * around nine seconds in, and the real sticky CTA only settles after that. The community hero goes
-   * the other way and keeps its container `visibility: hidden` until the hero image loads, roughly
-   * twelve seconds. A single pass finishes long before either, which is what reported a rendered CTA
-   * as "No visible Get Information CTA found".
-   *
-   * Bounded, and it re-checks between scrolls rather than sleeping on a fixed delay - the exit
-   * condition is a CTA in the viewport, not elapsed time.
-   */
+  /** Scrolls until a CTA is in the viewport, polling because the CTA can take ~10s of hydration to exist. */
   async revealGetInformationCta(timeout = 30_000): Promise<void> {
     const deadline = Date.now() + timeout;
 
@@ -194,20 +136,7 @@ export class LeadFormFlow {
     ).not.toMatch(/\/contact\/?($|[?#])/i);
   }
 
-  /**
-   * Clicks the Get Information CTA when the sidebar/modal lead form is not already open.
-   *
-   * One loop that re-reads the DOM, scrolls a step, and clicks the moment a CTA is genuinely
-   * reachable. Interleaved rather than "reveal, then click" because both halves have to keep
-   * retrying: these templates hydrate in two passes and re-render around nine seconds in, so a CTA
-   * resolved before that is detached, and for a stretch there is no CTA in the document at all.
-   *
-   * A candidate is only clicked once its box overlaps the viewport. The mobile CTA lives in a
-   * `position: fixed` bar parked at a negative `top` until the hero is scrolled past: Playwright
-   * cannot scroll a fixed element into view, so clicking it early burns the action timeout on
-   * "Element is outside of the viewport" instead of scrolling the page, which is what actually
-   * brings the bar down.
-   */
+  /** Clicks the Get Information CTA unless the form is open; finding and clicking retry together as the page re-renders. */
   async openLeadFormFromGetInformationCta(options: {
     leadForms: Locator;
     pageLabel: string;
@@ -220,14 +149,10 @@ export class LeadFormFlow {
 
     await options.beforeReveal?.();
 
-    // Once, before the loop: this is what arms the overlay auto-dismiss handlers, and the loop body
-    // deliberately stays too cheap to call it. Without it the promotion portal re-mounts over the
-    // CTA and every click attempt reports "subtree intercepts pointer events".
+    // Arms the overlay auto-dismiss handlers; without it the promo portal keeps covering the CTA.
     await this.deps.waitForPageReady();
 
-    // The National-promotion overlay is a full-screen dialog that covers the CTA
-    // and swallows the click. Dismiss it rather than clicking through it, so a
-    // genuinely unreachable CTA still fails instead of failing later elsewhere.
+    // Dismiss the full-screen promo overlay rather than clicking through it.
     await this.deps.dismissPromoPopup({ appearTimeout: 3000 });
 
     const previousUrl = this.page.url();
@@ -243,11 +168,7 @@ export class LeadFormFlow {
 
       if (candidate) {
         sawCandidate = true;
-        // Centered, not scrollIntoViewIfNeeded: that stops as soon as the element touches the
-        // viewport edge, which is exactly where the sticky site header and the promotion banners
-        // sit, so it converts a below-the-fold CTA into a covered one. Centring clears the header at
-        // the top and the sticky quick-action bar at the bottom in one move. A `position: fixed`
-        // copy ignores this entirely and falls through to the page scroll at the end of the loop.
+        // Center it: scrollIntoViewIfNeeded stops at the viewport edge, under the sticky header.
         if (!candidate.inViewport) {
           await candidate.locator
             .evaluate((element) => element.scrollIntoView({ block: 'center' }))
@@ -255,9 +176,9 @@ export class LeadFormFlow {
           await this.deps.settle(300);
         }
 
+        // Playwright cannot scroll a fixed off-canvas bar into view; the page scroll below does.
         if (await this.isClickableInViewport(candidate.locator)) {
-          // No force: click() runs the actionability checks, so an overlay-covered CTA
-          // reports the blocker instead of registering a click that goes nowhere.
+          // No force, so a covered CTA reports its blocker instead of a click that goes nowhere.
           const clicked = await candidate.locator
             .click({ timeout: 10_000 })
             .then(() => true)
@@ -274,27 +195,18 @@ export class LeadFormFlow {
             return;
           }
 
-          // The promotion portal re-mounts on a timer and can land on top of the CTA between two
-          // attempts. Clearing it here is what makes the next attempt different from this one.
+          // The promo portal re-mounts on a timer and can cover the CTA between attempts.
           await this.deps.dismissPromoPopup({ appearTimeout: 1000 });
 
           continue;
         }
 
-        // Found, but a click would land on something else. As well as the promotion overlays, the
-        // detail pages open a full-screen floorplan lightbox that covers everything, and nothing in
-        // the scroll ladder below can move a CTA out from under it.
+        // Found but covered (promo overlay or floorplan lightbox); scrolling cannot clear those.
         await this.deps.dismissPromoPopup();
       }
 
-      // Three quarters of the window gone without a single CTA ever rendering: the page is stuck in
-      // its server-rendered shell. These bundles intermittently die mid-hydration on WebKit with
-      // "undefined is not a constructor", which leaves every control present but permanently
-      // zero-box, and no amount of further scrolling or waiting recovers it - one reload does.
-      //
-      // Gated on having seen nothing at all, and left this late, because a page that is merely slow
-      // to hydrate sets sawCandidate long before here, and reloading that one would only restart the
-      // clock this loop is waiting on.
+      // No CTA ever rendered by 75% of the window: hydration died (seen on WebKit) and only a reload
+      // recovers. Kept late and gated on sawCandidate so a merely slow page is not restarted.
       if (!sawCandidate && !reloaded && Date.now() > reloadAfter) {
         reloaded = true;
 
@@ -313,9 +225,7 @@ export class LeadFormFlow {
         CTA_SCROLL_POSITIONS[attempt % CTA_SCROLL_POSITIONS.length],
       );
 
-      // A short settle, not waitForPageReady: the loop is waiting on hydration, and
-      // waitForPageReady costs several seconds per call, which spent the whole window on a handful
-      // of samples and missed the CTA in the gap between two of them.
+      // Short settle, not waitForPageReady: that costs seconds per call and samples too rarely.
       await this.deps.settle(500);
     }
 
@@ -323,9 +233,7 @@ export class LeadFormFlow {
       throw lastClickError;
     }
 
-    // Two different failures, and they point at different things: nothing ever rendered (the page
-    // did not hydrate) versus something rendered but stayed covered or off-canvas for the whole
-    // window (an overlay this flow does not know how to clear).
+    // Distinguish "never hydrated" from "rendered but stayed covered or off-canvas".
     throw new Error(
       sawCandidate
         ? `Get Information CTA on ${options.pageLabel} never became clickable - it stayed covered or outside the viewport`
@@ -352,8 +260,7 @@ export class LeadFormFlow {
       beforeReveal: options.beforeReveal,
     });
 
-    // The promotion popup can mount after the CTA click and aria-hide the page,
-    // which would make the open side modal count as 0 below.
+    // A late promo popup aria-hides the page, which would make the form count as 0 below.
     await this.deps.ensureInAccessibilityTree();
 
     const formCount = await expect
@@ -376,10 +283,10 @@ export class LeadFormFlow {
     return form;
   }
 
-  /** Submits lead form and capture api. */
+  /** Submits a lead form and records the lead API response as evidence. */
   async submitLeadFormAndCaptureApi(options: {
     formName: string;
-    /** The form itself. Supplied, its field shape is checked before submitting. */
+    /** The form itself; when given, its fields are reported before submitting. */
     form?: Locator;
     submitButton: Locator;
     successMessage: Locator;
@@ -390,10 +297,7 @@ export class LeadFormFlow {
   }): Promise<void> {
     const timeout = options.timeout ?? 30_000;
 
-    // Record any field the country declares but the form does not render BEFORE
-    // submitting. A form that quietly lost its budget or move-date dropdown
-    // still submits and still shows a success message - it just sends the CRM a
-    // thinner lead, which no assertion downstream would ever notice.
+    // Report missing fields first: a form without them still submits and succeeds, silently.
     if (options.form) {
       await reportLeadFormShape(options.form, options.formName);
     }
@@ -405,8 +309,7 @@ export class LeadFormFlow {
       `${options.formName} submit button should be visible before submit`,
     ).toBeVisible({ timeout: 10_000 });
 
-    // The AtlasRTX chat bubble floats over Submit on several templates; disable
-    // its pointer events first so the click lands on the button.
+    // The AtlasRTX chat bubble can float over Submit.
     await this.deps.neutralizeChatWidget();
 
     // No force: an overlay covering Submit means the form is not submittable.
@@ -469,13 +372,7 @@ export class LeadFormFlow {
     await this.deps.report(`${options.formName} lead API data saved to`, outputFile);
   }
 
-  /**
-   * Waits for the lead API response and reads its body straight away.
-   *
-   * Reading it later, after the success-modal assertions, fails with "No data
-   * found for resource" - and that string is what lands in the evidence workbook
-   * instead of a payload.
-   */
+  /** Waits for the lead API response and reads its body at once; read later, the body is gone. */
   private async waitForLeadApiResponse(
     timeout: number,
   ): Promise<{ response: Response; body: string } | null> {
@@ -485,14 +382,7 @@ export class LeadFormFlow {
       .catch(() => null);
   }
 
-  /**
-   * Checks whether a response is the actual lead submission.
-   *
-   * Matching any POST containing "api" catches /api/jss/fieldtracking/register,
-   * which fires on every field focus and wins the race almost every time - 74 of
-   * 77 captured rows were tracking noise. Noise is excluded first, then the
-   * endpoints that really take a lead. LEAD_API_URL_PATTERN overrides both.
-   */
+  /** True for the real lead submission, not tracking noise; LEAD_API_URL_PATTERN overrides the match. */
   private isLeadApiResponse(response: Response): boolean {
     const request = response.request();
     const method = request.method().toUpperCase();
@@ -508,8 +398,7 @@ export class LeadFormFlow {
       return new RegExp(configuredPattern, 'i').test(url);
     }
 
-    // Telemetry and consent traffic that is POSTed alongside a form but is not
-    // the submission. fieldtracking/register is the one that usually wins.
+    // Telemetry posted alongside the form; fieldtracking fires on every field focus.
     if (
       /fieldtracking|\/track|telemetry|beacon|analytics|google|doubleclick|facebook|bing|hotjar|onetrust|browserstack|clarity|segment/i.test(
         url,
@@ -518,13 +407,12 @@ export class LeadFormFlow {
       return false;
     }
 
-    // The endpoints that actually receive a lead.
     return /formlogging\/update|landingpageforms\/forms|\/api\/dia|\/lead|\/submit|salesforce|eloqua|marketo/i.test(
       url,
     );
   }
 
-  /** Reads response data for API validation. */
+  /** Reads a response body as text or JSON. */
   private async readResponseData(response: Response): Promise<string> {
     const contentType = response.headers()['content-type'] ?? '';
 

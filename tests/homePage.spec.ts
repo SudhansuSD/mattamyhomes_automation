@@ -1,5 +1,5 @@
 /**
- * ENV=STAGE COUNTRY=USA npx playwright test tests/home.spec.ts
+ * ENV=STAGE LOCATION=USA npx playwright test tests/homePage.spec.ts
  * Home Page Smoke & Search Tests
  */
 

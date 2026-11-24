@@ -73,16 +73,13 @@ export class CondoPlanPage extends SearchablePage {
 
   /** Sets up the page object with the locators it needs. */
   constructor(page: Page) {
-    // Condos are a Canada-only offering, so this page always runs against the
-    // Canadian site regardless of the LOCATION the run started with.
+    // Condos are Canada-only, so this page always runs against CAN whatever LOCATION is set.
     super(page, 'CAN');
 
     this.heading = page.getByRole('heading', { level: 1 });
     this.breadcrumb = page.locator('#breadcrumb, nav[aria-label*="breadcrumb" i]').first();
     this.body = page.locator('body');
-    // The sticky title bar carries a floorplan thumbnail that is first in the DOM
-    // but has no size until the page scrolls, so it is excluded in favour of the
-    // main floorplan image.
+    // Skip the sticky title bar's thumbnail: it comes first in the DOM but has no size until scroll.
     this.floorplanImage = page
       .locator(
         [
@@ -146,14 +143,8 @@ export class CondoPlanPage extends SearchablePage {
         .locator(
           '#ModalForm:visible, [id*="ModalForm"]:visible, .ReactModal__Content:visible, [role="dialog"]:visible, aside:visible, [class*="drawer" i]:visible, [class*="sidebar" i]:visible',
         )
-        // A Submit button, not just any input, is what separates a lead form from
-        // the page's other dialogs - the National-promotion overlay is a
-        // full-screen role="dialog" with inputs, so it matches everything else here. Matched
-        // by CSS rather than by role (see SUBMIT_BUTTON_SELECTOR): the promotion
-        // popup aria-hides the whole page while it is up, which left this filter
-        // matching nothing and an open side modal reporting as "did not open".
-        // and(), not filter({ hasNot }): the aria-label sits on the overlay
-        // itself, and hasNot only inspects descendants.
+        // A submit button (matched by CSS, since the promo popup aria-hides the page) marks a lead form;
+        // and() excludes the promo overlay by its own aria-label, which hasNot would miss.
         .filter({ has: this.page.locator(SUBMIT_BUTTON_SELECTOR) })
         .and(
           this.page.locator(
@@ -387,8 +378,7 @@ export class CondoPlanPage extends SearchablePage {
   /** Checks Show More reveals more content without leaving the page. */
   async verifyShowMoreFloorplans(): Promise<void> {
     await this.step('Verify Show More floorplans', async () => {
-      // Not "View all" - that link navigates to search, while this check exists
-      // to prove the in-place expander keeps you on the plan URL.
+      // Show More, not View All: View All navigates to search; this expander stays on the page.
       const showMore = this.page.getByRole('button', { name: /show more/i }).first();
 
       if (

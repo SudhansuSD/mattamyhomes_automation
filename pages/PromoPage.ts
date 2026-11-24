@@ -63,13 +63,7 @@ export class PromoPage extends BasePage {
     });
   }
 
-  /**
-   * Checks the configured promo page loaded with real content.
-   *
-   * Every check is structural - no promo's wording is assumed - so pointing `promoURL` at a
-   * different promotion needs no code change. The one content check is the market: promo routes
-   * are `/<region>/<market>/promos/<slug>` and each promo's title names that market.
-   */
+  /** Checks the promo page loaded, using structural checks only so any `promoURL` works; the title must name the market. */
   async verifyPageLoaded(): Promise<void> {
     await this.step(`Verify ${this.location.country} promo page loaded`, async () => {
       await this.assertPageUrl(
@@ -318,12 +312,7 @@ export class PromoPage extends BasePage {
     await this.promoForm.scrollIntoViewIfNeeded();
   }
 
-  /**
-   * Selects the test-data community, or the first real option when this promo does not list it.
-   *
-   * Each promo scopes the dropdown to its own market, so a community from another market is
-   * never on offer; falling back keeps the form checks working for whatever `promoURL` points at.
-   */
+  /** Selects the test-data community, or the first real option since each promo lists only its own market. */
   private async selectCommunity(preferred: string): Promise<void> {
     await expect
       .poll(() => this.communityField.locator('option').count(), {
@@ -393,17 +382,7 @@ export class PromoPage extends BasePage {
     }
   }
 
-  /**
-   * Arms a handler that closes the offer disclaimer modal whenever it covers the page.
-   *
-   * The Hometown Heroes page opens its "*Offer available on select homes..." disclaimer as a
-   * react-modal on its own after hydration, not only from the asterisk link. While it is open
-   * react-modal marks `#root` `aria-hidden`, so every role-based lookup on the page - the promo
-   * heading, the country button - reports "element(s) not found" even though the content is
-   * rendered behind it. It opens anywhere from a few seconds to well after `domcontentloaded`, so
-   * a one-off check right after navigation misses it; a locator handler closes it whenever it is
-   * on screen during an action or assertion.
-   */
+  /** Closes the offer disclaimer modal whenever it appears; it opens late and unpredictably, hiding `#root` from role lookups. */
   private async registerOfferDisclaimerHandler(): Promise<void> {
     if (this.offerDisclaimerHandlerRegistered) {
       return;

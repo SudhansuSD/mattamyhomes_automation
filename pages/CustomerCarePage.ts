@@ -289,11 +289,7 @@ export class CustomerCarePage extends BasePage {
   async validateResourceLinks(config: CustomerCareCountryConfig): Promise<void> {
     await this.step(`Validate Customer Care resource links (${config.locationKey})`, async () => {
       for (const resourceLink of config.resourceLinks) {
-        // Resolve by accessible name first, then by href. The PDF links render
-        // their visible text as just "Download PDF" and carry the full name
-        // ("Seasonal Checklist - Spring Download PDF") in aria-label, so a
-        // hasText filter on the name matched nothing - while getByRole reads the
-        // accessible name, which is what a user of assistive tech actually gets.
+        // By accessible name, then href: PDF links show only "Download PDF" and keep the full name in aria-label.
         const resourceLinkLocator = this.main
           .getByRole('link', { name: new RegExp(escapeRegex(resourceLink.name), 'i') })
           .or(this.main.locator(`a[href*="${resourceLink.hrefContains}"]`))
@@ -336,9 +332,7 @@ export class CustomerCarePage extends BasePage {
     });
   }
 
-  /**
-   * Checks the US service request form shows every field it should, marked required where expected.
-   */
+  /** Checks the US service request form shows every field, marked required where expected. */
   async validateUsServiceRequestForm(): Promise<void> {
     await this.step('Validate US service request form fields', async () => {
       await this.assertVisible(

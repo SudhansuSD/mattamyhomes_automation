@@ -9,8 +9,7 @@ import {
   writeWorkbookWithRetry,
 } from './evidenceShardStore';
 
-// Anchor output to the repo root so the file lands in the same place whether the
-// run was launched from the IDE, a plain terminal, or CI (cwd-independent).
+// Anchored here so output does not depend on the current working directory.
 const REPO_ROOT = path.resolve(__dirname, '..');
 
 export type LeadApiCaptureRow = {
@@ -50,12 +49,7 @@ function shardDir(): string {
   return getShardDir(getLeadApiCaptureOutputFile(), 'lead-api');
 }
 
-/**
- * Records one captured lead API call.
- *
- * Appends to this worker's shard instead of rewriting the shared workbook.
- * Returns the workbook path so callers can report where it will land.
- */
+/** Appends one lead API call to this worker's shard and returns the workbook path. */
 export async function appendLeadApiCapture(row: LeadApiCaptureRow): Promise<string> {
   const outputFile = getLeadApiCaptureOutputFile();
 
@@ -64,12 +58,7 @@ export async function appendLeadApiCapture(row: LeadApiCaptureRow): Promise<stri
   return outputFile;
 }
 
-/**
- * Merges every worker shard into the xlsx, then clears them.
- *
- * Runs once from globalTeardown so there is a single writer. Existing content
- * is read first, so a multi-location run accumulates into one file.
- */
+/** Merges all shards into the xlsx (appending to existing rows) and clears them; run from teardown. */
 export async function mergeLeadApiCaptures(): Promise<{
   outputFile: string;
   rowsMerged: number;
@@ -99,8 +88,7 @@ export async function mergeLeadApiCaptures(): Promise<{
     worksheet.columns = WORKSHEET_COLUMNS.map((column) => ({ ...column }));
     worksheet.getRow(1).font = { bold: true };
   } else {
-    // Excel files do not persist ExcelJS column keys. Restore them after readFile()
-    // so object-based rows and key-based getColumn() calls keep working.
+    // Column keys are not saved in the file, so restore them after readFile().
     WORKSHEET_COLUMNS.forEach((definition, index) => {
       const column = worksheet.getColumn(index + 1);
       column.key = definition.key;
@@ -118,7 +106,7 @@ export async function mergeLeadApiCaptures(): Promise<{
 
   const writtenFile = await writeWorkbookWithRetry(workbook, outputFile);
 
-  // Only after the write succeeded - a killed run keeps its shards for next time.
+  // Cleared only after a successful write so a killed run keeps its shards.
   clearShards(dir);
 
   return { outputFile: writtenFile, rowsMerged: rows.length };

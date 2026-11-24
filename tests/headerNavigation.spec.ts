@@ -14,7 +14,7 @@ import { annotate, Severity } from '../utils/reporting/allureMeta';
 const locationKey = getLocationKey();
 const location = getLocationConfig(locationKey);
 
-// Country-specific mega-menu flyout under test (from the country navigation source of truth).
+// The country's mega-menu flyout under test.
 const menuConfig = RESOURCE_MENU_BY_COUNTRY[locationKey];
 
 test.describe(`Header Navigation - ${location.country}`, () => {
@@ -39,8 +39,7 @@ test.describe(`Header Navigation - ${location.country}`, () => {
   test(`@smoke @regression | ${location.country} | Header navigation should be visible`, async ({
     page,
   }) => {
-    // Walks each Find Your Home link and waits for its navigation (30s ceiling
-    // per link), so this outgrows the 5 min per-test default.
+    // Navigates every Find Your Home link (30s ceiling each).
     test.setTimeout(8 * 60 * 1000);
 
     const header = new Header(page);

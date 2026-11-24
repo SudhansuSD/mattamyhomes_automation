@@ -1,8 +1,6 @@
 /**
- * ENV=STAGE COUNTRY=USA npx playwright test tests/searchPage.spec.ts
- * Search Page Tests
- * @file tests/search/searchPage.spec.ts
- * @description Tests for search, filter & sorting functionality
+ * ENV=STAGE LOCATION=USA npx playwright test tests/searchPage.spec.ts
+ * Search page tests: search, filters and sorting.
  */
 
 import { test } from '@playwright/test';
@@ -77,8 +75,7 @@ test.describe(`Search Page Tests - ${location.country}`, () => {
       });
     });
 
-    // "3 Bedrooms" and "2 Bathrooms" are exact options, and 3 bed / 2 bath is
-    // stocked in every configured market - Calgary has no exact 3 bed / 3 bath home.
+    // 3 bed / 2 bath exists in every configured market (Calgary has no 3 bed / 3 bath).
     test(`@regression | ${location.country} | Validate filter by beds and bathrooms functionality`, async () => {
       const selection = await test.step('Filter by bedrooms and bathrooms', async () =>
         searchPage.filterByBedroomsAndBathrooms(3, 2));

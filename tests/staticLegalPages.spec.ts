@@ -7,8 +7,7 @@ import { test } from '@playwright/test';
 import { STATIC_LEGAL_PAGES, StaticLegalPage } from '../pages/StaticLegalPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
-// Location-agnostic pages — a multi-location run executes this once; see
-// config/locations/locationAgnosticSpecs.ts.
+// Location-agnostic: runs once per multi-location run.
 test.describe('Mattamy Homes - Static Legal and Policy Pages', () => {
   test.beforeEach(async () => {
     await annotate({

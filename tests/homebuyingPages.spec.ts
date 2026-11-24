@@ -72,8 +72,7 @@ test.describe(`Homebuying Pages - ${location.country}`, () => {
       });
     });
 
-    // The ABA disclosure and Mattamy Home Funding handoff exist only in the USA;
-    // Canada has no affiliated lender and embeds the calculator on the page.
+    // USA only: Canada has no affiliated lender and embeds the calculator inline.
     test(`@regression | ${location.country} | Mortgage Calculator CTA should open the ABA disclosure modal`, async () => {
       test.skip(
         location.country !== 'USA',
@@ -99,8 +98,7 @@ test.describe(`Homebuying Pages - ${location.country}`, () => {
     const expectation = HOMEBUYING_PAGES.shoppingTools;
 
     test.beforeEach(async () => {
-      // Shopping Tools resolves for both countries but is only DISPLAYED in the
-      // USA navigation, so it is skipped for countries that do not surface it.
+      // Shopping Tools is only in the USA navigation.
       test.skip(
         !isPathExposedForCountry(expectation.path, locationKey),
         `${expectation.name} is not surfaced in ${location.country} navigation.`,

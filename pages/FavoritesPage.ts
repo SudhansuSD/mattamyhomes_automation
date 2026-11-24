@@ -5,12 +5,7 @@ import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 import { Header } from './Header';
 
-/*
- * Favorites ("Homes I Love") page object.
- *
- * Covers the /favorites page (the SearchFavorites component) and the cross-page "save a home"
- * workflow driven by the heart/favorite toggle on search, community, plan and QMI cards.
- */
+/* Favorites ("Homes I Love") page object, plus saving a home via the heart toggle on cards. */
 
 export class FavoritesPage extends BasePage {
   static readonly PATH = '/favorites';
@@ -28,15 +23,7 @@ export class FavoritesPage extends BasePage {
     this.footer = getFooter(page);
   }
 
-  /**
-   * Gets the not-yet-saved favorite controls on result cards.
-   *
-   * The control is a DIV with role="button" positioned over the card rather than
-   * inside #ProductInfo, labelled "Add <home> to favorites" and relabelled
-   * "Remove <home> from favorites" once saved. Matching on <button> elements alone
-   * finds nothing, so every save would silently do nothing. The header's "Go to
-   * Favorites Page" link never matches either label.
-   */
+  /** Gets the unsaved favorite controls, matched by aria-label since they are role="button" divs, not buttons. */
   private unsavedFavoriteToggles(): Locator {
     return this.page.locator('[aria-label^="Add " i][aria-label$=" to favorites" i]:visible');
   }
@@ -100,15 +87,7 @@ export class FavoritesPage extends BasePage {
     });
   }
 
-  /**
-   * Checks the empty state that renders when no homes are saved.
-   *
-   * Identity is asserted via the document title and the page's own empty-state
-   * markers, NOT an <h1>: the Favorites page renders none (its only headings are
-   * the h2/h3s of the header and footer). Asserting an h1 here fails on a page
-   * that is working - the missing h1 is an accessibility gap to raise with the
-   * site team, not a reason to fail the empty-state test.
-   */
+  /** Checks the no-saved-homes empty state, identified by title since the page renders no h1. */
   async validateEmptyState(): Promise<void> {
     await this.step('Validate Favorites empty state', async () => {
       await expect(this.page, 'Favorites page should expose its "Homes I Love" title').toHaveTitle(
@@ -116,8 +95,6 @@ export class FavoritesPage extends BasePage {
         { timeout: 20_000 },
       );
 
-      // The empty state shows zeroed result tabs plus a "No Results Found" /
-      // "Find My Home" call to action.
       await expect(
         this.page.getByText(/No Results Found/i).first(),
         'With no saved homes the Favorites page should show a no-results state',
@@ -130,15 +107,10 @@ export class FavoritesPage extends BasePage {
     });
   }
 
-  /**
-   * Saves the first visible home on the CURRENT page (e.g. a search-results
-   * page) by toggling its favorite control. Returns whether a toggle was found.
-   */
+  /** Saves the first visible home on the current page; returns whether a toggle was found. */
   async saveFirstVisibleHome(): Promise<boolean> {
     return this.step('Save first visible home via favorite toggle', async () => {
-      // Wait for result cards first: the favorite controls are rendered per card,
-      // so looking for them before the results paint finds nothing and made this
-      // report "no toggle found" on a page that has 14 of them.
+      // Favorite controls render per card, so wait for the cards before looking for them.
       await expect
         .poll(() => this.page.locator('#ProductInfo').count(), {
           message: 'Search results should render before saving a favorite',
@@ -166,9 +138,7 @@ export class FavoritesPage extends BasePage {
       await toggle.scrollIntoViewIfNeeded().catch(() => undefined);
       await toggle.click();
 
-      // Confirm the save actually registered: the control relabels itself to
-      // "Remove <home> from favorites". Without this the test could "save" nothing
-      // and only discover it later on the Favorites page.
+      // The control relabels to "Remove ... from favorites" once the save registers.
       await expect(
         this.page
           .getByRole('button', { name: `Remove ${homeName} from favorites`, exact: true })

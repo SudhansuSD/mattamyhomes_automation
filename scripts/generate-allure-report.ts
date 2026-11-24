@@ -81,13 +81,7 @@ const SUITE_NAME_BY_MODE: Record<ReportMode, string> = {
   merged: 'web + mobile',
 };
 
-/**
- * The browser(s) a report covers, named per its platform.
- *
- * The merged stream is named from the results that actually landed: it is built
- * from whichever results dirs have content, so a single-platform run produces a
- * valid merged report that must not claim coverage it does not hold.
- */
+/** The browser(s) a report covers; the merged report names only platforms that have results. */
 function getBrowserLabel(label: string): string {
   if (label === 'merged') {
     return getBrowserCoverageLabel(
@@ -114,12 +108,7 @@ function getAppVersion(): string {
   }
 }
 
-/**
- * Seed a results dir with the widgets Allure needs for a rich, readable report:
- *  - categories.json  -> auto-groups known failure types
- *  - environment.properties -> the "Environment" widget (env, browser, base URL...)
- *  - executor.json (CI only) -> the "Executor" header (where/how it ran)
- */
+/** Writes categories, environment and (on CI) executor metadata into a results dir. */
 function seedAllureMetadata(resultsDir: string, label: string): void {
   fs.mkdirSync(resultsDir, { recursive: true });
 
@@ -134,20 +123,13 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
     Suite: getSuiteName(label),
     Environment: env.envName,
     BaseURL: env.baseURL,
-    // Every location the run covered — a single value when LOCATION was given,
-    // "USA, CAN" when it was not and run-locations.ts ran a pass for each.
     Location: getLocationsToRun().join(', '),
     RunType: getRunType(),
-    // Each stream names the Playwright project that produced it, so an iPhone
-    // run is not labeled with a desktop browser, and the merged report names
-    // both because it covers both.
     Browser: getBrowserLabel(label),
     AppVersion: getAppVersion(),
     Node: process.version,
     OS: `${process.platform} ${process.arch}`,
-    // Stated in the report because "was that run headed?" is otherwise
-    // unanswerable after the fact: CI forces headless, a local run is headed
-    // unless HEADLESS is set.
+    // CI forces headless; a local run is headed unless HEADLESS is set.
     Display: isCI || getBoolEnv('HEADLESS') ? 'headless' : 'headed',
   };
   const propertiesText = Object.entries(properties)
@@ -155,7 +137,7 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
     .join('\n');
   fs.writeFileSync(path.join(resultsDir, 'environment.properties'), `${propertiesText}\n`);
 
-  // executor.json (CI only — needs the GitHub Actions context to be meaningful)
+  // executor.json (GitHub Actions only)
   if (process.env.CI && process.env.GITHUB_RUN_ID) {
     const server = process.env.GITHUB_SERVER_URL ?? 'https://github.com';
     const repo = process.env.GITHUB_REPOSITORY ?? '';
@@ -171,10 +153,7 @@ function seedAllureMetadata(resultsDir: string, label: string): void {
   }
 }
 
-/**
- * Preserve legacy Allure 2 history folders if a cached report still has them.
- * Allure 3 uses history.jsonl, which is preserved in prepareReportDirectory().
- */
+/** Copies an Allure 2 `history` folder from a cached report into the results dir. */
 function restoreHistory(resultsDir: string, reportDir: string): void {
   const previousHistory = path.join(reportDir, 'history');
   if (!fs.existsSync(previousHistory)) {
@@ -242,17 +221,8 @@ function getRunType(): string {
 }
 
 /**
- * Stamp the labels the report groups by onto every result in a stream.
- *
- * The results directory is the authority for the platform: everything in
- * allure-results/mobile ran on a phone profile whatever a test managed to
- * report about itself. A test that fails inside `beforeEach` never reaches
- * `annotate()`, so without this it keeps allure-playwright's project-name
- * parentSuite and lands outside the Web / Mobile split - which is where the
- * failures worth reading would end up.
- *
- * `epic` is only filled in when a test set none, so the 'ALL' that
- * location-agnostic specs declare survives.
+ * Stamps run type, platform (from the results dir) and missing location onto every result,
+ * so tests that failed in `beforeEach` still land in the Web / Mobile split.
  */
 function enrichRunLabels(
   resultsDir: string,
@@ -280,22 +250,7 @@ function enrichRunLabels(
   }
 }
 
-/**
- * Marks a test that failed an attempt and then passed on retry as flaky.
- *
- * The surviving attempt keeps its passed status, so a recovered test counts
- * towards the passed total and only a test that failed every attempt is reported
- * as failed. What a retry must not do is erase the failure: `statusDetails.flaky`
- * is the Allure result format's own field for "this recovered on retry", and it
- * drives the flaky count, the badge in the tree and the flaky category grouping.
- * The failed attempt's message and trace are copied onto the surviving result
- * alongside it, so the failure that happened stays readable from the report
- * without digging into the superseded attempt.
- *
- * The surviving attempt is the one with the latest `start`, which is how Allure
- * itself picks the attempt to display; its error is taken from the most recent
- * failed attempt, the one the retry immediately followed.
- */
+/** Flags tests that passed on retry as flaky, keeping the failed attempt's message and trace. */
 function markRecoveredTestsAsFlaky(resultsDir: string): void {
   const attemptsByTest = new Map<string, Array<{ path: string; result: AllureResultFile }>>();
 
@@ -309,8 +264,7 @@ function markRecoveredTestsAsFlaky(resultsDir: string): void {
       continue;
     }
 
-    // Allure groups attempts by test case, so a result carrying neither key
-    // cannot be one attempt of several.
+    // Without either key a result cannot be grouped with other attempts.
     const key = result.historyId ?? result.testCaseId;
 
     if (!key) {
@@ -379,21 +333,8 @@ function collectStylesheets(dir: string): string[] {
 }
 
 /**
- * Widen the report's content column.
- *
- * Allure Awesome hard-codes `max-width:920px` on the Report view's container, so
- * on a normal monitor the summary sits in a narrow centered strip with large empty
- * margins — while the Graphs view, which is not inside that container, fills the
- * window. The plugin exposes no CSS hook and its `layout: 'split'` option adds a
- * second pane rather than widening the content, so patching the generated
- * stylesheet is the only way to change it.
- *
- * The replacement keys on the exact `max-width:920px` token, NOT on the hashed
- * class names (`.b2XhjWBW`), which change on every Allure build. `max-width:1920px`
- * appears elsewhere in the same file and is deliberately left alone.
- *
- * Set ALLURE_REPORT_MAX_WIDTH to a CSS length to cap it instead ('1600px'), or to
- * 'default' to keep Allure's own 920px.
+ * Widens the report's 920px content column by patching the generated CSS (Allure offers no hook).
+ * Matches the `max-width:920px` token, not hashed class names; ALLURE_REPORT_MAX_WIDTH overrides.
  */
 function widenReportLayout(reportDir: string): void {
   const target = getEnv('ALLURE_REPORT_MAX_WIDTH', 'none');
@@ -419,8 +360,7 @@ function widenReportLayout(reportDir: string): void {
   if (replaced) {
     console.log(`[allure] Widened report container: ${replaced} rule(s) -> max-width:${target}`);
   } else {
-    // Not fatal, but worth surfacing: it almost certainly means an Allure upgrade
-    // changed the value, and the report has quietly gone back to a narrow column.
+    // Likely an Allure upgrade changed the CSS.
     console.warn(
       '[allure] No "max-width:920px" rule found — Allure may have changed its layout CSS. ' +
         'Re-check widenReportLayout() in scripts/generate-allure-report.ts.',
@@ -445,15 +385,7 @@ function writeReportLandingPage(reportDir: string): void {
   fs.writeFileSync(path.join(reportDir, 'index.html'), html);
 }
 
-/**
- * Records the location on results whose test never reached `annotate()`.
- *
- * A test that fails inside `beforeEach` reports no labels of its own, so it
- * arrives without the location its pass ran under. Called per pass, where
- * LOCATION is known, rather than at report time, where a single value would have
- * to stand for every pass. Leaves an existing label alone so the 'ALL' that
- * location-agnostic specs declare survives.
- */
+/** Adds this pass's location to results that lack one (e.g. tests that failed in `beforeEach`). */
 export function recordPassLocation(resultsDir: string, location: string): void {
   if (!location) {
     return;
@@ -468,9 +400,7 @@ export function recordPassLocation(resultsDir: string, location: string): void {
         continue;
       }
 
-      // A location-agnostic spec runs once per platform and belongs under ALL
-      // whichever pass happened to execute it, so it must not inherit that
-      // pass's country.
+      // Location-agnostic specs belong under ALL, not the pass's country.
       const spec = labels.find((label) => label.name === SUITE_LABEL)?.value ?? '';
       const value = LOCATION_AGNOSTIC_SPEC_GLOBS.some((glob) => glob.endsWith(spec) && spec)
         ? AGNOSTIC_LOCATION
@@ -495,8 +425,7 @@ function generateReport(resultsDirs: string[], reportDir: string, historyFilePat
     return;
   }
 
-  // Seed metadata widgets and keep legacy history compatible while Allure 3
-  // reads/writes the current history.jsonl file through allurerc.mjs.
+  // Seeds metadata, flaky flags, labels and Allure 2 history into each results dir.
   for (const dir of activeResults) {
     seedAllureMetadata(dir, path.basename(reportDir));
     markRecoveredTestsAsFlaky(dir);

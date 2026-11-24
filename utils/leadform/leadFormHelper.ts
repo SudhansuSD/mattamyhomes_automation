@@ -10,12 +10,7 @@ import { reportValue } from '../reporting/allureReporter';
 import { escapeRegex } from '../web/pageObjectUtils';
 import { isProdEnvironment } from './prodSubmissionGuard';
 
-/*
- * Shared lead-form helpers.
- *
- * The reusable lead-form primitives and the central form test data the desktop page objects share,
- * so the fill / select / consent / submit / validation logic is not duplicated per page.
- */
+/* Shared lead-form fill, submit and validation helpers, plus the lead-form test data. */
 
 type Region = {
   country: string;
@@ -48,14 +43,9 @@ export type LeadFieldData = {
   country: string;
 };
 
-/*
- * Test data accessors, sourced from data/test_data.json.
- *
- * Each profile references a shared region (country/phone/zip) and overrides only the values unique
- * to it, so no field value is duplicated across profiles.
- */
+/* Test data accessors for data/test_data.json; each profile points at a shared region. */
 
-/** Resolve a profile's effective country (from its region) plus its own phone/zip. */
+/** Resolves a profile's country (from its region) plus its own phone and zip. */
 function resolveLocation(profile: WebProfile): { country: string; phone: string; zip: string } {
   return {
     country: REGIONS[profile.region].country,
@@ -85,10 +75,7 @@ export function getValidLeadData(profile: LeadFormProfileKey): LeadFieldData {
 
   return {
     firstName: LEAD.validName.firstName,
-    // Run id lives in the EMAIL only. Appending it to the surname produced
-    // "DoNotContact-local<id>", which the site rejects with "Invalid Last name" -
-    // it broke every lead submission test. The plus-addressed email already
-    // gives the CRM a per-run handle, so the name does not need one.
+    // No run id in the surname: the site rejects it as "Invalid Last name"; the email carries it.
     lastName: LEAD.validName.lastName,
     email: buildValidEmail(entry.emailPrefix),
     phone: location.phone,
@@ -97,7 +84,7 @@ export function getValidLeadData(profile: LeadFormProfileKey): LeadFieldData {
   };
 }
 
-/** Get invalid-email lead data for a profile (falls back to the shared/region values where no override exists). */
+/** Get invalid lead data for a profile, falling back to shared values where it has no override. */
 export function getInvalidLeadData(profile: LeadFormProfileKey): LeadFieldData {
   const entry = PROFILES[profile];
   const location = resolveLocation(entry);
@@ -130,7 +117,7 @@ export async function selectFirstOptionIfPresent(field: Locator): Promise<void> 
   await field.first().selectOption({ index: 1 });
 }
 
-/** Select a dropdown value when the field exists, preferring a label then falling back to the first option. */
+/** Select a dropdown value when present: the preferred label, else the first option. */
 export async function selectOptionIfPresent(
   field: Locator,
   preferredLabel?: string,
@@ -164,7 +151,7 @@ export async function checkIfPresent(field: Locator): Promise<void> {
   }
 }
 
-/** Select country of residence when the field exists, preferring a label then falling back to the first option. */
+/** Select country of residence when present: the preferred country, else the first option. */
 export async function selectCountryIfPresent(
   form: Locator,
   preferredCountry?: string,
@@ -189,6 +176,7 @@ export async function selectCountryIfPresent(
   await country.selectOption({ index: 1 });
 }
 
+/** Waits until the DOM stops changing, capped at `ms`. */
 async function settlePageDom(
   page: Page,
   ms: number,
@@ -225,7 +213,7 @@ async function settlePageDom(
     .catch(() => undefined);
 }
 
-/** Check the appropriate consent checkbox when present (skips "real estate agent" opt-ins). */
+/** Get the form's consent / privacy / terms checkbox. */
 export function getConsentCheckbox(form: Locator): Locator {
   return form
     .getByRole('checkbox', {
@@ -274,63 +262,17 @@ export async function checkConsentIfPresent(form: Locator): Promise<void> {
   }
 }
 
-/**
- * How a lead-form Submit button is matched, without going through the
- * accessibility tree.
- *
- * The page objects identify a lead form by "the thing containing a Submit
- * button", and a `getByRole` lookup cannot do that here: the site's
- * National-promotion popup is a react-modal, and while it's mounted react-modal
- * marks `#root` `aria-hidden="true"`, which takes the whole page out of the
- * accessibility tree. Every role lookup then comes back empty and a form that is
- * rendered, visible and hydrated reports as absent - the failures read "not
- * present on the community page" and "sidebar/modal form did not open" for forms
- * plainly visible in the screenshots.
- *
- * CSS and text matching don't care about `aria-hidden`, so form lookups use this
- * instead. One shared constant so every page object matches the same button. The
- * real markup is `<button type="submit" value="SUBMIT">SUBMIT</button>`; the
- * other variants cover forms that submit through an `<input type="submit">` or a
- * styled `role="button"`.
- */
+/** Submit-button selector in CSS, not by role: the promo popup aria-hides `#root`, which empties role lookups. */
 export const SUBMIT_BUTTON_SELECTOR =
   'button[type="submit"], input[type="submit"], button:has-text("Submit"), [role="button"]:has-text("Submit")';
 
-/**
- * Text shared by every "Get Information" / "Stay Updated" CTA that opens the lead-form modal.
- *
- * Anchored so it only matches the CTA itself, never a wrapper whose text merely contains it.
- */
+/** Exact text of the "Get Information" / "Stay Updated" CTA; anchored so wrappers do not match. */
 export const GET_INFORMATION_CTA_TEXT = /^\s*(?:Get Information|Stay Updated)\s*$/i;
 
-/**
- * How the "Get Information" CTA is matched, without going through the accessibility tree.
- *
- * Name-based lookups (`getByRole('button', { name: /Get Information/i })`) find nothing on
- * community, condo and plan detail pages: the hero CTA renders as
- * `<button aria-label="Stay updated about this community">GET INFORMATION</button>`, so its
- * accessible name is the aria-label, not the visible text. Other detail pages render the same
- * modal trigger as a link-style element with no href. Real href anchors are excluded so this helper
- * does not follow `/contact` or `#contact` paths and accidentally validate the primary/footer form.
- *
- * Matching on visible text and non-navigating controls keeps the real side-modal trigger, the same
- * way {@link SUBMIT_BUTTON_SELECTOR} sidesteps `aria-hidden` for form lookups.
- *
- * Container is deliberately not part of the match. The detail pages render the same trigger three
- * times - in the breadcrumb bar, in the sticky `#detailsBlockBar`, and in the sticky `#anchor-cta` -
- * and which copy is the real one depends on the viewport. At phone widths the breadcrumb copy is in
- * a `hidden md:flex` wrapper and boxes at 0x0, so `#anchor-cta` is the ONLY tappable Get Information
- * on the page; excluding the sticky bars here left mobile runs with no CTA at all. Picking between
- * the copies is `LeadFormFlow.getVisibleGetInformationCta`'s job, because it needs the live box: the
- * bars are `position: fixed` and park off-canvas at a negative `top` until the hero is scrolled past,
- * which no selector can express.
- *
- * Matching on the container instead of `[aria-hidden="true"]` is also why an open React modal does
- * not blank this out - it aria-hides the whole app root, so an aria-based exclusion would leave no
- * CTAs on any page whose promo popup has not been dismissed yet.
- */
+/** Controls that can be the CTA, matched by text not role; no container filter, as the phone copy sits in a sticky bar. */
 export const GET_INFORMATION_CTA_SELECTOR = [
   'button',
+  // Real href links are left out so this never follows a link to the Contact page form.
   'a:not([href])',
   'a[href=""]',
   'a[href^="javascript:"]',
@@ -341,43 +283,17 @@ export function getInformationCtas(page: Page): Locator {
   return page.locator(GET_INFORMATION_CTA_SELECTOR).filter({ hasText: GET_INFORMATION_CTA_TEXT });
 }
 
-/**
- * The "Get Information" CTA a visitor can actually see on this page.
- *
- * The detail pages ship the same trigger three times and which copy renders depends on the
- * viewport, so taking the first match in DOM order hands a phone run the breadcrumb copy - which
- * sits in a `hidden md:flex` wrapper and boxes at 0x0 there, and so can never be visible. Resolving
- * to the rendered copy is what lets one locator assert the CTA in both layouts.
- */
+/** Get the visible "Get Information" CTA; the page renders several copies and which shows depends on viewport. */
 export function getVisibleInformationCta(page: Page): Locator {
   return getInformationCtas(page).filter({ visible: true }).first();
 }
 
-/**
- * The plan detail / QMI / condo plan modal trigger, which lives in the breadcrumb bar:
- * `<button role="link" aria-label="Get Information">` on some pages and
- * `<button role="link" aria-label="Stay Updated">` on others, sometimes next to a real `<a href>`
- * "Schedule a Self-Guided Tour" link.
- *
- * Matched by container plus {@link GET_INFORMATION_CTA_TEXT} rather than by aria-label or class: the
- * label varies between the two wordings, and the styled-component class hashes
- * (`Button__StyledButton-sc-dz2fra-0` on one page, `sc-gGKoUb` on another) are build-specific.
- * Scoping to the breadcrumb is what stops the off-canvas copies from being picked by position.
- * Callers fall back to {@link getInformationCtas} for pages without a breadcrumb CTA.
- */
+/** Get the breadcrumb-bar CTA used on plan detail, QMI and condo plan pages (labels and classes vary). */
 export function getBreadcrumbInformationCta(page: Page): Locator {
   return page.locator('#breadcrumb button').filter({ hasText: GET_INFORMATION_CTA_TEXT });
 }
 
-/**
- * The community / condo community modal trigger, which lives in the hero section:
- * `<button aria-label="Stay updated about this community">Stay Updated</button>` inside
- * `#HeaderPlanPage`. Unlike the off-canvas copies it carries no `role="link"`, but the container is
- * the stable part - the label wording and the styled-component classes both vary by page.
- *
- * It renders only once the hero is scrolled into view, so a lookup straight after navigation finds
- * nothing; callers reveal it first.
- */
+/** Get the community hero CTA; it renders only once the hero is scrolled into view. */
 export function getHeroInformationCta(page: Page): Locator {
   return page.locator('#HeaderPlanPage button').filter({ hasText: GET_INFORMATION_CTA_TEXT });
 }
@@ -387,15 +303,7 @@ export function getSubmitButton(form: Locator): Locator {
   return form.locator(SUBMIT_BUTTON_SELECTOR).first();
 }
 
-/**
- * Closes the AtlasRTX chat iframe when it is visible over a form.
- *
- * The widget is third-party and cross-origin, so the test cannot safely click a
- * close control inside the iframe. Hiding its host container keeps Submit clicks
- * honest for the form itself while removing only the external chat chrome that
- * floats over desktop and mobile viewports. The site can mount the widget more
- * than once, so every visible instance is hidden, not just the first.
- */
+/** Hides every visible AtlasRTX chat widget; it is cross-origin, so its close button cannot be clicked. */
 export async function closeAtlasChatIframeIfOpen(page: Page): Promise<boolean> {
   return page
     .evaluate(() => {
@@ -455,19 +363,7 @@ export async function expectFieldVisibleIfPresent(
 
 // Submit + validation
 
-/**
- * Click a form submit button without waiting on third-party submit requests.
- *
- * On PROD the button is never clicked: no lead form may be submitted there. The
- * form's validation is triggered by leaving each field instead, which raises the
- * same inline "is Required" / invalid-email messages a submit attempt would, so
- * the validation tests run unchanged on every environment.
- *
- * `options.submitButton` overrides how the submit button is resolved (some forms
- * label theirs something other than "Submit").
- * `options.settle` overrides the post-click settle behavior. Without an override,
- * the helper waits for the DOM to go quiet instead of sleeping for a fixed time.
- */
+/** Clicks Submit, or on PROD raises the same validation by leaving each field instead of clicking. */
 export async function clickSubmit(
   page: Page,
   form: Locator,
@@ -505,9 +401,7 @@ export async function clickSubmit(
 
 /** Clicks the submit button once, without waiting on the third-party submit request. */
 async function clickSubmitButton(submitButton: Locator): Promise<void> {
-  // No force: an overlay covering Submit means the form is not actually
-  // submittable, which is a finding rather than something to click through.
-  // noWaitAfter stays - the third-party submit request must not be awaited.
+  // No force: a covered Submit is a finding. noWaitAfter: the third-party request is not awaited.
   await submitButton.click({
     noWaitAfter: true,
     timeout: 5000,
@@ -523,13 +417,7 @@ const VALIDATABLE_FIELD_SELECTOR = [
   .map((selector) => `${selector}:not([disabled]):not([tabindex="-1"]):visible`)
   .join(', ');
 
-/**
- * Raises a form's validation messages without submitting it.
- *
- * Mattamy's Sitecore lead forms validate each field when it loses focus, so
- * focusing and leaving every field shows the same "Error: First name is Required"
- * and invalid-email messages a submit attempt does - with no request sent.
- */
+/** Raises a form's validation messages without submitting, by focusing and leaving each field. */
 export async function triggerFormValidationWithoutSubmit(form: Locator): Promise<void> {
   const fields = form.locator(VALIDATABLE_FIELD_SELECTOR);
   const count = await fields.count();
@@ -549,7 +437,7 @@ type RequiredField = {
   isChoice: boolean;
 };
 
-/** Required fields are whatever the form itself marks, not a hardcoded list. */
+/** Fields the form itself marks required. */
 const REQUIRED_FIELD_SELECTOR = ['input', 'select', 'textarea']
   .flatMap((tag) => [
     `${tag}[required]:not([required="false"]):not([disabled]):visible`,
@@ -567,8 +455,7 @@ async function getVisibleRequiredFields(form: Locator): Promise<RequiredField[]>
     const field = fields.nth(index);
     const { label, isChoice } = await field.evaluate((element) => {
       const input = element as HTMLInputElement;
-      // The visible <label> comes first: once a field fails validation the site
-      // rewrites its aria-label to the error text ("Error: First name is Required").
+      // <label> first: a failed field's aria-label is rewritten to the error text.
       const rawLabel =
         input.labels?.[0]?.innerText || input.getAttribute('aria-label') || input.name || '';
 
@@ -589,14 +476,7 @@ async function getVisibleRequiredFields(form: Locator): Promise<RequiredField[]>
   return requiredFields;
 }
 
-/**
- * Assert every visible field the form marks as required rejects an empty value.
- *
- * Each `required` / `aria-required="true"` field that is still empty must report
- * `validity.valueMissing` and show its own "<label> is Required" message. A
- * required field the page prefilled has nothing to reject, so it is reported
- * rather than failed. Call after {@link clickSubmit} on the empty form.
- */
+/** Assert each empty required field shows its "is Required" error; prefilled ones are reported, not failed. */
 export async function expectRequiredErrorsInForm(form: Locator, timeout = 10000): Promise<void> {
   const initialErrorCount = test.info().errors.length;
   const requiredFields = await getVisibleRequiredFields(form);
@@ -674,11 +554,7 @@ export type SideModalFormOptions = FillLeadOptions & {
   expectPlan?: boolean;
 };
 
-/**
- * Fill a standard getByRole-based lead form from {@link LeadFieldData}.
- * Each field is only touched when present, so the same call works for
- * forms with differing field sets.
- */
+/** Fill a standard lead form from {@link LeadFieldData}, touching only the fields that are present. */
 export async function fillLeadFormFields(
   form: Locator,
   data: LeadFieldData,
@@ -711,15 +587,7 @@ export async function fillLeadFormFields(
   }
 }
 
-/**
- * Audit a standard Mattamy side-modal lead form, then check its required-field validation.
- *
- * First name, Last name, Email and the submit button are what make it a lead form, so they must
- * render. Every other field - phone, zip, the dropdowns declared in leadFormSchema, and the
- * community/plan dropdowns the opening page asks for - is checked when the form renders it and
- * recorded in the report as skipped when it does not. The fields the form itself marks required
- * are then validated without submitting (see {@link expectRequiredErrorsInForm}).
- */
+/** Audit a side-modal lead form: core fields must render, others are checked if present, then required errors. */
 export async function expectSideModalFormFields(
   form: Locator,
   options: SideModalFormOptions = {},
@@ -749,8 +617,7 @@ export async function expectSideModalFormFields(
     ]);
   }
 
-  // Core fields first: once they render the form has finished rendering, so a
-  // count of zero on an optional field below means it is absent, not late.
+  // Core fields first, so a zero count on an optional field below means absent, not late.
   await Promise.all(
     getCoreSideModalFields(form).map(([field, label]) =>
       expectFieldVisible(field, label, timeout, { soft: true }),
@@ -790,6 +657,7 @@ function getCoreSideModalFields(form: Locator): Array<[Locator, string]> {
   ];
 }
 
+/** Locates a schema-declared lead-form field. */
 function getLeadFormFieldLocator(form: Locator, field: LeadFormField): Locator {
   const locators: Record<LeadFormField, Locator> = {
     comments: findCommentsField(form),
@@ -807,6 +675,7 @@ function getLeadFormFieldLocator(form: Locator, field: LeadFormField): Locator {
   return locators[field];
 }
 
+/** Locates the comments / questions textarea. */
 function findCommentsField(form: Locator): Locator {
   return form
     .getByRole('textbox', { name: /additional questions|comment|message|special requirement/i })
@@ -824,6 +693,7 @@ function findCommentsField(form: Locator): Locator {
     );
 }
 
+/** Report label for a schema-declared lead-form field. */
 function getLeadFormFieldLabel(field: LeadFormField): string {
   const labels: Record<LeadFormField, string> = {
     comments: 'Comments',
@@ -837,6 +707,7 @@ function getLeadFormFieldLabel(field: LeadFormField): string {
   return labels[field];
 }
 
+/** Drops field expectations whose label already appeared. */
 function dedupeFieldExpectations(fields: Array<[Locator, string]>): Array<[Locator, string]> {
   const seenLabels = new Set<string>();
 
@@ -850,7 +721,7 @@ function dedupeFieldExpectations(fields: Array<[Locator, string]>): Array<[Locat
   });
 }
 
-/** Fill a side modal form with invalid-email data using the shared profile and form-id branching. */
+/** Fill a side modal form with a profile's invalid data. */
 export async function fillInvalidSideModalForm(
   form: Locator,
   profile: LeadFormProfileKey,
@@ -859,10 +730,7 @@ export async function fillInvalidSideModalForm(
   await fillLeadFormFields(form, getInvalidLeadData(profile), options);
 }
 
-/**
- * Fill a side modal form with valid data using the shared profile, including any extra dropdowns
- * present. Fields in `leadData` replace the profile's values, such as a caller-supplied email.
- */
+/** Fill a side modal form with a profile's valid data plus any extra dropdowns; `leadData` overrides values. */
 export async function fillValidSideModalForm(
   form: Locator,
   profile: LeadFormProfileKey,
@@ -872,16 +740,7 @@ export async function fillValidSideModalForm(
   return fillLeadFormByFormId(form, { ...getValidLeadData(profile), ...leadData }, options);
 }
 
-/*
- * Extra lead fields: Bedroom Count, Desired Move Date, New Budget and First Time Home Buyer.
- *
- * All four render as dropdowns on the US / custom forms (optional there) and on the Canada
- * (ScheduleAVisit) forms (required there). The helpers fill whichever are present and return the
- * chosen values so callers can capture them as submission evidence.
- *
- * The first three get a random valid value. First Time Home Buyer alternates by iteration (odd
- * attempt -> Yes, even -> No) when an attempt number is supplied, and is random otherwise.
- */
+/* Extra lead dropdowns (bedrooms, move date, budget, first-time buyer): optional in the US, required in Canada. */
 
 /** Selected values for the extra lead fields; '' for any field that is absent from the form. */
 export type ExtraLeadFields = {
@@ -891,7 +750,7 @@ export type ExtraLeadFields = {
   firstTimeHomeBuyer: string;
 };
 
-/** Read the lead form's id/name (checks the element itself, its <form>, and any FormInstance ancestor/descendant). */
+/** Read the lead form's id or name from the element, its form, or a nearby FormInstance. */
 export async function getFormId(form: Locator): Promise<string> {
   const rawFormId = await form
     .evaluate((element) => {
@@ -921,20 +780,12 @@ export async function getFormId(form: Locator): Promise<string> {
   return rawFormId ?? '';
 }
 
-/** True when the lead form belongs to the ScheduleAVisit Canada site (its form id contains "Canada"). */
+/** True when the form id names Canada (the ScheduleAVisit Canada site). */
 export async function isCanadaForm(form: Locator): Promise<boolean> {
   return /canada/i.test(await getFormId(form));
 }
 
-/**
- * Fill a lead form: the standard fields plus whichever of the four extra dropdowns (Bedroom Count,
- * Desired Move Date, New Budget and First Time Home Buyer) the form renders. The extra fields are
- * optional on US / custom forms and required on Canada (ScheduleAVisit) forms, so filling those
- * that are present covers both. Each extra dropdown gets a valid option, so required fields never
- * block submission. Returns the extra field values chosen (all '' when none are present) so callers
- * can capture them as evidence. Pass an attempt number to alternate First Time Home Buyer by
- * iteration (odd -> Yes, even -> No).
- */
+/** Fill the standard fields and any extra dropdowns; returns the extra values chosen for evidence. */
 export async function fillLeadFormByFormId(
   form: Locator,
   data: LeadFieldData,
@@ -946,14 +797,7 @@ export async function fillLeadFormByFormId(
   return fillExtraLeadFieldsIfPresent(form, attempt);
 }
 
-/**
- * Fill whichever of the four extra dropdowns (Bedroom Count, Desired Move Date, New Budget and
- * First Time Home Buyer) are present, returning the values chosen (all '' when none are present).
- * The fields are optional on US / custom forms and required on Canada (ScheduleAVisit) forms, so
- * this fills them regardless of the form's country. Use it after filling the standard fields with a
- * custom, field-level fill method (i.e. where {@link fillLeadFormByFormId} can't be used directly).
- * Pass an attempt number to alternate First Time Home Buyer by iteration (odd -> Yes, even -> No).
- */
+/** Fill any extra dropdowns after a custom standard-field fill; returns the values chosen. */
 export async function fillExtraLeadFieldsIfPresent(
   form: Locator,
   attempt?: number,
@@ -961,21 +805,11 @@ export async function fillExtraLeadFieldsIfPresent(
   return fillExtraLeadFields(form, attempt);
 }
 
-/**
- * Records in the report any field the form's country declares but the form does not render.
- *
- * Checked before submit: a form that lost its budget dropdown still submits and
- * still shows a success message, it just sends the CRM a thinner lead. Absent
- * fields are left unfilled and the submission goes ahead, so the report is
- * where a thinner lead shows up.
- */
+/** Reports fields the country expects but the form lacks; such a form still submits, just a thinner lead. */
 export async function reportLeadFormShape(form: Locator, formName: string): Promise<void> {
   const location = getLocationConfig().country as LocationKey;
 
-  // Probe the FORM, do not take the caller's word for it. The four dropdowns are
-  // the only thing fillExtraLeadFields returns, so a signature that accepted
-  // values would report comments and country-of-residence missing on every USA
-  // form. Locators mirror the ones used to fill each field.
+  // Probe the form itself; filled values cover only the four dropdowns, not every expected field.
   const probes: Record<LeadFormField, Locator> = {
     comments: findCommentsField(form),
     bedroomCount: findSelectByLabel(form, /bedroom/i, 'bedroom'),
@@ -1007,7 +841,7 @@ export async function reportLeadFormShape(form: Locator, formName: string): Prom
   }
 }
 
-/** Fill whichever of the four extra dropdowns are present; returns the values chosen ('' for any absent field). */
+/** Fill the extra dropdowns that are present; '' for any absent one. */
 async function fillExtraLeadFields(form: Locator, attempt?: number): Promise<ExtraLeadFields> {
   return {
     bedroomCount: await selectRandomOptionIfPresent(findSelectByLabel(form, /bedroom/i, 'bedroom')),
@@ -1030,7 +864,7 @@ function findSelectByLabel(form: Locator, name: RegExp, attributeToken: string):
     );
 }
 
-/** Select a random non-placeholder option in the first visible matching dropdown; returns the option text, or '' when absent. */
+/** Select a random real option and return its text, or '' when the dropdown is absent. */
 async function selectRandomOptionIfPresent(select: Locator): Promise<string> {
   const target = select.first();
 
@@ -1058,13 +892,7 @@ async function selectRandomOptionIfPresent(select: Locator): Promise<string> {
   return optionText;
 }
 
-/**
- * Select the Yes/No answer in the "First Time Home Buyer" `<select>`. When an attempt number is
- * given, the answer alternates by iteration (odd attempt -> Yes, even -> No) so the value is driven
- * by the iteration rather than the form; it falls back to a random valid option when no attempt is
- * given or the desired Yes/No option is missing. Returns the chosen value normalized to "Yes"/"No",
- * or '' when the field is absent.
- */
+/** Answer First Time Home Buyer: Yes on odd attempts, No on even, random without an attempt. */
 async function selectFirstTimeHomeBuyerIfPresent(form: Locator, attempt?: number): Promise<string> {
   const select = findSelectByLabel(form, /first.?time.*home.?buyer|first time homebuyer/i, 'buyer');
 
@@ -1081,7 +909,7 @@ async function selectFirstTimeHomeBuyerIfPresent(form: Locator, attempt?: number
   return value ? normalizeYesNoValue(value) : '';
 }
 
-/** Select the Yes/No option matching `desired` in the first visible matching dropdown; returns true when selected. */
+/** Select the Yes/No option matching `desired`; true when selected. */
 async function selectYesNoOptionByLabel(select: Locator, desired: string): Promise<boolean> {
   const target = select.first();
 
@@ -1109,7 +937,7 @@ async function selectYesNoOptionByLabel(select: Locator, desired: string): Promi
   return false;
 }
 
-/** Normalize common Yes/No dropdown values so "yes"/"no" render consistently as "Yes"/"No". */
+/** Normalize "yes"/"no" to "Yes"/"No". */
 function normalizeYesNoValue(value: string): string {
   const normalized = value.trim().toLowerCase();
 

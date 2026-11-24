@@ -2,12 +2,7 @@ import { expect, Locator, Page } from '@playwright/test';
 import { escapeRegex, getFooter } from '../utils/web/pageObjectUtils';
 import { BasePage } from './BasePage';
 
-/*
- * Design Studio page object.
- *
- * Covers the /design-studio marketing page: the ContentHero, ProductOverview, Market Selector and
- * TitleCTA components.
- */
+/* Design Studio page object: hero, product overview, market selector and title CTA. */
 
 export class DesignStudioPage extends BasePage {
   static readonly PATH = '/design-studio';
@@ -25,36 +20,18 @@ export class DesignStudioPage extends BasePage {
     this.header = page.locator('header').first();
     this.main = page.locator('main').first();
     this.footer = getFooter(page);
-    // "Find your Design Studio" is NOT a dropdown - it is a collapsed panel. Until
-    // the SEARCH NOW button expands it, the whole market list sits in the DOM as
-    // aria-hidden="true" / tabindex="-1", which is why getByRole cannot see it and
-    // why a combobox locator matches an unrelated control and reports
-    // "0 market options".
-    //
-    // The expand control announces itself by aria-label; SEARCH NOW text is the
-    // fallback in case that label changes.
+    // "Find your Design Studio" is a collapsed panel, not a dropdown: the market list stays
+    // aria-hidden until SEARCH NOW expands it. SEARCH NOW text is the fallback for the aria-label.
     this.marketPanelExpander = page
       .locator('button[aria-label*="Expand this section" i]')
       .or(page.locator('a, button').filter({ hasText: /^\s*SEARCH NOW\s*$/i }))
       .first();
 
-    // Once expanded, each market links to its own design studio page. The two
-    // countries use different shapes - USA: /arizona/phoenix/market-design-studio,
-    // CAN: /alberta/calgary/calgary-design-studio - so match the common
-    // "-design-studio" suffix. That also excludes the nav link (/design-studio) and
-    // /design-studio/FAQs, neither of which is a market.
+    // Market URLs differ by country, so match the shared "-design-studio" suffix (which skips the nav and FAQ links).
     this.marketDesignStudioLinks = page.locator('a[href*="-design-studio"]:visible');
   }
 
-  /**
-   * Settles the page after arriving on Design Studio.
-   *
-   * Design Studio is entered by clicking the country's header link (top-level on
-   * USA, nested under Resources on CAN) instead of by URL, and the click itself
-   * already waits for the route. What is left is what a goto would have handled:
-   * letting the SPA finish painting and clearing the promo overlay before the
-   * validations start clicking around.
-   */
+  /** Waits for the page to render and clears the promo overlay after arriving from the header link. */
   async verifyDesignStudioLanding(): Promise<void> {
     await this.step('Verify Design Studio landing', async () => {
       await this.waitForPageReady();
@@ -114,14 +91,7 @@ export class DesignStudioPage extends BasePage {
     });
   }
 
-  /**
-   * Checks the "Find your Design Studio" market panel.
-   *
-   * SEARCH NOW expands the panel; every market then links to its own market design
-   * studio page (/<state>/<market>/market-design-studio). Each link is checked
-   * both ways: the href matches the market label it is listed under, and the URL
-   * actually resolves rather than 404ing.
-   */
+  /** Expands the market panel and checks every market links to its own design studio page that resolves. */
   async validateMarketSelector(): Promise<void> {
     await this.step('Validate Design Studio market panel', async () => {
       await this.scrollIntoCenter(this.marketPanelExpander);
@@ -157,10 +127,7 @@ export class DesignStudioPage extends BasePage {
       for (const link of links) {
         expect(link.label, 'Each market link should render a label').not.toBe('');
 
-        // Deliberately NOT asserting that the URL slug equals the market label: the
-        // site legitimately abbreviates ("Greater Toronto Area" -> /ontario/gta/
-        // gta-design-studio, "Kitchener-Waterloo-Guelph" -> kitchener-waterloo-
-        // design-studio), so a label-to-slug rule would fail on correct links.
+        // The slug is not compared to the label: the site abbreviates some markets (e.g. GTA -> /gta/).
         expect(link.href, `Market "${link.label}" should link to a design studio page`).toMatch(
           /-design-studio\/?$/i,
         );
@@ -172,8 +139,7 @@ export class DesignStudioPage extends BasePage {
         }
       }
 
-      // Every market must have its OWN destination - duplicates mean a market is
-      // mislinked to another market's studio, which the status check alone misses.
+      // Duplicate hrefs mean a market is mislinked to another market's studio.
       const uniqueHrefs = new Set(links.map((link) => link.href));
       expect(
         uniqueHrefs.size,

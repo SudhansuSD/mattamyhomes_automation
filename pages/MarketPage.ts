@@ -102,10 +102,7 @@ export class MarketPage extends BasePage {
     return new RegExp(`(?:${paths.map((path) => escapeRegex(path)).join('|')})(?:\\?.*)?$`, 'i');
   }
 
-  /**
-   * Finds the community cards section, falling back to the Explore Communities heading on older
-   * layouts.
-   */
+  /** Finds the community cards section, falling back to the Explore Communities heading. */
   private async getCommunitySection(): Promise<Locator | null> {
     if (await this.communitySection.count()) {
       return this.communitySection.first();
@@ -136,8 +133,7 @@ export class MarketPage extends BasePage {
       return null;
     }
 
-    // The heading sits in the market contact bar, not in a <section> of its own,
-    // so the section is the nearest ancestor that also holds its search links.
+    // The heading has no <section> of its own, so use the nearest ancestor holding its links.
     return this.discoverOurHomesSection.locator('xpath=ancestor::*[.//a][1]');
   }
 
@@ -186,15 +182,12 @@ export class MarketPage extends BasePage {
         });
       await this.waitForPageReady();
 
-      // navigate() applies this guard but goto() does not, so an unhydrated
-      // render leaves every section locator resolving to nothing.
+      // goto() skips the render guard navigate() applies, so run it here.
       await this.ensurePageRendered();
 
       const landedUrl = this.page.url();
 
-      // "Did not load" is not "loaded somewhere else". A failed navigation
-      // leaves chrome-error://chromewebdata/, which points at the wrong file if
-      // it is allowed to fall through to route assertions.
+      // Report a failed load as such, rather than letting it fail a later route assertion.
       if (/^(chrome-error|about:blank)/i.test(landedUrl)) {
         throw new Error(
           [

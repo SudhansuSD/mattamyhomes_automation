@@ -1,22 +1,8 @@
 import type { Page } from '@playwright/test';
 import { getBoolEnv } from '../env';
 
-/*
- * Third-party marketing and analytics tags are blocked during test runs.
- *
- * The site hides its body until `window.onload`, and onload waits on every one of
- * these tags. Measured on STAGE they push a page from about 3s to 10-32s before
- * anything is visible, and the extra scripts are a large share of the renderer
- * memory behind "Target crashed". No test asserts on them, so they only cost time
- * and stability. Blocking them also keeps automated traffic out of Mattamy's
- * analytics and ad reporting.
- *
- * Anything a test or the page itself depends on stays allowed: Google Tag Manager,
- * the OneTrust cookie banner, the chatbot, the interactive site-map embeds,
- * Cloudflare, and the site's own CDN.
- *
- * On by default. `BLOCK_TRACKERS=false` lets the tags load again.
- */
+// Blocks marketing/analytics tags: they delay `window.onload` (which reveals the page) and add
+// renderer memory. Keep GTM, OneTrust, the chatbot and site-map embeds off the list; tests need them.
 
 /** Hosts that serve tracking tags. A leading `*.` matches every subdomain. */
 const TRACKER_HOSTS = [
@@ -39,8 +25,7 @@ const TRACKER_HOSTS = [
   'mobile.events.data.microsoft.com',
   // Mouseflow
   '*.mouseflow.com',
-  // Siteimprove Analytics. Chromium's `*.` rules skip the bare domain, and the
-  // tag script is served from it, so that is listed on its own.
+  // Siteimprove Analytics; bare domain listed too since Chromium's `*.` skips it.
   'siteimproveanalytics.com',
   '*.siteimproveanalytics.com',
   '*.siteimproveanalytics.io',
@@ -53,12 +38,7 @@ export function isTrackerBlockingEnabled(): boolean {
   return getBoolEnv('BLOCK_TRACKERS', true);
 }
 
-/**
- * Chromium launch arguments that make tracker hosts fail DNS resolution.
- *
- * Resolved by the browser itself, so blocking costs nothing per request - unlike a
- * route, which makes Playwright intercept every request the page sends.
- */
+/** Chromium launch args that fail DNS for tracker hosts (cheaper than a route). */
 export function getChromiumTrackerBlockArgs(): string[] {
   if (!isTrackerBlockingEnabled()) {
     return [];
@@ -81,12 +61,7 @@ const TRACKER_URL = new RegExp(
 
 const blockedContexts = new WeakSet<object>();
 
-/**
- * Blocks tracker requests for browsers that have no launch-level equivalent.
- *
- * Chromium is covered by its launch arguments. Firefox and WebKit (Mobile Safari)
- * get a route instead, scoped to the tracker hosts and installed once per context.
- */
+/** Routes tracker requests to abort on non-Chromium browsers, once per context. */
 export async function installTrackerBlocking(page: Page): Promise<void> {
   const context = page.context();
   const browserName = context.browser()?.browserType().name();

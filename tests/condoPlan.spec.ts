@@ -1,10 +1,6 @@
 /**
  * ENV=PROD LOCATION=CAN npx playwright test tests/condoPlan.spec.ts
- * Condo Plan Page Tests
- * Searches configured Canada condo plan from the home page.
- *
- * NOTE: Live lead forms must not be submitted.
- * Submit-based form scenarios are intentionally skipped/commented below.
+ * Condo plan page tests (Canada); submit-based form scenarios are skipped.
  */
 
 import { test } from '@playwright/test';
@@ -16,9 +12,7 @@ import { getLocationConfig } from '../config/locations/locationConfig';
 import { CondoPlanPage } from '../pages/CondoPlanPage';
 import { annotate, Severity } from '../utils/reporting/allureMeta';
 
-// Condos are a Canada-only offering, so this suite always uses CAN data and
-// CondoPlanPage always drives the Canadian site — running it under LOCATION=USA
-// (or with no LOCATION) still exercises condo plans instead of skipping.
+// Condos are Canada-only, so this suite always uses CAN data whatever LOCATION says.
 const location = getLocationConfig('CAN');
 const condoPlan = 'condoPlan' in location ? location.condoPlan : undefined;
 

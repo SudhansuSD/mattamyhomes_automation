@@ -1,7 +1,6 @@
 /**
- * ENV=STAGE COUNTRY=USA npx playwright test tests/planDetail.spec.ts
- * Plan Detail Page Tests
- * @file tests/planDetail.spec.ts
+ * ENV=STAGE LOCATION=USA npx playwright test tests/planPage.spec.ts
+ * Plan detail page tests.
  */
 
 import { test } from '@playwright/test';
